@@ -7,4 +7,7 @@ alias pshttpd='ps aux | grep httpd'
 alias vi='vim'
 alias .='source'
 alias cbcp='xsel --clipboard --input'
+alias dc='docker compose'
+alias dp='docker ps'
+alias dpa='docker ps -a'
 
