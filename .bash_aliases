@@ -10,4 +10,5 @@ alias cbcp='xsel --clipboard --input'
 alias dc='docker compose'
 alias dp='docker ps'
 alias dpa='docker ps -a'
-
+alias dls='docker logs'
+alias claude="$HOME/.claude/local/claude"
