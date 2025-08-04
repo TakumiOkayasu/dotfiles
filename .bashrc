@@ -84,19 +84,6 @@ if [ -x /usr/bin/dircolors ]; then
     #alias egrep='egrep --color=auto'
 fi
 
-# colored GCC warnings and errors
-#export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
-
-# some more ls aliases
-#alias ll='ls -l'
-#alias la='ls -A'
-#alias l='ls -CF'
-
-# Alias definitions.
-# You may want to put all your additions into a separate file like
-# ~/.bash_aliases, instead of adding them here directly.
-# See /usr/share/doc/bash-doc/examples in the bash-doc package.
-
 if [ -f ~/.bash_aliases ]; then
     source ~/.bash_aliases
 fi
@@ -119,8 +106,13 @@ GIT_PS1_SHOWDIRTYSTATE=true
 GIT_PS1_SHOWUNTRACKEDFILES=true
 GIT_PS1_SHOWUPSTREAM=auto
 unset PROMPT_COMMAND
-export PS1="\[[01;32m\]\u@\h\[[01;33m\] \w \[[01;31m\]\$(__git_ps1 '(%s)') 
-\[[01;34m\]\$ \[[00m\]"
 
-. "$HOME/.cargo/env"
-source $HOME/.cargo/env
+eval "$(oh-my-posh init bash --config ~/.poshthemes/sim-web.omp.json)"
+
+# Keychain の自動起動
+if command -v keychain >/dev/null 2>&1; then
+    # --nogui: GUIプロンプトを無効化
+    # --quiet: 起動メッセージを抑制
+    # --agents ssh: SSHエージェントのみ使用
+    eval "$(keychain --eval --agents ssh --nogui --quiet id_ed25519)"
+fi
