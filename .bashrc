@@ -111,8 +111,12 @@ eval "$(oh-my-posh init bash --config ~/.poshthemes/sim-web.omp.json)"
 
 # Keychain の自動起動
 if command -v keychain >/dev/null 2>&1; then
-    # --nogui: GUIプロンプトを無効化
-    # --quiet: 起動メッセージを抑制
-    # --agents ssh: SSHエージェントのみ使用
-    eval "$(keychain --eval --agents ssh --nogui --quiet id_ed25519)"
+    eval "$(keychain --eval --agents ssh --quiet id_ed25519_gitlab_work id_ed25519_github_private)"
 fi
+
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+export PATH=$HOME/.nodebrew/current/bin:$PATH
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
