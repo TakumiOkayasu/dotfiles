@@ -216,4 +216,6 @@ $RECYCLE.BIN/
 
 # claude
 .claude/
+# 仕事用なのであえて無視
+CLAUDE.md
 
