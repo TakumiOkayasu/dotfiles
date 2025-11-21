@@ -50,3 +50,4 @@ ln -sf "$DOTFILES_DIR/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
 ```bash
 source ~/.bashrc
 ```
+
