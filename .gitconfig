@@ -16,6 +16,7 @@
 [core]
 	editor = code --wait
 	symlinks = true
+	excludesfile = /home/okayasu/.config/git/ignore
 [safe]
 	directory = /home/okayasu/prog
 [credential "https://github.com"]
