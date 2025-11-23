@@ -22,7 +22,7 @@
 
 ```bash
 # dotfilesディレクトリのパス
-DOTFILES_DIR="$HOME/prog/dotfile-work"
+DOTFILES_DIR="$(pwd)/dotfile-work"
 
 # Bash関連
 ln -sf "$DOTFILES_DIR/.bashrc" "$HOME/.bashrc"
