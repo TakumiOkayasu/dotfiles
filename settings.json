@@ -1,0 +1,30 @@
+{
+  "alwaysThinkingEnabled": false,
+  "permissions": {
+    "allow": [
+      "Bash(claude --update)",
+      "Bash(claude update)",
+      "Bash(claude migrate-installer)",
+      "Bash(claude --version)",
+      "WebFetch(domain:docs.claude.com)",
+      "WebFetch(domain:code.claude.com)",
+      "Bash(/opt/homebrew/bin/claude:*)"
+    ],
+    "deny": [
+      "Bash(sudo:*)",
+      "Bash(git reset:*)",
+      "Bash(git rebase:*)",
+      "Read(.env:*)",
+      "Read(id_rsa)",
+      "Read(id_ed25519)",
+      "Read(**/*token*)",
+      "Read(**/*key*)",
+      "Write(.env:*)",
+      "Write(**/secrets/**)",
+      "Bash(wget:*)",
+      "Bash(curl:*)"
+    ]
+  }
+}
+
+
