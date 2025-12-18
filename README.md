@@ -15,10 +15,22 @@
 | `.git-prompt.sh` | Gitプロンプト表示スクリプト |
 | `.claude/` | Claude Code設定ディレクトリ |
 | `CLAUDE.md` | Claude Code用指示ファイル |
+| `settings.json` | Claude Code権限設定 |
+| `SKILL-github.md` | GitHub PRレビュースキル |
+| `SKILL-gitlab.md` | GitLab MRレビュースキル |
+| `install.sh` | シンボリックリンク作成スクリプト |
 
 ## 使い方
 
-### シンボリックリンク作成
+### インストールスクリプト (推奨)
+
+```bash
+./install.sh
+```
+
+既存ファイルは自動でバックアップ (`.bak`) されます。
+
+### 手動でシンボリックリンク作成
 
 ```bash
 # dotfilesディレクトリのパス
@@ -43,6 +55,12 @@ ln -sf "$DOTFILES_DIR/.gitignore" "$HOME/.config/git/ignore"
 # Claude Code設定
 ln -sf "$DOTFILES_DIR/.claude" "$HOME/.claude"
 ln -sf "$DOTFILES_DIR/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
+ln -sf "$DOTFILES_DIR/settings.json" "$HOME/.claude/settings.json"
+
+# Claude Code スキルファイル
+mkdir -p "$HOME/.claude/commands"
+ln -sf "$DOTFILES_DIR/SKILL-github.md" "$HOME/.claude/commands/SKILL-github.md"
+ln -sf "$DOTFILES_DIR/SKILL-gitlab.md" "$HOME/.claude/commands/SKILL-gitlab.md"
 ```
 
 ### 設定の反映

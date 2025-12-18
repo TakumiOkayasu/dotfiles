@@ -63,6 +63,30 @@ main() {
         echo "Created: $claude_md -> $DOTFILES_DIR/CLAUDE.md"
     fi
 
+    # settings.json for Claude Code
+    if [[ -d "$HOME/.claude" && -f "$DOTFILES_DIR/settings.json" ]]; then
+        local settings="$HOME/.claude/settings.json"
+        [[ -L "$settings" ]] && rm "$settings"
+        [[ -e "$settings" && ! -L "$settings" ]] && mv "$settings" "${settings}.bak"
+        ln -s "$DOTFILES_DIR/settings.json" "$settings"
+        echo "Created: $settings -> $DOTFILES_DIR/settings.json"
+    fi
+
+    # SKILL files for Claude Code commands
+    if [[ -d "$HOME/.claude" ]]; then
+        mkdir -p "$HOME/.claude/commands"
+        for skill in "$DOTFILES_DIR"/SKILL-*.md; do
+            [[ -f "$skill" ]] || continue
+            local skill_name
+            skill_name="$(basename "$skill")"
+            local dest="$HOME/.claude/commands/$skill_name"
+            [[ -L "$dest" ]] && rm "$dest"
+            [[ -e "$dest" && ! -L "$dest" ]] && mv "$dest" "${dest}.bak"
+            ln -s "$skill" "$dest"
+            echo "Created: $dest -> $skill"
+        done
+    fi
+
     echo
     echo "Done. Run 'source ~/.bashrc' to apply changes."
 }
