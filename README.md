@@ -7,7 +7,9 @@
 | ファイル | 説明 |
 |----------|------|
 | `.bashrc` | Bash設定ファイル |
-| `.bash_aliases` | エイリアス定義 (grep, ls, docker等) |
+| `.bash_aliases` | Bash用エイリアス定義 |
+| `.zshrc` | Zsh設定ファイル |
+| `.zsh_aliases` | Zsh用エイリアス定義 |
 | `.vimrc` | Vim設定ファイル |
 | `.gitconfig` | Git設定 (エイリアス, ユーザー情報等) |
 | `.gitignore` | グローバルgitignore |
@@ -39,6 +41,10 @@ DOTFILES_DIR="$(pwd)"
 # Bash関連
 ln -sf "$DOTFILES_DIR/.bashrc" "$HOME/.bashrc"
 ln -sf "$DOTFILES_DIR/.bash_aliases" "$HOME/.bash_aliases"
+
+# Zsh関連
+ln -sf "$DOTFILES_DIR/.zshrc" "$HOME/.zshrc"
+ln -sf "$DOTFILES_DIR/.zsh_aliases" "$HOME/.zsh_aliases"
 
 # Vim
 ln -sf "$DOTFILES_DIR/.vimrc" "$HOME/.vimrc"

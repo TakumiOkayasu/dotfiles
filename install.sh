@@ -12,6 +12,8 @@ DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
 LINKS=(
     ".bashrc:$HOME/.bashrc"
     ".bash_aliases:$HOME/.bash_aliases"
+    ".zshrc:$HOME/.zshrc"
+    ".zsh_aliases:$HOME/.zsh_aliases"
     ".vimrc:$HOME/.vimrc"
     ".gitconfig:$HOME/.gitconfig"
     ".git-completion.bash:$HOME/.git-completion.bash"
