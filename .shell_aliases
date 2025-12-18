@@ -12,9 +12,9 @@ alias dls='docker logs'
 
 # OS-specific aliases
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS (BSD ls)
-    alias lla='ls -alh -T'
-    alias ls='ls -lh -G'
+    # macOS - use gls with standard display
+    alias lla='gls -alh --color=auto --group-directories-first --time-style=long-iso'
+    alias ls='gls -lh --color=auto --group-directories-first'
     alias cbcp='pbcopy'
 else
     # Linux (GNU ls)
@@ -22,3 +22,4 @@ else
     alias ls='ls -lXv -h --color=auto'
     alias cbcp='xsel --clipboard --input'
 fi
+
