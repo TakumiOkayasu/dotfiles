@@ -7,9 +7,7 @@
 | ファイル | 説明 |
 |----------|------|
 | `.bashrc` | Bash設定ファイル |
-| `.bash_aliases` | Bash用エイリアス定義 |
-| `.zshrc` | Zsh設定ファイル |
-| `.zsh_aliases` | Zsh用エイリアス定義 |
+| `.shell_aliases` | シェル共通エイリアス定義 (Bash/Zsh, macOS/Linux対応) |
 | `.vimrc` | Vim設定ファイル |
 | `.gitconfig` | Git設定 (エイリアス, ユーザー情報等) |
 | `.gitignore` | グローバルgitignore |
@@ -38,13 +36,9 @@
 # dotfilesディレクトリのパス
 DOTFILES_DIR="$(pwd)"
 
-# Bash関連
+# シェル関連
 ln -sf "$DOTFILES_DIR/.bashrc" "$HOME/.bashrc"
-ln -sf "$DOTFILES_DIR/.bash_aliases" "$HOME/.bash_aliases"
-
-# Zsh関連
-ln -sf "$DOTFILES_DIR/.zshrc" "$HOME/.zshrc"
-ln -sf "$DOTFILES_DIR/.zsh_aliases" "$HOME/.zsh_aliases"
+ln -sf "$DOTFILES_DIR/.shell_aliases" "$HOME/.shell_aliases"
 
 # Vim
 ln -sf "$DOTFILES_DIR/.vimrc" "$HOME/.vimrc"

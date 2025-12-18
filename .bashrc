@@ -84,8 +84,8 @@ if [ -x /usr/bin/dircolors ]; then
     #alias egrep='egrep --color=auto'
 fi
 
-if [ -f ~/.bash_aliases ]; then
-    source ~/.bash_aliases
+if [ -f ~/.shell_aliases ]; then
+    source ~/.shell_aliases
 fi
 
 # enable programmable completion features (you don't need to enable

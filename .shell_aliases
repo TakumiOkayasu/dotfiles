@@ -1,0 +1,24 @@
+# Common aliases
+alias egrep='egrep --color=auto'
+alias fgrep='fgrep --color=auto'
+alias grep='grep --color=auto'
+alias pshttpd='ps aux | grep httpd'
+alias vi='vim'
+alias .='source'
+alias dc='docker compose'
+alias dp='docker ps'
+alias dpa='docker ps -a'
+alias dls='docker logs'
+
+# OS-specific aliases
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS (BSD ls)
+    alias lla='ls -alh -T'
+    alias ls='ls -lh -G'
+    alias cbcp='pbcopy'
+else
+    # Linux (GNU ls)
+    alias lla='ls -alXv --human-readable --time-style=long-iso --group-directories-first --color=auto'
+    alias ls='ls -lXv -h --color=auto'
+    alias cbcp='xsel --clipboard --input'
+fi
