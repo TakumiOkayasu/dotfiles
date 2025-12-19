@@ -17,6 +17,7 @@
 	editor = code --wait
 	symlinks = true
 	excludesfile = /home/okayasu/.config/git/ignore
+	compression = 1
 [safe]
 	directory = /home/okayasu/prog
 [credential "https://github.com"]
@@ -25,3 +26,11 @@
 	helper = !/home/linuxbrew/.linuxbrew/bin/gh auth git-credential
 [url "https://github.com/"]
 	insteadOf = https://github.com/:
+[http]
+	postBuffer = 524288000
+[pack]
+	windowMemory = 256m
+[url "git@github.com:"]
+	insteadOf = https://github.com/
+[url "git@gitlab.twb.jp:"]
+	insteadOf = https://gitlab.twb.jp/
