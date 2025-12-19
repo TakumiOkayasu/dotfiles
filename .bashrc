@@ -74,9 +74,8 @@ if [ -x /usr/bin/dircolors ]; then
     #alias egrep='egrep --color=auto'
 fi
 
-# カスタムエイリアスの読み込み
-if [ -f ~/.bash_aliases ]; then
-    source ~/.bash_aliases
+if [ -f ~/.shell_aliases ]; then
+    source ~/.shell_aliases
 fi
 
 # ==============================================================================
