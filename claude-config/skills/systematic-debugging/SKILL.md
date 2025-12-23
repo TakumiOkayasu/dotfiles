@@ -1,0 +1,48 @@
+---
+name: systematic-debugging
+description: Use when encountering bugs or test failures - enforces 4-phase root cause analysis before fixing.
+---
+
+# Systematic Debugging
+
+## 🚨 鉄則
+
+**推測での修正禁止。根本原因を特定してから修正。**
+
+## 4フェーズ(⛔ スキップ禁止)
+
+### Phase 1: 再現
+
+🛑 100%再現可能にする。再現できなければ修正提案禁止。
+
+```
+□ 症状を正確に記録
+□ 最小再現ケースを作成
+□ 環境情報を収集
+```
+
+### Phase 2: 境界トレース
+
+どの層で問題が発生しているか特定。
+
+### Phase 3: 根本原因特定
+
+「なぜ?」を繰り返す。
+
+```
+症状: ユーザーが保存できない
+→ なぜ? APIが500を返す
+→ なぜ? DBクエリが失敗
+→ なぜ? NULL制約違反
+→ なぜ? バリデーションが欠落 ← 🎯 根本原因
+```
+
+### Phase 4: TDDで修正
+
+1. バグを再現するテストを書く(RED)
+2. 最小限の修正(GREEN)
+3. 修正が正しいことを確認
+
+## ⚠️ 失敗パターン
+
+3回以上の修正失敗 → 🛑 アーキテクチャを疑う。ユーザーと相談。
