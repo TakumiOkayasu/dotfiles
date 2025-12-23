@@ -28,7 +28,7 @@
 
 ### 利用環境
 
-- OS: Ubuntu:latest(LST)
+- OS: Ubuntu:latest(LTS), macOS, Windows
 - エディタ: Visual Studio Code(latest)
 
 ## 協力関係の基本ルール
