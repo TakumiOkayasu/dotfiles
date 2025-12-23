@@ -66,7 +66,7 @@ print_header()  { printf "\n${COLOR_BOLD}${COLOR_CYAN}%s${COLOR_RESET}\n" "$1"; 
 
 # Format: "category|source|destination|description"
 # Using | as delimiter to avoid issues with colons in paths
-FILE_COUNT=8
+FILE_COUNT=7
 
 file_def() {
     case "$1" in
@@ -77,7 +77,6 @@ file_def() {
         4) echo "git|.git-prompt.sh|$HOME/.git-prompt.sh|Git branch info in prompt" ;;
         5) echo "git|.gitignore|$HOME/.config/git/ignore|Global gitignore patterns" ;;
         6) echo "vim|.vimrc|$HOME/.vimrc|Vim editor configuration" ;;
-        7) echo "claude|.claude|$HOME/.claude|Claude Code configuration directory" ;;
     esac
 }
 
@@ -111,6 +110,11 @@ get_field() {
 # Get file indices by category
 get_indices_by_category() {
     local cat="$1"
+    # claude category is handled separately via git ls-files
+    if [ "$cat" = "claude" ]; then
+        echo ""
+        return
+    fi
     local i=0
     local result=""
     while [ $i -lt $FILE_COUNT ]; do
@@ -124,6 +128,12 @@ get_indices_by_category() {
         i=$((i + 1))
     done
     echo "$result"
+}
+
+# Get claude-config files from git
+get_claude_config_files() {
+    cd "$DOTFILES_DIR" || return
+    git ls-files claude-config/ 2>/dev/null || true
 }
 
 # Check if index is in selected list
@@ -140,6 +150,14 @@ add_to_selected() {
     if ! is_selected "$idx"; then
         SELECTED_INDICES="$SELECTED_INDICES $idx"
     fi
+}
+
+# Check if claude category is selected (uses special marker "claude")
+is_claude_selected() {
+    case " $SELECTED_INDICES " in
+        *" claude "*) return 0 ;;
+        *) return 1 ;;
+    esac
 }
 
 # ============================================================================
@@ -219,125 +237,47 @@ remove_link() {
     fi
 }
 
-# Install Claude-specific files (CLAUDE.md, settings.json, SKILL-*.md)
-install_claude_extras() {
-    if [ ! -d "$HOME/.claude" ]; then
+# Install Claude config files from claude-config/ using git ls-files
+install_claude_config() {
+    local files
+    files=$(get_claude_config_files)
+
+    if [ -z "$files" ]; then
+        print_skip "No claude-config files found in git"
         return
     fi
 
-    # CLAUDE.md
-    if [ -f "$DOTFILES_DIR/CLAUDE.md" ]; then
-        local claude_md="$HOME/.claude/CLAUDE.md"
-        if $MODE_DRY_RUN; then
-            print_info "[DRY RUN] Would create: $claude_md -> $DOTFILES_DIR/CLAUDE.md"
-        else
-            [ -L "$claude_md" ] && rm "$claude_md"
-            if [ -e "$claude_md" ] && [ ! -L "$claude_md" ]; then
-                mv "$claude_md" "${claude_md}.bak"
-                COUNT_BACKUP=$((COUNT_BACKUP + 1))
-            fi
-            ln -s "$DOTFILES_DIR/CLAUDE.md" "$claude_md"
-            print_success "Created: $claude_md"
-            COUNT_CREATED=$((COUNT_CREATED + 1))
-        fi
+    # Ensure ~/.claude directory exists
+    if $MODE_DRY_RUN; then
+        print_info "[DRY RUN] Would create: $HOME/.claude (if not exists)"
+    else
+        mkdir -p "$HOME/.claude"
     fi
 
-    # settings.json
-    if [ -f "$DOTFILES_DIR/settings.json" ]; then
-        local settings="$HOME/.claude/settings.json"
-        if $MODE_DRY_RUN; then
-            print_info "[DRY RUN] Would create: $settings -> $DOTFILES_DIR/settings.json"
-        else
-            [ -L "$settings" ] && rm "$settings"
-            if [ -e "$settings" ] && [ ! -L "$settings" ]; then
-                mv "$settings" "${settings}.bak"
-                COUNT_BACKUP=$((COUNT_BACKUP + 1))
-            fi
-            ln -s "$DOTFILES_DIR/settings.json" "$settings"
-            print_success "Created: $settings"
-            COUNT_CREATED=$((COUNT_CREATED + 1))
-        fi
-    fi
+    for file in $files; do
+        # Remove "claude-config/" prefix to get relative path
+        local relative="${file#claude-config/}"
+        local src="$DOTFILES_DIR/$file"
+        local dest="$HOME/.claude/$relative"
 
-    # SKILL-*.md files
-    mkdir -p "$HOME/.claude/commands"
-    for skill in "$DOTFILES_DIR"/SKILL-*.md; do
-        [ -f "$skill" ] || continue
-        local skill_name
-        skill_name="$(basename "$skill")"
-        local dest="$HOME/.claude/commands/$skill_name"
-        if $MODE_DRY_RUN; then
-            print_info "[DRY RUN] Would create: $dest -> $skill"
-        else
-            [ -L "$dest" ] && rm "$dest"
-            if [ -e "$dest" ] && [ ! -L "$dest" ]; then
-                mv "$dest" "${dest}.bak"
-                COUNT_BACKUP=$((COUNT_BACKUP + 1))
-            fi
-            ln -s "$skill" "$dest"
-            print_success "Created: $dest"
-            COUNT_CREATED=$((COUNT_CREATED + 1))
-        fi
+        create_link "$file" "$dest"
     done
 }
 
-# Uninstall Claude-specific files
-uninstall_claude_extras() {
-    if [ ! -d "$HOME/.claude" ]; then
+# Uninstall Claude config files
+uninstall_claude_config() {
+    local files
+    files=$(get_claude_config_files)
+
+    if [ -z "$files" ]; then
         return
     fi
 
-    # CLAUDE.md
-    local claude_md="$HOME/.claude/CLAUDE.md"
-    if [ -L "$claude_md" ]; then
-        local target
-        target="$(readlink "$claude_md")"
-        if [ "$target" = "$DOTFILES_DIR/CLAUDE.md" ]; then
-            if $MODE_DRY_RUN; then
-                print_info "[DRY RUN] Would remove: $claude_md"
-            else
-                rm "$claude_md"
-                print_success "Removed: $claude_md"
-                COUNT_REMOVED=$((COUNT_REMOVED + 1))
-            fi
-        fi
-    fi
+    for file in $files; do
+        local relative="${file#claude-config/}"
+        local dest="$HOME/.claude/$relative"
 
-    # settings.json
-    local settings="$HOME/.claude/settings.json"
-    if [ -L "$settings" ]; then
-        local target
-        target="$(readlink "$settings")"
-        if [ "$target" = "$DOTFILES_DIR/settings.json" ]; then
-            if $MODE_DRY_RUN; then
-                print_info "[DRY RUN] Would remove: $settings"
-            else
-                rm "$settings"
-                print_success "Removed: $settings"
-                COUNT_REMOVED=$((COUNT_REMOVED + 1))
-            fi
-        fi
-    fi
-
-    # SKILL-*.md files
-    for skill in "$DOTFILES_DIR"/SKILL-*.md; do
-        [ -f "$skill" ] || continue
-        local skill_name
-        skill_name="$(basename "$skill")"
-        local dest="$HOME/.claude/commands/$skill_name"
-        if [ -L "$dest" ]; then
-            local target
-            target="$(readlink "$dest")"
-            if [ "$target" = "$skill" ]; then
-                if $MODE_DRY_RUN; then
-                    print_info "[DRY RUN] Would remove: $dest"
-                else
-                    rm "$dest"
-                    print_success "Removed: $dest"
-                    COUNT_REMOVED=$((COUNT_REMOVED + 1))
-                fi
-            fi
-        fi
+        remove_link "$file" "$dest"
     done
 }
 
@@ -367,20 +307,34 @@ show_files_in_category() {
     desc=$(get_category_desc "$cat")
     print_header "Files in $desc"
     echo ""
-    local i=1
-    local indices
-    indices=$(get_indices_by_category "$cat")
-    for idx in $indices; do
-        local def
-        def=$(file_def "$idx")
-        local src
-        src=$(get_field "$def" source)
-        local fdesc
-        fdesc=$(get_field "$def" description)
-        printf "  ${COLOR_BOLD}%d)${COLOR_RESET} %s\n" "$i" "$src"
-        printf "     ${COLOR_CYAN}%s${COLOR_RESET}\n" "$fdesc"
-        i=$((i + 1))
-    done
+
+    if [ "$cat" = "claude" ]; then
+        # Show claude-config files from git
+        local i=1
+        local files
+        files=$(get_claude_config_files)
+        for file in $files; do
+            local relative="${file#claude-config/}"
+            printf "  ${COLOR_BOLD}%d)${COLOR_RESET} %s\n" "$i" "$relative"
+            printf "     ${COLOR_CYAN}-> ~/.claude/%s${COLOR_RESET}\n" "$relative"
+            i=$((i + 1))
+        done
+    else
+        local i=1
+        local indices
+        indices=$(get_indices_by_category "$cat")
+        for idx in $indices; do
+            local def
+            def=$(file_def "$idx")
+            local src
+            src=$(get_field "$def" source)
+            local fdesc
+            fdesc=$(get_field "$def" description)
+            printf "  ${COLOR_BOLD}%d)${COLOR_RESET} %s\n" "$i" "$src"
+            printf "     ${COLOR_CYAN}%s${COLOR_RESET}\n" "$fdesc"
+            i=$((i + 1))
+        done
+    fi
     echo ""
     printf "  ${COLOR_BOLD}a)${COLOR_RESET} All files in this category\n"
     printf "  ${COLOR_BOLD}b)${COLOR_RESET} Back to category menu\n"
@@ -405,6 +359,8 @@ select_files_interactive() {
                     add_to_selected $i
                     i=$((i + 1))
                 done
+                # Also select claude
+                SELECTED_INDICES="$SELECTED_INDICES claude"
                 return
                 ;;
             [1-4])
@@ -440,6 +396,24 @@ select_files_interactive() {
 
 select_from_category() {
     local cat="$1"
+
+    if [ "$cat" = "claude" ]; then
+        # For claude, we select all or nothing
+        show_files_in_category "$cat"
+        printf "Install all Claude config files? [Y/n]: "
+        read -r choice
+        case "$choice" in
+            n|N)
+                return
+                ;;
+            *)
+                SELECTED_INDICES="$SELECTED_INDICES claude"
+                print_success "Added all Claude config files"
+                return
+                ;;
+        esac
+    fi
+
     local indices
     indices=$(get_indices_by_category "$cat")
 
@@ -502,29 +476,30 @@ confirm_installation() {
 
     print_header "Files to install"
     echo ""
-    local has_claude=false
+
+    # Show regular dotfiles
     for idx in $SELECTED_INDICES; do
+        # Skip the "claude" marker
+        [ "$idx" = "claude" ] && continue
+
         local def
         def=$(file_def "$idx")
-        local cat
-        cat=$(get_field "$def" category)
         local src
         src=$(get_field "$def" source)
         local dest
         dest=$(get_field "$def" dest)
         printf "  ${COLOR_GREEN}+${COLOR_RESET} %s -> %s\n" "$src" "$dest"
-        if [ "$cat" = "claude" ]; then
-            has_claude=true
-        fi
     done
 
-    if $has_claude; then
+    # Show claude config files if selected
+    if is_claude_selected; then
         echo ""
-        printf "  ${COLOR_CYAN}Also includes Claude extras:${COLOR_RESET}\n"
-        [ -f "$DOTFILES_DIR/CLAUDE.md" ] && echo "    + CLAUDE.md"
-        [ -f "$DOTFILES_DIR/settings.json" ] && echo "    + settings.json"
-        for skill in "$DOTFILES_DIR"/SKILL-*.md; do
-            [ -f "$skill" ] && echo "    + $(basename "$skill")"
+        printf "  ${COLOR_CYAN}Claude Code config (from claude-config/):${COLOR_RESET}\n"
+        local files
+        files=$(get_claude_config_files)
+        for file in $files; do
+            local relative="${file#claude-config/}"
+            printf "    + %s -> ~/.claude/%s\n" "$relative" "$relative"
         done
     fi
 
@@ -546,33 +521,31 @@ confirm_installation() {
 install_files() {
     print_header "Installing dotfiles from: $DOTFILES_DIR"
 
-    local has_claude=false
+    # Install regular dotfiles
     for idx in $SELECTED_INDICES; do
+        # Skip the "claude" marker
+        [ "$idx" = "claude" ] && continue
+
         local def
         def=$(file_def "$idx")
-        local cat
-        cat=$(get_field "$def" category)
         local src
         src=$(get_field "$def" source)
         local dest
         dest=$(get_field "$def" dest)
 
         create_link "$src" "$dest"
-
-        if [ "$cat" = "claude" ]; then
-            has_claude=true
-        fi
     done
 
-    # Install Claude extras if claude category was selected
-    if $has_claude; then
-        install_claude_extras
+    # Install Claude config if selected
+    if is_claude_selected; then
+        install_claude_config
     fi
 }
 
 uninstall_files() {
     print_header "Uninstalling dotfiles"
 
+    # Uninstall regular dotfiles
     local i=0
     while [ $i -lt $FILE_COUNT ]; do
         local def
@@ -585,7 +558,8 @@ uninstall_files() {
         i=$((i + 1))
     done
 
-    uninstall_claude_extras
+    # Uninstall Claude config
+    uninstall_claude_config
 }
 
 show_summary() {
@@ -624,7 +598,7 @@ CATEGORIES:
     shell   Bash configuration (.bashrc, .shell_aliases)
     git     Git settings (.gitconfig, .git-completion.bash, etc.)
     vim     Vim configuration (.vimrc)
-    claude  Claude Code settings (.claude, CLAUDE.md, SKILL files)
+    claude  Claude Code settings (from claude-config/)
 
 EXAMPLES:
     ./install.sh              # Interactive installation
@@ -632,6 +606,12 @@ EXAMPLES:
     ./install.sh -n           # Preview what would be installed
     ./install.sh -u           # Remove all symlinks
     ./install.sh -n -u        # Preview uninstall
+
+CLAUDE CONFIG:
+    Files in claude-config/ are automatically detected via 'git ls-files'.
+    They are symlinked to ~/.claude/ preserving directory structure.
+    To add new Claude config files, simply add them to claude-config/ and
+    commit to git.
 EOF
 }
 
@@ -703,6 +683,8 @@ main() {
                 add_to_selected $i
                 i=$((i + 1))
             done
+            # Also select claude
+            SELECTED_INDICES="$SELECTED_INDICES claude"
         fi
         install_files
     fi
