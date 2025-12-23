@@ -214,8 +214,7 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# claude
+# Claude Code local data (credentials, history, etc.)
+# Config files are in claude-config/ and tracked by git
 .claude/
-# 仕事用なのであえて無視
-CLAUDE.md
 
