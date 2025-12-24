@@ -1,6 +1,6 @@
 ---
 name: security-review
-description: Use when handling auth, user input, or sensitive data - covers OWASP Top 10.
+description: 認証、ユーザー入力、機密データを扱う際に使用。OWASP Top 10をカバー。
 ---
 
 # Security Review

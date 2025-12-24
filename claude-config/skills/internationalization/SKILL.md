@@ -1,6 +1,6 @@
 ---
 name: internationalization
-description: Use when implementing i18n or timezone handling.
+description: i18nやタイムゾーン処理を実装する際に使用。
 ---
 
 # Internationalization

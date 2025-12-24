@@ -1,6 +1,6 @@
 ---
 name: api-design
-description: Use when designing REST APIs - covers RESTful principles and error handling.
+description: REST APIを設計する際に使用。RESTful原則とエラーハンドリングをカバー。
 ---
 
 # API Design

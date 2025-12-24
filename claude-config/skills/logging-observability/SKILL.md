@@ -1,6 +1,6 @@
 ---
 name: logging-observability
-description: Use when implementing logging or monitoring.
+description: ロギングやモニタリングを実装する際に使用。
 ---
 
 # Logging and Observability

@@ -1,6 +1,6 @@
 ---
 name: performance-optimization
-description: Use when optimizing performance or profiling - covers measurement and common bottlenecks.
+description: パフォーマンス最適化やプロファイリング時に使用。計測とよくあるボトルネックをカバー。
 ---
 
 # Performance Optimization

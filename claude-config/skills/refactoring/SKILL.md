@@ -1,6 +1,6 @@
 ---
 name: refactoring
-description: Use when improving code structure without changing behavior.
+description: 振る舞いを変えずにコード構造を改善する際に使用。
 ---
 
 # Refactoring
