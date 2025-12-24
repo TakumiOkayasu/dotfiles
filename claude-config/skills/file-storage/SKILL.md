@@ -1,6 +1,6 @@
 ---
 name: file-storage
-description: Use when handling file uploads, S3, or file system operations.
+description: ファイルアップロード、S3、ファイルシステム操作を扱う際に使用。
 ---
 
 # File & Storage

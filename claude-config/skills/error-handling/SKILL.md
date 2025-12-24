@@ -1,6 +1,6 @@
 ---
 name: error-handling
-description: Use when implementing error handling - covers recovery strategies and resilient patterns.
+description: エラーハンドリングを実装する際に使用。回復戦略と復元パターンをカバー。
 ---
 
 # Error Handling

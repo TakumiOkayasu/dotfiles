@@ -1,6 +1,6 @@
 ---
 name: brainstorming-design
-description: Use before writing code - refines ideas into designs through questioning.
+description: コードを書く前に使用。質問を通じてアイデアを設計に洗練する。
 ---
 
 # Brainstorming and Design

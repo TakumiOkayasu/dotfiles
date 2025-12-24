@@ -1,6 +1,6 @@
 ---
 name: typescript-strict
-description: Use when configuring TypeScript or dealing with type errors.
+description: TypeScriptの設定や型エラー対応時に使用。
 ---
 
 # TypeScript Strict Mode

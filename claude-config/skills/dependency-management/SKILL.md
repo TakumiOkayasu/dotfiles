@@ -1,6 +1,6 @@
 ---
 name: dependency-management
-description: Use when managing packages or handling vulnerabilities.
+description: パッケージ管理や脆弱性対応時に使用。
 ---
 
 # Dependency Management
