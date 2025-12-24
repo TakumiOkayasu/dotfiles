@@ -1,6 +1,6 @@
 ---
 name: environment-configuration
-description: Use when managing env vars or secrets.
+description: 環境変数やシークレットを管理する際に使用。
 ---
 
 # Environment Configuration

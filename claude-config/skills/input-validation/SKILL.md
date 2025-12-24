@@ -1,6 +1,6 @@
 ---
 name: input-validation
-description: Use when validating user input, form data, or API requests.
+description: ユーザー入力、フォームデータ、APIリクエストを検証する際に使用。
 ---
 
 # Input Validation

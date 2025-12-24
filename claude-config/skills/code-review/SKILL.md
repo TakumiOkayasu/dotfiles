@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Use when reviewing code or PRs - covers quality, maintainability, and common issues.
+description: コードやPRをレビューする際に使用。品質、保守性、よくある問題をカバー。
 ---
 
 # Code Review

@@ -1,6 +1,6 @@
 ---
 name: migration-upgrade
-description: Use when upgrading frameworks or migrating technologies.
+description: フレームワークのアップグレードや技術移行時に使用。
 ---
 
 # Migration and Upgrade

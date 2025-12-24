@@ -1,6 +1,6 @@
 ---
 name: documentation
-description: Use when writing docs, READMEs, or code comments.
+description: ドキュメント、README、コードコメントを書く際に使用。
 ---
 
 # Documentation

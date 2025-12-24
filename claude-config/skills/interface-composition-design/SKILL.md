@@ -1,6 +1,6 @@
 ---
 name: interface-composition-design
-description: Use when designing classes or refactoring architecture - enforces composition over inheritance.
+description: クラス設計やアーキテクチャリファクタリング時に使用。継承より合成を推奨。
 ---
 
 # Interface-based Design

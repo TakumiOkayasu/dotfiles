@@ -1,6 +1,6 @@
 ---
 name: git-workflow
-description: Use when working with git - covers Conventional Commits and branch naming.
+description: gitを使用する際に使用。Conventional Commitsとブランチ命名をカバー。
 ---
 
 # Git Workflow

@@ -1,6 +1,6 @@
 ---
 name: ci-cd
-description: Use when setting up CI/CD pipelines or GitHub Actions.
+description: CI/CDパイプラインやGitHub Actionsを設定する際に使用。
 ---
 
 # CI/CD

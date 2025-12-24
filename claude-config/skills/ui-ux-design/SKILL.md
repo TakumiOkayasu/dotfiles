@@ -1,6 +1,6 @@
 ---
 name: ui-ux-design
-description: Use when implementing UI or improving UX - covers accessibility and responsive design.
+description: UI実装やUX改善時に使用。アクセシビリティとレスポンシブデザインをカバー。
 ---
 
 # UI/UX Design

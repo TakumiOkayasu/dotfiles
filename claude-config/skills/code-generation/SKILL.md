@@ -1,6 +1,6 @@
 ---
 name: code-generation
-description: Use when scaffolding or generating boilerplate.
+description: スキャフォールディングやボイラープレート生成時に使用。
 ---
 
 # Code Generation

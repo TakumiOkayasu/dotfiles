@@ -1,6 +1,6 @@
 ---
 name: concurrency-async
-description: Use when implementing concurrent or async operations.
+description: 並行処理や非同期操作を実装する際に使用。
 ---
 
 # Concurrency and Async

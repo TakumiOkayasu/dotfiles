@@ -1,6 +1,6 @@
 ---
 name: systematic-debugging
-description: Use when encountering bugs or test failures - enforces 4-phase root cause analysis before fixing.
+description: バグやテスト失敗に遭遇した際に使用。修正前の4フェーズ根本原因分析を強制。
 ---
 
 # Systematic Debugging
