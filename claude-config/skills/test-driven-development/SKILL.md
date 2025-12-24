@@ -1,6 +1,6 @@
 ---
 name: test-driven-development
-description: Use when implementing features or bugfixes - enforces RED-GREEN-REFACTOR cycle and Testing Trophy methodology.
+description: 機能実装やバグ修正時に使用。RED-GREEN-REFACTORサイクルとTesting Trophy手法を強制。
 ---
 
 # Test-Driven Development

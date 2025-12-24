@@ -1,6 +1,6 @@
 ---
 name: docker
-description: Use when creating Dockerfiles or docker-compose configurations.
+description: Dockerfileやdocker-compose設定を作成する際に使用。
 ---
 
 # Docker

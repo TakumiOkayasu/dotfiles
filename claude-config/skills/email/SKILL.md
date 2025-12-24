@@ -1,6 +1,6 @@
 ---
 name: email
-description: Use when implementing email sending, templates, or notifications.
+description: メール送信、テンプレート、通知機能を実装する際に使用。
 ---
 
 # Email

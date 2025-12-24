@@ -1,6 +1,6 @@
 ---
 name: websocket-realtime
-description: Use when implementing WebSocket, SSE, or real-time features.
+description: WebSocket、SSE、リアルタイム機能を実装する際に使用。
 ---
 
 # WebSocket & Real-time

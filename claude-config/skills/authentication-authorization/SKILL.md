@@ -1,6 +1,6 @@
 ---
 name: authentication-authorization
-description: Use when implementing login, sessions, JWT, OAuth, or access control.
+description: ログイン、セッション、JWT、OAuth、アクセス制御を実装する際に使用。
 ---
 
 # Authentication & Authorization

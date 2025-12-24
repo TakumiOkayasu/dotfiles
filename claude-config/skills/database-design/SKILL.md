@@ -1,6 +1,6 @@
 ---
 name: database-design
-description: Use when designing schemas or writing migrations.
+description: スキーマ設計やマイグレーション作成時に使用。
 ---
 
 # Database Design

@@ -1,6 +1,6 @@
 ---
 name: caching
-description: Use when implementing caching, Redis, or cache invalidation.
+description: キャッシュ、Redis、キャッシュ無効化を実装する際に使用。
 ---
 
 # Caching
