@@ -218,3 +218,5 @@ $RECYCLE.BIN/
 # Config files are in claude-config/ and tracked by git
 .claude/
 
+
+**/.claude/settings.local.json
