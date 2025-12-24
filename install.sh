@@ -247,18 +247,37 @@ install_claude_config() {
         return
     fi
 
-    # Ensure ~/.claude directory exists
+    # Ensure ~/.claude and ~/.claude/commands directories exist
     if $MODE_DRY_RUN; then
         print_info "[DRY RUN] Would create: $HOME/.claude (if not exists)"
+        print_info "[DRY RUN] Would create: $HOME/.claude/commands (if not exists)"
     else
         mkdir -p "$HOME/.claude"
+        mkdir -p "$HOME/.claude/commands"
     fi
 
     for file in $files; do
         # Remove "claude-config/" prefix to get relative path
         local relative="${file#claude-config/}"
         local src="$DOTFILES_DIR/$file"
-        local dest="$HOME/.claude/$relative"
+        local dest
+
+        # skills/ directory maps to ~/.claude/commands/
+        if echo "$relative" | grep -q "^skills/"; then
+            # Extract skill name and file from skills/skill-name/SKILL.md
+            local skill_path="${relative#skills/}"
+            local skill_name="${skill_path%%/*}"
+            local skill_file="${skill_path#*/}"
+            # Map skills/skill-name/SKILL.md to commands/SKILL-skill-name.md
+            if [ "$skill_file" = "SKILL.md" ]; then
+                dest="$HOME/.claude/commands/SKILL-${skill_name}.md"
+            else
+                # For other files in skills directory, use the original structure
+                dest="$HOME/.claude/commands/${skill_name}-${skill_file}"
+            fi
+        else
+            dest="$HOME/.claude/$relative"
+        fi
 
         create_link "$file" "$dest"
     done
@@ -275,7 +294,21 @@ uninstall_claude_config() {
 
     for file in $files; do
         local relative="${file#claude-config/}"
-        local dest="$HOME/.claude/$relative"
+        local dest
+
+        # skills/ directory maps to ~/.claude/commands/
+        if echo "$relative" | grep -q "^skills/"; then
+            local skill_path="${relative#skills/}"
+            local skill_name="${skill_path%%/*}"
+            local skill_file="${skill_path#*/}"
+            if [ "$skill_file" = "SKILL.md" ]; then
+                dest="$HOME/.claude/commands/SKILL-${skill_name}.md"
+            else
+                dest="$HOME/.claude/commands/${skill_name}-${skill_file}"
+            fi
+        else
+            dest="$HOME/.claude/$relative"
+        fi
 
         remove_link "$file" "$dest"
     done
@@ -315,8 +348,24 @@ show_files_in_category() {
         files=$(get_claude_config_files)
         for file in $files; do
             local relative="${file#claude-config/}"
+            local display_dest
+
+            # skills/ directory maps to ~/.claude/commands/
+            if echo "$relative" | grep -q "^skills/"; then
+                local skill_path="${relative#skills/}"
+                local skill_name="${skill_path%%/*}"
+                local skill_file="${skill_path#*/}"
+                if [ "$skill_file" = "SKILL.md" ]; then
+                    display_dest="~/.claude/commands/SKILL-${skill_name}.md"
+                else
+                    display_dest="~/.claude/commands/${skill_name}-${skill_file}"
+                fi
+            else
+                display_dest="~/.claude/$relative"
+            fi
+
             printf "  ${COLOR_BOLD}%d)${COLOR_RESET} %s\n" "$i" "$relative"
-            printf "     ${COLOR_CYAN}-> ~/.claude/%s${COLOR_RESET}\n" "$relative"
+            printf "     ${COLOR_CYAN}-> %s${COLOR_RESET}\n" "$display_dest"
             i=$((i + 1))
         done
     else
@@ -499,7 +548,23 @@ confirm_installation() {
         files=$(get_claude_config_files)
         for file in $files; do
             local relative="${file#claude-config/}"
-            printf "    + %s -> ~/.claude/%s\n" "$relative" "$relative"
+            local display_dest
+
+            # skills/ directory maps to ~/.claude/commands/
+            if echo "$relative" | grep -q "^skills/"; then
+                local skill_path="${relative#skills/}"
+                local skill_name="${skill_path%%/*}"
+                local skill_file="${skill_path#*/}"
+                if [ "$skill_file" = "SKILL.md" ]; then
+                    display_dest="~/.claude/commands/SKILL-${skill_name}.md"
+                else
+                    display_dest="~/.claude/commands/${skill_name}-${skill_file}"
+                fi
+            else
+                display_dest="~/.claude/$relative"
+            fi
+
+            printf "    + %s -> %s\n" "$relative" "$display_dest"
         done
     fi
 
@@ -609,7 +674,9 @@ EXAMPLES:
 
 CLAUDE CONFIG:
     Files in claude-config/ are automatically detected via 'git ls-files'.
-    They are symlinked to ~/.claude/ preserving directory structure.
+    - claude-config/CLAUDE.md -> ~/.claude/CLAUDE.md
+    - claude-config/settings.json -> ~/.claude/settings.json
+    - claude-config/skills/*/SKILL.md -> ~/.claude/commands/SKILL-*.md
     To add new Claude config files, simply add them to claude-config/ and
     commit to git.
 EOF
