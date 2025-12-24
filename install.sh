@@ -580,6 +580,55 @@ confirm_installation() {
 }
 
 # ============================================================================
+# Work Environment Setup
+# ============================================================================
+
+setup_work_environment() {
+    local gitignore_global="$HOME/.gitignore_global"
+
+    print_header "Work Environment Setup"
+    echo ""
+    printf "仕事用環境ですか? (CLAUDE.mdをgit追跡から除外します) [y/N]: "
+    read -r is_work
+
+    case "$is_work" in
+        y|Y)
+            if $MODE_DRY_RUN; then
+                print_info "[DRY RUN] Would add CLAUDE.md and .claude/ to $gitignore_global"
+                print_info "[DRY RUN] Would set core.excludesfile to $gitignore_global"
+                return
+            fi
+
+            # Add patterns to global gitignore if not already present
+            local patterns_added=0
+
+            if [ ! -f "$gitignore_global" ] || ! grep -q "^CLAUDE\.md$" "$gitignore_global" 2>/dev/null; then
+                echo "CLAUDE.md" >> "$gitignore_global"
+                patterns_added=$((patterns_added + 1))
+            fi
+
+            if [ ! -f "$gitignore_global" ] || ! grep -q "^\.claude/$" "$gitignore_global" 2>/dev/null; then
+                echo ".claude/" >> "$gitignore_global"
+                patterns_added=$((patterns_added + 1))
+            fi
+
+            # Configure git to use global gitignore
+            git config --global core.excludesfile "$gitignore_global"
+
+            if [ $patterns_added -gt 0 ]; then
+                print_success "グローバルgitignoreにCLAUDE.mdと.claude/を追加しました"
+            else
+                print_info "グローバルgitignoreは既に設定済みです"
+            fi
+            print_success "core.excludesfileを設定しました: $gitignore_global"
+            ;;
+        *)
+            print_info "仕事用環境の設定をスキップしました"
+            ;;
+    esac
+}
+
+# ============================================================================
 # Main Functions
 # ============================================================================
 
@@ -679,6 +728,12 @@ CLAUDE CONFIG:
     - claude-config/skills/*/SKILL.md -> ~/.claude/commands/SKILL-*.md
     To add new Claude config files, simply add them to claude-config/ and
     commit to git.
+
+WORK ENVIRONMENT:
+    In interactive mode, you will be asked if this is a work environment.
+    If yes, CLAUDE.md and .claude/ will be added to ~/.gitignore_global
+    and git will be configured to use this file (core.excludesfile).
+    This prevents Claude config files from being tracked in work repositories.
 EOF
 }
 
@@ -754,6 +809,11 @@ main() {
             SELECTED_INDICES="$SELECTED_INDICES claude"
         fi
         install_files
+
+        # Ask about work environment setup (only in interactive mode)
+        if $MODE_INTERACTIVE; then
+            setup_work_environment
+        fi
     fi
 
     show_summary
