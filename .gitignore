@@ -217,6 +217,6 @@ $RECYCLE.BIN/
 # Claude Code local data (credentials, history, etc.)
 # Config files are in claude-config/ and tracked by git
 .claude/
-
+claude_tmp/
 
 **/.claude/settings.local.json

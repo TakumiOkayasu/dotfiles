@@ -211,7 +211,32 @@
 
 ---
 
-## 🔄 スマホ・PCクライアントとの連携
+## 🗂️ ファイル管理
+
+### 作業の基本原則
+- プロジェクトルートを基準に作業
+- 既存のディレクトリ構造を尊重
+- ファイル作成時は `$(whoami)` のユーザー・グループで作成
+
+### 一時ファイルの配置
+- プロジェクトルート直下の `claude_tmp/` に配置
+- `claude_tmp/` ディレクトリが存在しない場合は作成
+- 一時ファイル・中間生成物はすべてこのディレクトリ内に出力
+- 作業完了後は不要な一時ファイルを削除
+
+### テストファイルの配置
+- 適切な場所に `tests/` ディレクトリを作成
+- テスト用ファイルはすべて `tests/` 内に配置
+- 既存のテストディレクトリ構造がある場合はそれに従う
+
+### Git管理の徹底
+- `.gitignore` を確認し、不要なファイルをコミット対象にしない
+- `claude_tmp/` は `.gitignore` に追加推奨
+- ビルド成果物、依存関係、環境設定ファイルは除外
+
+---
+
+## 🔄 Claude(スマホ・PC)への相談
 
 ### 役割分担
 
@@ -228,51 +253,65 @@ ClaudeCode(ここ):
 - アーキテクチャ設計の相談
 - トラブルシューティングの方向性決定
 
-### 🚀 スマホ・PCクライアントへの相談
+### 🚀 相談テンプレート
 
-**実装中に以下の状況になったら、スマホ・PCクライアントで相談する:**
+**実装中に判断が必要になったら、以下の形式でClaudeに相談:**
+```
+【相談: {相談内容の一行サマリ}】
 
-- 仕様が曖昧で判断できない
-- 技術選定が必要(どのライブラリを使うか、どのアプローチを取るかなど)
-- パフォーマンス要件が不明
-- セキュリティ上の懸念がある
-- 設計の大きな変更が必要そう
-- 予想外の問題に遭遇した
+## 1️⃣ 何が起きているか(事実)
+- 現在のタスク: ...
+- 進捗状況: ...
+- 現在のブランチ: ...
+- 発生している現象: ...
 
-相談する際は、以下の情報を整理して伝える:
+## 2️⃣ なぜそれが問題なのか
+- 何を期待していたか: ...
+- 実際には何が起きたか: ...
+- このままでは何が困るか: ...
 
-【相談内容】
-- 現在の状況: ...
-- 問題点: ...
-- 試したこと: ...
-- 判断が必要な点: ...
+## 3️⃣ なぜその問題が発生したのか(原因の掘り下げ)
+- 直接の原因: ...
+- その原因が生じた理由: ...
+- さらにその背景: ...
+(「なぜ?」を3-5回繰り返して根本原因を探る)
 
----
+## 4️⃣ 何を試したか
+1. 試したこと: ...
+   - 結果: ...
+   - なぜうまくいかなかったか: ...
 
-## 🗑️ ファイル管理の徹底
+2. 試したこと: ...
+   - 結果: ...
+   - なぜうまくいかなかったか: ...
 
-### ファイル配置ルール
+## 5️⃣ 判断が必要な点(具体的に)
+- 技術選定: AとBのどちらを使うべきか?
+- 設計方針: XとYのどちらのアプローチが適切か?
+- 仕様解釈: この要件は○○という理解で合っているか?
 
-1. **作業ディレクトリ**: `/home/claude`
-   - 一時的な作業ファイル
-   - テスト用ファイル
-   - ビルド成果物
+(「何が分からないか分からない」ではなく、「AとBで迷っている」まで具体化する)
 
-2. **最終成果物**: `/mnt/user-data/outputs`
-   - ユーザーに提供するファイル
-   - 完成したプログラム
-   - ドキュメント
+## 6️⃣ 制約条件
+- パフォーマンス要件: ...
+- 互換性: ...
+- セキュリティ: ...
+- その他制約: ...
+```
 
-3. **ユーザーアップロード**: `/mnt/user-data/uploads` (読み取り専用)
-   - ユーザーがアップロードしたファイル
-   - 編集する場合は `/home/claude` にコピーしてから
+### ⚠️ 相談前のセルフチェック
+- ✅ 問題を具体的に言語化できているか?
+- ✅ 「なぜ?」を3回以上繰り返したか?
+- ✅ 少なくとも2つ以上の解決案を試したか?
+- ✅ 公式ドキュメントを確認したか?
+- ✅ エラーメッセージを正確に記録したか?
 
-### ファイル作成時の注意
-
-- 所有者・グループは `$(whoami)` で設定
-- パーミッションは適切に設定(実行ファイルは `chmod +x`)
-- 一時ファイルは作業後に削除
-- 最終成果物は必ず `/mnt/user-data/outputs` に配置
+### 相談すべきタイミング
+- 仕様が曖昧で判断できない(自分で掘り下げても不明)
+- 技術選定が必要(複数案を比較検討した上で)
+- パフォーマンス・セキュリティ上の懸念(具体的な数値・リスクあり)
+- 設計の大きな変更が必要そう(影響範囲を整理済み)
+- 予想外の問題に遭遇(根本原因の仮説あり)
 
 ---
 
@@ -300,37 +339,37 @@ ClaudeCode(ここ):
 
 ### 開発プロセス
 
-- ブレインストーミング・設計 → `.claude/skills/brainstorming-design/`
-- テスト駆動開発 → `.claude/skills/test-driven-development/`
-- デバッグ → `.claude/skills/systematic-debugging/`
-- リファクタリング → `.claude/skills/refactoring/`
-- コード生成 → `.claude/skills/code-generation/`
+- ブレインストーミング・設計 → `~/.claude/skills/brainstorming-design/`
+- テスト駆動開発 → `~/.claude/skills/test-driven-development/`
+- デバッグ → `~/.claude/skills/systematic-debugging/`
+- リファクタリング → `~/.claude/skills/refactoring/`
+- コード生成 → `~/.claude/skills/code-generation/`
 
 ### 設計・アーキテクチャ
 
-- クラス設計 → `.claude/skills/interface-composition-design/`
-- API設計 → `.claude/skills/api-design/`
-- データベース設計 → `.claude/skills/database-design/`
-- エラーハンドリング → `.claude/skills/error-handling/`
-- 並行処理 → `.claude/skills/concurrency-async/`
+- クラス設計 → `~/.claude/skills/interface-composition-design/`
+- API設計 → `~/.claude/skills/api-design/`
+- データベース設計 → `~/.claude/skills/database-design/`
+- エラーハンドリング → `~/.claude/skills/error-handling/`
+- 並行処理 → `~/.claude/skills/concurrency-async/`
 
 ### 品質・セキュリティ
 
-- セキュリティ → `.claude/skills/security-review/`
-- コードレビュー → `.claude/skills/code-review/`
-- パフォーマンス → `.claude/skills/performance-optimization/`
+- セキュリティ → `~/.claude/skills/security-review/`
+- コードレビュー → `~/.claude/skills/code-review/`
+- パフォーマンス → `~/.claude/skills/performance-optimization/`
 
 ### インフラ・運用
 
-- ロギング・監視 → `.claude/skills/logging-observability/`
-- 環境設定 → `.claude/skills/environment-configuration/`
-- 依存関係管理 → `.claude/skills/dependency-management/`
-- マイグレーション → `.claude/skills/migration-upgrade/`
+- ロギング・監視 → `~/.claude/skills/logging-observability/`
+- 環境設定 → `~/.claude/skills/environment-configuration/`
+- 依存関係管理 → `~/.claude/skills/dependency-management/`
+- マイグレーション → `~/.claude/skills/migration-upgrade/`
 
 ### ドキュメント・ワークフロー
 
-- ドキュメンテーション → `.claude/skills/documentation/`
-- Gitワークフロー → `.claude/skills/git-workflow/`
-- UI/UX → `.claude/skills/ui-ux-design/`
-- 国際化 → `.claude/skills/internationalization/`
+- ドキュメンテーション → `~/.claude/skills/documentation/`
+- Gitワークフロー → `~/.claude/skills/git-workflow/`
+- UI/UX → `~/.claude/skills/ui-ux-design/`
+- 国際化 → `~/.claude/skills/internationalization/`
 
