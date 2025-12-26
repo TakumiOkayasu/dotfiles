@@ -26,6 +26,16 @@
 新しいファイルを追加する場合は `claude-config/` に配置して `git add` するだけでOK。
 install.sh が `git ls-files` で自動検出してリンクを作成します。
 
+#### Claude設定の更新 (update-claude-config.sh)
+
+リポジトリをクローンせずにClaude設定のみを更新したい場合:
+
+```bash
+curl -o update-claude-config.sh https://raw.githubusercontent.com/TakumiOkayasu/dotfile-work/refs/heads/main/update-claude-config.sh
+chmod +x update-claude-config.sh
+./update-claude-config.sh
+```
+
 ## 使い方
 
 ### インストール
