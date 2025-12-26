@@ -1,440 +1,510 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
-# dotfiles installer
-# Creates symbolic links for dotfiles to home directory
+# dotfiles インストーラー
+# dotfilesのシンボリックリンクをホームディレクトリに作成します
 #
-# Usage:
-#   ./install.sh              # Interactive mode (default)
-#   ./install.sh -f           # Force install all
-#   ./install.sh -n           # Dry run (preview only)
-#   ./install.sh -u           # Uninstall
+# 使い方:
+#   ./install.sh              # 対話モード(デフォルト)
+#   ./install.sh -f           # 全ファイルを強制インストール
+#   ./install.sh -n           # ドライラン(プレビューのみ)
+#   ./install.sh -u           # アンインストール
+#
+# 必要条件:
+#   bash 4.0以上 (macOSでは: brew install bash)
 #
 
-set -eu
-
-DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
+set -euo pipefail
 
 # ============================================================================
-# Configuration
+# バージョンチェック
 # ============================================================================
 
-# Mode flags
+if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
+    echo "エラー: bash 4.0以上が必要です (現在: ${BASH_VERSION})" >&2
+    echo "" >&2
+    echo "macOSの場合:" >&2
+    echo "  1. brew install bash" >&2
+    echo "  2. /opt/homebrew/bin/bash ./install.sh" >&2
+    echo "" >&2
+    echo "または、homebrewのbashをデフォルトに設定:" >&2
+    echo "  sudo bash -c 'echo /opt/homebrew/bin/bash >> /etc/shells'" >&2
+    echo "  chsh -s /opt/homebrew/bin/bash" >&2
+    exit 1
+fi
+
+# ============================================================================
+# 定数・設定
+# ============================================================================
+
+readonly DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly REQUIRED_COMMANDS=(git ln mkdir rm mv readlink)
+
+# モードフラグ
 MODE_INTERACTIVE=true
 MODE_DRY_RUN=false
 MODE_UNINSTALL=false
 
-# Counters
-COUNT_CREATED=0
-COUNT_SKIPPED=0
-COUNT_BACKUP=0
-COUNT_REMOVED=0
+# カウンター
+declare -i COUNT_CREATED=0
+declare -i COUNT_SKIPPED=0
+declare -i COUNT_BACKUP=0
+declare -i COUNT_REMOVED=0
+declare -i COUNT_ERROR=0
 
-# Selected files to install (indices into FILE_DEFS)
-SELECTED_INDICES=""
+# 選択されたファイルインデックス
+declare -a SELECTED_INDICES=()
+CLAUDE_SELECTED=false
+
+# Claudeファイルリストのキャッシュ
+declare -a CLAUDE_FILES_CACHE=()
+CLAUDE_FILES_LOADED=false
 
 # ============================================================================
-# Color Output
+# ファイル定義(配列形式)
+# フォーマット: "カテゴリ|ソース|配置先|説明"
 # ============================================================================
 
-if [ -t 1 ]; then
-    COLOR_GREEN='\033[0;32m'
-    COLOR_YELLOW='\033[0;33m'
-    COLOR_RED='\033[0;31m'
-    COLOR_BLUE='\033[0;34m'
-    COLOR_CYAN='\033[0;36m'
-    COLOR_BOLD='\033[1m'
-    COLOR_RESET='\033[0m'
+declare -a DOTFILE_DEFS=(
+    "shell|.bashrc|${HOME}/.bashrc|Bash設定とプロンプト"
+    "shell|.shell_aliases|${HOME}/.shell_aliases|シェルエイリアス"
+    "git|.gitconfig|${HOME}/.gitconfig|Git設定(ユーザー, エイリアス, 色)"
+    "git|.git-completion.bash|${HOME}/.git-completion.bash|Gitコマンド補完"
+    "git|.git-prompt.sh|${HOME}/.git-prompt.sh|Gitブランチ表示"
+    "git|.gitignore|${HOME}/.config/git/ignore|グローバルgitignore"
+    "vim|.vimrc|${HOME}/.vimrc|Vim設定"
+)
+
+readonly DOTFILE_COUNT=${#DOTFILE_DEFS[@]}
+
+# カテゴリ定義
+declare -A CATEGORY_DESC=(
+    ["shell"]="シェル設定(bashrc, エイリアス)"
+    ["git"]="Git設定と補完"
+    ["vim"]="Vimエディタ設定"
+    ["claude"]="Claude Code AI アシスタント設定"
+)
+
+readonly CATEGORIES=(shell git vim claude)
+
+# ============================================================================
+# カラー出力
+# ============================================================================
+
+if [[ -t 1 ]]; then
+    readonly COLOR_GREEN='\033[0;32m'
+    readonly COLOR_YELLOW='\033[0;33m'
+    readonly COLOR_RED='\033[0;31m'
+    readonly COLOR_BLUE='\033[0;34m'
+    readonly COLOR_CYAN='\033[0;36m'
+    readonly COLOR_BOLD='\033[1m'
+    readonly COLOR_RESET='\033[0m'
 else
-    COLOR_GREEN=''
-    COLOR_YELLOW=''
-    COLOR_RED=''
-    COLOR_BLUE=''
-    COLOR_CYAN=''
-    COLOR_BOLD=''
-    COLOR_RESET=''
+    readonly COLOR_GREEN=''
+    readonly COLOR_YELLOW=''
+    readonly COLOR_RED=''
+    readonly COLOR_BLUE=''
+    readonly COLOR_CYAN=''
+    readonly COLOR_BOLD=''
+    readonly COLOR_RESET=''
 fi
 
+# ============================================================================
+# ユーティリティ関数
+# ============================================================================
+
+# エラー終了
+die() {
+    printf "${COLOR_RED}エラー:${COLOR_RESET} %s\n" "$1" >&2
+    exit "${2:-1}"
+}
+
+# 出力関数
 print_success() { printf "${COLOR_GREEN}✓${COLOR_RESET} %s\n" "$1"; }
 print_skip()    { printf "${COLOR_YELLOW}○${COLOR_RESET} %s\n" "$1"; }
 print_error()   { printf "${COLOR_RED}✗${COLOR_RESET} %s\n" "$1"; }
 print_info()    { printf "${COLOR_BLUE}→${COLOR_RESET} %s\n" "$1"; }
 print_header()  { printf "\n${COLOR_BOLD}${COLOR_CYAN}%s${COLOR_RESET}\n" "$1"; }
 
-# ============================================================================
-# File Definitions with Categories and Descriptions
-# ============================================================================
-
-# Format: "category|source|destination|description"
-# Using | as delimiter to avoid issues with colons in paths
-FILE_COUNT=7
-
-file_def() {
-    case "$1" in
-        0) echo "shell|.bashrc|$HOME/.bashrc|Bash configuration and prompt settings" ;;
-        1) echo "shell|.shell_aliases|$HOME/.shell_aliases|Shell aliases for common commands" ;;
-        2) echo "git|.gitconfig|$HOME/.gitconfig|Git configuration (user, aliases, colors)" ;;
-        3) echo "git|.git-completion.bash|$HOME/.git-completion.bash|Git command completion" ;;
-        4) echo "git|.git-prompt.sh|$HOME/.git-prompt.sh|Git branch info in prompt" ;;
-        5) echo "git|.gitignore|$HOME/.config/git/ignore|Global gitignore patterns" ;;
-        6) echo "vim|.vimrc|$HOME/.vimrc|Vim editor configuration" ;;
-    esac
+# 必須コマンドの確認
+check_requirements() {
+    local missing=()
+    for cmd in "${REQUIRED_COMMANDS[@]}"; do
+        if ! command -v "$cmd" &>/dev/null; then
+            missing+=("$cmd")
+        fi
+    done
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        die "必須コマンドが見つかりません: ${missing[*]}"
+    fi
 }
 
-# Category list
-CATEGORIES="shell git vim claude"
-
-get_category_desc() {
-    case "$1" in
-        shell)  echo "Shell configuration (bashrc, aliases)" ;;
-        git)    echo "Git configuration and completion" ;;
-        vim)    echo "Vim editor settings" ;;
-        claude) echo "Claude Code AI assistant settings" ;;
-    esac
+# ディレクトリ作成(エラーハンドリング付き)
+ensure_dir() {
+    local dir="$1"
+    if [[ ! -d "$dir" ]]; then
+        if $MODE_DRY_RUN; then
+            print_info "[ドライラン] ディレクトリ作成: $dir"
+        else
+            if ! mkdir -p "$dir" 2>/dev/null; then
+                print_error "ディレクトリ作成失敗: $dir"
+                ((COUNT_ERROR++))
+                return 1
+            fi
+        fi
+    fi
+    return 0
 }
 
 # ============================================================================
-# Helper Functions
+# ファイル定義アクセス関数
 # ============================================================================
 
-get_field() {
-    local def="$1"
+# フィールド取得
+get_dotfile_field() {
+    local index="$1"
     local field="$2"
+    local def="${DOTFILE_DEFS[$index]}"
+
     case "$field" in
-        category)    echo "$def" | cut -d'|' -f1 ;;
-        source)      echo "$def" | cut -d'|' -f2 ;;
-        dest)        echo "$def" | cut -d'|' -f3 ;;
-        description) echo "$def" | cut -d'|' -f4 ;;
+        category)    echo "${def%%|*}" ;;
+        source)      echo "${def#*|}" | cut -d'|' -f1 ;;
+        dest)        echo "${def#*|}" | cut -d'|' -f2 ;;
+        description) echo "${def##*|}" ;;
     esac
 }
 
-# Get file indices by category
+# カテゴリに属するインデックスを取得
 get_indices_by_category() {
     local cat="$1"
-    # claude category is handled separately via git ls-files
-    if [ "$cat" = "claude" ]; then
-        echo ""
-        return
-    fi
-    local i=0
-    local result=""
-    while [ $i -lt $FILE_COUNT ]; do
-        local def
-        def=$(file_def $i)
-        local fcat
-        fcat=$(get_field "$def" category)
-        if [ "$fcat" = "$cat" ]; then
-            result="$result $i"
+    local indices=()
+
+    for ((i = 0; i < DOTFILE_COUNT; i++)); do
+        if [[ "$(get_dotfile_field "$i" category)" == "$cat" ]]; then
+            indices+=("$i")
         fi
-        i=$((i + 1))
     done
-    echo "$result"
+    echo "${indices[*]}"
 }
 
-# Get claude-config files from git
+# ============================================================================
+# Claude設定ファイル関連
+# ============================================================================
+
+# Claudeファイルリストを取得(キャッシュ付き)
 get_claude_config_files() {
-    cd "$DOTFILES_DIR" || return
-    git ls-files claude-config/ 2>/dev/null || true
+    if ! $CLAUDE_FILES_LOADED; then
+        local files
+        if files=$(cd "$DOTFILES_DIR" && git ls-files claude-config/ 2>/dev/null); then
+            while IFS= read -r file; do
+                [[ -n "$file" ]] && CLAUDE_FILES_CACHE+=("$file")
+            done <<< "$files"
+        fi
+        CLAUDE_FILES_LOADED=true
+    fi
+    printf '%s\n' "${CLAUDE_FILES_CACHE[@]}"
 }
 
-# Check if index is in selected list
-is_selected() {
-    local idx="$1"
-    case " $SELECTED_INDICES " in
-        *" $idx "*) return 0 ;;
-        *) return 1 ;;
-    esac
+# skillsパスかどうか判定
+is_skills_path() {
+    [[ "$1" == skills/* ]]
 }
 
-add_to_selected() {
-    local idx="$1"
-    if ! is_selected "$idx"; then
-        SELECTED_INDICES="$SELECTED_INDICES $idx"
+# Claude設定ファイルの配置先パスを計算(共通化)
+get_claude_dest_path() {
+    local relative="$1"
+
+    if is_skills_path "$relative"; then
+        local skill_path="${relative#skills/}"
+        local skill_name="${skill_path%%/*}"
+        local skill_file="${skill_path#*/}"
+        echo "${HOME}/.claude/skills/${skill_name}/${skill_file}"
+    else
+        echo "${HOME}/.claude/${relative}"
     fi
 }
 
-# Check if claude category is selected (uses special marker "claude")
-is_claude_selected() {
-    case " $SELECTED_INDICES " in
-        *" claude "*) return 0 ;;
-        *) return 1 ;;
-    esac
+# Claude設定ファイルの表示用パスを計算
+get_claude_display_path() {
+    local relative="$1"
+
+    if is_skills_path "$relative"; then
+        local skill_path="${relative#skills/}"
+        local skill_name="${skill_path%%/*}"
+        local skill_file="${skill_path#*/}"
+        echo "~/.claude/skills/${skill_name}/${skill_file}"
+    else
+        echo "~/.claude/${relative}"
+    fi
 }
 
 # ============================================================================
-# Core Functions
+# コア機能
 # ============================================================================
 
+# シンボリックリンク作成
 create_link() {
-    local src="$DOTFILES_DIR/$1"
+    local src="${DOTFILES_DIR}/$1"
     local dest="$2"
 
-    if [ ! -e "$src" ]; then
-        print_skip "Skip: $src (not found)"
-        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
-        return
+    if [[ ! -e "$src" ]]; then
+        print_skip "スキップ: $src (ファイルが存在しません)"
+        ((COUNT_SKIPPED++))
+        return 0
     fi
 
     local dest_dir
     dest_dir="$(dirname "$dest")"
 
     if $MODE_DRY_RUN; then
-        print_info "[DRY RUN] Would create: $dest -> $src"
-        if [ -e "$dest" ] && [ ! -L "$dest" ]; then
-            print_info "[DRY RUN] Would backup: $dest -> ${dest}.bak"
+        print_info "[ドライラン] 作成: $dest -> $src"
+        if [[ -e "$dest" && ! -L "$dest" ]]; then
+            print_info "[ドライラン] バックアップ: $dest -> ${dest}.bak"
         fi
-        return
+        return 0
     fi
 
-    [ -d "$dest_dir" ] || mkdir -p "$dest_dir"
-
-    if [ -L "$dest" ]; then
-        rm "$dest"
-    elif [ -e "$dest" ]; then
-        print_info "Backup: $dest -> ${dest}.bak"
-        mv "$dest" "${dest}.bak"
-        COUNT_BACKUP=$((COUNT_BACKUP + 1))
+    # ディレクトリ確保
+    if ! ensure_dir "$dest_dir"; then
+        return 1
     fi
 
-    ln -s "$src" "$dest"
-    print_success "Created: $dest"
-    echo "         -> $src"
-    COUNT_CREATED=$((COUNT_CREATED + 1))
+    # 既存ファイルの処理
+    if [[ -L "$dest" ]]; then
+        if ! rm "$dest" 2>/dev/null; then
+            print_error "既存リンク削除失敗: $dest"
+            ((COUNT_ERROR++))
+            return 1
+        fi
+    elif [[ -e "$dest" ]]; then
+        print_info "バックアップ: $dest -> ${dest}.bak"
+        if ! mv "$dest" "${dest}.bak" 2>/dev/null; then
+            print_error "バックアップ失敗: $dest"
+            ((COUNT_ERROR++))
+            return 1
+        fi
+        ((COUNT_BACKUP++))
+    fi
+
+    # リンク作成
+    if ln -s "$src" "$dest" 2>/dev/null; then
+        print_success "作成: $dest"
+        echo "         -> $src"
+        ((COUNT_CREATED++))
+    else
+        print_error "リンク作成失敗: $dest"
+        ((COUNT_ERROR++))
+        return 1
+    fi
 }
 
+# シンボリックリンク削除
 remove_link() {
-    local src="$DOTFILES_DIR/$1"
+    local src="${DOTFILES_DIR}/$1"
     local dest="$2"
 
-    if [ ! -L "$dest" ]; then
-        print_skip "Skip: $dest (not a symlink)"
-        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
-        return
+    if [[ ! -L "$dest" ]]; then
+        print_skip "スキップ: $dest (シンボリックリンクではありません)"
+        ((COUNT_SKIPPED++))
+        return 0
     fi
 
     local target
-    target="$(readlink "$dest")"
+    target="$(readlink "$dest" 2>/dev/null)" || true
 
-    # Only remove if link points to our dotfiles
-    if [ "$target" != "$src" ]; then
-        print_skip "Skip: $dest (points to different location)"
-        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
-        return
+    # このdotfilesへのリンクのみ削除
+    if [[ "$target" != "$src" ]]; then
+        print_skip "スキップ: $dest (別の場所を指しています)"
+        ((COUNT_SKIPPED++))
+        return 0
     fi
 
     if $MODE_DRY_RUN; then
-        print_info "[DRY RUN] Would remove: $dest"
-        return
+        print_info "[ドライラン] 削除: $dest"
+        return 0
     fi
 
-    rm "$dest"
-    print_success "Removed: $dest"
-    COUNT_REMOVED=$((COUNT_REMOVED + 1))
+    if rm "$dest" 2>/dev/null; then
+        print_success "削除: $dest"
+        ((COUNT_REMOVED++))
 
-    # Restore backup if exists
-    if [ -e "${dest}.bak" ]; then
-        mv "${dest}.bak" "$dest"
-        print_info "Restored: ${dest}.bak -> $dest"
+        # バックアップがあれば復元
+        if [[ -e "${dest}.bak" ]]; then
+            if mv "${dest}.bak" "$dest" 2>/dev/null; then
+                print_info "復元: ${dest}.bak -> $dest"
+            else
+                print_error "復元失敗: ${dest}.bak"
+            fi
+        fi
+    else
+        print_error "削除失敗: $dest"
+        ((COUNT_ERROR++))
+        return 1
     fi
 }
 
-# Install Claude config files from claude-config/ using git ls-files
+# Claude設定ファイルのインストール
 install_claude_config() {
     local files
-    files=$(get_claude_config_files)
+    mapfile -t files < <(get_claude_config_files)
 
-    if [ -z "$files" ]; then
-        print_skip "No claude-config files found in git"
-        return
+    if [[ ${#files[@]} -eq 0 ]]; then
+        print_skip "Claude設定ファイルがgitに登録されていません"
+        return 0
     fi
 
-    # Ensure ~/.claude and ~/.claude/commands directories exist
-    if $MODE_DRY_RUN; then
-        print_info "[DRY RUN] Would create: $HOME/.claude (if not exists)"
-        print_info "[DRY RUN] Would create: $HOME/.claude/commands (if not exists)"
-    else
-        mkdir -p "$HOME/.claude"
-        mkdir -p "$HOME/.claude/commands"
-    fi
+    # ベースディレクトリ作成
+    ensure_dir "${HOME}/.claude"
+    ensure_dir "${HOME}/.claude/skills"
 
-    for file in $files; do
-        # Remove "claude-config/" prefix to get relative path
+    for file in "${files[@]}"; do
+        [[ -z "$file" ]] && continue
+
         local relative="${file#claude-config/}"
-        local src="$DOTFILES_DIR/$file"
         local dest
+        dest=$(get_claude_dest_path "$relative")
 
-        # skills/ directory maps to ~/.claude/commands/
-        if echo "$relative" | grep -q "^skills/"; then
-            # Extract skill name and file from skills/skill-name/SKILL.md
+        # skillsディレクトリの作成
+        if is_skills_path "$relative"; then
             local skill_path="${relative#skills/}"
             local skill_name="${skill_path%%/*}"
-            local skill_file="${skill_path#*/}"
-            # Map skills/skill-name/SKILL.md to commands/SKILL-skill-name.md
-            if [ "$skill_file" = "SKILL.md" ]; then
-                dest="$HOME/.claude/commands/SKILL-${skill_name}.md"
-            else
-                # For other files in skills directory, use the original structure
-                dest="$HOME/.claude/commands/${skill_name}-${skill_file}"
-            fi
-        else
-            dest="$HOME/.claude/$relative"
+            ensure_dir "${HOME}/.claude/skills/${skill_name}"
         fi
 
         create_link "$file" "$dest"
     done
 }
 
-# Uninstall Claude config files
+# Claude設定ファイルのアンインストール
 uninstall_claude_config() {
     local files
-    files=$(get_claude_config_files)
+    mapfile -t files < <(get_claude_config_files)
 
-    if [ -z "$files" ]; then
-        return
-    fi
+    [[ ${#files[@]} -eq 0 ]] && return 0
 
-    for file in $files; do
+    for file in "${files[@]}"; do
+        [[ -z "$file" ]] && continue
+
         local relative="${file#claude-config/}"
         local dest
-
-        # skills/ directory maps to ~/.claude/commands/
-        if echo "$relative" | grep -q "^skills/"; then
-            local skill_path="${relative#skills/}"
-            local skill_name="${skill_path%%/*}"
-            local skill_file="${skill_path#*/}"
-            if [ "$skill_file" = "SKILL.md" ]; then
-                dest="$HOME/.claude/commands/SKILL-${skill_name}.md"
-            else
-                dest="$HOME/.claude/commands/${skill_name}-${skill_file}"
-            fi
-        else
-            dest="$HOME/.claude/$relative"
-        fi
+        dest=$(get_claude_dest_path "$relative")
 
         remove_link "$file" "$dest"
     done
 }
 
 # ============================================================================
-# Interactive Mode
+# インタラクティブUI
 # ============================================================================
 
+# カテゴリメニュー表示
 show_category_menu() {
-    print_header "Select categories to install"
+    print_header "インストールするカテゴリを選択"
     echo ""
+
     local i=1
-    for cat in $CATEGORIES; do
-        local desc
-        desc=$(get_category_desc "$cat")
-        printf "  ${COLOR_BOLD}%d)${COLOR_RESET} %s\n" "$i" "$desc"
-        i=$((i + 1))
+    for cat in "${CATEGORIES[@]}"; do
+        printf "  ${COLOR_BOLD}%d)${COLOR_RESET} %s\n" "$i" "${CATEGORY_DESC[$cat]}"
+        ((i++))
     done
+
     echo ""
-    printf "  ${COLOR_BOLD}a)${COLOR_RESET} All categories\n"
-    printf "  ${COLOR_BOLD}q)${COLOR_RESET} Quit\n"
+    printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべてのカテゴリ\n"
+    printf "  ${COLOR_BOLD}q)${COLOR_RESET} 終了\n"
     echo ""
 }
 
+# カテゴリ内ファイル表示
 show_files_in_category() {
     local cat="$1"
-    local desc
-    desc=$(get_category_desc "$cat")
-    print_header "Files in $desc"
+
+    print_header "${CATEGORY_DESC[$cat]} のファイル"
     echo ""
 
-    if [ "$cat" = "claude" ]; then
-        # Show claude-config files from git
+    if [[ "$cat" == "claude" ]]; then
         local i=1
         local files
-        files=$(get_claude_config_files)
-        for file in $files; do
+        mapfile -t files < <(get_claude_config_files)
+
+        for file in "${files[@]}"; do
+            [[ -z "$file" ]] && continue
             local relative="${file#claude-config/}"
             local display_dest
-
-            # skills/ directory maps to ~/.claude/commands/
-            if echo "$relative" | grep -q "^skills/"; then
-                local skill_path="${relative#skills/}"
-                local skill_name="${skill_path%%/*}"
-                local skill_file="${skill_path#*/}"
-                if [ "$skill_file" = "SKILL.md" ]; then
-                    display_dest="~/.claude/commands/SKILL-${skill_name}.md"
-                else
-                    display_dest="~/.claude/commands/${skill_name}-${skill_file}"
-                fi
-            else
-                display_dest="~/.claude/$relative"
-            fi
+            display_dest=$(get_claude_display_path "$relative")
 
             printf "  ${COLOR_BOLD}%d)${COLOR_RESET} %s\n" "$i" "$relative"
             printf "     ${COLOR_CYAN}-> %s${COLOR_RESET}\n" "$display_dest"
-            i=$((i + 1))
+            ((i++))
         done
     else
         local i=1
         local indices
-        indices=$(get_indices_by_category "$cat")
-        for idx in $indices; do
-            local def
-            def=$(file_def "$idx")
-            local src
-            src=$(get_field "$def" source)
-            local fdesc
-            fdesc=$(get_field "$def" description)
+        read -ra indices <<< "$(get_indices_by_category "$cat")"
+
+        for idx in "${indices[@]}"; do
+            local src desc
+            src=$(get_dotfile_field "$idx" source)
+            desc=$(get_dotfile_field "$idx" description)
             printf "  ${COLOR_BOLD}%d)${COLOR_RESET} %s\n" "$i" "$src"
-            printf "     ${COLOR_CYAN}%s${COLOR_RESET}\n" "$fdesc"
-            i=$((i + 1))
+            printf "     ${COLOR_CYAN}%s${COLOR_RESET}\n" "$desc"
+            ((i++))
         done
     fi
+
     echo ""
-    printf "  ${COLOR_BOLD}a)${COLOR_RESET} All files in this category\n"
-    printf "  ${COLOR_BOLD}b)${COLOR_RESET} Back to category menu\n"
+    printf "  ${COLOR_BOLD}a)${COLOR_RESET} このカテゴリのすべて\n"
+    printf "  ${COLOR_BOLD}b)${COLOR_RESET} カテゴリメニューに戻る\n"
     echo ""
 }
 
+# インデックスが選択済みか確認
+is_index_selected() {
+    local idx="$1"
+    for selected in "${SELECTED_INDICES[@]}"; do
+        [[ "$selected" == "$idx" ]] && return 0
+    done
+    return 1
+}
+
+# インデックスを選択に追加
+add_to_selected() {
+    local idx="$1"
+    if ! is_index_selected "$idx"; then
+        SELECTED_INDICES+=("$idx")
+    fi
+}
+
+# 対話的ファイル選択
 select_files_interactive() {
     while true; do
         show_category_menu
-        printf "Select category (1-4/a/q): "
+        printf "カテゴリを選択 (1-%d/a/q): " "${#CATEGORIES[@]}"
         read -r choice
 
         case "$choice" in
             q|Q)
-                echo "Cancelled."
+                echo "キャンセルしました。"
                 exit 0
                 ;;
             a|A)
-                # Select all files
-                local i=0
-                while [ $i -lt $FILE_COUNT ]; do
-                    add_to_selected $i
-                    i=$((i + 1))
+                for ((i = 0; i < DOTFILE_COUNT; i++)); do
+                    add_to_selected "$i"
                 done
-                # Also select claude
-                SELECTED_INDICES="$SELECTED_INDICES claude"
+                CLAUDE_SELECTED=true
                 return
                 ;;
             [1-4])
-                local cat_num=$((choice - 1))
-                local cat_count=0
-                local selected_cat=""
-                for cat in $CATEGORIES; do
-                    if [ $cat_count -eq $cat_num ]; then
-                        selected_cat="$cat"
-                        break
-                    fi
-                    cat_count=$((cat_count + 1))
-                done
-                if [ -n "$selected_cat" ]; then
-                    select_from_category "$selected_cat"
+                local cat_idx=$((choice - 1))
+                if [[ $cat_idx -lt ${#CATEGORIES[@]} ]]; then
+                    select_from_category "${CATEGORIES[$cat_idx]}"
                 fi
                 ;;
             *)
-                print_error "Invalid selection"
+                print_error "無効な選択です"
                 ;;
         esac
 
-        # If we have selections, ask if done
-        if [ -n "$SELECTED_INDICES" ]; then
-            printf "\nContinue selecting? [Y/n]: "
+        if [[ ${#SELECTED_INDICES[@]} -gt 0 || $CLAUDE_SELECTED == true ]]; then
+            printf "\n選択を続けますか? [Y/n]: "
             read -r cont
             case "$cont" in
                 n|N) return ;;
@@ -443,150 +513,113 @@ select_files_interactive() {
     done
 }
 
+# カテゴリからファイル選択
 select_from_category() {
     local cat="$1"
 
-    if [ "$cat" = "claude" ]; then
-        # For claude, we select all or nothing
+    if [[ "$cat" == "claude" ]]; then
         show_files_in_category "$cat"
-        printf "Install all Claude config files? [Y/n]: "
+        printf "すべてのClaude設定ファイルをインストールしますか? [Y/n]: "
         read -r choice
         case "$choice" in
-            n|N)
-                return
-                ;;
+            n|N) return ;;
             *)
-                SELECTED_INDICES="$SELECTED_INDICES claude"
-                print_success "Added all Claude config files"
+                CLAUDE_SELECTED=true
+                print_success "Claude設定ファイルを追加しました"
                 return
                 ;;
         esac
     fi
 
     local indices
-    indices=$(get_indices_by_category "$cat")
-
-    # Count files in category
-    local file_count=0
-    for _ in $indices; do
-        file_count=$((file_count + 1))
-    done
+    read -ra indices <<< "$(get_indices_by_category "$cat")"
+    local file_count=${#indices[@]}
 
     while true; do
         show_files_in_category "$cat"
-        printf "Select files (1-%d/a/b): " "$file_count"
+        printf "ファイルを選択 (1-%d/a/b): " "$file_count"
         read -r choice
 
         case "$choice" in
-            b|B)
-                return
-                ;;
+            b|B) return ;;
             a|A)
-                for idx in $indices; do
+                for idx in "${indices[@]}"; do
                     add_to_selected "$idx"
                 done
-                local desc
-                desc=$(get_category_desc "$cat")
-                print_success "Added all files from $desc"
+                print_success "${CATEGORY_DESC[$cat]} のすべてのファイルを追加しました"
                 return
                 ;;
             [1-9]*)
-                if [ "$choice" -ge 1 ] && [ "$choice" -le "$file_count" ]; then
-                    local target_num=$((choice - 1))
-                    local current=0
-                    for idx in $indices; do
-                        if [ $current -eq $target_num ]; then
-                            add_to_selected "$idx"
-                            local def
-                            def=$(file_def "$idx")
-                            local src
-                            src=$(get_field "$def" source)
-                            print_success "Added: $src"
-                            break
-                        fi
-                        current=$((current + 1))
-                    done
+                if [[ "$choice" -ge 1 && "$choice" -le "$file_count" ]]; then
+                    local target_idx="${indices[$((choice - 1))]}"
+                    add_to_selected "$target_idx"
+                    local src
+                    src=$(get_dotfile_field "$target_idx" source)
+                    print_success "追加: $src"
                 else
-                    print_error "Invalid selection"
+                    print_error "無効な選択です"
                 fi
                 ;;
             *)
-                print_error "Invalid selection"
+                print_error "無効な選択です"
                 ;;
         esac
     done
 }
 
+# インストール確認
 confirm_installation() {
-    if [ -z "$SELECTED_INDICES" ]; then
-        print_error "No files selected"
-        exit 1
+    if [[ ${#SELECTED_INDICES[@]} -eq 0 && $CLAUDE_SELECTED == false ]]; then
+        die "ファイルが選択されていません"
     fi
 
-    print_header "Files to install"
+    print_header "インストールするファイル"
     echo ""
 
-    # Show regular dotfiles
-    for idx in $SELECTED_INDICES; do
-        # Skip the "claude" marker
-        [ "$idx" = "claude" ] && continue
-
-        local def
-        def=$(file_def "$idx")
-        local src
-        src=$(get_field "$def" source)
-        local dest
-        dest=$(get_field "$def" dest)
+    # 通常のdotfiles
+    for idx in "${SELECTED_INDICES[@]}"; do
+        local src dest
+        src=$(get_dotfile_field "$idx" source)
+        dest=$(get_dotfile_field "$idx" dest)
         printf "  ${COLOR_GREEN}+${COLOR_RESET} %s -> %s\n" "$src" "$dest"
     done
 
-    # Show claude config files if selected
-    if is_claude_selected; then
+    # Claude設定
+    if $CLAUDE_SELECTED; then
         echo ""
-        printf "  ${COLOR_CYAN}Claude Code config (from claude-config/):${COLOR_RESET}\n"
+        printf "  ${COLOR_CYAN}Claude Code設定 (claude-config/):${COLOR_RESET}\n"
+
         local files
-        files=$(get_claude_config_files)
-        for file in $files; do
+        mapfile -t files < <(get_claude_config_files)
+
+        for file in "${files[@]}"; do
+            [[ -z "$file" ]] && continue
             local relative="${file#claude-config/}"
             local display_dest
-
-            # skills/ directory maps to ~/.claude/commands/
-            if echo "$relative" | grep -q "^skills/"; then
-                local skill_path="${relative#skills/}"
-                local skill_name="${skill_path%%/*}"
-                local skill_file="${skill_path#*/}"
-                if [ "$skill_file" = "SKILL.md" ]; then
-                    display_dest="~/.claude/commands/SKILL-${skill_name}.md"
-                else
-                    display_dest="~/.claude/commands/${skill_name}-${skill_file}"
-                fi
-            else
-                display_dest="~/.claude/$relative"
-            fi
-
+            display_dest=$(get_claude_display_path "$relative")
             printf "    + %s -> %s\n" "$relative" "$display_dest"
         done
     fi
 
     echo ""
-    printf "Proceed with installation? [Y/n]: "
+    printf "インストールを実行しますか? [Y/n]: "
     read -r confirm
     case "$confirm" in
         n|N)
-            echo "Cancelled."
+            echo "キャンセルしました。"
             exit 0
             ;;
     esac
 }
 
 # ============================================================================
-# Work Environment Setup
+# 仕事用環境設定
 # ============================================================================
 
 setup_work_environment() {
-    local gitignore_global="$HOME/.gitignore_global"
+    local gitignore_global="${HOME}/.gitignore_global"
 
-    print_header "Work Environment Setup"
+    print_header "仕事用環境設定"
     echo ""
     printf "仕事用環境ですか? (CLAUDE.mdをgit追跡から除外します) [y/N]: "
     read -r is_work
@@ -594,28 +627,29 @@ setup_work_environment() {
     case "$is_work" in
         y|Y)
             if $MODE_DRY_RUN; then
-                print_info "[DRY RUN] Would add CLAUDE.md and .claude/ to $gitignore_global"
-                print_info "[DRY RUN] Would set core.excludesfile to $gitignore_global"
+                print_info "[ドライラン] グローバルgitignoreにCLAUDE.mdと.claude/を追加"
+                print_info "[ドライラン] core.excludesfileを設定: $gitignore_global"
                 return
             fi
 
-            # Add patterns to global gitignore if not already present
             local patterns_added=0
 
-            if [ ! -f "$gitignore_global" ] || ! grep -q "^CLAUDE\.md$" "$gitignore_global" 2>/dev/null; then
+            if [[ ! -f "$gitignore_global" ]] || ! grep -q "^CLAUDE\.md$" "$gitignore_global" 2>/dev/null; then
                 echo "CLAUDE.md" >> "$gitignore_global"
-                patterns_added=$((patterns_added + 1))
+                ((patterns_added++))
             fi
 
-            if [ ! -f "$gitignore_global" ] || ! grep -q "^\.claude/$" "$gitignore_global" 2>/dev/null; then
+            if [[ ! -f "$gitignore_global" ]] || ! grep -q "^\.claude/$" "$gitignore_global" 2>/dev/null; then
                 echo ".claude/" >> "$gitignore_global"
-                patterns_added=$((patterns_added + 1))
+                ((patterns_added++))
             fi
 
-            # Configure git to use global gitignore
-            git config --global core.excludesfile "$gitignore_global"
+            if ! git config --global core.excludesfile "$gitignore_global" 2>/dev/null; then
+                print_error "git設定の更新に失敗しました"
+                return 1
+            fi
 
-            if [ $patterns_added -gt 0 ]; then
+            if [[ $patterns_added -gt 0 ]]; then
                 print_success "グローバルgitignoreにCLAUDE.mdと.claude/を追加しました"
             else
                 print_info "グローバルgitignoreは既に設定済みです"
@@ -629,120 +663,114 @@ setup_work_environment() {
 }
 
 # ============================================================================
-# Main Functions
+# メイン処理
 # ============================================================================
 
+# ファイルインストール
 install_files() {
-    print_header "Installing dotfiles from: $DOTFILES_DIR"
+    print_header "dotfilesをインストール: $DOTFILES_DIR"
 
-    # Install regular dotfiles
-    for idx in $SELECTED_INDICES; do
-        # Skip the "claude" marker
-        [ "$idx" = "claude" ] && continue
-
-        local def
-        def=$(file_def "$idx")
-        local src
-        src=$(get_field "$def" source)
-        local dest
-        dest=$(get_field "$def" dest)
-
+    for idx in "${SELECTED_INDICES[@]}"; do
+        local src dest
+        src=$(get_dotfile_field "$idx" source)
+        dest=$(get_dotfile_field "$idx" dest)
         create_link "$src" "$dest"
     done
 
-    # Install Claude config if selected
-    if is_claude_selected; then
+    if $CLAUDE_SELECTED; then
         install_claude_config
     fi
 }
 
+# ファイルアンインストール
 uninstall_files() {
-    print_header "Uninstalling dotfiles"
+    print_header "dotfilesをアンインストール"
 
-    # Uninstall regular dotfiles
-    local i=0
-    while [ $i -lt $FILE_COUNT ]; do
-        local def
-        def=$(file_def $i)
-        local src
-        src=$(get_field "$def" source)
-        local dest
-        dest=$(get_field "$def" dest)
+    for ((i = 0; i < DOTFILE_COUNT; i++)); do
+        local src dest
+        src=$(get_dotfile_field "$i" source)
+        dest=$(get_dotfile_field "$i" dest)
         remove_link "$src" "$dest"
-        i=$((i + 1))
     done
 
-    # Uninstall Claude config
     uninstall_claude_config
 }
 
+# サマリー表示
 show_summary() {
-    print_header "Summary"
-    echo ""
-    if $MODE_UNINSTALL; then
-        printf "  Removed: ${COLOR_GREEN}%d${COLOR_RESET}\n" "$COUNT_REMOVED"
-    else
-        printf "  Created: ${COLOR_GREEN}%d${COLOR_RESET}\n" "$COUNT_CREATED"
-        printf "  Backups: ${COLOR_YELLOW}%d${COLOR_RESET}\n" "$COUNT_BACKUP"
-    fi
-    printf "  Skipped: ${COLOR_YELLOW}%d${COLOR_RESET}\n" "$COUNT_SKIPPED"
+    print_header "結果"
     echo ""
 
-    if ! $MODE_DRY_RUN && ! $MODE_UNINSTALL && [ $COUNT_CREATED -gt 0 ]; then
-        printf "${COLOR_CYAN}Run 'source ~/.bashrc' to apply shell changes.${COLOR_RESET}\n"
+    if $MODE_UNINSTALL; then
+        printf "  削除: ${COLOR_GREEN}%d${COLOR_RESET}\n" "$COUNT_REMOVED"
+    else
+        printf "  作成: ${COLOR_GREEN}%d${COLOR_RESET}\n" "$COUNT_CREATED"
+        printf "  バックアップ: ${COLOR_YELLOW}%d${COLOR_RESET}\n" "$COUNT_BACKUP"
+    fi
+    printf "  スキップ: ${COLOR_YELLOW}%d${COLOR_RESET}\n" "$COUNT_SKIPPED"
+
+    if [[ $COUNT_ERROR -gt 0 ]]; then
+        printf "  エラー: ${COLOR_RED}%d${COLOR_RESET}\n" "$COUNT_ERROR"
+    fi
+    echo ""
+
+    if ! $MODE_DRY_RUN && ! $MODE_UNINSTALL && [[ $COUNT_CREATED -gt 0 ]]; then
+        printf "${COLOR_CYAN}シェル設定を反映するには 'source ~/.bashrc' を実行してください。${COLOR_RESET}\n"
         echo ""
     fi
 }
 
+# ヘルプ表示
 show_help() {
     cat << 'EOF'
-dotfiles installer - Create symbolic links for dotfiles
+dotfiles インストーラー - dotfilesのシンボリックリンクを作成
 
-USAGE:
-    ./install.sh [OPTIONS]
+使い方:
+    ./install.sh [オプション]
 
-OPTIONS:
-    -h, --help          Show this help message
-    -i, --interactive   Interactive mode (default)
-    -f, --force         Install all files without confirmation
-    -n, --dry-run       Show what would be done without making changes
-    -u, --uninstall     Remove symlinks created by this installer
+オプション:
+    -h, --help          このヘルプを表示
+    -i, --interactive   対話モード(デフォルト)
+    -f, --force         確認なしで全ファイルをインストール
+    -n, --dry-run       実行内容をプレビュー(変更なし)
+    -u, --uninstall     作成したシンボリックリンクを削除
 
-CATEGORIES:
-    shell   Bash configuration (.bashrc, .shell_aliases)
-    git     Git settings (.gitconfig, .git-completion.bash, etc.)
-    vim     Vim configuration (.vimrc)
-    claude  Claude Code settings (from claude-config/)
+カテゴリ:
+    shell   シェル設定(.bashrc, .shell_aliases)
+    git     Git設定(.gitconfig, .git-completion.bash等)
+    vim     Vim設定(.vimrc)
+    claude  Claude Code設定(claude-config/から)
 
-EXAMPLES:
-    ./install.sh              # Interactive installation
-    ./install.sh -f           # Install everything
-    ./install.sh -n           # Preview what would be installed
-    ./install.sh -u           # Remove all symlinks
-    ./install.sh -n -u        # Preview uninstall
+例:
+    ./install.sh              # 対話的にインストール
+    ./install.sh -f           # すべてインストール
+    ./install.sh -n           # インストール内容をプレビュー
+    ./install.sh -u           # すべてのシンボリックリンクを削除
+    ./install.sh -n -u        # アンインストール内容をプレビュー
 
-CLAUDE CONFIG:
-    Files in claude-config/ are automatically detected via 'git ls-files'.
+Claude設定:
+    claude-config/内のファイルは 'git ls-files' で自動検出されます。
     - claude-config/CLAUDE.md -> ~/.claude/CLAUDE.md
     - claude-config/settings.json -> ~/.claude/settings.json
-    - claude-config/skills/*/SKILL.md -> ~/.claude/commands/SKILL-*.md
-    To add new Claude config files, simply add them to claude-config/ and
-    commit to git.
+    - claude-config/skills/*/SKILL.md -> ~/.claude/skills/*/SKILL.md
+    新しいClaude設定ファイルを追加するには、claude-config/に追加して
+    gitにコミットしてください。
 
-WORK ENVIRONMENT:
-    In interactive mode, you will be asked if this is a work environment.
-    If yes, CLAUDE.md and .claude/ will be added to ~/.gitignore_global
-    and git will be configured to use this file (core.excludesfile).
-    This prevents Claude config files from being tracked in work repositories.
+仕事用環境:
+    対話モードでは、仕事用環境かどうか確認されます。
+    「はい」の場合、CLAUDE.mdと.claude/が~/.gitignore_globalに追加され、
+    gitがこのファイルを使用するよう設定されます(core.excludesfile)。
+    これにより、仕事用リポジトリでClaude設定ファイルが追跡されなくなります。
+
+必要条件:
+    bash 4.0以上が必要です。
+    macOSの場合: brew install bash && /opt/homebrew/bin/bash ./install.sh
 EOF
 }
 
-# ============================================================================
-# Argument Parsing
-# ============================================================================
-
+# 引数解析
 parse_args() {
-    while [ $# -gt 0 ]; do
+    while [[ $# -gt 0 ]]; do
         case "$1" in
             -h|--help)
                 show_help
@@ -765,32 +793,41 @@ parse_args() {
                 shift
                 ;;
             *)
-                print_error "Unknown option: $1"
-                echo "Use -h for help"
-                exit 1
+                die "不明なオプション: $1\nヘルプは -h で表示"
                 ;;
         esac
     done
 }
 
-# ============================================================================
-# Entry Point
-# ============================================================================
+# シグナルハンドラ
+cleanup() {
+    echo ""
+    print_info "中断されました"
+    exit 130
+}
 
+# メイン関数
 main() {
+    # シグナルトラップ設定
+    trap cleanup SIGINT SIGTERM
+
+    # 引数解析
     parse_args "$@"
 
+    # 必須コマンド確認
+    check_requirements
+
     if $MODE_DRY_RUN; then
-        print_header "DRY RUN MODE - No changes will be made"
+        print_header "ドライランモード - 変更は行われません"
     fi
 
     if $MODE_UNINSTALL; then
         if $MODE_INTERACTIVE && ! $MODE_DRY_RUN; then
-            printf "Remove all dotfile symlinks? [y/N]: "
+            printf "すべてのdotfilesシンボリックリンクを削除しますか? [y/N]: "
             read -r confirm
             case "$confirm" in
                 y|Y) ;;
-                *) echo "Cancelled."; exit 0 ;;
+                *) echo "キャンセルしました。"; exit 0 ;;
             esac
         fi
         uninstall_files
@@ -799,24 +836,25 @@ main() {
             select_files_interactive
             confirm_installation
         else
-            # Force mode: select all files
-            local i=0
-            while [ $i -lt $FILE_COUNT ]; do
-                add_to_selected $i
-                i=$((i + 1))
+            # 強制モード: すべて選択
+            for ((i = 0; i < DOTFILE_COUNT; i++)); do
+                SELECTED_INDICES+=("$i")
             done
-            # Also select claude
-            SELECTED_INDICES="$SELECTED_INDICES claude"
+            CLAUDE_SELECTED=true
         fi
         install_files
 
-        # Ask about work environment setup (only in interactive mode)
         if $MODE_INTERACTIVE; then
             setup_work_environment
         fi
     fi
 
     show_summary
+
+    # エラーがあった場合は終了コード1
+    [[ $COUNT_ERROR -gt 0 ]] && exit 1
+    exit 0
 }
 
+# エントリポイント
 main "$@"
