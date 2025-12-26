@@ -147,7 +147,7 @@ ensure_dir() {
         else
             if ! mkdir -p "$dir" 2>/dev/null; then
                 print_error "ディレクトリ作成失敗: $dir"
-                ((COUNT_ERROR++))
+                ((COUNT_ERROR++)) || true
                 return 1
             fi
         fi
@@ -248,7 +248,7 @@ create_link() {
 
     if [[ ! -e "$src" ]]; then
         print_skip "スキップ: $src (ファイルが存在しません)"
-        ((COUNT_SKIPPED++))
+        ((COUNT_SKIPPED++)) || true
         return 0
     fi
 
@@ -272,27 +272,27 @@ create_link() {
     if [[ -L "$dest" ]]; then
         if ! rm "$dest" 2>/dev/null; then
             print_error "既存リンク削除失敗: $dest"
-            ((COUNT_ERROR++))
+            ((COUNT_ERROR++)) || true
             return 1
         fi
     elif [[ -e "$dest" ]]; then
         print_info "バックアップ: $dest -> ${dest}.bak"
         if ! mv "$dest" "${dest}.bak" 2>/dev/null; then
             print_error "バックアップ失敗: $dest"
-            ((COUNT_ERROR++))
+            ((COUNT_ERROR++)) || true
             return 1
         fi
-        ((COUNT_BACKUP++))
+        ((COUNT_BACKUP++)) || true
     fi
 
     # リンク作成
     if ln -s "$src" "$dest" 2>/dev/null; then
         print_success "作成: $dest"
         echo "         -> $src"
-        ((COUNT_CREATED++))
+        ((COUNT_CREATED++)) || true
     else
         print_error "リンク作成失敗: $dest"
-        ((COUNT_ERROR++))
+        ((COUNT_ERROR++)) || true
         return 1
     fi
 }
@@ -304,7 +304,7 @@ remove_link() {
 
     if [[ ! -L "$dest" ]]; then
         print_skip "スキップ: $dest (シンボリックリンクではありません)"
-        ((COUNT_SKIPPED++))
+        ((COUNT_SKIPPED++)) || true
         return 0
     fi
 
@@ -314,7 +314,7 @@ remove_link() {
     # このdotfilesへのリンクのみ削除
     if [[ "$target" != "$src" ]]; then
         print_skip "スキップ: $dest (別の場所を指しています)"
-        ((COUNT_SKIPPED++))
+        ((COUNT_SKIPPED++)) || true
         return 0
     fi
 
@@ -325,7 +325,7 @@ remove_link() {
 
     if rm "$dest" 2>/dev/null; then
         print_success "削除: $dest"
-        ((COUNT_REMOVED++))
+        ((COUNT_REMOVED++)) || true
 
         # バックアップがあれば復元
         if [[ -e "${dest}.bak" ]]; then
@@ -337,7 +337,7 @@ remove_link() {
         fi
     else
         print_error "削除失敗: $dest"
-        ((COUNT_ERROR++))
+        ((COUNT_ERROR++)) || true
         return 1
     fi
 }
@@ -636,12 +636,12 @@ setup_work_environment() {
 
             if [[ ! -f "$gitignore_global" ]] || ! grep -q "^CLAUDE\.md$" "$gitignore_global" 2>/dev/null; then
                 echo "CLAUDE.md" >> "$gitignore_global"
-                ((patterns_added++))
+                ((patterns_added++)) || true
             fi
 
             if [[ ! -f "$gitignore_global" ]] || ! grep -q "^\.claude/$" "$gitignore_global" 2>/dev/null; then
                 echo ".claude/" >> "$gitignore_global"
-                ((patterns_added++))
+                ((patterns_added++)) || true
             fi
 
             if ! git config --global core.excludesfile "$gitignore_global" 2>/dev/null; then
