@@ -5,6 +5,13 @@ description: WebSocket、SSE、リアルタイム機能を実装する際に使�
 
 # WebSocket & Real-time
 
+## トリガー
+
+- WebSocket実装時
+- SSE(Server-Sent Events)実装時
+- リアルタイム通信機能時
+- 再接続ロジック設計時
+
 ## 鉄則
 
 **接続は切れる前提で設計。再接続ロジック必須。**

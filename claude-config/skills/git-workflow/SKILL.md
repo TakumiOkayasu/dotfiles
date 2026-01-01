@@ -5,6 +5,13 @@ description: gitを使用する際に使用。Conventional Commitsとブラン�
 
 # Git Workflow
 
+## トリガー
+
+- コミット作成時
+- ブランチ作成時
+- マージ・リベース時
+- コミットメッセージ記述時
+
 ## Conventional Commits
 
 ```
