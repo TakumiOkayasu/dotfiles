@@ -385,9 +385,11 @@ ClaudeCode(ここ):
 
 ### 品質・セキュリティ
 
-- セキュリティ → `~/.claude/skills/security-review/`
+- セキュリティレビュー → `~/.claude/skills/security-review/`
+- セキュリティチェック → `~/.claude/skills/security-checklist/`
 - コードレビュー → `~/.claude/skills/code-review/`
 - パフォーマンス → `~/.claude/skills/performance-optimization/`
+- 協働原則 → `~/.claude/skills/collaboration-principles/`
 
 ### インフラ・運用
 
