@@ -5,6 +5,13 @@ description: GitHub Pull Requestのレビュー操作を行うスキル。PR情�
 
 # GitHub PR Review Operation
 
+## トリガー
+
+- GitHub PRレビュー時
+- PRへのコメント投稿時
+- インラインコメント時
+- PR情報取得時
+
 GitHub CLI (`gh`) を使ったPRレビュー操作。
 
 ## 前提条件
