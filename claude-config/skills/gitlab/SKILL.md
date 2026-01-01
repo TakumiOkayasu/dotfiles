@@ -5,6 +5,13 @@ description: GitLab Merge Requestのレビュー操作を行うスキル。MR情
 
 # GitLab MR Review Operation
 
+## トリガー
+
+- GitLab MRレビュー時
+- MRへのコメント投稿時
+- インラインコメント時
+- MR情報取得時
+
 GitLab CLI (`glab`) を使ったMRレビュー操作。
 
 ## 前提条件

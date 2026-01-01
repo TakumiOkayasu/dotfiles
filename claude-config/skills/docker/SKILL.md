@@ -5,6 +5,13 @@ description: Dockerfileやdocker-compose設定を作成する際に使用。
 
 # Docker
 
+## トリガー
+
+- Dockerfile作成時
+- docker-compose設定時
+- コンテナ化検討時
+- マルチステージビルド時
+
 ## 鉄則
 
 **イメージは小さく、レイヤーは少なく、セキュリティを意識。**

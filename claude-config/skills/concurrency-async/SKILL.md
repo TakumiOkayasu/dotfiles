@@ -5,6 +5,13 @@ description: 並行処理や非同期操作を実装する際に使用。
 
 # Concurrency and Async
 
+## トリガー
+
+- 並列処理実装時
+- async/await使用時
+- 競合状態の懸念がある時
+- Promise.all等の並列実行時
+
 ## 🚨 鉄則
 
 **競合状態を常に意識。シンプルに保つ。**

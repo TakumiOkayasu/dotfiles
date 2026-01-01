@@ -5,6 +5,13 @@ description: パフォーマンス最適化やプロファイリング時に使�
 
 # Performance Optimization
 
+## トリガー
+
+- パフォーマンス問題発生時
+- ボトルネック調査時
+- クエリ最適化時
+- プロファイリング実施時
+
 ## 鉄則
 
 **計測なき最適化は推測。Profile → Measure → Optimize → Verify**

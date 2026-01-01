@@ -5,6 +5,13 @@ description: TypeScriptの設定や型エラー対応時に使用。
 
 # TypeScript Strict Mode
 
+## トリガー
+
+- TypeScript設定時
+- 型エラー対応時
+- any型削減時
+- 型安全性向上時
+
 ## 🚨 鉄則
 
 **anyは禁止。型で安全性を保証。**
