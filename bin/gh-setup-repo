@@ -1,0 +1,196 @@
+#!/bin/bash
+#
+# gh-setup-repo - GitHubリポジトリの初期設定を行うスクリプト
+#
+# 設定内容:
+#   - PRマージ後のブランチ自動削除を有効化
+#   - mainブランチの保護 (直接pushを禁止)
+#
+# 使い方:
+#   gh-setup-repo                    # 現在のリポジトリに適用
+#   gh-setup-repo owner/repo         # 指定したリポジトリに適用
+#   gh-setup-repo --check            # 現在の設定を確認
+#
+
+set -euo pipefail
+
+# 色定義
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# 使い方
+usage() {
+    cat <<EOF
+使い方: gh-setup-repo [オプション] [owner/repo]
+
+オプション:
+  --check       現在の設定を確認するのみ
+  -h, --help    このヘルプを表示
+
+設定内容:
+  - PRマージ後のブランチ自動削除 (delete_branch_on_merge)
+  - mainブランチの保護 (直接pushを禁止、PR必須)
+
+例:
+  gh-setup-repo                    # 現在のリポジトリ
+  gh-setup-repo owner/repo         # 指定リポジトリ
+  gh-setup-repo --check            # 設定確認のみ
+EOF
+}
+
+# リポジトリ名を取得
+get_repo_name() {
+    if [[ -n "${1:-}" && "$1" != --* ]]; then
+        echo "$1"
+    else
+        gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || {
+            echo -e "${RED}エラー: リポジトリを特定できません${NC}" >&2
+            exit 1
+        }
+    fi
+}
+
+# 現在の設定を確認
+check_settings() {
+    local repo="$1"
+    echo -e "${BLUE}リポジトリ: ${repo}${NC}"
+    echo ""
+
+    # ブランチ自動削除設定
+    local auto_delete
+    auto_delete=$(gh api "repos/${repo}" --jq '.delete_branch_on_merge' 2>/dev/null || echo "unknown")
+    if [[ "$auto_delete" == "true" ]]; then
+        echo -e "${GREEN}✓${NC} PRマージ後のブランチ自動削除: 有効"
+    else
+        echo -e "${YELLOW}✗${NC} PRマージ後のブランチ自動削除: 無効"
+    fi
+
+    # メインブランチを取得
+    local default_branch
+    default_branch=$(gh api "repos/${repo}" --jq '.default_branch' 2>/dev/null || echo "main")
+
+    # ブランチ保護設定
+    local protection
+    protection=$(gh api "repos/${repo}/branches/${default_branch}/protection" 2>&1) || true
+
+    if echo "$protection" | grep -q "Branch not protected"; then
+        echo -e "${YELLOW}✗${NC} ${default_branch}ブランチ保護: 無効"
+    else
+        echo -e "${GREEN}✓${NC} ${default_branch}ブランチ保護: 有効"
+
+        # 詳細表示
+        local require_pr
+        require_pr=$(echo "$protection" | jq -r '.required_pull_request_reviews // "null"' 2>/dev/null || echo "null")
+        if [[ "$require_pr" != "null" ]]; then
+            echo "    - PR必須: 有効"
+        fi
+    fi
+}
+
+# 設定を適用
+apply_settings() {
+    local repo="$1"
+    echo -e "${BLUE}リポジトリ: ${repo}${NC}"
+    echo ""
+
+    # 1. ブランチ自動削除を有効化
+    echo -e "${BLUE}PRマージ後のブランチ自動削除を設定中...${NC}"
+    if gh api "repos/${repo}" -X PATCH -f delete_branch_on_merge=true >/dev/null 2>&1; then
+        echo -e "${GREEN}✓${NC} ブランチ自動削除を有効化しました"
+    else
+        echo -e "${RED}✗${NC} ブランチ自動削除の設定に失敗しました"
+    fi
+
+    # 2. メインブランチを取得
+    local default_branch
+    default_branch=$(gh api "repos/${repo}" --jq '.default_branch' 2>/dev/null || echo "main")
+
+    # 3. ブランチ保護を設定
+    echo -e "${BLUE}${default_branch}ブランチの保護を設定中...${NC}"
+
+    # ブランチ保護ルール (直接pushを禁止、PRを必須に)
+    local protection_payload
+    protection_payload=$(cat <<EOF
+{
+  "required_status_checks": null,
+  "enforce_admins": false,
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": false,
+    "require_code_owner_reviews": false,
+    "required_approving_review_count": 0
+  },
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+EOF
+)
+
+    if echo "$protection_payload" | gh api "repos/${repo}/branches/${default_branch}/protection" -X PUT --input - >/dev/null 2>&1; then
+        echo -e "${GREEN}✓${NC} ${default_branch}ブランチを保護しました"
+        echo "    - 直接pushを禁止"
+        echo "    - PR経由でのマージを必須化"
+    else
+        echo -e "${YELLOW}!${NC} ブランチ保護の設定に失敗しました (権限不足の可能性)"
+        echo "    GitHub Web UIで手動設定してください:"
+        echo "    Settings → Branches → Add rule → Branch name pattern: ${default_branch}"
+    fi
+
+    echo ""
+    echo -e "${GREEN}完了しました${NC}"
+}
+
+# メイン処理
+main() {
+    local check_only=false
+    local repo=""
+
+    # 引数解析
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --check)
+                check_only=true
+                shift
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -*)
+                echo -e "${RED}不明なオプション: $1${NC}" >&2
+                usage
+                exit 1
+                ;;
+            *)
+                repo="$1"
+                shift
+                ;;
+        esac
+    done
+
+    # gh コマンドの確認
+    if ! command -v gh &>/dev/null; then
+        echo -e "${RED}エラー: gh コマンドがインストールされていません${NC}" >&2
+        exit 1
+    fi
+
+    # 認証確認
+    if ! gh auth status &>/dev/null; then
+        echo -e "${RED}エラー: gh auth login で認証してください${NC}" >&2
+        exit 1
+    fi
+
+    # リポジトリ名を取得
+    repo=$(get_repo_name "$repo")
+
+    if $check_only; then
+        check_settings "$repo"
+    else
+        apply_settings "$repo"
+    fi
+}
+
+main "$@"
