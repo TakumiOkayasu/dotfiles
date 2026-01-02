@@ -663,6 +663,49 @@ setup_work_environment() {
 }
 
 # ============================================================================
+# bin/ PATH設定
+# ============================================================================
+
+setup_bin_path() {
+    local dotfiles_bin="${DOTFILES_DIR}/bin"
+
+    if [[ ! -d "$dotfiles_bin" ]]; then
+        return 0
+    fi
+
+    print_header "bin/ PATHセットアップ"
+    echo ""
+
+    if $MODE_DRY_RUN; then
+        print_info "[ドライラン] PATH追加対象: $dotfiles_bin"
+        return 0
+    fi
+
+    local patterns_added=0
+
+    for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+        if [[ -f "$rc" ]]; then
+            if ! grep -q "DOTFILES_BIN" "$rc" 2>/dev/null; then
+                {
+                    echo ""
+                    echo "# dotfiles bin"
+                    echo "export DOTFILES_BIN=\"$dotfiles_bin\""
+                    echo 'export PATH="$DOTFILES_BIN:$PATH"'
+                } >> "$rc"
+                print_success "PATH追加: $rc"
+                ((patterns_added++)) || true
+            else
+                print_info "既に設定済み: $rc"
+            fi
+        fi
+    done
+
+    if [[ $patterns_added -gt 0 ]]; then
+        print_info "シェルを再起動するか 'source ~/.bashrc' を実行してPATHを反映してください"
+    fi
+}
+
+# ============================================================================
 # メイン処理
 # ============================================================================
 
@@ -847,6 +890,9 @@ main() {
         if $MODE_INTERACTIVE; then
             setup_work_environment
         fi
+
+        # bin/ ディレクトリのセットアップ
+        setup_bin_path
     fi
 
     show_summary
