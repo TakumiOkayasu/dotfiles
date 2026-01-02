@@ -25,6 +25,7 @@
 | `claude-init` | Claude Code プロジェクト初期化ツール |
 | `git-new-feature` | 機能ブランチ作成 (feat/fix/docs/refactor/chore) |
 | `git-cleanup-branch` | マージ済みブランチ削除 (ローカル・リモート両方) |
+| `gh-setup-repo` | GitHubリポジトリ初期設定 (ブランチ保護、自動削除) |
 
 `install.sh` 実行時に PATH に追加されます (.bashrc に設定済み)。
 
@@ -61,7 +62,7 @@ Claude Codeの動作時に自動でリマインドを表示:
 | `session-start-reminder.sh` | セッション開始時 | CLAUDE.mdの重要ルールをリマインド |
 | `git-commit-push-block.sh` | git commit/push実行前 | **ブロック**: commit/pushはユーザーのみ |
 | `main-branch-code-warning.sh` | コード編集前 | mainブランチでの編集を警告 |
-| `git-post-command-reminder.sh` | git操作後 | ブランチ削除確認などをリマインド |
+| `git-post-command-reminder.sh` | git操作後 | マージ済みローカルブランチを自動削除 |
 | `branch-from-main-check.sh` | ブランチ作成後 | mainから分岐していなければ警告 |
 | `doc-consistency-reminder.sh` | ドキュメント編集後 | 関連ドキュメントとの整合性確認を促す |
 
@@ -129,6 +130,23 @@ chmod +x update-claude-config.sh
 # 設定を反映
 source ~/.bashrc
 ```
+
+### GitHubリポジトリの初期設定 (手動)
+
+新しいGitHubリポジトリを作成したら、以下を実行:
+
+```bash
+gh-setup-repo              # 現在のリポジトリに設定を適用
+gh-setup-repo --check      # 現在の設定を確認
+```
+
+設定内容:
+- mainブランチの保護 (直接push禁止、PR必須)
+- PRマージ後のリモートブランチ自動削除
+
+**注意**: ブランチ保護はGitHub API の制限により失敗する場合があります。
+その場合は GitHub Web UI から手動で設定してください:
+Settings → Branches → Add rule → Branch name pattern: `main`
 
 ### アンインストール
 
