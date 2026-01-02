@@ -21,6 +21,15 @@
             "command": "~/.claude/hooks/git-post-command-reminder.sh"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/doc-consistency-reminder.sh"
+          }
+        ]
       }
     ]
   },
