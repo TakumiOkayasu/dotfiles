@@ -1,7 +1,37 @@
 #!/bin/bash
 # PostToolUse hook - ブランチ作成時にmainから分岐しているか確認
+#
+# 使い方 (手動実行):
+#   echo '{"tool_input":{"command":"git checkout -b feat/test"}}' | ./branch-from-main-check.sh
+#
+# Claude Code hook として自動実行される場合は stdin から JSON を受け取る
 
 set -e
+
+# 手動実行時のヘルプ
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    cat <<'EOF'
+branch-from-main-check.sh - ブランチがmainから分岐しているか確認
+
+使い方:
+  echo '{"tool_input":{"command":"git checkout -b feat/test"}}' | ./branch-from-main-check.sh
+
+説明:
+  Claude Code の PostToolUse hook として動作し、git checkout -b で
+  作成されたブランチが main の最新から分岐しているか確認します。
+
+  手動で実行する場合は、上記のように JSON を標準入力で渡してください。
+EOF
+    exit 0
+fi
+
+# stdin がない場合のタイムアウト対策
+if [[ -t 0 ]]; then
+    echo "エラー: 標準入力がありません" >&2
+    echo "使い方: echo '{\"tool_input\":{\"command\":\"git checkout -b feat/test\"}}' | $0" >&2
+    echo "ヘルプ: $0 --help" >&2
+    exit 1
+fi
 
 # Read JSON input from stdin
 INPUT=$(cat)
@@ -31,8 +61,27 @@ if echo "$COMMAND" | grep -qE 'git\s+checkout\s+-b'; then
   }
 }
 EOF
+            exit 0
         fi
     fi
+
+    # 問題なし
+    cat <<'EOF'
+{
+  "hookSpecificOutput": {
+    "additionalContext": "[OK] ブランチは main の最新から分岐しています。"
+  }
+}
+EOF
+    exit 0
 fi
 
+# git checkout -b 以外のコマンド
+cat <<'EOF'
+{
+  "hookSpecificOutput": {
+    "additionalContext": "[スキップ] git checkout -b コマンドではありません。"
+  }
+}
+EOF
 exit 0
