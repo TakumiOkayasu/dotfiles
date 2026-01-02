@@ -13,8 +13,19 @@
 | `.gitignore` | グローバルgitignore |
 | `.git-completion.bash` | Git補完スクリプト |
 | `.git-prompt.sh` | Gitプロンプト表示スクリプト |
+| `bin/` | 実行可能スクリプト (後述) |
 | `claude-config/` | Claude Code設定ファイル (後述) |
+| `claude-templates/` | Claude Code プロジェクトテンプレート (後述) |
 | `install.sh` | シンボリックリンク作成スクリプト |
+
+### 実行可能スクリプト (bin/)
+
+| ファイル | 説明 |
+|----------|------|
+| `claude-init` | Claude Code プロジェクト初期化ツール |
+
+`install.sh` 実行時に `~/bin/` へシンボリックリンクが作成されます。
+`~/bin` を PATH に追加すると、どこからでも実行可能になります。
 
 ### Claude Code設定 (claude-config/)
 
@@ -22,9 +33,44 @@
 |----------|--------|------|
 | `CLAUDE.md` | `~/.claude/CLAUDE.md` | Claude Code用グローバル指示ファイル |
 | `settings.json` | `~/.claude/settings.json` | Claude Code権限設定 |
+| `skills/` | `~/.claude/skills/` | Claude Codeスキル定義 (34種類) |
 
 新しいファイルを追加する場合は `claude-config/` に配置して `git add` するだけでOK。
 install.sh が `git ls-files` で自動検出してリンクを作成します。
+
+#### スキル一覧
+
+開発プロセス: `brainstorming-design`, `code-generation`, `code-review`, `refactoring`, `systematic-debugging`, `test-driven-development`
+
+設計・アーキテクチャ: `api-design`, `database-design`, `error-handling`, `interface-composition-design`, `concurrency-async`
+
+品質・セキュリティ: `security-review`, `security-checklist`, `input-validation`, `collaboration-principles`, `performance-optimization`
+
+インフラ・運用: `ci-cd`, `docker`, `environment-configuration`, `logging-observability`, `dependency-management`, `migration-upgrade`, `caching`
+
+その他: `authentication-authorization`, `documentation`, `email`, `file-storage`, `git-workflow`, `github`, `gitlab`, `internationalization`, `typescript-strict`, `ui-ux-design`, `websocket-realtime`
+
+### プロジェクトテンプレート (claude-templates/)
+
+`claude-init` コマンドで使用するテンプレート。
+
+| ディレクトリ | 内容 |
+|--------------|------|
+| `base/` | 共通テンプレート (commands, tasks) |
+| `lang/` | 言語別テンプレート |
+
+対応言語: `python`, `typescript`, `cpp`, `go`, `php-laravel`, `php-cakephp`
+
+#### claude-init の使い方
+
+新しいプロジェクトでClaude Code用の設定を初期化:
+
+```bash
+claude-init python        # Python用テンプレートで初期化
+claude-init typescript    # TypeScript用テンプレートで初期化
+claude-init --list        # 利用可能なテンプレート一覧
+claude-init --help        # ヘルプ表示
+```
 
 #### Claude設定の更新 (update-claude-config.sh)
 
@@ -56,6 +102,7 @@ chmod +x update-claude-config.sh
 | git | `.gitconfig`, `.git-completion.bash`, `.git-prompt.sh`, `.gitignore` |
 | vim | `.vimrc` |
 | claude | `claude-config/` 内のファイル全て |
+| bin | `bin/` 内の実行可能スクリプト |
 
 ### インストール例
 
