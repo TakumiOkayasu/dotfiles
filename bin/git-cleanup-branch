@@ -1,0 +1,102 @@
+#!/bin/bash
+#
+# git-cleanup-branch - マージ済みブランチを削除するスクリプト
+#
+# 使い方:
+#   git-cleanup-branch           # 現在のブランチを削除
+#   git-cleanup-branch feat/foo  # 指定したブランチを削除
+#
+# 機能:
+#   - main ブランチに移動
+#   - 指定したブランチをローカル・リモート両方から削除
+#   - マージされていないブランチは削除しない (安全)
+
+set -euo pipefail
+
+# 色定義
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# メイン関数
+main() {
+    local branch_to_delete="${1:-}"
+    local current_branch
+    local main_branch
+
+    # Git リポジトリ内か確認
+    if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+        echo -e "${RED}エラー: Git リポジトリ内で実行してください${NC}" >&2
+        exit 1
+    fi
+
+    # メインブランチを取得
+    main_branch=$(git config --local --get claude.mainBranch 2>/dev/null || echo "")
+    if [[ -z "$main_branch" ]]; then
+        # デフォルトブランチを検出
+        main_branch=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}')
+        if [[ -z "$main_branch" ]]; then
+            main_branch="main"
+        fi
+    fi
+
+    # 現在のブランチを取得
+    current_branch=$(git branch --show-current)
+
+    # 削除対象ブランチを決定
+    if [[ -z "$branch_to_delete" ]]; then
+        branch_to_delete="$current_branch"
+    fi
+
+    # メインブランチは削除禁止
+    if [[ "$branch_to_delete" == "$main_branch" ]]; then
+        echo -e "${RED}エラー: メインブランチ (${main_branch}) は削除できません${NC}" >&2
+        exit 1
+    fi
+
+    echo -e "${BLUE}削除対象ブランチ: ${branch_to_delete}${NC}"
+    echo -e "${BLUE}メインブランチ: ${main_branch}${NC}"
+    echo ""
+
+    # 確認プロンプト
+    read -p "このブランチを削除しますか? (ローカル・リモート両方) [y/N]: " confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        echo -e "${YELLOW}キャンセルしました${NC}"
+        exit 0
+    fi
+
+    # メインブランチに移動
+    if [[ "$current_branch" == "$branch_to_delete" ]]; then
+        echo -e "${BLUE}${main_branch} に移動中...${NC}"
+        git checkout "$main_branch"
+        git pull --ff-only origin "$main_branch" 2>/dev/null || true
+    fi
+
+    # ローカルブランチを削除
+    echo -e "${BLUE}ローカルブランチを削除中...${NC}"
+    if git branch -d "$branch_to_delete" 2>/dev/null; then
+        echo -e "${GREEN}✓ ローカルブランチを削除しました${NC}"
+    else
+        echo -e "${YELLOW}! ローカルブランチが存在しないか、マージされていません${NC}"
+        read -p "強制削除しますか? [y/N]: " force_confirm
+        if [[ "$force_confirm" =~ ^[Yy]$ ]]; then
+            git branch -D "$branch_to_delete" 2>/dev/null || true
+            echo -e "${GREEN}✓ ローカルブランチを強制削除しました${NC}"
+        fi
+    fi
+
+    # リモートブランチを削除
+    echo -e "${BLUE}リモートブランチを削除中...${NC}"
+    if git push origin --delete "$branch_to_delete" 2>/dev/null; then
+        echo -e "${GREEN}✓ リモートブランチを削除しました${NC}"
+    else
+        echo -e "${YELLOW}! リモートブランチが存在しないか、削除に失敗しました${NC}"
+    fi
+
+    echo ""
+    echo -e "${GREEN}完了しました${NC}"
+}
+
+main "$@"
