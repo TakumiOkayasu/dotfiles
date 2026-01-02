@@ -1,0 +1,129 @@
+#!/bin/bash
+#
+# git-new-feature - 機能ブランチを作成するスクリプト
+#
+# 使い方:
+#   git-new-feature 機能名     # feat/機能名 ブランチを作成
+#   git-new-feature -f 機能名  # fix/機能名 ブランチを作成
+#   git-new-feature -d 機能名  # docs/機能名 ブランチを作成
+#
+# 機能:
+#   - main ブランチを最新に更新
+#   - 新しいブランチを作成して切り替え
+
+set -euo pipefail
+
+# 色定義
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# 使い方を表示
+usage() {
+    cat <<EOF
+使い方: git-new-feature [オプション] <ブランチ名>
+
+オプション:
+  -f, --fix       fix/ プレフィックスを使用 (バグ修正)
+  -d, --docs      docs/ プレフィックスを使用 (ドキュメント)
+  -r, --refactor  refactor/ プレフィックスを使用 (リファクタリング)
+  -c, --chore     chore/ プレフィックスを使用 (雑務)
+  -h, --help      このヘルプを表示
+
+例:
+  git-new-feature add-login      # feat/add-login を作成
+  git-new-feature -f typo        # fix/typo を作成
+EOF
+}
+
+# メイン関数
+main() {
+    local prefix="feat"
+    local branch_name=""
+    local main_branch
+
+    # 引数解析
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -f|--fix)
+                prefix="fix"
+                shift
+                ;;
+            -d|--docs)
+                prefix="docs"
+                shift
+                ;;
+            -r|--refactor)
+                prefix="refactor"
+                shift
+                ;;
+            -c|--chore)
+                prefix="chore"
+                shift
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -*)
+                echo -e "${RED}不明なオプション: $1${NC}" >&2
+                usage
+                exit 1
+                ;;
+            *)
+                branch_name="$1"
+                shift
+                ;;
+        esac
+    done
+
+    # ブランチ名が指定されているか確認
+    if [[ -z "$branch_name" ]]; then
+        echo -e "${RED}エラー: ブランチ名を指定してください${NC}" >&2
+        usage
+        exit 1
+    fi
+
+    # Git リポジトリ内か確認
+    if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+        echo -e "${RED}エラー: Git リポジトリ内で実行してください${NC}" >&2
+        exit 1
+    fi
+
+    # メインブランチを取得
+    main_branch=$(git config --local --get claude.mainBranch 2>/dev/null || echo "")
+    if [[ -z "$main_branch" ]]; then
+        main_branch=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}')
+        if [[ -z "$main_branch" ]]; then
+            main_branch="main"
+        fi
+    fi
+
+    local full_branch_name="${prefix}/${branch_name}"
+
+    echo -e "${BLUE}メインブランチ: ${main_branch}${NC}"
+    echo -e "${BLUE}新しいブランチ: ${full_branch_name}${NC}"
+    echo ""
+
+    # メインブランチに移動して最新化
+    echo -e "${BLUE}${main_branch} を最新化中...${NC}"
+    git checkout "$main_branch"
+    git pull --ff-only origin "$main_branch"
+
+    # 新しいブランチを作成
+    echo -e "${BLUE}ブランチを作成中...${NC}"
+    git checkout -b "$full_branch_name"
+
+    echo ""
+    echo -e "${GREEN}✓ ${full_branch_name} を作成しました${NC}"
+    echo ""
+    echo -e "${YELLOW}作業が終わったら:${NC}"
+    echo "  1. git add . && git commit -m 'メッセージ'"
+    echo "  2. git push -u origin ${full_branch_name}"
+    echo "  3. gh pr create"
+    echo "  4. マージ後: git-cleanup-branch"
+}
+
+main "$@"

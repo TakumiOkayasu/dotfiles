@@ -153,6 +153,11 @@ unset -f _setup_keychain
 # 開発環境設定
 # ==============================================================================
 
+# User local bin
+if [ -d "$HOME/.local/bin" ]; then
+    export PATH="$HOME/.local/bin:$PATH"
+fi
+
 # Homebrew
 if [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
