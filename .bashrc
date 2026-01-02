@@ -177,3 +177,19 @@ export GITHUB_TOKEN=$(pass github/token)
 # Zig
 export PATH="/opt/zig:$PATH"
 
+# dotfiles bin (このファイルからの相対位置で検出)
+_setup_dotfiles_bin() {
+    local bashrc_path="${BASH_SOURCE[0]}"
+    # シンボリックリンクを解決
+    while [[ -L "$bashrc_path" ]]; do
+        bashrc_path="$(readlink "$bashrc_path")"
+    done
+    local dotfiles_dir="$(cd "$(dirname "$bashrc_path")" && pwd)"
+    local bin_dir="$dotfiles_dir/bin"
+    if [[ -d "$bin_dir" ]]; then
+        export DOTFILES_BIN="$bin_dir"
+        export PATH="$DOTFILES_BIN:$PATH"
+    fi
+}
+_setup_dotfiles_bin
+unset -f _setup_dotfiles_bin

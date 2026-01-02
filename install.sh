@@ -683,26 +683,32 @@ setup_bin_path() {
 
     local patterns_added=0
 
-    for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
-        if [[ -f "$rc" ]]; then
-            if ! grep -q "DOTFILES_BIN" "$rc" 2>/dev/null; then
-                {
-                    echo ""
-                    echo "# dotfiles bin"
-                    echo "export DOTFILES_BIN=\"$dotfiles_bin\""
-                    echo 'export PATH="$DOTFILES_BIN:$PATH"'
-                } >> "$rc"
-                print_success "PATH追加: $rc"
-                ((patterns_added++)) || true
-            else
-                print_info "既に設定済み: $rc"
-            fi
+    # .bashrcはdotfilesに含まれているため、.zshrcのみ対象
+    # (シンボリックリンク先を変更してしまうのを防ぐ)
+    local rc="$HOME/.zshrc"
+    if [[ -f "$rc" && ! -L "$rc" ]]; then
+        if ! grep -q "DOTFILES_BIN" "$rc" 2>/dev/null; then
+            {
+                echo ""
+                echo "# dotfiles bin"
+                echo "export DOTFILES_BIN=\"$dotfiles_bin\""
+                echo 'export PATH="\$DOTFILES_BIN:\$PATH"'
+            } >> "$rc"
+            print_success "PATH追加: $rc"
+            ((patterns_added++)) || true
+        else
+            print_info "既に設定済み: $rc"
         fi
-    done
+    elif [[ -L "$rc" ]]; then
+        print_info "シンボリックリンクのためスキップ: $rc"
+    fi
 
     if [[ $patterns_added -gt 0 ]]; then
-        print_info "シェルを再起動するか 'source ~/.bashrc' を実行してPATHを反映してください"
+        print_info "シェルを再起動するか 'source ~/.zshrc' を実行してPATHを反映してください"
     fi
+
+    # .bashrcはdotfilesに含まれておりPATH設定済みのため情報表示のみ
+    print_info ".bashrcはdotfiles内でPATH設定済みです"
 }
 
 # ============================================================================
