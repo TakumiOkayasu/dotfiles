@@ -23,17 +23,19 @@
 | ファイル | 説明 |
 |----------|------|
 | `claude-init` | Claude Code プロジェクト初期化ツール |
+| `git-new-feature` | 機能ブランチ作成 (feat/fix/docs/refactor/chore) |
+| `git-cleanup-branch` | マージ済みブランチ削除 (ローカル・リモート両方) |
 
-`install.sh` 実行時に `~/bin/` へシンボリックリンクが作成されます。
-`~/bin` を PATH に追加すると、どこからでも実行可能になります。
+`install.sh` 実行時に PATH に追加されます (.bashrc に設定済み)。
 
 ### Claude Code設定 (claude-config/)
 
 | ファイル | 配置先 | 説明 |
 |----------|--------|------|
 | `CLAUDE.md` | `~/.claude/CLAUDE.md` | Claude Code用グローバル指示ファイル |
-| `settings.json` | `~/.claude/settings.json` | Claude Code権限設定 |
+| `settings.json` | `~/.claude/settings.json` | Claude Code権限・hooks設定 |
 | `skills/` | `~/.claude/skills/` | Claude Codeスキル定義 (34種類) |
+| `hooks/` | `~/.claude/hooks/` | Claude Code自動リマインドhooks |
 
 新しいファイルを追加する場合は `claude-config/` に配置して `git add` するだけでOK。
 install.sh が `git ls-files` で自動検出してリンクを作成します。
@@ -49,6 +51,16 @@ install.sh が `git ls-files` で自動検出してリンクを作成します�
 インフラ・運用: `ci-cd`, `docker`, `environment-configuration`, `logging-observability`, `dependency-management`, `migration-upgrade`, `caching`
 
 その他: `authentication-authorization`, `documentation`, `email`, `file-storage`, `git-workflow`, `github`, `gitlab`, `internationalization`, `typescript-strict`, `ui-ux-design`, `websocket-realtime`
+
+#### Hooks
+
+Claude Codeの動作時に自動でリマインドを表示:
+
+| ファイル | トリガー | 内容 |
+|----------|----------|------|
+| `session-start-reminder.sh` | セッション開始時 | CLAUDE.mdの重要ルールをリマインド |
+| `git-post-command-reminder.sh` | git操作後 | ブランチ削除確認などをリマインド |
+| `doc-consistency-reminder.sh` | ドキュメント編集後 | 関連ドキュメントとの整合性確認を促す |
 
 ### プロジェクトテンプレート (claude-templates/)
 
