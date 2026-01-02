@@ -293,6 +293,20 @@ git-cleanup-branch feat/foo  # 指定したブランチを削除
 - `claude_tmp/` は `.gitignore` に追加推奨
 - ビルド成果物、依存関係、環境設定ファイルは除外
 
+### dotfiles管理ルール
+
+**このリポジトリ (dotfile-work) は実質的な `$HOME` である。**
+
+- 設定ファイルはすべて `dotfile-work/` 内で編集
+- 本当の `$HOME` にはシンボリックリンクを貼る
+- `~/.claude/` の内容は `dotfile-work/claude-config/` で管理
+- 新しい設定ファイルを追加する場合:
+  1. `dotfile-work/` 内の適切な場所に作成
+  2. `git add` で追跡対象に追加
+  3. `./install.sh` でシンボリックリンクを作成
+
+**直接 `$HOME` にファイルを作成・編集しない。**
+
 ---
 
 ## 🔄 Claude(スマホ・PC)への相談
