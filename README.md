@@ -59,6 +59,8 @@ Claude Codeの動作時に自動でリマインドを表示:
 | ファイル | トリガー | 内容 |
 |----------|----------|------|
 | `session-start-reminder.sh` | セッション開始時 | CLAUDE.mdの重要ルールをリマインド |
+| `git-commit-push-block.sh` | git commit/push実行前 | **ブロック**: commit/pushはユーザーのみ |
+| `main-branch-code-warning.sh` | コード編集前 | mainブランチでの編集を警告 |
 | `git-post-command-reminder.sh` | git操作後 | ブランチ削除確認などをリマインド |
 | `doc-consistency-reminder.sh` | ドキュメント編集後 | 関連ドキュメントとの整合性確認を促す |
 
