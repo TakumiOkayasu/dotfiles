@@ -363,12 +363,10 @@ install_claude_config() {
         local dest
         dest=$(get_claude_dest_path "$relative")
 
-        # skillsディレクトリの作成
-        if is_skills_path "$relative"; then
-            local skill_path="${relative#skills/}"
-            local skill_name="${skill_path%%/*}"
-            ensure_dir "${HOME}/.claude/skills/${skill_name}"
-        fi
+        # 配置先の親ディレクトリを作成 (skills/, hooks/ など)
+        local dest_dir
+        dest_dir=$(dirname "$dest")
+        ensure_dir "$dest_dir"
 
         create_link "$file" "$dest"
     done
