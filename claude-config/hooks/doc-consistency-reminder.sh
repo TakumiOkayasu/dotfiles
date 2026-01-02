@@ -1,7 +1,36 @@
 #!/bin/bash
 # Documentation consistency reminder - ドキュメント変更時の整合性チェックリマインド
+#
+# 使い方 (手動実行):
+#   echo '{"tool_input":{"file_path":"README.md"}}' | ./doc-consistency-reminder.sh
+#
+# Claude Code hook として自動実行される場合は stdin から JSON を受け取る
 
 set -e
+
+# 手動実行時のヘルプ
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    cat <<'EOF'
+doc-consistency-reminder.sh - ドキュメント変更時の整合性チェックリマインド
+
+使い方:
+  echo '{"tool_input":{"file_path":"README.md"}}' | ./doc-consistency-reminder.sh
+
+説明:
+  Claude Code の PostToolUse hook として動作し、ドキュメントファイル
+  (.md, .rst, .txt, README, CLAUDE など) を変更した後に
+  他のドキュメントとの整合性確認をリマインドします。
+EOF
+    exit 0
+fi
+
+# stdin がない場合のタイムアウト対策
+if [[ -t 0 ]]; then
+    echo "エラー: 標準入力がありません" >&2
+    echo "使い方: echo '{\"tool_input\":{\"file_path\":\"README.md\"}}' | $0" >&2
+    echo "ヘルプ: $0 --help" >&2
+    exit 1
+fi
 
 # Read JSON input from stdin
 INPUT=$(cat)
