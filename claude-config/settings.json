@@ -39,6 +39,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/git-post-command-reminder.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/branch-from-main-check.sh"
           }
         ]
       },
