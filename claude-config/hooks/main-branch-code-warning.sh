@@ -1,8 +1,37 @@
 #!/bin/bash
 # PreToolUse hook - mainブランチでのコード変更を警告
 # CLAUDE.mdルール: コード変更前にブランチを確認・作成
+#
+# 使い方 (手動実行):
+#   echo '{"tool_input":{"file_path":"src/main.py"}}' | ./main-branch-code-warning.sh
+#
+# Claude Code hook として自動実行される場合は stdin から JSON を受け取る
 
 set -e
+
+# 手動実行時のヘルプ
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    cat <<'EOF'
+main-branch-code-warning.sh - mainブランチでのコード変更を警告
+
+使い方:
+  echo '{"tool_input":{"file_path":"src/main.py"}}' | ./main-branch-code-warning.sh
+
+説明:
+  Claude Code の PreToolUse hook として動作し、mainブランチで
+  コードファイルを変更しようとした場合に警告を出します。
+  (ドキュメントや設定ファイルはスキップ)
+EOF
+    exit 0
+fi
+
+# stdin がない場合のタイムアウト対策
+if [[ -t 0 ]]; then
+    echo "エラー: 標準入力がありません" >&2
+    echo "使い方: echo '{\"tool_input\":{\"file_path\":\"src/main.py\"}}' | $0" >&2
+    echo "ヘルプ: $0 --help" >&2
+    exit 1
+fi
 
 # Read JSON input from stdin
 INPUT=$(cat)
