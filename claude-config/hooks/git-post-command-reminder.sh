@@ -62,6 +62,7 @@ if echo "$COMMAND" | grep -qE '(gh\s+pr\s+merge|git\s+pull)'; then
                 cat <<EOF
 {
   "hookSpecificOutput": {
+    "hookEventName": "PostToolUse",
     "additionalContext": "[自動削除] マージ済みローカルブランチを削除しました: ${DELETED}"
   }
 }
@@ -75,6 +76,7 @@ EOF
     cat <<'EOF'
 {
   "hookSpecificOutput": {
+    "hookEventName": "PostToolUse",
     "additionalContext": "[CLAUDE.md リマインド] PRマージ/pull検出: mainブランチでgit pullするとマージ済みローカルブランチが自動削除されます。"
   }
 }
@@ -87,6 +89,7 @@ if echo "$COMMAND" | grep -qE 'git\s+checkout\s+(main|master)'; then
     cat <<'EOF'
 {
   "hookSpecificOutput": {
+    "hookEventName": "PostToolUse",
     "additionalContext": "[CLAUDE.md リマインド] mainブランチに移動しました。マージ済みのブランチがあれば git-cleanup-branch で削除確認をユーザーに行ってください。"
   }
 }
@@ -99,6 +102,7 @@ if echo "$COMMAND" | grep -qE 'git-cleanup-branch'; then
     cat <<'EOF'
 {
   "hookSpecificOutput": {
+    "hookEventName": "PostToolUse",
     "additionalContext": "[CLAUDE.md リマインド] ブランチ削除が実行されました。削除完了を報告してください。"
   }
 }
