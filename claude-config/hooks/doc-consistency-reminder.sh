@@ -43,10 +43,13 @@ if echo "$FILE_PATH" | grep -qiE '\.(md|markdown|rst|txt)$|README|CLAUDE|SKILL';
     cat <<'EOF'
 {
   "hookSpecificOutput": {
+    "hookEventName": "PostToolUse",
     "additionalContext": "[ドキュメント整合性チェック] ドキュメントを変更しました。以下を確認してください:\n- README.md: 機能一覧は最新か?\n- CLAUDE.md: 手順・コマンド名は正確か?\n- skills/: 関連スキルとの整合性\n- hooks/: リマインドメッセージとの整合性"
   }
 }
 EOF
+    exit 0
 fi
 
+# ドキュメント以外は何も出力しない
 exit 0
