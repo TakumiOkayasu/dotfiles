@@ -65,6 +65,7 @@ if [[ "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" ]]; then
     cat <<EOF
 {
   "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
     "additionalContext": "[警告] 現在 ${CURRENT_BRANCH} ブランチです。コードファイルを変更しようとしています。\n- git-new-feature でブランチを作成してから作業してください\n- 例: git-new-feature 機能名"
   }
 }

@@ -57,6 +57,7 @@ if echo "$COMMAND" | grep -qE 'git\s+checkout\s+-b'; then
             cat <<EOF
 {
   "hookSpecificOutput": {
+    "hookEventName": "PostToolUse",
     "additionalContext": "[警告] ブランチが ${MAIN_BRANCH} の最新から分岐していない可能性があります。\n推奨: git-new-feature コマンドを使用してください。このコマンドは自動で ${MAIN_BRANCH} を最新化してからブランチを作成します。"
   }
 }
@@ -69,6 +70,7 @@ EOF
     cat <<'EOF'
 {
   "hookSpecificOutput": {
+    "hookEventName": "PostToolUse",
     "additionalContext": "[OK] ブランチは main の最新から分岐しています。"
   }
 }
@@ -76,12 +78,5 @@ EOF
     exit 0
 fi
 
-# git checkout -b 以外のコマンド
-cat <<'EOF'
-{
-  "hookSpecificOutput": {
-    "additionalContext": "[スキップ] git checkout -b コマンドではありません。"
-  }
-}
-EOF
+# git checkout -b 以外のコマンドは何も出力しない (不要なコンテキスト追加を防ぐ)
 exit 0
