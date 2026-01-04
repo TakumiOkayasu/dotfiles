@@ -24,8 +24,6 @@
 	helper = !/home/linuxbrew/.linuxbrew/bin/gh auth git-credential
 [credential "https://gist.github.com"]
 	helper = !/home/linuxbrew/.linuxbrew/bin/gh auth git-credential
-[url "https://github.com/"]
-	insteadOf = https://github.com/:
 [http]
 	postBuffer = 524288000
 [pack]
