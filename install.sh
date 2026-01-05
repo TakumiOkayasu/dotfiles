@@ -65,20 +65,22 @@ CLAUDE_FILES_LOADED=false
 # ============================================================================
 
 declare -a DOTFILE_DEFS=(
-    "shell|.bashrc|${HOME}/.bashrc|Bash設定とプロンプト"
+    "shell|.profile|${HOME}/.profile|共通シェル設定(PATH, 環境変数)"
     "shell|.shell_aliases|${HOME}/.shell_aliases|シェルエイリアス"
-    "git|.gitconfig|${HOME}/.gitconfig|Git設定(ユーザー, エイリアス, 色)"
     "git|.git-completion.bash|${HOME}/.git-completion.bash|Gitコマンド補完"
     "git|.git-prompt.sh|${HOME}/.git-prompt.sh|Gitブランチ表示"
     "git|.gitignore|${HOME}/.config/git/ignore|グローバルgitignore"
     "vim|.vimrc|${HOME}/.vimrc|Vim設定"
 )
 
+# .gitconfig選択 (work/private)
+GITCONFIG_VARIANT=""
+
 readonly DOTFILE_COUNT=${#DOTFILE_DEFS[@]}
 
 # カテゴリ定義
 declare -A CATEGORY_DESC=(
-    ["shell"]="シェル設定(bashrc, エイリアス)"
+    ["shell"]="シェル設定(共通profile, エイリアス)"
     ["git"]="Git設定と補完"
     ["vim"]="Vimエディタ設定"
     ["claude"]="Claude Code AI アシスタント設定"
@@ -184,6 +186,48 @@ get_indices_by_category() {
         fi
     done
     echo "${indices[*]}"
+}
+
+# ============================================================================
+# .gitconfig選択関連
+# ============================================================================
+
+# .gitconfigのバリアントを選択
+select_gitconfig_variant() {
+    if [[ -n "$GITCONFIG_VARIANT" ]]; then
+        return 0
+    fi
+
+    echo ""
+    printf "${COLOR_BOLD}.gitconfigの環境を選択:${COLOR_RESET}\n"
+    printf "  ${COLOR_BOLD}1)${COLOR_RESET} プライベート用 (macOS: /Users/...)\n"
+    printf "  ${COLOR_BOLD}2)${COLOR_RESET} 仕事用 (Linux: /home/...)\n"
+    echo ""
+    printf "選択 (1/2): "
+    read -r choice
+
+    case "$choice" in
+        1) GITCONFIG_VARIANT="private" ;;
+        2) GITCONFIG_VARIANT="work" ;;
+        *)
+            print_error "無効な選択です。プライベート用を使用します"
+            GITCONFIG_VARIANT="private"
+            ;;
+    esac
+
+    print_success ".gitconfig: ${GITCONFIG_VARIANT} を選択しました"
+}
+
+# .gitconfigのインストール
+install_gitconfig() {
+    if [[ -z "$GITCONFIG_VARIANT" ]]; then
+        return 0
+    fi
+
+    local src=".gitconfig.${GITCONFIG_VARIANT}"
+    local dest="${HOME}/.gitconfig"
+
+    create_link "$src" "$dest"
 }
 
 # ============================================================================
@@ -488,6 +532,7 @@ select_files_interactive() {
                     add_to_selected "$i"
                 done
                 CLAUDE_SELECTED=true
+                select_gitconfig_variant
                 return
                 ;;
             [1-4])
@@ -544,6 +589,10 @@ select_from_category() {
                 for idx in "${indices[@]}"; do
                     add_to_selected "$idx"
                 done
+                # gitカテゴリの場合は.gitconfig選択
+                if [[ "$cat" == "git" ]]; then
+                    select_gitconfig_variant
+                fi
                 print_success "${CATEGORY_DESC[$cat]} のすべてのファイルを追加しました"
                 return
                 ;;
@@ -567,7 +616,7 @@ select_from_category() {
 
 # インストール確認
 confirm_installation() {
-    if [[ ${#SELECTED_INDICES[@]} -eq 0 && $CLAUDE_SELECTED == false ]]; then
+    if [[ ${#SELECTED_INDICES[@]} -eq 0 && $CLAUDE_SELECTED == false && -z "$GITCONFIG_VARIANT" ]]; then
         die "ファイルが選択されていません"
     fi
 
@@ -581,6 +630,11 @@ confirm_installation() {
         dest=$(get_dotfile_field "$idx" dest)
         printf "  ${COLOR_GREEN}+${COLOR_RESET} %s -> %s\n" "$src" "$dest"
     done
+
+    # .gitconfig
+    if [[ -n "$GITCONFIG_VARIANT" ]]; then
+        printf "  ${COLOR_GREEN}+${COLOR_RESET} .gitconfig.%s -> %s/.gitconfig\n" "$GITCONFIG_VARIANT" "$HOME"
+    fi
 
     # Claude設定
     if $CLAUDE_SELECTED; then
@@ -661,52 +715,73 @@ setup_work_environment() {
 }
 
 # ============================================================================
-# bin/ PATH設定
+# .profile読み込み設定
 # ============================================================================
 
-setup_bin_path() {
-    local dotfiles_bin="${DOTFILES_DIR}/bin"
-
-    if [[ ! -d "$dotfiles_bin" ]]; then
-        return 0
-    fi
-
-    print_header "bin/ PATHセットアップ"
+setup_profile_source() {
+    print_header ".profile読み込み設定"
     echo ""
 
-    if $MODE_DRY_RUN; then
-        print_info "[ドライラン] PATH追加対象: $dotfiles_bin"
+    # シェル設定ファイルを検出
+    local shell_rc=""
+    local shell_name=""
+
+    if [[ -n "$ZSH_VERSION" ]] || [[ "$SHELL" == *"zsh"* ]]; then
+        shell_name="zsh"
+        # preztoの場合は.zpreztorc、通常は.zshrc
+        if [[ -f "$HOME/.zpreztorc" ]]; then
+            shell_rc="$HOME/.zshrc"
+            print_info "prezto環境を検出しました"
+        else
+            shell_rc="$HOME/.zshrc"
+        fi
+    elif [[ -n "$BASH_VERSION" ]] || [[ "$SHELL" == *"bash"* ]]; then
+        shell_name="bash"
+        shell_rc="$HOME/.bashrc"
+    fi
+
+    if [[ -z "$shell_rc" ]]; then
+        print_info "シェル設定ファイルを検出できませんでした"
+        print_info "手動で追加してください: [[ -f ~/.profile ]] && source ~/.profile"
         return 0
     fi
 
-    local patterns_added=0
+    # 既に追加済みか確認
+    if [[ -f "$shell_rc" ]] && grep -q "source ~/.profile\|source \"\$HOME/.profile\"" "$shell_rc" 2>/dev/null; then
+        print_info "既に設定済み: $shell_rc"
+        return 0
+    fi
 
-    # .bashrcはdotfilesに含まれているため、.zshrcのみ対象
-    # (シンボリックリンク先を変更してしまうのを防ぐ)
-    local rc="$HOME/.zshrc"
-    if [[ -f "$rc" && ! -L "$rc" ]]; then
-        if ! grep -q "DOTFILES_BIN" "$rc" 2>/dev/null; then
+    printf "~/.profileの読み込みを %s に追加しますか? [y/N]: " "$shell_rc"
+    read -r add_source
+
+    case "$add_source" in
+        y|Y)
+            if $MODE_DRY_RUN; then
+                print_info "[ドライラン] 追加: $shell_rc"
+                return 0
+            fi
+
+            # バックアップ
+            if [[ -f "$shell_rc" ]]; then
+                cp "$shell_rc" "${shell_rc}.bak.$(date +%Y%m%d%H%M%S)"
+            fi
+
+            # 追加
             {
                 echo ""
-                echo "# dotfiles bin"
-                echo "export DOTFILES_BIN=\"$dotfiles_bin\""
-                echo 'export PATH="\$DOTFILES_BIN:\$PATH"'
-            } >> "$rc"
-            print_success "PATH追加: $rc"
-            ((patterns_added++)) || true
-        else
-            print_info "既に設定済み: $rc"
-        fi
-    elif [[ -L "$rc" ]]; then
-        print_info "シンボリックリンクのためスキップ: $rc"
-    fi
+                echo "# dotfiles共通設定"
+                echo '[[ -f ~/.profile ]] && source ~/.profile'
+            } >> "$shell_rc"
 
-    if [[ $patterns_added -gt 0 ]]; then
-        print_info "シェルを再起動するか 'source ~/.zshrc' を実行してPATHを反映してください"
-    fi
-
-    # .bashrcはdotfilesに含まれておりPATH設定済みのため情報表示のみ
-    print_info ".bashrcはdotfiles内でPATH設定済みです"
+            print_success "追加しました: $shell_rc"
+            print_info "反映するには: source $shell_rc"
+            ;;
+        *)
+            print_info "スキップしました"
+            print_info "手動で追加: [[ -f ~/.profile ]] && source ~/.profile"
+            ;;
+    esac
 }
 
 # ============================================================================
@@ -724,6 +799,9 @@ install_files() {
         create_link "$src" "$dest"
     done
 
+    # .gitconfigのインストール
+    install_gitconfig
+
     if $CLAUDE_SELECTED; then
         install_claude_config
     fi
@@ -739,6 +817,10 @@ uninstall_files() {
         dest=$(get_dotfile_field "$i" dest)
         remove_link "$src" "$dest"
     done
+
+    # .gitconfigの削除 (work/private両方を試行)
+    remove_link ".gitconfig.work" "${HOME}/.gitconfig"
+    remove_link ".gitconfig.private" "${HOME}/.gitconfig"
 
     uninstall_claude_config
 }
@@ -761,10 +843,6 @@ show_summary() {
     fi
     echo ""
 
-    if ! $MODE_DRY_RUN && ! $MODE_UNINSTALL && [[ $COUNT_CREATED -gt 0 ]]; then
-        printf "${COLOR_CYAN}シェル設定を反映するには 'source ~/.bashrc' を実行してください。${COLOR_RESET}\n"
-        echo ""
-    fi
 }
 
 # ヘルプ表示
@@ -783,10 +861,19 @@ dotfiles インストーラー - dotfilesのシンボリックリンクを作成
     -u, --uninstall     作成したシンボリックリンクを削除
 
 カテゴリ:
-    shell   シェル設定(.bashrc, .shell_aliases)
-    git     Git設定(.gitconfig, .git-completion.bash等)
+    shell   シェル設定(.profile, .shell_aliases)
+    git     Git設定(.gitconfig.work/private, .git-completion.bash等)
     vim     Vim設定(.vimrc)
     claude  Claude Code設定(claude-config/から)
+
+シェル設定:
+    .profileは共通シェル設定ファイルです。PATH、環境変数、エイリアス読み込みを含みます。
+    prezto/oh-my-posh等のシェル設定から以下を追加して読み込んでください:
+      [[ -f ~/.profile ]] && source ~/.profile
+
+.gitconfig:
+    仕事用(.gitconfig.work)とプライベート用(.gitconfig.private)を選択できます。
+    強制モードではOS検出で自動選択(macOS=private, Linux=work)。
 
 例:
     ./install.sh              # 対話的にインストール
@@ -888,15 +975,20 @@ main() {
                 SELECTED_INDICES+=("$i")
             done
             CLAUDE_SELECTED=true
+            # 環境自動検出: macOS=private, Linux=work
+            if [[ "$(uname)" == "Darwin" ]]; then
+                GITCONFIG_VARIANT="private"
+            else
+                GITCONFIG_VARIANT="work"
+            fi
+            print_info ".gitconfig: ${GITCONFIG_VARIANT} を自動選択しました"
         fi
         install_files
 
         if $MODE_INTERACTIVE; then
+            setup_profile_source
             setup_work_environment
         fi
-
-        # bin/ ディレクトリのセットアップ
-        setup_bin_path
     fi
 
     show_summary
