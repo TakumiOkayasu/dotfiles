@@ -198,3 +198,4 @@ _setup_dotfiles_bin() {
 }
 _setup_dotfiles_bin
 unset -f _setup_dotfiles_bin
+
