@@ -1,33 +1,30 @@
 [init]
-	defaultBranch = main
+        defaultBranch = main
 [user]
-	name = Takumi Okayasu
-	email = t.okayasu@twb.jp
+        name = Takumi Okayasu
+        email = takumi_okys@icloud.com
 [alias]
-	s = status
-	ss = status -s
-	co = checkout
-	br-rename = branch -m
-	brd = branch -d
-	cob = checkout -b
-	adu = add -u
-	cmt = commit -m
-	undo = "!f() { git reset --hard $(git rev-parse --abbrev-ref HEAD)@{${1-1}} && git checkout $(git rev-parse --abbrev-ref HEAD); }; f"
+        s = status
+        ss = status -s
+        co = checkout
+        br-rename = branch -m
+        brd = branch -d
+        cob = checkout -b
+        adu = add -u
+        cmt = commit -m
+        undo = "!f() { git reset --hard $(git rev-parse --abbrev-ref HEAD)@{${1-1}} && git checkout $(git rev-parse --abbrev-ref HEAD); }; f"
 [core]
-	editor = code --wait
-	symlinks = true
-	excludesfile = ~/.gitignore_global
-	compression = 1
+        editor = code --wait
+        symlinks = true
+        excludesfile = ~/.gitignore_global
+        compression = 1
 [safe]
-	directory = ~/prog
+        directory = ~/prog
 [credential "https://github.com"]
-	helper = !/opt/homebrew/bin/gh auth git-credential
+        helper = !/opt/homebrew/bin/gh auth git-credential
 [credential "https://gist.github.com"]
-	helper = !/opt/homebrew/bin/gh auth git-credential
-[url "https://github.com/"]
-	insteadOf = ssh://git@github.com/
+        helper = !/opt/homebrew/bin/gh auth git-credential
 [http]
-	postBuffer = 524288000
+        postBuffer = 524288000
 [pack]
-	windowMemory = 256m
-
+        windowMemory = 256m
