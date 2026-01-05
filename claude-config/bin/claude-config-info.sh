@@ -354,9 +354,14 @@ main() {
         fi
 
         if [ "$SHOW_FAILURES" = "true" ]; then
-            [ "$QUIET" = "false" ] && echo "⚠️  FAILURE LOG:"
-            print_failures_text
-            [ "$QUIET" = "false" ] && echo ""
+            # 失敗がある場合のみ表示
+            info=$(get_failure_info)
+            count="${info%%|*}"
+            if [ "$count" -gt 0 ]; then
+                [ "$QUIET" = "false" ] && echo "⚠️  FAILURE LOG:"
+                print_failures_text
+                [ "$QUIET" = "false" ] && echo ""
+            fi
         fi
     fi
 }
