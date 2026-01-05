@@ -16,10 +16,10 @@
 [core]
 	editor = code --wait
 	symlinks = true
-	excludesfile = /home/okayasu/.gitignore_global
+	excludesfile = ~/.gitignore_global
 	compression = 1
 [safe]
-	directory = /home/okayasu/prog
+	directory = ~/prog
 [credential "https://github.com"]
 	helper = !/home/linuxbrew/.linuxbrew/bin/gh auth git-credential
 [credential "https://gist.github.com"]
