@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # PostToolUse hook - ブランチ作成時にmainから分岐しているか確認
 #
 # 使い方 (手動実行):
@@ -9,7 +9,7 @@
 set -e
 
 # 手動実行時のヘルプ
-if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     cat <<'EOF'
 branch-from-main-check.sh - ブランチがmainから分岐しているか確認
 
@@ -26,7 +26,7 @@ EOF
 fi
 
 # stdin がない場合のタイムアウト対策
-if [[ -t 0 ]]; then
+if [ -t 0 ]; then
     echo "エラー: 標準入力がありません" >&2
     echo "使い方: echo '{\"tool_input\":{\"command\":\"git checkout -b feat/test\"}}' | $0" >&2
     echo "ヘルプ: $0 --help" >&2
@@ -41,19 +41,16 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null || echo 
 
 # git checkout -b を検出 (新規ブランチ作成)
 if echo "$COMMAND" | grep -qE 'git\s+checkout\s+-b'; then
-    # git-new-feature を使っていない場合のみ警告
-    # (git-new-feature は自動でmainから分岐するので問題ない)
-
     # 現在のブランチの親がmainか確認
     MAIN_BRANCH=$(git config --local --get claude.mainBranch 2>/dev/null || echo "main")
     CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
 
     # 新しいブランチがmainから分岐しているか確認
-    if [[ -n "$CURRENT_BRANCH" ]]; then
+    if [ -n "$CURRENT_BRANCH" ]; then
         MERGE_BASE=$(git merge-base "$MAIN_BRANCH" "$CURRENT_BRANCH" 2>/dev/null || echo "")
         MAIN_HEAD=$(git rev-parse "$MAIN_BRANCH" 2>/dev/null || echo "")
 
-        if [[ "$MERGE_BASE" != "$MAIN_HEAD" ]]; then
+        if [ "$MERGE_BASE" != "$MAIN_HEAD" ]; then
             cat <<EOF
 {
   "hookSpecificOutput": {
