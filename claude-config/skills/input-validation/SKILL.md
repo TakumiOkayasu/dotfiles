@@ -5,6 +5,26 @@ description: ユーザー入力、フォームデータ、APIリクエストを�
 
 # Input Validation
 
+## 📋 実行前チェック(必須)
+
+### このスキルを使うべきか?
+- [ ] ユーザー入力を処理する?
+- [ ] フォームデータを検証する?
+- [ ] APIリクエストを検証する?
+- [ ] 外部データを受け取る?
+
+### 前提条件
+- [ ] 入力の期待値を定義したか?
+- [ ] エラーメッセージを用意したか?
+- [ ] サーバー側での検証を実装したか?
+
+### 禁止事項の確認
+- [ ] クライアント側の検証だけで済ませようとしていないか?
+- [ ] 入力をサニタイズせずにDB/HTMLに出力しようとしていないか?
+- [ ] 型チェックを省略しようとしていないか?
+
+---
+
 ## トリガー
 
 - ユーザー入力処理時
@@ -12,9 +32,13 @@ description: ユーザー入力、フォームデータ、APIリクエストを�
 - APIリクエスト検証時
 - 外部データ受け取り時
 
+---
+
 ## 🚨 鉄則
 
 **クライアントは信用しない。サーバーで必ず検証。**
+
+---
 
 ## バリデーション層
 
@@ -26,71 +50,44 @@ description: ユーザー入力、フォームデータ、APIリクエストを�
 データベース: 最終防衛(制約)
 ```
 
+---
+
 ## Zodによる検証
 
 ```typescript
 import { z } from 'zod';
 
-const userSchema = z.object({
+const UserSchema = z.object({
   email: z.string().email(),
-  age: z.number().int().min(0).max(150),
-  name: z.string().min(1).max(100),
+  password: z.string().min(8),
+  age: z.number().int().positive().optional()
 });
 
-// ⚠️ parseは例外をスロー、safeParseはResult型
-const result = userSchema.safeParse(req.body);
+// 使用
+const result = UserSchema.safeParse(input);
 if (!result.success) {
-  return res.status(400).json({ errors: result.error.errors });
+  return res.status(400).json({ errors: result.error.issues });
 }
 ```
 
-## よくあるバリデーション
+---
+
+## SQLインジェクション防止
 
 ```typescript
-// 必須
-z.string().min(1)
+// ❌ 文字列連結
+const query = `SELECT * FROM users WHERE id = '${id}'`;
 
-// メール
-z.string().email()
-
-// URL
-z.string().url()
-
-// 列挙型
-z.enum(['admin', 'user', 'guest'])
-
-// 日付
-z.string().datetime()
-
-// 配列
-z.array(z.string()).min(1).max(10)
-
-// オプショナル
-z.string().optional()
-
-// デフォルト値
-z.string().default('guest')
+// ✅ パラメータ化クエリ
+const query = 'SELECT * FROM users WHERE id = ?';
+db.query(query, [id]);
 ```
 
-## 🚫 禁止パターン
+---
 
-```typescript
-// ❌ クライアントのみで検証
-if (formIsValid) { submit(); }
+## 🚫 禁止事項まとめ
 
-// ❌ 型アサーションで済ませる
-const user = req.body as User;
-
-// ❌ 部分的な検証
-if (email) { /* emailの形式は未検証 */ }
-```
-
-## サニタイズ
-
-```typescript
-// HTMLエスケープ
-import { escape } from 'lodash';
-const safe = escape(userInput);
-
-// SQLはパラメータ化クエリで対応(バリデーションではない)
-```
+- クライアント側検証のみ
+- サニタイズなしの出力
+- 型チェックの省略
+- 文字列連結でのSQL構築

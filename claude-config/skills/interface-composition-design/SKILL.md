@@ -5,6 +5,26 @@ description: クラス設計やアーキテクチャリファクタリング時�
 
 # Interface-based Design
 
+## 📋 実行前チェック(必須)
+
+### このスキルを使うべきか?
+- [ ] クラスを設計する?
+- [ ] 継承 vs 合成の判断をする?
+- [ ] 依存性注入を設計する?
+- [ ] リファクタリングで構造改善する?
+
+### 前提条件
+- [ ] 変化する部分を特定したか?
+- [ ] 依存関係を把握しているか?
+- [ ] 単一責任の原則を確認したか?
+
+### 禁止事項の確認
+- [ ] 深い継承階層を作ろうとしていないか?
+- [ ] 具象クラスに直接依存しようとしていないか?
+- [ ] パラメータを追加し続けて爆発していないか?
+
+---
+
 ## トリガー
 
 - クラス設計時
@@ -12,9 +32,13 @@ description: クラス設計やアーキテクチャリファクタリング時�
 - 依存性注入設計時
 - リファクタリングで構造改善時
 
-## 鉄則
+---
+
+## 🚨 鉄則
 
 **実装を隠し、インターフェースのみ公開。合成で拡張。**
+
+---
 
 ## 判断基準
 
@@ -30,47 +54,45 @@ class ProcessorA implements Processor {}
 class ProcessorB implements Processor {} // 新規追加
 ```
 
-### 2. 新機能で既存コード変更が必要か?
+### 2. 継承 vs 合成
 
 ```typescript
-// ❌ 分岐を追加
-if (type === 'new') { ... } // 既存コード変更
+// ❌ 深い継承
+class A extends B extends C extends D
 
-// ✅ 新クラス追加のみ
-class NewHandler implements Handler {} // 既存コード変更なし
+// ✅ 合成
+class Service {
+  constructor(
+    private readonly processor: Processor,
+    private readonly validator: Validator
+  ) {}
+}
 ```
 
-### 3. 単一責任か?
+---
+
+## 依存性注入
 
 ```typescript
-// ❌ 複数責任
-class UserManager { 
-  validate() {}
-  save() {}
-  sendEmail() {}
+// インターフェースに依存
+interface Repository {
+  find(id: string): Promise<Entity>;
 }
 
-// ✅ 単一責任
-class UserValidator {}
-class UserRepository {}
-class EmailSender {}
+class Service {
+  constructor(private readonly repo: Repository) {}
+}
+
+// テスト時はモック注入
+const mockRepo: Repository = { find: async () => mockEntity };
+new Service(mockRepo);
 ```
 
-## アンチパターン
+---
 
-```typescript
-// ❌ instanceof / typeof による分岐
-if (obj instanceof TypeA) { ... }
+## 🚫 禁止事項まとめ
 
-// ❌ Manager / Helper / Util クラス
-class DataHelper {} // 何のデータ?
-
-// ❌ 継承の深いヒエラルキー
-class A extends B extends C extends D
-```
-
-## 実装ポイント
-
-- インターフェースは薄く(必要最小限のメソッド)
-- 依存は外部から注入(コンストラクタ)
-- 内部実装は完全に隠蔽
+- 深い継承階層
+- 具象クラスへの直接依存
+- パラメータの無限追加
+- インターフェースなしの設計

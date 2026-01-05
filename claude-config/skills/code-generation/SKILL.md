@@ -5,6 +5,26 @@ description: スキャフォールディングやボイラープレート生成�
 
 # Code Generation
 
+## 📋 実行前チェック(必須)
+
+### このスキルを使うべきか?
+- [ ] ボイラープレートを生成する?
+- [ ] スキャフォールディングを行う?
+- [ ] テンプレートからコードを生成する?
+- [ ] 繰り返しコード構造を自動化する?
+
+### 前提条件
+- [ ] プロジェクトのディレクトリ構造を確認したか?
+- [ ] 既存の規約・パターンを把握しているか?
+- [ ] 生成するコードの目的を理解しているか?
+
+### 禁止事項の確認
+- [ ] 生成コードを理解せずにそのまま使おうとしていないか?
+- [ ] プロジェクトの規約を無視した構造にしようとしていないか?
+- [ ] 不要なコードまで生成しようとしていないか?
+
+---
+
 ## トリガー
 
 - ボイラープレート生成時
@@ -12,9 +32,13 @@ description: スキャフォールディングやボイラープレート生成�
 - テンプレートからのコード生成時
 - 繰り返しコード構造の自動化時
 
-## 鉄則
+---
+
+## 🚨 鉄則
 
 **繰り返し作業は自動化。生成コードも理解する。**
+
+---
 
 ## ディレクトリ構造
 
@@ -29,52 +53,10 @@ tests/
 docs/
 ```
 
-## テンプレート例
+---
 
-```typescript
-// templates/component.tsx
-import { FC } from 'react';
+## 🚫 禁止事項まとめ
 
-interface {{Name}}Props {}
-
-export const {{Name}}: FC<{{Name}}Props> = () => {
-  return <div>{{Name}}</div>;
-};
-```
-
-## 生成スクリプト
-
-```bash
-#!/bin/bash
-NAME=$1
-mkdir -p "src/components/${NAME}"
-cat > "src/components/${NAME}/${NAME}.tsx" << EOF
-import { FC } from 'react';
-export const ${NAME}: FC = () => <div>${NAME}</div>;
-EOF
-```
-
-## plop.js(推奨)
-
-```javascript
-// plopfile.js
-module.exports = function(plop) {
-  plop.setGenerator('component', {
-    prompts: [{ type: 'input', name: 'name' }],
-    actions: [{
-      type: 'add',
-      path: 'src/components/{{pascalCase name}}.tsx',
-      templateFile: 'templates/component.tsx.hbs'
-    }]
-  });
-};
-```
-
-## 良い生成コード
-
-```
-✅ 人間が読める
-✅ プロジェクト規約に従う
-✅ テストも生成
-✅ 最小限の依存
-```
+- 生成コードを理解せずに使用
+- プロジェクト規約を無視した構造
+- 不要なコードの生成
