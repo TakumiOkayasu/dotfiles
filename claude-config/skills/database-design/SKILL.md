@@ -5,6 +5,27 @@ description: スキーマ設計やマイグレーション作成時に使用。
 
 # Database Design
 
+## 📋 実行前チェック(必須)
+
+### このスキルを使うべきか?
+- [ ] テーブルを設計する?
+- [ ] マイグレーションを作成する?
+- [ ] インデックスを設計する?
+- [ ] クエリを最適化する?
+
+### 前提条件
+- [ ] データの関係性を理解しているか?
+- [ ] 想定されるクエリパターンを把握しているか?
+- [ ] データ量の見積もりがあるか?
+
+### 禁止事項の確認
+- [ ] created_at/updated_atを忘れていないか?
+- [ ] 適切なインデックスを設計したか?
+- [ ] 外部キー制約を検討したか?
+- [ ] ロールバック不可能なマイグレーションを書こうとしていないか?
+
+---
+
 ## トリガー
 
 - テーブル設計時
@@ -12,9 +33,13 @@ description: スキーマ設計やマイグレーション作成時に使用。
 - インデックス設計時
 - クエリ最適化時
 
+---
+
 ## 🚨 鉄則
 
 **データモデルは変更コストが高い。慎重に設計。**
+
+---
 
 ## 必須カラム
 
@@ -27,35 +52,34 @@ CREATE TABLE posts (
 );
 ```
 
-## マイグレーション
+---
 
-```sql
--- ✅ 安全: NULL許可で追加
-ALTER TABLE users ADD COLUMN phone VARCHAR(20) NULL;
+## マイグレーション原則
 
--- ⚠️ NOT NULLは段階的に
--- 1. NULL許可で追加
--- 2. データ移行
--- 3. NOT NULL制約追加
+```
+□ UP/DOWNが対になっている
+□ データ破壊がない(DROP前にバックアップ)
+□ 本番で実行可能な速度
+□ ロールバック可能
 ```
 
-## 🚫 N+1回避
+---
+
+## インデックス
 
 ```sql
--- ❌
-SELECT * FROM users;
-SELECT * FROM orders WHERE user_id = ?;  -- N回
+-- WHERE句で頻繁に使うカラム
+CREATE INDEX idx_users_email ON users(email);
 
--- ✅
-SELECT * FROM orders WHERE user_id IN (1, 2, 3);
+-- 複合インデックス(順序が重要)
+CREATE INDEX idx_orders_user_date ON orders(user_id, created_at);
 ```
 
-## ページネーション
+---
 
-```sql
--- ❌ OFFSET(大きいと遅い)
-SELECT * FROM orders LIMIT 20 OFFSET 10000;
+## 🚫 禁止事項まとめ
 
--- ✅ カーソル
-SELECT * FROM orders WHERE id > :last_id LIMIT 20;
-```
+- created_at/updated_at忘れ
+- インデックスなしの検索カラム
+- ロールバック不可能なマイグレーション
+- データ破壊を伴う変更(確認なし)

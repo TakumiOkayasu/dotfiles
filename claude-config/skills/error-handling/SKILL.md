@@ -5,6 +5,26 @@ description: エラーハンドリングを実装する際に使用。回復戦�
 
 # Error Handling
 
+## 📋 実行前チェック(必須)
+
+### このスキルを使うべきか?
+- [ ] 例外処理を実装する?
+- [ ] try-catchを設計する?
+- [ ] リトライロジックを実装する?
+- [ ] エラーレスポンスを設計する?
+
+### 前提条件
+- [ ] エラーの種類を分類したか?(回復可能/不可能)
+- [ ] ユーザーへのエラーメッセージを検討したか?
+- [ ] ログに記録すべき情報を整理したか?
+
+### 禁止事項の確認
+- [ ] エラーを握りつぶそうとしていないか?(空のcatch)
+- [ ] スタックトレースをユーザーに露出しようとしていないか?
+- [ ] 全てのエラーを同じように扱おうとしていないか?
+
+---
+
 ## トリガー
 
 - 例外処理実装時
@@ -12,9 +32,13 @@ description: エラーハンドリングを実装する際に使用。回復戦�
 - リトライロジック実装時
 - エラーレスポンス設計時
 
-## 鉄則
+---
+
+## 🚨 鉄則
 
 **回復可能かどうかで処理を分ける。**
+
+---
 
 ## エラー分類
 
@@ -26,56 +50,47 @@ class TransientError extends Error { retryable = true; }
 class PermanentError extends Error { retryable = false; }
 ```
 
-## パターン
+---
 
-### 早期リターン
+## リトライパターン
 
 ```typescript
-function process(data: Data | null) {
-  if (!data) throw new Error('No data');
-  if (!data.isValid) throw new Error('Invalid');
-  // 正常処理
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  delay = 1000
+): Promise<T> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (!error.retryable || i === maxRetries - 1) throw error;
+      await sleep(delay * Math.pow(2, i)); // 指数バックオフ
+    }
+  }
 }
 ```
 
-### Result型
+---
+
+## ユーザー向けエラー
 
 ```typescript
-type Result<T> = { ok: true; value: T } | { ok: false; error: Error };
+// 🚫 内部詳細を露出しない
+res.status(500).json({
+  error: 'Internal server error'
+  // stacktrace: ... ❌
+});
+
+// ログには詳細を記録
+logger.error('DB connection failed', { error, requestId });
 ```
 
-### リトライ(指数バックオフ)
+---
 
-```typescript
-for (let i = 0; i <= maxRetries; i++) {
-  try { return await fn(); }
-  catch { await sleep(Math.pow(2, i) * 1000); }
-}
-```
+## 🚫 禁止事項まとめ
 
-### サーキットブレーカー
-
-```
-CLOSED(正常) → 失敗増加 → OPEN(遮断) → 時間経過 → HALF_OPEN → 成功 → CLOSED
-```
-
-## 非同期
-
-```typescript
-// Promise: catchを忘れない
-fetch().then(process).catch(handleError);
-
-// async/await: try-catch
-try { await fetch(); }
-catch (e) {
-  if (e instanceof ValidationError) return { status: 400 };
-  throw e;
-}
-```
-
-## フォールバック
-
-```typescript
-try { return await primary.get(key); }
-catch { return await fallback.get(key); }
-```
+- 空のcatchブロック(エラー握りつぶし)
+- スタックトレースのユーザー露出
+- 全エラーの同一扱い
+- リトライなしの一時的エラー
