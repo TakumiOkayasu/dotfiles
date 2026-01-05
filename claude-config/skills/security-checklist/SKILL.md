@@ -5,6 +5,26 @@ description: ファイル編集・コミット準備時に使用。シークレ�
 
 # Security Checklist
 
+## 📋 実行前チェック(必須)
+
+### このスキルを使うべきか?
+- [ ] ファイルを作成・編集する?
+- [ ] コミットを準備する?
+- [ ] .envや認証関連コードに触れる?
+- [ ] APIキー、トークン、パスワードを扱う?
+
+### 前提条件
+- [ ] .gitignoreを確認したか?
+- [ ] 環境変数の設定を確認したか?
+
+### 禁止事項の確認
+- [ ] APIキー、パスワード、トークンをハードコードしようとしていないか?
+- [ ] .envファイルをコミットしようとしていないか?
+- [ ] デバッグ用のconsole.logを残そうとしていないか?
+- [ ] 機密情報を含むファイルを誤って編集していないか?
+
+---
+
 ## トリガー
 
 - ファイル作成・編集時
@@ -12,9 +32,13 @@ description: ファイル編集・コミット準備時に使用。シークレ�
 - `.env`や認証関連コードに触れる時
 - APIキー、トークン、パスワードを扱う時
 
+---
+
 ## 🚨 鉄則
 
 **シークレットはハードコード禁止。環境変数で管理。コミット前に必ずチェック。**
+
+---
 
 ## コミット前チェックリスト
 
@@ -26,52 +50,34 @@ description: ファイル編集・コミット準備時に使用。シークレ�
 □ テスト用の認証情報が本番用と分離されている
 ```
 
+---
+
 ## 編集禁止ファイル(確認なしで触らない)
 
 ```
-*.lock          (package-lock.json, yarn.lock, Cargo.lock等)
-.env*           (.env, .env.local, .env.production等)
-.git/*
-*.pem, *.key, *.crt   (証明書・秘密鍵)
-*_rsa, *_ed25519      (SSH鍵)
-credentials.json, secrets.yaml
-```
-
-## シークレット検出パターン
-
-⚠️ 以下のパターンを含むコードは警告:
-
-```
-api_key = "sk-..."
-API_KEY = "..."
-aws_access_key_id = "AKIA..."
-DATABASE_URL = "postgres://user:password@..."
-JWT_SECRET = "..."
-token = "ghp_..."   # GitHub
-token = "xoxb-..."  # Slack
-```
-
-## 安全な実装パターン
-
-```python
-# ❌ NG: ハードコード
-api_key = "sk-1234567890"
-
-# ✅ OK: 環境変数
-import os
-api_key = os.environ.get("API_KEY")
-```
-
-```gitignore
-# .gitignore に追加
 .env
-.env.local
-config/secrets.yml
+.env.*
+**/credentials*
+**/secrets/**
+**/*.pem
+**/.aws/*
+**/.ssh/*
 ```
 
-## 違反発見時のアクション
+---
 
-1. 即座にユーザーに報告
-2. 該当コードを修正案とともに提示
-3. `.gitignore`の確認を促す
-4. 必要に応じてgit履歴からの削除方法を案内
+## シークレット検出
+
+```bash
+# コミット前に確認
+git diff --staged | grep -E "(password|secret|token|api_key|apikey)"
+```
+
+---
+
+## 🚫 禁止事項まとめ
+
+- APIキー、パスワードのハードコード
+- .envファイルのコミット
+- デバッグコードの残存
+- 機密ファイルの誤編集

@@ -5,6 +5,27 @@ description: Dockerfileやdocker-compose設定を作成する際に使用。
 
 # Docker
 
+## 📋 実行前チェック(必須)
+
+### このスキルを使うべきか?
+- [ ] Dockerfileを作成する?
+- [ ] docker-composeを設定する?
+- [ ] コンテナ化を検討する?
+- [ ] マルチステージビルドを行う?
+
+### 前提条件
+- [ ] ベースイメージを選定したか?
+- [ ] 必要なポートを把握しているか?
+- [ ] 環境変数を整理したか?
+
+### 禁止事項の確認
+- [ ] latestタグを使おうとしていないか?
+- [ ] rootユーザーで実行しようとしていないか?
+- [ ] 機密情報をイメージに含めようとしていないか?
+- [ ] 不要なファイルをコピーしようとしていないか?
+
+---
+
 ## トリガー
 
 - Dockerfile作成時
@@ -12,9 +33,13 @@ description: Dockerfileやdocker-compose設定を作成する際に使用。
 - コンテナ化検討時
 - マルチステージビルド時
 
-## 鉄則
+---
+
+## 🚨 鉄則
 
 **イメージは小さく、レイヤーは少なく、セキュリティを意識。**
+
+---
 
 ## Dockerfile
 
@@ -28,15 +53,17 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 
-# ソースコードをコピー
+# アプリケーションコード
 COPY . .
 
-# 🚫 rootで実行しない
+# 非rootユーザー
 USER node
 
 EXPOSE 3000
 CMD ["node", "dist/index.js"]
 ```
+
+---
 
 ## マルチステージビルド
 
@@ -44,44 +71,20 @@ CMD ["node", "dist/index.js"]
 # ビルドステージ
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
 COPY . .
-RUN npm run build
+RUN npm ci && npm run build
 
-# 本番ステージ(軽量)
+# 実行ステージ
 FROM node:20-alpine
 WORKDIR /app
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+RUN npm ci --only=production
 USER node
 CMD ["node", "dist/index.js"]
 ```
 
-## docker-compose
-
-```yaml
-version: '3.8'
-services:
-  app:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-    depends_on:
-      - db
-  
-  db:
-    image: postgres:15-alpine
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    environment:
-      POSTGRES_PASSWORD: ${DB_PASSWORD}  # ⚠️ .envから
-
-volumes:
-  postgres_data:
-```
+---
 
 ## .dockerignore
 
@@ -90,19 +93,13 @@ node_modules
 .git
 .env
 *.log
-dist
-coverage
 ```
 
-## 🚫 禁止事項
+---
 
-```dockerfile
-# ❌ latestタグ
-FROM node:latest
+## 🚫 禁止事項まとめ
 
-# ❌ rootユーザー
-USER root
-
-# ❌ シークレットをイメージに含める
-COPY .env .
-```
+- latestタグの使用
+- rootユーザーでの実行
+- 機密情報のイメージ含有
+- 不要ファイルのコピー

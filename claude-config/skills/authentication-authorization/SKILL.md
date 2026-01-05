@@ -5,6 +5,29 @@ description: ログイン、セッション、JWT、OAuth、アクセス制御�
 
 # Authentication & Authorization
 
+## 📋 実行前チェック(必須)
+
+### このスキルを使うべきか?
+- [ ] ログイン機能を実装する?
+- [ ] JWT/セッション管理を行う?
+- [ ] 権限チェックを実装する?
+- [ ] パスワード処理を行う?
+
+### 前提条件
+- [ ] 認証方式(JWT/セッション/OAuth)を決定したか?
+- [ ] トークンの有効期限を検討したか?
+- [ ] 必要な権限レベルを定義したか?
+- [ ] セキュリティ要件を把握しているか?
+
+### 禁止事項の確認
+- [ ] パスワードを平文で保存しようとしていないか?
+- [ ] シークレットをハードコードしようとしていないか?
+- [ ] トークンをURLに含めようとしていないか?
+- [ ] フロントエンドのみで認可しようとしていないか?
+- [ ] httpOnly/secureなしでCookieを設定しようとしていないか?
+
+---
+
 ## トリガー
 
 - ログイン機能実装時
@@ -12,9 +35,13 @@ description: ログイン、セッション、JWT、OAuth、アクセス制御�
 - 権限チェック実装時
 - パスワード処理時
 
+---
+
 ## 🚨 鉄則
 
 **認証(誰か) ≠ 認可(何ができるか)。両方必要。**
+
+---
 
 ## 認証方式
 
@@ -47,6 +74,8 @@ app.use(session({
 }));
 ```
 
+---
+
 ## 認可
 
 ```typescript
@@ -67,7 +96,19 @@ if (resource.ownerId !== req.user.id && !req.user.isAdmin) {
 }
 ```
 
-## 🚫 禁止事項
+---
+
+## パスワード
+
+```typescript
+// ⚠️ bcrypt, saltRounds 12以上
+const hash = await bcrypt.hash(password, 12);
+const isValid = await bcrypt.compare(password, hash);
+```
+
+---
+
+## 🚫 禁止事項まとめ
 
 ```typescript
 // ❌ パスワード平文保存
@@ -78,12 +119,10 @@ user.password = password;
 
 // ❌ フロントエンドのみで認可
 if (user.role === 'admin') { showAdminPanel(); }
-```
 
-## パスワード
+// ❌ シークレットのハードコード
+const SECRET = 'my-secret-key';
 
-```typescript
-// ⚠️ bcrypt, saltRounds 12以上
-const hash = await bcrypt.hash(password, 12);
-const isValid = await bcrypt.compare(password, hash);
+// ❌ httpOnlyなしのセッションCookie
+cookie: { httpOnly: false }
 ```

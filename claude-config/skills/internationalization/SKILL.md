@@ -5,6 +5,26 @@ description: i18nやタイムゾーン処理を実装する際に使用。
 
 # Internationalization
 
+## 📋 実行前チェック(必須)
+
+### このスキルを使うべきか?
+- [ ] 多言語対応を行う?
+- [ ] 日付・数値をフォーマットする?
+- [ ] タイムゾーン処理を行う?
+- [ ] RTL言語に対応する?
+
+### 前提条件
+- [ ] 対象言語・地域を決定したか?
+- [ ] 翻訳ワークフローを検討したか?
+- [ ] 日付・数値フォーマットを確認したか?
+
+### 禁止事項の確認
+- [ ] テキストをハードコードしようとしていないか?
+- [ ] ローカルタイムゾーンを仮定しようとしていないか?
+- [ ] 文字列連結で文を組み立てようとしていないか?
+
+---
+
 ## トリガー
 
 - 多言語対応時
@@ -12,9 +32,13 @@ description: i18nやタイムゾーン処理を実装する際に使用。
 - タイムゾーン処理時
 - RTL言語対応時
 
-## 鉄則
+---
+
+## 🚨 鉄則
 
 **最初から国際化を意識。後付けは困難。**
+
+---
 
 ## テキスト外部化
 
@@ -27,58 +51,47 @@ const msg = t('errors.userNotFound');
 const greeting = t('greeting', { name });
 ```
 
+---
+
 ## 翻訳ファイル
 
 ```json
-// locales/ja/common.json
+// locales/ja.json
 {
   "greeting": "こんにちは、{{name}}さん",
-  "errors": { "userNotFound": "ユーザーが見つかりません" }
+  "errors": {
+    "userNotFound": "ユーザーが見つかりません"
+  }
+}
+
+// locales/en.json
+{
+  "greeting": "Hello, {{name}}",
+  "errors": {
+    "userNotFound": "User not found"
+  }
 }
 ```
 
-## 複数形
-
-```json
-// 英語
-{ "items": "{{count}} item", "items_plural": "{{count}} items" }
-
-// 日本語(複数形なし)
-{ "items": "{{count}}個" }
-```
-
-## 日付・数値
-
-```typescript
-// Intl API
-new Intl.DateTimeFormat('ja-JP').format(date);
-// → "2024/1/15"
-
-new Intl.NumberFormat('ja-JP', {
-  style: 'currency', currency: 'JPY'
-}).format(1234);
-// → "￥1,234"
-```
+---
 
 ## タイムゾーン
 
-```
-サーバー: UTC保存
-API: ISO 8601 ("2024-01-15T10:30:00Z")
-クライアント: ユーザーのTZで表示
-```
-
 ```typescript
-const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+// ⚠️ 常にUTCで保存
+const utc = new Date().toISOString();
+
+// 表示時にローカライズ
+const local = new Intl.DateTimeFormat('ja-JP', {
+  timeZone: 'Asia/Tokyo'
+}).format(date);
 ```
 
-## RTL言語
+---
 
-```css
-/* 論理プロパティ */
-margin-inline-start: 1rem;  /* 左/右ではなく開始側 */
-```
+## 🚫 禁止事項まとめ
 
-```html
-<html dir="rtl" lang="ar">
-```
+- テキストのハードコード
+- ローカルタイムゾーンの仮定
+- 文字列連結での文組み立て
+- 後付けの国際化対応
