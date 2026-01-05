@@ -19,38 +19,40 @@ alias rd='rmdir'
 # ls (環境に応じて色付け)
 # ============================================================================
 
-# カラーサポート検出
-if ls --color=auto / >/dev/null 2>&1; then
-    # GNU ls
-    alias ls='ls --color=auto'
-    alias ll='ls -alF --color=auto'
-    alias la='ls -A --color=auto'
-    alias l='ls -CF --color=auto'
-elif ls -G / >/dev/null 2>&1; then
-    # BSD ls (macOS)
-    alias ls='ls -G'
-    alias ll='ls -alFG'
-    alias la='ls -AG'
-    alias l='ls -CFG'
-else
-    alias ll='ls -alF'
-    alias la='ls -A'
-    alias l='ls -CF'
-fi
-
-# eza/exa があれば使う
+# eza/exa > GNU ls > BSD ls の優先順位で設定
 if command -v eza >/dev/null 2>&1; then
     alias ls='eza'
     alias ll='eza -alF --git'
     alias la='eza -a'
+    alias l='eza -F'
     alias lt='eza --tree --level=2'
     alias lla='eza -la --git'
 elif command -v exa >/dev/null 2>&1; then
     alias ls='exa'
     alias ll='exa -alF --git'
     alias la='exa -a'
+    alias l='exa -F'
     alias lt='exa --tree --level=2'
     alias lla='exa -la --git'
+elif ls --color=auto / >/dev/null 2>&1; then
+    # GNU ls
+    alias ls='ls --color=auto'
+    alias ll='ls -alF --color=auto'
+    alias la='ls -A --color=auto'
+    alias l='ls -CF --color=auto'
+    alias lla='ls -la --color=auto'
+elif ls -G / >/dev/null 2>&1; then
+    # BSD ls (macOS)
+    alias ls='ls -G'
+    alias ll='ls -alFG'
+    alias la='ls -AG'
+    alias l='ls -CFG'
+    alias lla='ls -laG'
+else
+    alias ll='ls -alF'
+    alias la='ls -A'
+    alias l='ls -CF'
+    alias lla='ls -la'
 fi
 
 # ============================================================================
