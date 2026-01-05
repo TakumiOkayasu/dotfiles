@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # PreToolUse hook - mainブランチでのコード変更を警告
 # CLAUDE.mdルール: コード変更前にブランチを確認・作成
 #
@@ -10,7 +10,7 @@
 set -e
 
 # 手動実行時のヘルプ
-if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     cat <<'EOF'
 main-branch-code-warning.sh - mainブランチでのコード変更を警告
 
@@ -26,7 +26,7 @@ EOF
 fi
 
 # stdin がない場合のタイムアウト対策
-if [[ -t 0 ]]; then
+if [ -t 0 ]; then
     echo "エラー: 標準入力がありません" >&2
     echo "使い方: echo '{\"tool_input\":{\"file_path\":\"src/main.py\"}}' | $0" >&2
     echo "ヘルプ: $0 --help" >&2
@@ -40,7 +40,7 @@ INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // ""' 2>/dev/null || echo "")
 
 # ファイルパスがない場合はスキップ
-[[ -z "$FILE_PATH" ]] && exit 0
+[ -z "$FILE_PATH" ] && exit 0
 
 # ドキュメントファイルはスキップ (CLAUDE.md編集などは許可)
 if echo "$FILE_PATH" | grep -qiE '\.(md|markdown|rst|txt)$'; then
@@ -53,7 +53,7 @@ if echo "$FILE_PATH" | grep -qiE '\.(json|yaml|yml|toml|ini|conf|config)$'; then
 fi
 
 # Gitリポジトリ内かチェック
-if ! git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     exit 0
 fi
 
@@ -61,7 +61,7 @@ fi
 CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
 
 # mainまたはmasterブランチの場合に警告
-if [[ "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" ]]; then
+if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
     cat <<EOF
 {
   "hookSpecificOutput": {
