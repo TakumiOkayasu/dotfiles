@@ -185,3 +185,17 @@ alias myip='curl -s ifconfig.me'
 
 # ローカルIP
 alias localip="ip route get 1 2>/dev/null | awk '{print \$7}' || ipconfig getifaddr en0 2>/dev/null"
+
+# ============================================================================
+# ローカル/カスタムエイリアス
+# ============================================================================
+
+# shell/aliases.local (dotfiles管理)
+if [ -f "$DOTFILES_DIR/shell/aliases.local" ]; then
+    . "$DOTFILES_DIR/shell/aliases.local"
+fi
+
+# ~/.aliases.local (Git管理外、マシン固有)
+if [ -f "$HOME/.aliases.local" ]; then
+    . "$HOME/.aliases.local"
+fi
