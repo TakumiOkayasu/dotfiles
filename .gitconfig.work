@@ -16,7 +16,7 @@
 [core]
 	editor = code --wait
 	symlinks = true
-	excludesfile = ~/.gitignore_global
+	excludesfile = /home/okayasu/.gitignore_global
 	compression = 1
 [safe]
 	directory = ~/prog

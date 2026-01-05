@@ -51,8 +51,10 @@ declare -i COUNT_BACKUP=0
 declare -i COUNT_REMOVED=0
 declare -i COUNT_ERROR=0
 
-# 選択されたファイルインデックス
+# 選択されたカテゴリ/ファイル
 declare -a SELECTED_INDICES=()
+SHELL_SELECTED=false
+SHELL_TYPE=""  # bash, zsh, fish, all
 CLAUDE_SELECTED=false
 
 # Claudeファイルリストのキャッシュ
@@ -65,12 +67,24 @@ CLAUDE_FILES_LOADED=false
 # ============================================================================
 
 declare -a DOTFILE_DEFS=(
-    "shell|.profile|${HOME}/.profile|共通シェル設定(PATH, 環境変数)"
-    "shell|.shell_aliases|${HOME}/.shell_aliases|シェルエイリアス"
+    # Git
     "git|.git-completion.bash|${HOME}/.git-completion.bash|Gitコマンド補完"
     "git|.git-prompt.sh|${HOME}/.git-prompt.sh|Gitブランチ表示"
     "git|.gitignore|${HOME}/.config/git/ignore|グローバルgitignore"
+    # Vim
     "vim|.vimrc|${HOME}/.vimrc|Vim設定"
+)
+
+# シェル設定ファイル定義
+declare -A SHELL_FILES=(
+    # bash
+    ["bash_rc"]="shell/bash/bashrc|${HOME}/.bashrc"
+    ["bash_profile"]="shell/bash/bash_profile|${HOME}/.bash_profile"
+    # zsh
+    ["zsh_rc"]="shell/zsh/zshrc|${HOME}/.zshrc"
+    ["zsh_profile"]="shell/zsh/zprofile|${HOME}/.zprofile"
+    # fish
+    ["fish_config"]="shell/fish/config.fish|${HOME}/.config/fish/config.fish"
 )
 
 # .gitconfig選択 (work/private)
@@ -80,7 +94,7 @@ readonly DOTFILE_COUNT=${#DOTFILE_DEFS[@]}
 
 # カテゴリ定義
 declare -A CATEGORY_DESC=(
-    ["shell"]="シェル設定(共通profile, エイリアス)"
+    ["shell"]="シェル設定 (bash/zsh/fish)"
     ["git"]="Git設定と補完"
     ["vim"]="Vimエディタ設定"
     ["claude"]="Claude Code AI アシスタント設定"
@@ -157,6 +171,30 @@ ensure_dir() {
     return 0
 }
 
+# プラットフォーム検出
+detect_platform() {
+    if [[ -f /proc/sys/fs/binfmt_misc/WSLInterop ]] || \
+       [[ -n "${WSL_DISTRO_NAME:-}" ]] || \
+       grep -qi microsoft /proc/version 2>/dev/null; then
+        echo "wsl"
+    elif [[ "$(uname)" == "Darwin" ]]; then
+        echo "macos"
+    else
+        echo "linux"
+    fi
+}
+
+# 現在のシェルを検出
+detect_current_shell() {
+    local shell_path="${SHELL:-}"
+    case "$shell_path" in
+        */bash) echo "bash" ;;
+        */zsh)  echo "zsh" ;;
+        */fish) echo "fish" ;;
+        *)      echo "bash" ;;  # デフォルト
+    esac
+}
+
 # ============================================================================
 # ファイル定義アクセス関数
 # ============================================================================
@@ -186,6 +224,94 @@ get_indices_by_category() {
         fi
     done
     echo "${indices[*]}"
+}
+
+# ============================================================================
+# シェル設定関連
+# ============================================================================
+
+# シェルタイプを選択
+select_shell_type() {
+    if [[ -n "$SHELL_TYPE" ]]; then
+        return 0
+    fi
+
+    local current_shell
+    current_shell=$(detect_current_shell)
+
+    echo ""
+    printf "${COLOR_BOLD}シェル設定を選択:${COLOR_RESET}\n"
+    printf "  ${COLOR_BOLD}1)${COLOR_RESET} bash のみ\n"
+    printf "  ${COLOR_BOLD}2)${COLOR_RESET} zsh のみ\n"
+    printf "  ${COLOR_BOLD}3)${COLOR_RESET} fish のみ\n"
+    printf "  ${COLOR_BOLD}4)${COLOR_RESET} すべて (bash + zsh + fish)\n"
+    printf "  ${COLOR_BOLD}5)${COLOR_RESET} 現在のシェル (%s) のみ\n" "$current_shell"
+    echo ""
+    printf "選択 (1-5) [5]: "
+    read -r choice
+
+    case "$choice" in
+        1) SHELL_TYPE="bash" ;;
+        2) SHELL_TYPE="zsh" ;;
+        3) SHELL_TYPE="fish" ;;
+        4) SHELL_TYPE="all" ;;
+        5|"") SHELL_TYPE="$current_shell" ;;
+        *)
+            print_error "無効な選択です。現在のシェルを使用します"
+            SHELL_TYPE="$current_shell"
+            ;;
+    esac
+
+    print_success "シェル設定: ${SHELL_TYPE}"
+}
+
+# シェル設定ファイルをインストール
+install_shell_config() {
+    if ! $SHELL_SELECTED; then
+        return 0
+    fi
+
+    print_header "シェル設定をインストール"
+
+    # 共通ファイル (shell/common.sh, shell/aliases.sh) はシンボリックリンク不要
+    # 各シェルの設定ファイルから source される
+
+    local shells_to_install=()
+    case "$SHELL_TYPE" in
+        bash) shells_to_install=(bash) ;;
+        zsh)  shells_to_install=(zsh) ;;
+        fish) shells_to_install=(fish) ;;
+        all)  shells_to_install=(bash zsh fish) ;;
+    esac
+
+    for shell in "${shells_to_install[@]}"; do
+        case "$shell" in
+            bash)
+                create_link "shell/bash/bashrc" "${HOME}/.bashrc"
+                create_link "shell/bash/bash_profile" "${HOME}/.bash_profile"
+                ;;
+            zsh)
+                create_link "shell/zsh/zshrc" "${HOME}/.zshrc"
+                create_link "shell/zsh/zprofile" "${HOME}/.zprofile"
+                ;;
+            fish)
+                ensure_dir "${HOME}/.config/fish"
+                create_link "shell/fish/config.fish" "${HOME}/.config/fish/config.fish"
+                ;;
+        esac
+    done
+}
+
+# シェル設定ファイルをアンインストール
+uninstall_shell_config() {
+    print_header "シェル設定をアンインストール"
+
+    # すべてのシェル設定を削除
+    remove_link "shell/bash/bashrc" "${HOME}/.bashrc"
+    remove_link "shell/bash/bash_profile" "${HOME}/.bash_profile"
+    remove_link "shell/zsh/zshrc" "${HOME}/.zshrc"
+    remove_link "shell/zsh/zprofile" "${HOME}/.zprofile"
+    remove_link "shell/fish/config.fish" "${HOME}/.config/fish/config.fish"
 }
 
 # ============================================================================
@@ -281,6 +407,56 @@ get_claude_display_path() {
     fi
 }
 
+# Claude設定ファイルのインストール
+install_claude_config() {
+    local files
+    mapfile -t files < <(get_claude_config_files)
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+        print_skip "Claude設定ファイルがgitに登録されていません"
+        return 0
+    fi
+
+    # ベースディレクトリ作成
+    ensure_dir "${HOME}/.claude"
+    ensure_dir "${HOME}/.claude/bin"
+    ensure_dir "${HOME}/.claude/hooks"
+    ensure_dir "${HOME}/.claude/skills"
+
+    for file in "${files[@]}"; do
+        [[ -z "$file" ]] && continue
+
+        local relative="${file#claude-config/}"
+        local dest
+        dest=$(get_claude_dest_path "$relative")
+
+        # 配置先の親ディレクトリを作成 (skills/, hooks/ など)
+        local dest_dir
+        dest_dir=$(dirname "$dest")
+        ensure_dir "$dest_dir"
+
+        create_link "$file" "$dest"
+    done
+}
+
+# Claude設定ファイルのアンインストール
+uninstall_claude_config() {
+    local files
+    mapfile -t files < <(get_claude_config_files)
+
+    [[ ${#files[@]} -eq 0 ]] && return 0
+
+    for file in "${files[@]}"; do
+        [[ -z "$file" ]] && continue
+
+        local relative="${file#claude-config/}"
+        local dest
+        dest=$(get_claude_dest_path "$relative")
+
+        remove_link "$file" "$dest"
+    done
+}
+
 # ============================================================================
 # コア機能
 # ============================================================================
@@ -346,6 +522,11 @@ remove_link() {
     local src="${DOTFILES_DIR}/$1"
     local dest="$2"
 
+    # ファイルが存在しない場合はスキップ
+    if [[ ! -e "$dest" && ! -L "$dest" ]]; then
+        return 0
+    fi
+
     if [[ ! -L "$dest" ]]; then
         print_skip "スキップ: $dest (シンボリックリンクではありません)"
         ((COUNT_SKIPPED++)) || true
@@ -386,54 +567,6 @@ remove_link() {
     fi
 }
 
-# Claude設定ファイルのインストール
-install_claude_config() {
-    local files
-    mapfile -t files < <(get_claude_config_files)
-
-    if [[ ${#files[@]} -eq 0 ]]; then
-        print_skip "Claude設定ファイルがgitに登録されていません"
-        return 0
-    fi
-
-    # ベースディレクトリ作成
-    ensure_dir "${HOME}/.claude"
-    ensure_dir "${HOME}/.claude/skills"
-
-    for file in "${files[@]}"; do
-        [[ -z "$file" ]] && continue
-
-        local relative="${file#claude-config/}"
-        local dest
-        dest=$(get_claude_dest_path "$relative")
-
-        # 配置先の親ディレクトリを作成 (skills/, hooks/ など)
-        local dest_dir
-        dest_dir=$(dirname "$dest")
-        ensure_dir "$dest_dir"
-
-        create_link "$file" "$dest"
-    done
-}
-
-# Claude設定ファイルのアンインストール
-uninstall_claude_config() {
-    local files
-    mapfile -t files < <(get_claude_config_files)
-
-    [[ ${#files[@]} -eq 0 ]] && return 0
-
-    for file in "${files[@]}"; do
-        [[ -z "$file" ]] && continue
-
-        local relative="${file#claude-config/}"
-        local dest
-        dest=$(get_claude_dest_path "$relative")
-
-        remove_link "$file" "$dest"
-    done
-}
-
 # ============================================================================
 # インタラクティブUI
 # ============================================================================
@@ -462,7 +595,16 @@ show_files_in_category() {
     print_header "${CATEGORY_DESC[$cat]} のファイル"
     echo ""
 
-    if [[ "$cat" == "claude" ]]; then
+    if [[ "$cat" == "shell" ]]; then
+        printf "  ${COLOR_BOLD}1)${COLOR_RESET} bash (bashrc, bash_profile)\n"
+        printf "  ${COLOR_BOLD}2)${COLOR_RESET} zsh (zshrc, zprofile)\n"
+        printf "  ${COLOR_BOLD}3)${COLOR_RESET} fish (config.fish)\n"
+        printf "  ${COLOR_BOLD}4)${COLOR_RESET} すべてのシェル\n"
+        echo ""
+        printf "  ${COLOR_CYAN}共通ファイル (自動で含まれます):${COLOR_RESET}\n"
+        printf "     shell/common.sh, shell/aliases.sh\n"
+        printf "     shell/local/{platform}.sh (自動検出)\n"
+    elif [[ "$cat" == "claude" ]]; then
         local i=1
         local files
         mapfile -t files < <(get_claude_config_files)
@@ -528,9 +670,12 @@ select_files_interactive() {
                 exit 0
                 ;;
             a|A)
+                # すべて選択
                 for ((i = 0; i < DOTFILE_COUNT; i++)); do
                     add_to_selected "$i"
                 done
+                SHELL_SELECTED=true
+                select_shell_type
                 CLAUDE_SELECTED=true
                 select_gitconfig_variant
                 return
@@ -546,7 +691,7 @@ select_files_interactive() {
                 ;;
         esac
 
-        if [[ ${#SELECTED_INDICES[@]} -gt 0 || $CLAUDE_SELECTED == true ]]; then
+        if [[ ${#SELECTED_INDICES[@]} -gt 0 || $CLAUDE_SELECTED == true || $SHELL_SELECTED == true ]]; then
             printf "\n選択を続けますか? [Y/n]: "
             read -r cont
             case "$cont" in
@@ -559,6 +704,22 @@ select_files_interactive() {
 # カテゴリからファイル選択
 select_from_category() {
     local cat="$1"
+
+    if [[ "$cat" == "shell" ]]; then
+        show_files_in_category "$cat"
+        printf "シェルを選択 (1-4/b): "
+        read -r choice
+        case "$choice" in
+            b|B) return ;;
+            1) SHELL_TYPE="bash"; SHELL_SELECTED=true ;;
+            2) SHELL_TYPE="zsh"; SHELL_SELECTED=true ;;
+            3) SHELL_TYPE="fish"; SHELL_SELECTED=true ;;
+            4|a|A) SHELL_TYPE="all"; SHELL_SELECTED=true ;;
+            *) print_error "無効な選択です"; return ;;
+        esac
+        print_success "シェル設定 (${SHELL_TYPE}) を追加しました"
+        return
+    fi
 
     if [[ "$cat" == "claude" ]]; then
         show_files_in_category "$cat"
@@ -616,12 +777,31 @@ select_from_category() {
 
 # インストール確認
 confirm_installation() {
-    if [[ ${#SELECTED_INDICES[@]} -eq 0 && $CLAUDE_SELECTED == false && -z "$GITCONFIG_VARIANT" ]]; then
+    if [[ ${#SELECTED_INDICES[@]} -eq 0 && $CLAUDE_SELECTED == false && $SHELL_SELECTED == false && -z "$GITCONFIG_VARIANT" ]]; then
         die "ファイルが選択されていません"
     fi
 
     print_header "インストールするファイル"
     echo ""
+
+    # シェル設定
+    if $SHELL_SELECTED; then
+        printf "  ${COLOR_CYAN}シェル設定 (${SHELL_TYPE}):${COLOR_RESET}\n"
+        case "$SHELL_TYPE" in
+            bash|all)
+                printf "    + shell/bash/bashrc -> ~/.bashrc\n"
+                printf "    + shell/bash/bash_profile -> ~/.bash_profile\n"
+                ;;&
+            zsh|all)
+                printf "    + shell/zsh/zshrc -> ~/.zshrc\n"
+                printf "    + shell/zsh/zprofile -> ~/.zprofile\n"
+                ;;&
+            fish|all)
+                printf "    + shell/fish/config.fish -> ~/.config/fish/config.fish\n"
+                ;;
+        esac
+        echo ""
+    fi
 
     # 通常のdotfiles
     for idx in "${SELECTED_INDICES[@]}"; do
@@ -669,119 +849,44 @@ confirm_installation() {
 # ============================================================================
 
 setup_work_environment() {
+    # work以外は仕事用環境設定をスキップ
+    if [[ "$GITCONFIG_VARIANT" != "work" ]]; then
+        return 0
+    fi
+
     local gitignore_global="${HOME}/.gitignore_global"
 
     print_header "仕事用環境設定"
-    echo ""
-    printf "仕事用環境ですか? (CLAUDE.mdをgit追跡から除外します) [y/N]: "
-    read -r is_work
 
-    case "$is_work" in
-        y|Y)
-            if $MODE_DRY_RUN; then
-                print_info "[ドライラン] グローバルgitignoreにCLAUDE.mdと.claude/を追加"
-                print_info "[ドライラン] core.excludesfileを設定: $gitignore_global"
-                return
-            fi
-
-            local patterns_added=0
-
-            if [[ ! -f "$gitignore_global" ]] || ! grep -q "^CLAUDE\.md$" "$gitignore_global" 2>/dev/null; then
-                echo "CLAUDE.md" >> "$gitignore_global"
-                ((patterns_added++)) || true
-            fi
-
-            if [[ ! -f "$gitignore_global" ]] || ! grep -q "^\.claude/$" "$gitignore_global" 2>/dev/null; then
-                echo ".claude/" >> "$gitignore_global"
-                ((patterns_added++)) || true
-            fi
-
-            if ! git config --global core.excludesfile "$gitignore_global" 2>/dev/null; then
-                print_error "git設定の更新に失敗しました"
-                return 1
-            fi
-
-            if [[ $patterns_added -gt 0 ]]; then
-                print_success "グローバルgitignoreにCLAUDE.mdと.claude/を追加しました"
-            else
-                print_info "グローバルgitignoreは既に設定済みです"
-            fi
-            print_success "core.excludesfileを設定しました: $gitignore_global"
-            ;;
-        *)
-            print_info "仕事用環境の設定をスキップしました"
-            ;;
-    esac
-}
-
-# ============================================================================
-# .profile読み込み設定
-# ============================================================================
-
-setup_profile_source() {
-    print_header ".profile読み込み設定"
-    echo ""
-
-    # シェル設定ファイルを検出
-    local shell_rc=""
-    local shell_name=""
-
-    if [[ -n "$ZSH_VERSION" ]] || [[ "$SHELL" == *"zsh"* ]]; then
-        shell_name="zsh"
-        # preztoの場合は.zpreztorc、通常は.zshrc
-        if [[ -f "$HOME/.zpreztorc" ]]; then
-            shell_rc="$HOME/.zshrc"
-            print_info "prezto環境を検出しました"
-        else
-            shell_rc="$HOME/.zshrc"
-        fi
-    elif [[ -n "$BASH_VERSION" ]] || [[ "$SHELL" == *"bash"* ]]; then
-        shell_name="bash"
-        shell_rc="$HOME/.bashrc"
-    fi
-
-    if [[ -z "$shell_rc" ]]; then
-        print_info "シェル設定ファイルを検出できませんでした"
-        print_info "手動で追加してください: [[ -f ~/.profile ]] && source ~/.profile"
+    if $MODE_DRY_RUN; then
+        print_info "[ドライラン] グローバルgitignoreにCLAUDE.mdと.claude/を追加"
+        print_info "[ドライラン] core.excludesfileを設定: $gitignore_global"
         return 0
     fi
 
-    # 既に追加済みか確認
-    if [[ -f "$shell_rc" ]] && grep -q "source ~/.profile\|source \"\$HOME/.profile\"" "$shell_rc" 2>/dev/null; then
-        print_info "既に設定済み: $shell_rc"
-        return 0
+    local patterns_added=0
+
+    if [[ ! -f "$gitignore_global" ]] || ! grep -q "^CLAUDE\.md$" "$gitignore_global" 2>/dev/null; then
+        echo "CLAUDE.md" >> "$gitignore_global"
+        ((patterns_added++)) || true
     fi
 
-    printf "~/.profileの読み込みを %s に追加しますか? [y/N]: " "$shell_rc"
-    read -r add_source
+    if [[ ! -f "$gitignore_global" ]] || ! grep -q "^\.claude/$" "$gitignore_global" 2>/dev/null; then
+        echo ".claude/" >> "$gitignore_global"
+        ((patterns_added++)) || true
+    fi
 
-    case "$add_source" in
-        y|Y)
-            if $MODE_DRY_RUN; then
-                print_info "[ドライラン] 追加: $shell_rc"
-                return 0
-            fi
+    if ! git config --global core.excludesfile "$gitignore_global" 2>/dev/null; then
+        print_error "git設定の更新に失敗しました"
+        return 1
+    fi
 
-            # バックアップ
-            if [[ -f "$shell_rc" ]]; then
-                cp "$shell_rc" "${shell_rc}.bak.$(date +%Y%m%d%H%M%S)"
-            fi
-
-            # 追加
-            {
-                echo ""
-                echo "# dotfiles共通設定"
-                echo '[[ -f ~/.profile ]] && source ~/.profile'
-            } >> "$shell_rc"
-
-            print_success "追加しました: $shell_rc"
-            print_info "反映するには: source $shell_rc"
-            ;;
-        *)
-            print_info "スキップしました"
-            print_info "手動で追加: [[ -f ~/.profile ]] && source ~/.profile"
-            ;;
-    esac
+    if [[ $patterns_added -gt 0 ]]; then
+        print_success "グローバルgitignoreにCLAUDE.mdと.claude/を追加しました"
+    else
+        print_info "グローバルgitignoreは既に設定済みです"
+    fi
+    print_success "core.excludesfileを設定しました: $gitignore_global"
 }
 
 # ============================================================================
@@ -792,6 +897,10 @@ setup_profile_source() {
 install_files() {
     print_header "dotfilesをインストール: $DOTFILES_DIR"
 
+    # シェル設定
+    install_shell_config
+
+    # 通常のdotfiles
     for idx in "${SELECTED_INDICES[@]}"; do
         local src dest
         src=$(get_dotfile_field "$idx" source)
@@ -802,6 +911,7 @@ install_files() {
     # .gitconfigのインストール
     install_gitconfig
 
+    # Claude設定
     if $CLAUDE_SELECTED; then
         install_claude_config
     fi
@@ -811,6 +921,10 @@ install_files() {
 uninstall_files() {
     print_header "dotfilesをアンインストール"
 
+    # シェル設定
+    uninstall_shell_config
+
+    # 通常のdotfiles
     for ((i = 0; i < DOTFILE_COUNT; i++)); do
         local src dest
         src=$(get_dotfile_field "$i" source)
@@ -822,6 +936,7 @@ uninstall_files() {
     remove_link ".gitconfig.work" "${HOME}/.gitconfig"
     remove_link ".gitconfig.private" "${HOME}/.gitconfig"
 
+    # Claude設定
     uninstall_claude_config
 }
 
@@ -842,7 +957,6 @@ show_summary() {
         printf "  エラー: ${COLOR_RED}%d${COLOR_RESET}\n" "$COUNT_ERROR"
     fi
     echo ""
-
 }
 
 # ヘルプ表示
@@ -861,40 +975,39 @@ dotfiles インストーラー - dotfilesのシンボリックリンクを作成
     -u, --uninstall     作成したシンボリックリンクを削除
 
 カテゴリ:
-    shell   シェル設定(.profile, .shell_aliases)
+    shell   シェル設定 (bash/zsh/fish 選択可能)
     git     Git設定(.gitconfig.work/private, .git-completion.bash等)
     vim     Vim設定(.vimrc)
     claude  Claude Code設定(claude-config/から)
 
 シェル設定:
-    .profileは共通シェル設定ファイルです。PATH、環境変数、エイリアス読み込みを含みます。
-    prezto/oh-my-posh等のシェル設定から以下を追加して読み込んでください:
-      [[ -f ~/.profile ]] && source ~/.profile
+    新しいシェル設定は以下の構成になっています:
+    - shell/common.sh: 全シェル共通設定 (POSIX互換)
+    - shell/aliases.sh: 共通エイリアス (POSIX互換)
+    - shell/local/{platform}.sh: プラットフォーム固有設定
+    - shell/bash/: bash固有設定
+    - shell/zsh/: zsh固有設定
+    - shell/fish/: fish固有設定
+
+    インストール時にどのシェルの設定をインストールするか選択できます。
 
 .gitconfig:
     仕事用(.gitconfig.work)とプライベート用(.gitconfig.private)を選択できます。
-    強制モードではOS検出で自動選択(macOS=private, Linux=work)。
+    強制モードではプラットフォーム検出で自動選択(macOS=private, その他=work)。
 
 例:
     ./install.sh              # 対話的にインストール
-    ./install.sh -f           # すべてインストール
+    ./install.sh -f           # すべてインストール(現在のシェルのみ)
     ./install.sh -n           # インストール内容をプレビュー
     ./install.sh -u           # すべてのシンボリックリンクを削除
     ./install.sh -n -u        # アンインストール内容をプレビュー
 
 Claude設定:
     claude-config/内のファイルは 'git ls-files' で自動検出されます。
-    - claude-config/CLAUDE.md -> ~/.claude/CLAUDE.md
-    - claude-config/settings.json -> ~/.claude/settings.json
-    - claude-config/skills/*/SKILL.md -> ~/.claude/skills/*/SKILL.md
-    新しいClaude設定ファイルを追加するには、claude-config/に追加して
-    gitにコミットしてください。
 
 仕事用環境:
-    対話モードでは、仕事用環境かどうか確認されます。
-    「はい」の場合、CLAUDE.mdと.claude/が~/.gitignore_globalに追加され、
-    gitがこのファイルを使用するよう設定されます(core.excludesfile)。
-    これにより、仕事用リポジトリでClaude設定ファイルが追跡されなくなります。
+    .gitconfigでwork(仕事用)を選択した場合、CLAUDE.mdと.claude/が
+    ~/.gitignore_globalに自動追加されます。
 
 必要条件:
     bash 4.0以上が必要です。
@@ -974,21 +1087,24 @@ main() {
             for ((i = 0; i < DOTFILE_COUNT; i++)); do
                 SELECTED_INDICES+=("$i")
             done
+            SHELL_SELECTED=true
+            SHELL_TYPE=$(detect_current_shell)
             CLAUDE_SELECTED=true
-            # 環境自動検出: macOS=private, Linux=work
-            if [[ "$(uname)" == "Darwin" ]]; then
+            # プラットフォーム自動検出
+            local platform
+            platform=$(detect_platform)
+            if [[ "$platform" == "macos" ]]; then
                 GITCONFIG_VARIANT="private"
             else
                 GITCONFIG_VARIANT="work"
             fi
             print_info ".gitconfig: ${GITCONFIG_VARIANT} を自動選択しました"
+            print_info "シェル設定: ${SHELL_TYPE} を自動選択しました"
         fi
         install_files
 
-        if $MODE_INTERACTIVE; then
-            setup_profile_source
-            setup_work_environment
-        fi
+        # 仕事用環境設定(workの場合のみ自動実行)
+        setup_work_environment
     fi
 
     show_summary

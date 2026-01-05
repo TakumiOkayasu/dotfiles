@@ -112,13 +112,13 @@
       "Bash(netcat:*)",
       "Bash(ncat:*)",
       "Bash(telnet:*)",
-      "Bash(ssh *@*)",
+      "Bash(ssh:*)",
       "Bash(scp:*)",
       "Bash(rsync:*)",
       "Bash(eval:*)",
       "Bash(exec:*)",
       "Bash(source:*)",
-      "Bash(. /*)",
+      "Bash(. :*)",
       "Bash(bash -c:*)",
       "Bash(sh -c:*)",
       "Bash(python -c:*)",
@@ -128,3 +128,4 @@
     ]
   }
 }
+

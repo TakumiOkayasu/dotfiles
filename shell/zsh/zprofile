@@ -1,0 +1,26 @@
+#!/bin/zsh
+# shell/zsh/zprofile - zsh ログインシェル用
+#
+# 配置先: ~/.zprofile (シンボリックリンク)
+# 読み込み: ログインシェル起動時のみ (.zshrc より前)
+#
+# 役割:
+#   - ログイン時のみ必要な処理
+#   - 環境変数の設定
+
+# ============================================================================
+# 環境変数 (ログイン時のみ)
+# ============================================================================
+
+# XDG Base Directory
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+
+# ============================================================================
+# ローカル設定 (Git管理外)
+# ============================================================================
+
+if [[ -f "$HOME/.zprofile.local" ]]; then
+    source "$HOME/.zprofile.local"
+fi

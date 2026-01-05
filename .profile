@@ -41,3 +41,14 @@ export LC_ALL="ja_JP.UTF-8"
 if [[ -f "$HOME/.shell_aliases" ]]; then
     source "$HOME/.shell_aliases"
 fi
+
+# ============================================================================
+# .bashrc 読み込み (bash の場合)
+# ============================================================================
+
+if [ -n "$BASH_VERSION" ]; then
+    if [ -f "$HOME/.bashrc" ]; then
+        . "$HOME/.bashrc"
+    fi
+fi
+
