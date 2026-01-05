@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Documentation consistency reminder - ドキュメント変更時の整合性チェックリマインド
 #
 # 使い方 (手動実行):
@@ -9,7 +9,7 @@
 set -e
 
 # 手動実行時のヘルプ
-if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     cat <<'EOF'
 doc-consistency-reminder.sh - ドキュメント変更時の整合性チェックリマインド
 
@@ -25,7 +25,7 @@ EOF
 fi
 
 # stdin がない場合のタイムアウト対策
-if [[ -t 0 ]]; then
+if [ -t 0 ]; then
     echo "エラー: 標準入力がありません" >&2
     echo "使い方: echo '{\"tool_input\":{\"file_path\":\"README.md\"}}' | $0" >&2
     echo "ヘルプ: $0 --help" >&2
