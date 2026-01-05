@@ -30,7 +30,6 @@
 	postBuffer = 524288000
 [pack]
 	windowMemory = 256m
-[url "git@github.com:"]
-	insteadOf = https://github.com/
 [url "git@gitlab.twb.jp:"]
 	insteadOf = https://gitlab.twb.jp/
+
