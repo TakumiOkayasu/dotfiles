@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Git command post-hook - ブランチ関連操作後のリマインド・自動削除
 #
 # 使い方 (手動実行):
@@ -9,7 +9,7 @@
 set -e
 
 # 手動実行時のヘルプ
-if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     cat <<'EOF'
 git-post-command-reminder.sh - Git操作後のリマインド・自動削除
 
@@ -25,7 +25,7 @@ EOF
 fi
 
 # stdin がない場合のタイムアウト対策
-if [[ -t 0 ]]; then
+if [ -t 0 ]; then
     echo "エラー: 標準入力がありません" >&2
     echo "使い方: echo '{\"tool_input\":{\"command\":\"git pull\"}}' | $0" >&2
     echo "ヘルプ: $0 --help" >&2
@@ -44,11 +44,11 @@ if echo "$COMMAND" | grep -qE '(gh\s+pr\s+merge|git\s+pull)'; then
     CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
     MAIN_BRANCH=$(git config --local --get claude.mainBranch 2>/dev/null || echo "main")
 
-    if [[ "$CURRENT_BRANCH" == "$MAIN_BRANCH" ]]; then
+    if [ "$CURRENT_BRANCH" = "$MAIN_BRANCH" ]; then
         # マージ済みブランチを検出
         MERGED_BRANCHES=$(git branch --merged "$MAIN_BRANCH" 2>/dev/null | grep -vE "^\*|^\s*(main|master)\s*$" | tr -d ' ' || echo "")
 
-        if [[ -n "$MERGED_BRANCHES" ]]; then
+        if [ -n "$MERGED_BRANCHES" ]; then
             # 削除実行
             DELETED=""
             for branch in $MERGED_BRANCHES; do
@@ -57,8 +57,8 @@ if echo "$COMMAND" | grep -qE '(gh\s+pr\s+merge|git\s+pull)'; then
                 fi
             done
 
-            if [[ -n "$DELETED" ]]; then
-                DELETED="${DELETED%, }"  # 末尾のカンマを削除
+            if [ -n "$DELETED" ]; then
+                DELETED=$(echo "$DELETED" | sed 's/, $//')
                 cat <<EOF
 {
   "hookSpecificOutput": {

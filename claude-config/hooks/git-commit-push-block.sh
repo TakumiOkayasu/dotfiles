@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # PreToolUse hook - git commit/push をブロック
 # CLAUDE.mdルール: git commit/push はユーザーのみ操作可能
 #
@@ -10,7 +10,7 @@
 set -e
 
 # 手動実行時のヘルプ
-if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     cat <<'EOF'
 git-commit-push-block.sh - git commit/push をブロック
 
@@ -26,7 +26,7 @@ EOF
 fi
 
 # stdin がない場合のタイムアウト対策
-if [[ -t 0 ]]; then
+if [ -t 0 ]; then
     echo "エラー: 標準入力がありません" >&2
     echo "使い方: echo '{\"tool_input\":{\"command\":\"git commit -m test\"}}' | $0" >&2
     echo "ヘルプ: $0 --help" >&2
