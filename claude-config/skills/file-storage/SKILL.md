@@ -5,6 +5,27 @@ description: ファイルアップロード、S3、ファイルシステム操�
 
 # File & Storage
 
+## 📋 実行前チェック(必須)
+
+### このスキルを使うべきか?
+- [ ] ファイルアップロードを実装する?
+- [ ] S3連携を行う?
+- [ ] ファイル検証処理を実装する?
+- [ ] 署名付きURLを生成する?
+
+### 前提条件
+- [ ] 許可するファイルタイプを定義したか?
+- [ ] ファイルサイズ上限を決定したか?
+- [ ] 保存先を決定したか?(ローカル/S3等)
+
+### 禁止事項の確認
+- [ ] ユーザー入力のファイル名をそのまま使おうとしていないか?
+- [ ] 拡張子だけでファイルタイプを判断しようとしていないか?
+- [ ] サイズ制限なしでアップロードを許可しようとしていないか?
+- [ ] 機密ファイルをパブリックにしようとしていないか?
+
+---
+
 ## トリガー
 
 - ファイルアップロード実装時
@@ -12,9 +33,13 @@ description: ファイルアップロード、S3、ファイルシステム操�
 - ファイル検証処理時
 - 署名付きURL生成時
 
+---
+
 ## 🚨 鉄則
 
 **ユーザーアップロードは信用しない。検証必須。**
+
+---
 
 ## アップロード検証
 
@@ -33,48 +58,30 @@ function validateUpload(file: File) {
   if (file.size > MAX_SIZE) {
     throw new Error('File too large');
   }
+  
+  // ファイル名サニタイズ
+  const safeName = sanitizeFilename(file.originalname);
 }
 ```
 
-## ファイル名
+---
 
-```typescript
-// 🚫 ユーザー入力をそのまま使わない
-const safeName = `${uuid()}-${Date.now()}${path.extname(file.name)}`;
-
-// ❌ 危険
-const name = file.originalname;  // ../../../etc/passwd
-```
-
-## S3アップロード
-
-```typescript
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-
-const s3 = new S3Client({ region: 'ap-northeast-1' });
-
-await s3.send(new PutObjectCommand({
-  Bucket: process.env.S3_BUCKET,
-  Key: `uploads/${userId}/${safeName}`,
-  Body: buffer,
-  ContentType: file.mimetype,
-}));
-```
-
-## 署名付きURL
+## S3署名付きURL
 
 ```typescript
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-// ⚠️ 有効期限を短く
-const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+const url = await getSignedUrl(s3Client, new GetObjectCommand({
+  Bucket: 'my-bucket',
+  Key: 'file.pdf'
+}), { expiresIn: 3600 }); // 1時間
 ```
 
-## 🚫 禁止事項
+---
 
-```
-❌ アップロードファイルを実行可能にする
-❌ パス操作でディレクトリトラバーサル許可
-❌ 無制限のファイルサイズ
-❌ 拡張子だけでファイルタイプ判定
-```
+## 🚫 禁止事項まとめ
+
+- ユーザー入力ファイル名のそのまま使用
+- 拡張子だけでのファイルタイプ判断
+- サイズ制限なしのアップロード
+- 機密ファイルのパブリック公開

@@ -5,6 +5,26 @@ description: WebSocket、SSE、リアルタイム機能を実装する際に使�
 
 # WebSocket & Real-time
 
+## 📋 実行前チェック(必須)
+
+### このスキルを使うべきか?
+- [ ] WebSocketを実装する?
+- [ ] SSE(Server-Sent Events)を実装する?
+- [ ] リアルタイム通信機能を実装する?
+- [ ] 再接続ロジックを設計する?
+
+### 前提条件
+- [ ] プロトコル(WebSocket/SSE)を選定したか?
+- [ ] 認証方式を決定したか?
+- [ ] 再接続戦略を検討したか?
+
+### 禁止事項の確認
+- [ ] 再接続ロジックなしで実装しようとしていないか?
+- [ ] 認証なしで接続を許可しようとしていないか?
+- [ ] メッセージのバリデーションを省略しようとしていないか?
+
+---
+
 ## トリガー
 
 - WebSocket実装時
@@ -12,9 +32,13 @@ description: WebSocket、SSE、リアルタイム機能を実装する際に使�
 - リアルタイム通信機能時
 - 再接続ロジック設計時
 
-## 鉄則
+---
+
+## 🚨 鉄則
 
 **接続は切れる前提で設計。再接続ロジック必須。**
+
+---
 
 ## WebSocket (Socket.io)
 
@@ -28,65 +52,69 @@ const io = new Server(server, {
 
 io.on('connection', (socket) => {
   // ⚠️ 認証確認
-  const token = socket.handshake.auth.token;
-  if (!verifyToken(token)) {
+  if (!socket.handshake.auth.token) {
     socket.disconnect();
     return;
   }
   
   socket.on('message', (data) => {
-    // ⚠️ 入力検証
+    // ⚠️ バリデーション
     if (!isValidMessage(data)) return;
+    
     io.emit('message', data);
   });
 });
 ```
 
+---
+
+## 再接続ロジック
+
 ```typescript
 // クライアント
-const socket = io(SERVER_URL, {
-  auth: { token },
-  reconnection: true,        // ⚠️ 再接続有効
+const socket = io({
+  reconnection: true,
   reconnectionAttempts: 5,
   reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000
 });
 
-socket.on('connect_error', (err) => {
-  console.error('Connection failed:', err);
+socket.on('disconnect', () => {
+  console.log('Disconnected, attempting reconnect...');
+});
+
+socket.on('reconnect', (attemptNumber) => {
+  console.log(`Reconnected after ${attemptNumber} attempts`);
 });
 ```
 
-## Server-Sent Events (SSE)
+---
+
+## SSE (Server-Sent Events)
 
 ```typescript
-// 一方向通信に最適
+// サーバー
 app.get('/events', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   
-  const send = (data: any) => {
+  const sendEvent = (data) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
   
-  // イベント送信
-  send({ type: 'connected' });
+  // クリーンアップ
+  req.on('close', () => {
+    // リソース解放
+  });
 });
 ```
 
-## ⚠️ 注意点
+---
 
-```
-□ 接続数の上限を設定
-□ ハートビートで接続維持確認
-□ 認証はハンドシェイク時に
-□ メッセージサイズ制限
-```
+## 🚫 禁止事項まとめ
 
-## 🚫 禁止事項
-
-```
-❌ 認証なしで接続許可
-❌ 受信データを検証なしで使用
-❌ 再接続ロジックなし
-```
+- 再接続ロジックなし
+- 認証なしの接続許可
+- メッセージバリデーション省略
+- クリーンアップ処理忘れ

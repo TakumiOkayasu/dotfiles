@@ -5,6 +5,27 @@ description: TypeScriptの設定や型エラー対応時に使用。
 
 # TypeScript Strict Mode
 
+## 📋 実行前チェック(必須)
+
+### このスキルを使うべきか?
+- [ ] TypeScriptを設定する?
+- [ ] 型エラーに対応する?
+- [ ] any型を削減する?
+- [ ] 型安全性を向上させる?
+
+### 前提条件
+- [ ] tsconfig.jsonを確認したか?
+- [ ] strictモードが有効か確認したか?
+- [ ] 型定義ファイル(@types)を確認したか?
+
+### 禁止事項の確認
+- [ ] any型を使おうとしていないか?
+- [ ] @ts-ignoreを安易に使おうとしていないか?
+- [ ] as anyでキャストしようとしていないか?
+- [ ] 型チェックをスキップしようとしていないか?
+
+---
+
 ## トリガー
 
 - TypeScript設定時
@@ -12,9 +33,13 @@ description: TypeScriptの設定や型エラー対応時に使用。
 - any型削減時
 - 型安全性向上時
 
+---
+
 ## 🚨 鉄則
 
 **anyは禁止。型で安全性を保証。**
+
+---
 
 ## 推奨tsconfig
 
@@ -30,59 +55,45 @@ description: TypeScriptの設定や型エラー対応時に使用。
 }
 ```
 
-## 🚫 禁止パターン
+---
+
+## any回避パターン
 
 ```typescript
 // ❌ any
-function process(data: any) {}
+function process(data: any) { }
 
-// ❌ 型アサーション乱用
-const user = data as User;
-
-// ❌ non-null assertion乱用
-const name = user!.name;
-
-// ❌ @ts-ignore
-// @ts-ignore
-brokenCode();
-```
-
-## ✅ 推奨パターン
-
-```typescript
-// 型ガード
-function isUser(obj: unknown): obj is User {
-  return typeof obj === 'object' && obj !== null && 'id' in obj;
-}
-
-// unknown + 検証
+// ✅ unknown + 型ガード
 function process(data: unknown) {
-  if (!isUser(data)) throw new Error('Invalid');
-  return data.id;  // 型安全
-}
-
-// Optional chaining
-const name = user?.profile?.name ?? 'Unknown';
-
-// Exhaustive check
-type Status = 'pending' | 'done';
-function handle(s: Status) {
-  switch (s) {
-    case 'pending': return 1;
-    case 'done': return 2;
-    default:
-      const _exhaustive: never = s;  // 新しい値追加時にエラー
-      return _exhaustive;
+  if (isValidData(data)) {
+    // 型が絞られる
   }
 }
+
+// ✅ ジェネリクス
+function process<T>(data: T): T { }
 ```
 
-## ユーティリティ型
+---
+
+## 型ガード
 
 ```typescript
-Partial<T>      // 全プロパティをoptionalに
-Required<T>     // 全プロパティを必須に
-Pick<T, K>      // 特定プロパティのみ抽出
-Omit<T, K>      // 特定プロパティを除外
-Record<K, V>    // キーと値の型を指定
+function isUser(obj: unknown): obj is User {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'id' in obj &&
+    'name' in obj
+  );
+}
 ```
+
+---
+
+## 🚫 禁止事項まとめ
+
+- any型の使用
+- @ts-ignoreの安易な使用
+- as anyキャスト
+- 型チェックのスキップ

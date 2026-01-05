@@ -5,6 +5,27 @@ description: 並行処理や非同期操作を実装する際に使用。
 
 # Concurrency and Async
 
+## 📋 実行前チェック(必須)
+
+### このスキルを使うべきか?
+- [ ] 並列処理を実装する?
+- [ ] async/awaitを使用する?
+- [ ] 競合状態の懸念がある?
+- [ ] Promise.all等で並列実行する?
+
+### 前提条件
+- [ ] 各タスクが独立しているか確認したか?
+- [ ] 順序依存性を把握しているか?
+- [ ] エラーハンドリングを検討したか?
+
+### 禁止事項の確認
+- [ ] 独立タスクを順次実行しようとしていないか?
+- [ ] 競合状態を無視しようとしていないか?
+- [ ] await漏れがないか確認したか?
+- [ ] Promise.allでの1つの失敗で全体が失敗することを考慮したか?
+
+---
+
 ## トリガー
 
 - 並列処理実装時
@@ -12,9 +33,13 @@ description: 並行処理や非同期操作を実装する際に使用。
 - 競合状態の懸念がある時
 - Promise.all等の並列実行時
 
+---
+
 ## 🚨 鉄則
 
 **競合状態を常に意識。シンプルに保つ。**
+
+---
 
 ## 並列実行
 
@@ -30,44 +55,32 @@ const users = await fetchUsers();
 const products = await fetchProducts();
 ```
 
-## ⚠️ 競合状態
+---
+
+## エラーハンドリング
 
 ```typescript
-// ❌ 競合あり(読み取り→待機→書き込み)
-let count = 0;
-async function increment() {
-  const c = count;
-  await delay(100);
-  count = c + 1;  // 🚫 古い値ベース
-}
+// Promise.allは1つ失敗で全体失敗
+// 個別にエラーハンドリングしたい場合
+const results = await Promise.allSettled([
+  fetchUsers(),
+  fetchProducts()
+]);
 
-// ✅ アトミック操作
-await redis.incr('counter');
+results.forEach(result => {
+  if (result.status === 'fulfilled') {
+    console.log(result.value);
+  } else {
+    console.error(result.reason);
+  }
+});
 ```
 
-## 並列数制限
+---
 
-```typescript
-import pLimit from 'p-limit';
-const limit = pLimit(5);  // ⚠️ 同時5つまで
+## 🚫 禁止事項まとめ
 
-await Promise.all(urls.map(url => limit(() => fetch(url))));
-```
-
-## キャンセル
-
-```typescript
-const controller = new AbortController();
-setTimeout(() => controller.abort(), 5000);
-
-await fetch(url, { signal: controller.signal });
-```
-
-## 🚫 デッドロック回避
-
-```typescript
-// 順序付きロック(IDでソート)
-const [first, second] = a.id < b.id ? [a, b] : [b, a];
-await first.lock();
-await second.lock();
-```
+- 独立タスクの順次実行
+- 競合状態の無視
+- await漏れ
+- エラーハンドリング忘れ
