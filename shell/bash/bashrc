@@ -14,6 +14,45 @@ case $- in
 esac
 
 # ============================================================================
+# SSH Agent 自動起動
+# ============================================================================
+
+_setup_ssh_agent() {
+    local ssh_env="$HOME/.ssh/agent.env"
+
+    # 既存のagentに接続を試みる
+    if [[ -f "$ssh_env" ]]; then
+        source "$ssh_env" >/dev/null
+        # agentプロセスが生きているか確認
+        if ! kill -0 "$SSH_AGENT_PID" 2>/dev/null; then
+            # プロセスが死んでいるので再起動
+            rm -f "$ssh_env"
+            unset SSH_AUTH_SOCK SSH_AGENT_PID
+        fi
+    fi
+
+    # agentが起動していなければ新規起動
+    if [[ -z "$SSH_AUTH_SOCK" ]] || [[ ! -S "$SSH_AUTH_SOCK" ]]; then
+        ssh-agent -s > "$ssh_env"
+        chmod 600 "$ssh_env"
+        source "$ssh_env" >/dev/null
+    fi
+
+    # 鍵が登録されていなければ追加
+    if ! ssh-add -l &>/dev/null; then
+        for key in "$HOME"/.ssh/id_*; do
+            # 公開鍵(.pub)はスキップ
+            [[ "$key" == *.pub ]] && continue
+            # ファイルが存在すれば追加
+            [[ -f "$key" ]] && ssh-add "$key" 2>/dev/null
+        done
+    fi
+}
+
+_setup_ssh_agent
+unset -f _setup_ssh_agent
+
+# ============================================================================
 # 共通設定の読み込み
 # ============================================================================
 
@@ -164,3 +203,5 @@ pp() { popd >/dev/null && dirs -v; }
 if [[ -f "$HOME/.bashrc.local" ]]; then
     source "$HOME/.bashrc.local"
 fi
+
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
