@@ -28,3 +28,5 @@
         postBuffer = 524288000
 [pack]
         windowMemory = 256m
+[fetch]
+	prune = true
