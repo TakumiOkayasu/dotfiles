@@ -64,10 +64,13 @@ function Write-Header { param([string]$Message) Write-Host "`n$Message" -Foregro
 
 #region File Definitions
 
+# GitConfig source will be set dynamically based on environment selection
+$script:GitConfigSource = ".gitconfig.private"
+$script:IsWorkEnvironment = $false
+
 $script:FileDefs = @(
     @{ Category = "shell"; Source = ".bashrc"; Dest = "$env:USERPROFILE\.bashrc"; Description = "Bash設定とプロンプト設定" }
     @{ Category = "shell"; Source = ".shell_aliases"; Dest = "$env:USERPROFILE\.shell_aliases"; Description = "シェルエイリアス (共通コマンド)" }
-    @{ Category = "git"; Source = ".gitconfig"; Dest = "$env:USERPROFILE\.gitconfig"; Description = "Git設定 (ユーザー、エイリアス、カラー)" }
     @{ Category = "git"; Source = ".git-completion.bash"; Dest = "$env:USERPROFILE\.git-completion.bash"; Description = "Gitコマンド補完" }
     @{ Category = "git"; Source = ".git-prompt.sh"; Dest = "$env:USERPROFILE\.git-prompt.sh"; Description = "プロンプトにGitブランチ情報を表示" }
     @{ Category = "git"; Source = ".gitignore"; Dest = "$env:USERPROFILE\.config\git\ignore"; Description = "グローバルgitignoreパターン" }
@@ -479,14 +482,75 @@ function Confirm-Installation {
 
 #region Work Environment Setup
 
+function Select-Environment {
+    Write-Header "環境の選択"
+    Write-Host ""
+    Write-Host "  1) 個人用 (.gitconfig.private)"
+    Write-Host "  2) 仕事用 (.gitconfig.work)"
+    Write-Host ""
+
+    $choice = Read-Host "環境を選択してください [1/2]"
+
+    switch ($choice) {
+        "2" {
+            $script:GitConfigSource = ".gitconfig.work"
+            $script:IsWorkEnvironment = $true
+            Write-Success "仕事用環境を選択しました"
+        }
+        default {
+            $script:GitConfigSource = ".gitconfig.private"
+            $script:IsWorkEnvironment = $false
+            Write-Success "個人用環境を選択しました"
+        }
+    }
+}
+
+function Install-GitConfig {
+    Write-Header "Git設定のインストール"
+
+    $srcPath = Join-Path $script:DotfilesDir $script:GitConfigSource
+    $destPath = "$env:USERPROFILE\.gitconfig"
+
+    if (-not (Test-Path $srcPath)) {
+        Write-Skip "スキップ: $srcPath (ファイルが見つかりません)"
+        $script:CountSkipped++
+        return
+    }
+
+    if ($DryRun) {
+        Write-Info "[DRY RUN] 作成予定: $destPath -> $srcPath"
+        return
+    }
+
+    # Handle existing file/symlink
+    if (Test-IsSymlink $destPath) {
+        Remove-Item $destPath -Force
+    }
+    elseif (Test-Path $destPath) {
+        Write-Info "バックアップ: $destPath -> $destPath.bak"
+        Move-Item $destPath "$destPath.bak" -Force
+        $script:CountBackup++
+    }
+
+    # Create symlink
+    New-Item -ItemType SymbolicLink -Path $destPath -Target $srcPath | Out-Null
+    Write-Success "作成完了: $destPath"
+    Write-Host "         -> $srcPath"
+    $script:CountCreated++
+}
+
 function Set-WorkEnvironment {
+    if (-not $script:IsWorkEnvironment) {
+        return
+    }
+
     $gitignoreGlobal = "$env:USERPROFILE\.gitignore_global"
 
-    Write-Header "仕事環境の設定"
+    Write-Header "仕事環境の追加設定"
     Write-Host ""
-    $isWork = Read-Host "仕事用環境ですか? (CLAUDE.mdをgit追跡から除外します) [y/N]"
+    $addIgnore = Read-Host "CLAUDE.mdをgit追跡から除外しますか? [Y/n]"
 
-    if ($isWork.ToLower() -eq "y") {
+    if ($addIgnore.ToLower() -ne "n") {
         if ($DryRun) {
             Write-Info "[DRY RUN] 追加予定: CLAUDE.md, .claude/ -> $gitignoreGlobal"
             Write-Info "[DRY RUN] 設定予定: core.excludesfile -> $gitignoreGlobal"
@@ -520,7 +584,7 @@ function Set-WorkEnvironment {
         Write-Success "core.excludesfile を設定しました: $gitignoreGlobal"
     }
     else {
-        Write-Info "仕事環境の設定をスキップしました"
+        Write-Info "グローバルgitignore設定をスキップしました"
     }
 }
 
@@ -657,6 +721,11 @@ function Main {
         Uninstall-Files
     }
     else {
+        # Select environment first (determines gitconfig source)
+        if (-not $Force) {
+            Select-Environment
+        }
+
         if ($Force) {
             # Force mode: select all files
             for ($i = 0; $i -lt $script:FileDefs.Count; $i++) {
@@ -671,6 +740,9 @@ function Main {
         }
 
         Install-Files
+
+        # Install gitconfig based on environment selection
+        Install-GitConfig
 
         # Ask about work environment setup (only in interactive mode)
         if (-not $Force) {
