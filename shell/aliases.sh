@@ -21,19 +21,19 @@ alias rd='rmdir'
 
 # eza/exa > GNU ls > BSD ls の優先順位で設定
 if command -v eza >/dev/null 2>&1; then
-    alias ls='eza'
-    alias ll='eza -alF --git'
-    alias la='eza -a'
-    alias l='eza -F'
-    alias lt='eza --tree --level=2'
-    alias lla='eza -la --git'
+    alias ls='eza --group-directories-first'
+    alias ll='eza -alF --git --group-directories-first'
+    alias la='eza -a --group-directories-first'
+    alias l='eza -F --group-directories-first'
+    alias lt='eza --tree --level=2 --group-directories-first'
+    alias lla='eza -la --git --group-directories-first'
 elif command -v exa >/dev/null 2>&1; then
-    alias ls='exa'
-    alias ll='exa -alF --git'
-    alias la='exa -a'
-    alias l='exa -F'
-    alias lt='exa --tree --level=2'
-    alias lla='exa -la --git'
+    alias ls='exa --group-directories-first'
+    alias ll='exa -alF --git --group-directories-first'
+    alias la='exa -a --group-directories-first'
+    alias l='exa -F --group-directories-first'
+    alias lt='exa --tree --level=2 --group-directories-first'
+    alias lla='exa -la --git --group-directories-first'
 elif ls --color=auto / >/dev/null 2>&1; then
     # GNU ls
     alias ls='ls --color=auto'
