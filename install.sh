@@ -238,14 +238,25 @@ remove_link() {
 install_git_files() {
     create_link ".git-completion.bash" "${HOME}/.git-completion.bash"
     create_link ".git-prompt.sh" "${HOME}/.git-prompt.sh"
-    ensure_dir "${HOME}/.config/git"
-    create_link ".gitignore" "${HOME}/.config/git/ignore"
 }
 
 uninstall_git_files() {
     remove_link ".git-completion.bash" "${HOME}/.git-completion.bash"
     remove_link ".git-prompt.sh" "${HOME}/.git-prompt.sh"
-    remove_link ".gitignore" "${HOME}/.config/git/ignore"
+}
+
+# Gitignore設定 (work/privateに応じて選択)
+install_gitignore() {
+    if [ -z "$GITCONFIG_VARIANT" ]; then
+        return 0
+    fi
+
+    create_link ".gitignore.${GITCONFIG_VARIANT}" "${HOME}/.gitignore_global"
+}
+
+uninstall_gitignore() {
+    remove_link ".gitignore.work" "${HOME}/.gitignore_global"
+    remove_link ".gitignore.private" "${HOME}/.gitignore_global"
 }
 
 # Vim設定ファイル
@@ -446,49 +457,6 @@ uninstall_claude_config() {
     fi
 }
 
-# ============================================================================
-# 仕事用環境設定
-# ============================================================================
-
-setup_work_environment() {
-    if [ "$GITCONFIG_VARIANT" != "work" ]; then
-        return 0
-    fi
-
-    gitignore_global="${HOME}/.gitignore_global"
-
-    print_header "仕事用環境設定"
-
-    if [ "$MODE_DRY_RUN" = "true" ]; then
-        print_info "[ドライラン] グローバルgitignoreにCLAUDE.mdと.claude/を追加"
-        print_info "[ドライラン] core.excludesfileを設定: $gitignore_global"
-        return 0
-    fi
-
-    patterns_added=0
-
-    if [ ! -f "$gitignore_global" ] || ! grep -q "^CLAUDE\.md$" "$gitignore_global" 2>/dev/null; then
-        echo "CLAUDE.md" >> "$gitignore_global"
-        patterns_added=$((patterns_added + 1))
-    fi
-
-    if [ ! -f "$gitignore_global" ] || ! grep -q "^\.claude/$" "$gitignore_global" 2>/dev/null; then
-        echo ".claude/" >> "$gitignore_global"
-        patterns_added=$((patterns_added + 1))
-    fi
-
-    if ! git config --global core.excludesfile "$gitignore_global" 2>/dev/null; then
-        print_error "git設定の更新に失敗しました"
-        return 1
-    fi
-
-    if [ $patterns_added -gt 0 ]; then
-        print_success "グローバルgitignoreにCLAUDE.mdと.claude/を追加しました"
-    else
-        print_info "グローバルgitignoreは既に設定済みです"
-    fi
-    print_success "core.excludesfileを設定しました: $gitignore_global"
-}
 
 # ============================================================================
 # 対話的選択
@@ -601,9 +569,9 @@ confirm_installation() {
         printf "  ${COLOR_CYAN}Git設定:${COLOR_RESET}\n"
         printf "    + .git-completion.bash -> ~/.git-completion.bash\n"
         printf "    + .git-prompt.sh -> ~/.git-prompt.sh\n"
-        printf "    + .gitignore -> ~/.config/git/ignore\n"
         if [ -n "$GITCONFIG_VARIANT" ]; then
             printf "    + .gitconfig.%s -> ~/.gitconfig\n" "$GITCONFIG_VARIANT"
+            printf "    + .gitignore.%s -> ~/.gitignore_global\n" "$GITCONFIG_VARIANT"
         fi
         echo ""
     fi
@@ -642,6 +610,7 @@ install_files() {
     if [ "$GIT_SELECTED" = "true" ]; then
         install_git_files
         install_gitconfig
+        install_gitignore
     fi
 
     if [ "$VIM_SELECTED" = "true" ]; then
@@ -657,6 +626,7 @@ uninstall_files() {
     uninstall_shell_config
     uninstall_git_files
     uninstall_gitconfig
+    uninstall_gitignore
     uninstall_vim_files
     uninstall_claude_config
 }
@@ -786,7 +756,6 @@ main() {
             print_info "シェル設定: ${SHELL_TYPE} を自動選択しました"
         fi
         install_files
-        setup_work_environment
     fi
 
     show_summary
