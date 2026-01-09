@@ -1,10 +1,12 @@
 # Claude Code Configuration Setup Script for Windows
 # This script creates symbolic links from %USERPROFILE%\.claude to the dotfile-work\claude-config directory
+# and sets up the global gitignore file
 
 # Get the script directory path
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigSourceDir = Join-Path $ScriptDir "claude-config"
 $TargetDir = Join-Path $env:USERPROFILE ".claude"
+$GitIgnoreGlobal = Join-Path $env:USERPROFILE ".gitignore_global"
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Claude Code Configuration Setup" -ForegroundColor Cyan
@@ -128,3 +130,43 @@ if ($SuccessCount -eq $Items.Count) {
 } else {
     Write-Host "Setup failed. Please check the errors above." -ForegroundColor Red
 }
+
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "Global Gitignore Setup" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Ask user to select gitignore variant
+Write-Host "Select gitignore variant:" -ForegroundColor Blue
+Write-Host "  1) work (includes CLAUDE.md exclusion)" -ForegroundColor White
+Write-Host "  2) private" -ForegroundColor White
+Write-Host ""
+$GitIgnoreChoice = Read-Host "Enter choice (1/2) [1]"
+
+if ($GitIgnoreChoice -eq "2") {
+    $GitIgnoreVariant = "private"
+} else {
+    $GitIgnoreVariant = "work"
+}
+
+$GitIgnoreSource = Join-Path $ScriptDir ".gitignore.$GitIgnoreVariant"
+
+if (Test-Path $GitIgnoreSource) {
+    Backup-IfExists $GitIgnoreGlobal
+
+    Write-Host "Creating symlink: $GitIgnoreGlobal -> $GitIgnoreSource" -ForegroundColor Green
+
+    try {
+        New-Item -ItemType SymbolicLink -Path $GitIgnoreGlobal -Target $GitIgnoreSource -Force -ErrorAction Stop | Out-Null
+        Write-Host "✓ Global gitignore ($GitIgnoreVariant) linked successfully" -ForegroundColor Green
+    } catch {
+        Write-Host "Error creating symlink: $_" -ForegroundColor Red
+        Write-Host "Note: Symbolic links may require administrator privileges or Developer Mode enabled." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "Warning: $GitIgnoreSource does not exist" -ForegroundColor Yellow
+}
+
+Write-Host ""
+Write-Host "Setup complete!" -ForegroundColor Green
