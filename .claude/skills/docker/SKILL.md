@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/docker/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/docker/SKILL.md

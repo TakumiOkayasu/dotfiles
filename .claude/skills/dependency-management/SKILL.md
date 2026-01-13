@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/dependency-management/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/dependency-management/SKILL.md

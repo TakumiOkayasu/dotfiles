@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/typescript-strict/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/typescript-strict/SKILL.md

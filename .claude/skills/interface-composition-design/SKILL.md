@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/interface-composition-design/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/interface-composition-design/SKILL.md

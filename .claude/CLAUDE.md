@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/CLAUDE.md
+/home/okayasu/prog/dotfile-work/claude/CLAUDE.md

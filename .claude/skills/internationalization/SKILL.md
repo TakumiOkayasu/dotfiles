@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/internationalization/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/internationalization/SKILL.md

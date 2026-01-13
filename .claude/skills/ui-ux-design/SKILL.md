@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/ui-ux-design/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/ui-ux-design/SKILL.md

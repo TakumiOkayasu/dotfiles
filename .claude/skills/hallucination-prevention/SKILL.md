@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/hallucination-prevention/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/hallucination-prevention/SKILL.md

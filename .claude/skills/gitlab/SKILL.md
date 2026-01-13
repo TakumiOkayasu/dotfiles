@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/gitlab/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/gitlab/SKILL.md

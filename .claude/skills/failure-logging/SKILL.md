@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/failure-logging/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/failure-logging/SKILL.md

@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/refactoring/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/refactoring/SKILL.md

@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/caching/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/caching/SKILL.md

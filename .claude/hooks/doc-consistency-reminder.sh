@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/hooks/doc-consistency-reminder.sh
+/home/okayasu/prog/dotfile-work/claude/hooks/doc-consistency-reminder.sh

@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/pattern-thinking/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/pattern-thinking/SKILL.md
