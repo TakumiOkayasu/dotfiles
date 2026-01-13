@@ -1,1 +1,0 @@
-/home/okayasu/prog/dotfile-work/claude/skills/internationalization/SKILL.md

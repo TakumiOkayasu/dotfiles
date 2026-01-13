@@ -1,1 +1,0 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/ui-ux-design/SKILL.md
