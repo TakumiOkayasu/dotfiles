@@ -1,1 +1,0 @@
-/home/okayasu/prog/dotfile-work/claude/bin/claude-config-info.sh
