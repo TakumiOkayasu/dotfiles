@@ -1,0 +1,1 @@
+/home/okayasu/prog/dotfile-work/claude-config/skills/database-design/SKILL.md

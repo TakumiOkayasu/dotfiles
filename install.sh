@@ -236,13 +236,13 @@ remove_link() {
 
 # Git設定ファイル
 install_git_files() {
-    create_link ".git-completion.bash" "${HOME}/.git-completion.bash"
-    create_link ".git-prompt.sh" "${HOME}/.git-prompt.sh"
+    create_link "config/git/.git-completion.bash" "${HOME}/.git-completion.bash"
+    create_link "config/git/.git-prompt.sh" "${HOME}/.git-prompt.sh"
 }
 
 uninstall_git_files() {
-    remove_link ".git-completion.bash" "${HOME}/.git-completion.bash"
-    remove_link ".git-prompt.sh" "${HOME}/.git-prompt.sh"
+    remove_link "config/git/.git-completion.bash" "${HOME}/.git-completion.bash"
+    remove_link "config/git/.git-prompt.sh" "${HOME}/.git-prompt.sh"
 }
 
 # Gitignore設定 (work/privateに応じて選択)
@@ -251,21 +251,21 @@ install_gitignore() {
         return 0
     fi
 
-    create_link ".gitignore.${GITCONFIG_VARIANT}" "${HOME}/.gitignore_global"
+    create_link "config/git/.gitignore.${GITCONFIG_VARIANT}" "${HOME}/.gitignore_global"
 }
 
 uninstall_gitignore() {
-    remove_link ".gitignore.work" "${HOME}/.gitignore_global"
-    remove_link ".gitignore.private" "${HOME}/.gitignore_global"
+    remove_link "config/git/.gitignore.work" "${HOME}/.gitignore_global"
+    remove_link "config/git/.gitignore.private" "${HOME}/.gitignore_global"
 }
 
 # Vim設定ファイル
 install_vim_files() {
-    create_link ".vimrc" "${HOME}/.vimrc"
+    create_link "config/vim/.vimrc" "${HOME}/.vimrc"
 }
 
 uninstall_vim_files() {
-    remove_link ".vimrc" "${HOME}/.vimrc"
+    remove_link "config/vim/.vimrc" "${HOME}/.vimrc"
 }
 
 # ============================================================================
@@ -314,24 +314,24 @@ install_shell_config() {
 
     case "$SHELL_TYPE" in
         bash)
-            create_link "shell/bash/bashrc" "${HOME}/.bashrc"
-            create_link "shell/bash/bash_profile" "${HOME}/.bash_profile"
+            create_link "config/shell/bash/bashrc" "${HOME}/.bashrc"
+            create_link "config/shell/bash/bash_profile" "${HOME}/.bash_profile"
             ;;
         zsh)
-            create_link "shell/zsh/zshrc" "${HOME}/.zshrc"
-            create_link "shell/zsh/zprofile" "${HOME}/.zprofile"
+            create_link "config/shell/zsh/zshrc" "${HOME}/.zshrc"
+            create_link "config/shell/zsh/zprofile" "${HOME}/.zprofile"
             ;;
         fish)
             ensure_dir "${HOME}/.config/fish"
-            create_link "shell/fish/config.fish" "${HOME}/.config/fish/config.fish"
+            create_link "config/shell/fish/config.fish" "${HOME}/.config/fish/config.fish"
             ;;
         all)
-            create_link "shell/bash/bashrc" "${HOME}/.bashrc"
-            create_link "shell/bash/bash_profile" "${HOME}/.bash_profile"
-            create_link "shell/zsh/zshrc" "${HOME}/.zshrc"
-            create_link "shell/zsh/zprofile" "${HOME}/.zprofile"
+            create_link "config/shell/bash/bashrc" "${HOME}/.bashrc"
+            create_link "config/shell/bash/bash_profile" "${HOME}/.bash_profile"
+            create_link "config/shell/zsh/zshrc" "${HOME}/.zshrc"
+            create_link "config/shell/zsh/zprofile" "${HOME}/.zprofile"
             ensure_dir "${HOME}/.config/fish"
-            create_link "shell/fish/config.fish" "${HOME}/.config/fish/config.fish"
+            create_link "config/shell/fish/config.fish" "${HOME}/.config/fish/config.fish"
             ;;
     esac
 }
@@ -339,11 +339,11 @@ install_shell_config() {
 uninstall_shell_config() {
     print_header "シェル設定をアンインストール"
 
-    remove_link "shell/bash/bashrc" "${HOME}/.bashrc"
-    remove_link "shell/bash/bash_profile" "${HOME}/.bash_profile"
-    remove_link "shell/zsh/zshrc" "${HOME}/.zshrc"
-    remove_link "shell/zsh/zprofile" "${HOME}/.zprofile"
-    remove_link "shell/fish/config.fish" "${HOME}/.config/fish/config.fish"
+    remove_link "config/shell/bash/bashrc" "${HOME}/.bashrc"
+    remove_link "config/shell/bash/bash_profile" "${HOME}/.bash_profile"
+    remove_link "config/shell/zsh/zshrc" "${HOME}/.zshrc"
+    remove_link "config/shell/zsh/zprofile" "${HOME}/.zprofile"
+    remove_link "config/shell/fish/config.fish" "${HOME}/.config/fish/config.fish"
 }
 
 # ============================================================================
@@ -380,12 +380,12 @@ install_gitconfig() {
         return 0
     fi
 
-    create_link ".gitconfig.${GITCONFIG_VARIANT}" "${HOME}/.gitconfig"
+    create_link "config/git/.gitconfig.${GITCONFIG_VARIANT}" "${HOME}/.gitconfig"
 }
 
 uninstall_gitconfig() {
-    remove_link ".gitconfig.work" "${HOME}/.gitconfig"
-    remove_link ".gitconfig.private" "${HOME}/.gitconfig"
+    remove_link "config/git/.gitconfig.work" "${HOME}/.gitconfig"
+    remove_link "config/git/.gitconfig.private" "${HOME}/.gitconfig"
 }
 
 # ============================================================================
@@ -405,24 +405,23 @@ install_claude_config() {
     ensure_dir "${HOME}/.claude/hooks"
     ensure_dir "${HOME}/.claude/skills"
 
-    # claude-config/ 内のファイルを取得してリンク
-    if [ -d "${DOTFILES_DIR}/claude-config" ]; then
+    # claude/ 内のファイルを取得してリンク (templates/は除外)
+    if [ -d "${DOTFILES_DIR}/claude" ]; then
         cd "$DOTFILES_DIR"
-        git ls-files claude-config/ 2>/dev/null | while read -r file; do
+        git ls-files claude/ 2>/dev/null | while read -r file; do
             [ -z "$file" ] && continue
 
-            relative="${file#claude-config/}"
+            relative="${file#claude/}"
 
-            # 配置先パスを計算
+            # templates/ は除外
             case "$relative" in
-                skills/*)
-                    # skills/スキル名/ファイル -> ~/.claude/skills/スキル名/ファイル
-                    dest="${HOME}/.claude/${relative}"
-                    ;;
-                *)
-                    dest="${HOME}/.claude/${relative}"
+                templates/*)
+                    continue
                     ;;
             esac
+
+            # 配置先パスを計算
+            dest="${HOME}/.claude/${relative}"
 
             # 配置先の親ディレクトリを作成
             dest_dir=$(dirname "$dest")
@@ -436,22 +435,21 @@ install_claude_config() {
 uninstall_claude_config() {
     print_header "Claude設定をアンインストール"
 
-    if [ -d "${DOTFILES_DIR}/claude-config" ]; then
+    if [ -d "${DOTFILES_DIR}/claude" ]; then
         cd "$DOTFILES_DIR"
-        git ls-files claude-config/ 2>/dev/null | while read -r file; do
+        git ls-files claude/ 2>/dev/null | while read -r file; do
             [ -z "$file" ] && continue
 
-            relative="${file#claude-config/}"
+            relative="${file#claude/}"
 
+            # templates/ は除外
             case "$relative" in
-                skills/*)
-                    dest="${HOME}/.claude/${relative}"
-                    ;;
-                *)
-                    dest="${HOME}/.claude/${relative}"
+                templates/*)
+                    continue
                     ;;
             esac
 
+            dest="${HOME}/.claude/${relative}"
             remove_link "$file" "$dest"
         done
     fi
@@ -544,22 +542,22 @@ confirm_installation() {
         printf "  ${COLOR_CYAN}シェル設定 (${SHELL_TYPE}):${COLOR_RESET}\n"
         case "$SHELL_TYPE" in
             bash)
-                printf "    + shell/bash/bashrc -> ~/.bashrc\n"
-                printf "    + shell/bash/bash_profile -> ~/.bash_profile\n"
+                printf "    + config/shell/bash/bashrc -> ~/.bashrc\n"
+                printf "    + config/shell/bash/bash_profile -> ~/.bash_profile\n"
                 ;;
             zsh)
-                printf "    + shell/zsh/zshrc -> ~/.zshrc\n"
-                printf "    + shell/zsh/zprofile -> ~/.zprofile\n"
+                printf "    + config/shell/zsh/zshrc -> ~/.zshrc\n"
+                printf "    + config/shell/zsh/zprofile -> ~/.zprofile\n"
                 ;;
             fish)
-                printf "    + shell/fish/config.fish -> ~/.config/fish/config.fish\n"
+                printf "    + config/shell/fish/config.fish -> ~/.config/fish/config.fish\n"
                 ;;
             all)
-                printf "    + shell/bash/bashrc -> ~/.bashrc\n"
-                printf "    + shell/bash/bash_profile -> ~/.bash_profile\n"
-                printf "    + shell/zsh/zshrc -> ~/.zshrc\n"
-                printf "    + shell/zsh/zprofile -> ~/.zprofile\n"
-                printf "    + shell/fish/config.fish -> ~/.config/fish/config.fish\n"
+                printf "    + config/shell/bash/bashrc -> ~/.bashrc\n"
+                printf "    + config/shell/bash/bash_profile -> ~/.bash_profile\n"
+                printf "    + config/shell/zsh/zshrc -> ~/.zshrc\n"
+                printf "    + config/shell/zsh/zprofile -> ~/.zprofile\n"
+                printf "    + config/shell/fish/config.fish -> ~/.config/fish/config.fish\n"
                 ;;
         esac
         echo ""
@@ -567,24 +565,24 @@ confirm_installation() {
 
     if [ "$GIT_SELECTED" = "true" ]; then
         printf "  ${COLOR_CYAN}Git設定:${COLOR_RESET}\n"
-        printf "    + .git-completion.bash -> ~/.git-completion.bash\n"
-        printf "    + .git-prompt.sh -> ~/.git-prompt.sh\n"
+        printf "    + config/git/.git-completion.bash -> ~/.git-completion.bash\n"
+        printf "    + config/git/.git-prompt.sh -> ~/.git-prompt.sh\n"
         if [ -n "$GITCONFIG_VARIANT" ]; then
-            printf "    + .gitconfig.%s -> ~/.gitconfig\n" "$GITCONFIG_VARIANT"
-            printf "    + .gitignore.%s -> ~/.gitignore_global\n" "$GITCONFIG_VARIANT"
+            printf "    + config/git/.gitconfig.%s -> ~/.gitconfig\n" "$GITCONFIG_VARIANT"
+            printf "    + config/git/.gitignore.%s -> ~/.gitignore_global\n" "$GITCONFIG_VARIANT"
         fi
         echo ""
     fi
 
     if [ "$VIM_SELECTED" = "true" ]; then
         printf "  ${COLOR_CYAN}Vim設定:${COLOR_RESET}\n"
-        printf "    + .vimrc -> ~/.vimrc\n"
+        printf "    + config/vim/.vimrc -> ~/.vimrc\n"
         echo ""
     fi
 
     if [ "$CLAUDE_SELECTED" = "true" ]; then
         printf "  ${COLOR_CYAN}Claude Code設定:${COLOR_RESET}\n"
-        printf "    + claude-config/* -> ~/.claude/*\n"
+        printf "    + claude/* -> ~/.claude/*\n"
         echo ""
     fi
 
@@ -667,7 +665,7 @@ dotfiles インストーラー - dotfilesのシンボリックリンクを作成
     shell   シェル設定 (bash/zsh/fish 選択可能)
     git     Git設定(.gitconfig.work/private, .git-completion.bash等)
     vim     Vim設定(.vimrc)
-    claude  Claude Code設定(claude-config/から)
+    claude  Claude Code設定(claude/から)
 
 例:
     ./install.sh              # 対話的にインストール
