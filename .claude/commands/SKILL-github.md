@@ -1,1 +1,0 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/github/SKILL.md

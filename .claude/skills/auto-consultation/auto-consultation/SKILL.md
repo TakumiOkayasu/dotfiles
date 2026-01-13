@@ -1,1 +1,0 @@
-/home/okayasu/prog/dotfile-work/claude/skills/auto-consultation/auto-consultation/SKILL.md
