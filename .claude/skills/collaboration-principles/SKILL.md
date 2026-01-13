@@ -1,0 +1,1 @@
+/home/okayasu/prog/dotfile-work/claude/skills/collaboration-principles/SKILL.md

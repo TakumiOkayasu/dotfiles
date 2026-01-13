@@ -1,0 +1,1 @@
+/home/okayasu/prog/dotfile-work/claude/hooks/git-post-command-reminder.sh

@@ -1,0 +1,1 @@
+/home/okayasu/prog/dotfile-work/claude/skills/websocket-realtime/SKILL.md
