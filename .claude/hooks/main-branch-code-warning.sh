@@ -1,0 +1,1 @@
+/home/okayasu/prog/dotfile-work/claude-config/hooks/main-branch-code-warning.sh

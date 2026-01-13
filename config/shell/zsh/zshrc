@@ -1,0 +1,177 @@
+#!/bin/zsh
+# config/shell/zsh/zshrc - zsh固有設定
+#
+# 配置先: ~/.zshrc (シンボリックリンク)
+# 読み込み: 対話シェル起動時
+
+# ============================================================================
+# 共通設定の読み込み
+# ============================================================================
+
+# DOTFILES_DIR を検出 (config/shell/zsh/ -> dotfiles root)
+_zshrc_dir="${${(%):-%x}:A:h}"
+DOTFILES_DIR="${DOTFILES_DIR:-${_zshrc_dir:h:h:h}}"
+unset _zshrc_dir
+
+# 共通設定を読み込み
+if [[ -f "$DOTFILES_DIR/config/shell/common.sh" ]]; then
+    source "$DOTFILES_DIR/config/shell/common.sh"
+fi
+
+# ============================================================================
+# zsh オプション
+# ============================================================================
+
+# ヒストリ
+HISTFILE="$HOME/.zsh_history"
+HISTSIZE=10000
+SAVEHIST=20000
+
+setopt HIST_IGNORE_ALL_DUPS  # 重複を無視
+setopt HIST_IGNORE_SPACE     # スペース始まりは記録しない
+setopt HIST_REDUCE_BLANKS    # 余分なスペースを削除
+setopt SHARE_HISTORY         # ヒストリを共有
+setopt EXTENDED_HISTORY      # タイムスタンプを記録
+setopt INC_APPEND_HISTORY    # 即座に追記
+
+# ディレクトリ
+setopt AUTO_CD               # ディレクトリ名だけで cd
+setopt AUTO_PUSHD            # cd で自動的に pushd
+setopt PUSHD_IGNORE_DUPS     # pushd の重複を無視
+setopt CDABLE_VARS           # 変数を cd のパスとして使用
+
+# 補完
+setopt COMPLETE_IN_WORD      # 単語の途中でも補完
+setopt ALWAYS_TO_END         # 補完後カーソルを末尾に
+setopt MENU_COMPLETE         # 補完候補を順番に表示
+
+# グロブ
+setopt EXTENDED_GLOB         # 拡張グロブ
+setopt GLOB_DOTS             # ドットファイルもマッチ
+
+# その他
+setopt INTERACTIVE_COMMENTS  # コメントを許可
+setopt NO_BEEP               # ビープ音を無効化
+
+# ============================================================================
+# 補完システム
+# ============================================================================
+
+autoload -Uz compinit
+
+# 補完キャッシュ (1日1回だけ再生成)
+if [[ -n ${ZDOTDIR}/.zcompdump(#qN.mh+24) ]]; then
+    compinit
+else
+    compinit -C
+fi
+
+# 補完スタイル
+zstyle ':completion:*' menu select                          # メニュー選択
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'         # 大文字小文字を無視
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"     # 色付け
+zstyle ':completion:*' group-name ''                        # グループ化
+zstyle ':completion:*:descriptions' format '%B%d%b'         # 説明フォーマット
+
+# ============================================================================
+# キーバインド
+# ============================================================================
+
+bindkey -e  # Emacs キーバインド
+
+# 履歴検索
+bindkey '^P' history-beginning-search-backward
+bindkey '^N' history-beginning-search-forward
+bindkey '^R' history-incremental-search-backward
+
+# ============================================================================
+# プロンプト
+# ============================================================================
+
+# oh-my-posh (インストールされていれば使用)
+_setup_oh_my_posh() {
+    if ! command -v oh-my-posh &>/dev/null; then
+        return 1
+    fi
+    
+    local theme="${OH_MY_POSH_THEME:-sim-web.omp.json}"
+    local config=""
+    
+    # テーマファイルの検索
+    for dir in "$HOME/.poshthemes" "$DOTFILES_DIR/poshthemes" "/usr/share/oh-my-posh/themes"; do
+        if [[ -f "$dir/$theme" ]]; then
+            config="$dir/$theme"
+            break
+        fi
+    done
+    
+    if [[ -z "$config" ]]; then
+        return 1
+    fi
+    
+    # キャッシュディレクトリ
+    local cache_dir="$HOME/.cache/oh-my-posh"
+    mkdir -p "$cache_dir"
+    
+    # 初期化
+    eval "$(oh-my-posh init zsh --config "$config")"
+    
+    return 0
+}
+
+# oh-my-posh を試行、失敗したらシンプルなプロンプト
+if ! _setup_oh_my_posh; then
+    # Git情報付きのシンプルなプロンプト
+    autoload -Uz vcs_info
+    precmd() { vcs_info }
+    zstyle ':vcs_info:git:*' formats ' (%b)'
+    setopt PROMPT_SUBST
+    PROMPT='%F{green}%n@%m%f:%F{blue}%~%f%F{yellow}${vcs_info_msg_0_}%f$ '
+fi
+
+unset -f _setup_oh_my_posh
+
+# ============================================================================
+# prezto / oh-my-zsh 連携 (使用している場合)
+# ============================================================================
+
+# prezto
+if [[ -s "${ZDOTDIR:-$HOME}/.zprezto/init.zsh" ]]; then
+    source "${ZDOTDIR:-$HOME}/.zprezto/init.zsh"
+fi
+
+# ============================================================================
+# zsh固有エイリアス
+# ============================================================================
+
+# グローバルエイリアス
+alias -g L='| less'
+alias -g G='| grep'
+alias -g H='| head'
+alias -g T='| tail'
+alias -g W='| wc -l'
+alias -g J='| jq .'
+alias -g N='>/dev/null 2>&1'
+
+# サフィックスエイリアス
+alias -s txt='cat'
+alias -s json='jq .'
+alias -s md='cat'
+alias -s log='tail -f'
+
+# ============================================================================
+# zsh固有関数
+# ============================================================================
+
+# ディレクトリ作成して移動
+mkcd() {
+    mkdir -p "$1" && cd "$1"
+}
+
+# ============================================================================
+# ローカル設定 (zsh固有、Git管理外)
+# ============================================================================
+
+if [[ -f "$HOME/.zshrc.local" ]]; then
+    source "$HOME/.zshrc.local"
+fi

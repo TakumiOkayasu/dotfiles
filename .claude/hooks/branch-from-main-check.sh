@@ -1,0 +1,1 @@
+/home/okayasu/prog/dotfile-work/claude-config/hooks/branch-from-main-check.sh
