@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/systematic-debugging/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/systematic-debugging/SKILL.md

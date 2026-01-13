@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/concurrency-async/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/concurrency-async/SKILL.md

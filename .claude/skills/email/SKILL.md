@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/email/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/email/SKILL.md

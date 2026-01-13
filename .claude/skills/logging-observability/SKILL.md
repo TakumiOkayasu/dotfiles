@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/logging-observability/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/logging-observability/SKILL.md

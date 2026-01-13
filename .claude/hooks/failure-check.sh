@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/hooks/failure-check.sh
+/home/okayasu/prog/dotfile-work/claude/hooks/failure-check.sh

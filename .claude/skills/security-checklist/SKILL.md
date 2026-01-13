@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/security-checklist/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/security-checklist/SKILL.md

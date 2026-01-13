@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/authentication-authorization/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/authentication-authorization/SKILL.md

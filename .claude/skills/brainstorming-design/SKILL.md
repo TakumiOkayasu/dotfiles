@@ -1,1 +1,1 @@
-/home/okayasu/prog/dotfile-work/claude-config/skills/brainstorming-design/SKILL.md
+/home/okayasu/prog/dotfile-work/claude/skills/brainstorming-design/SKILL.md
