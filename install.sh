@@ -269,8 +269,11 @@ install_gitignore() {
 }
 
 uninstall_gitignore() {
-    remove_link "config/git/.gitignore.work" "${HOME}/.gitignore_global"
-    remove_link "config/git/.gitignore.private" "${HOME}/.gitignore_global"
+    target=$(readlink "${HOME}/.gitignore_global" 2>/dev/null) || true
+    case "$target" in
+        */.gitignore.work)   remove_link "config/git/.gitignore.work" "${HOME}/.gitignore_global" ;;
+        */.gitignore.private) remove_link "config/git/.gitignore.private" "${HOME}/.gitignore_global" ;;
+    esac
 }
 
 # Vim設定ファイル
@@ -498,8 +501,11 @@ install_gitconfig() {
 }
 
 uninstall_gitconfig() {
-    remove_link "config/git/.gitconfig.work" "${HOME}/.gitconfig"
-    remove_link "config/git/.gitconfig.private" "${HOME}/.gitconfig"
+    target=$(readlink "${HOME}/.gitconfig" 2>/dev/null) || true
+    case "$target" in
+        */.gitconfig.work)   remove_link "config/git/.gitconfig.work" "${HOME}/.gitconfig" ;;
+        */.gitconfig.private) remove_link "config/git/.gitconfig.private" "${HOME}/.gitconfig" ;;
+    esac
 }
 
 # ============================================================================
