@@ -522,7 +522,9 @@ install_claude_config() {
     # claude/ 内のファイルを取得してリンク (templates/は除外)
     if [ -d "${DOTFILES_DIR}/claude" ]; then
         cd "$DOTFILES_DIR"
-        git ls-files claude/ 2>/dev/null | while read -r file; do
+        # サブシェルを避けるため一時ファイル経由で処理
+        _claude_files=$(git ls-files claude/ 2>/dev/null)
+        for file in $_claude_files; do
             [ -z "$file" ] && continue
 
             relative="${file#claude/}"
@@ -543,6 +545,7 @@ install_claude_config() {
 
             create_link "$file" "$dest"
         done
+        unset _claude_files
     fi
 }
 
@@ -551,7 +554,9 @@ uninstall_claude_config() {
 
     if [ -d "${DOTFILES_DIR}/claude" ]; then
         cd "$DOTFILES_DIR"
-        git ls-files claude/ 2>/dev/null | while read -r file; do
+        # サブシェルを避けるため変数経由で処理
+        _claude_files=$(git ls-files claude/ 2>/dev/null)
+        for file in $_claude_files; do
             [ -z "$file" ] && continue
 
             relative="${file#claude/}"
@@ -566,6 +571,7 @@ uninstall_claude_config() {
             dest="${HOME}/.claude/${relative}"
             remove_link "$file" "$dest"
         done
+        unset _claude_files
     fi
 }
 
