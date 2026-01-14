@@ -326,7 +326,7 @@ select_shell_components() {
     printf "  ${COLOR_BOLD}1)${COLOR_RESET} フルセット (すべての設定)\n"
     printf "     → .bashrc/.zshrc 等をリンク、全機能有効\n"
     printf "  ${COLOR_BOLD}2)${COLOR_RESET} エイリアスのみ\n"
-    printf "     → ~/.aliases にリンク (既存の設定に source ~/.aliases を追加)\n"
+    printf "     → ~/.shell_aliases にリンク\n"
     printf "  ${COLOR_BOLD}3)${COLOR_RESET} 共通設定のみ (PATH/環境変数/エイリアス)\n"
     printf "     → ~/.shell_common にリンク\n"
     printf "  ${COLOR_BOLD}4)${COLOR_RESET} カスタム選択\n"
@@ -408,9 +408,7 @@ install_shell_config() {
 
     # コンポーネント別インストール
     if [ "$SHELL_COMP_ALIASES" = "true" ]; then
-        create_link "config/shell/aliases.sh" "${HOME}/.aliases"
-        print_info "ヒント: 既存の設定ファイルに以下を追加してください:"
-        printf "        ${COLOR_CYAN}[ -f ~/.aliases ] && . ~/.aliases${COLOR_RESET}\n"
+        create_link "config/shell/aliases.sh" "${HOME}/.shell_aliases"
     fi
 
     if [ "$SHELL_COMP_COMMON" = "true" ]; then
@@ -679,7 +677,7 @@ confirm_installation() {
         else
             printf "  ${COLOR_CYAN}シェル設定 - コンポーネント:${COLOR_RESET}\n"
             if [ "$SHELL_COMP_ALIASES" = "true" ]; then
-                printf "    + config/shell/aliases.sh -> ~/.aliases\n"
+                printf "    + config/shell/aliases.sh -> ~/.shell_aliases\n"
             fi
             if [ "$SHELL_COMP_COMMON" = "true" ]; then
                 printf "    + config/shell/common.sh -> ~/.shell_common\n"
