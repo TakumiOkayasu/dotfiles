@@ -34,6 +34,10 @@ COUNT_ERROR=0
 # 選択状態
 SHELL_SELECTED=false
 SHELL_TYPE=""  # bash, zsh, fish, all
+SHELL_COMPONENTS=""  # full, aliases, common, custom
+SHELL_COMP_ALIASES=false
+SHELL_COMP_COMMON=false
+SHELL_COMP_PROMPT=false
 CLAUDE_SELECTED=false
 GITCONFIG_VARIANT=""
 
@@ -150,8 +154,10 @@ create_link() {
 
     if [ "$MODE_DRY_RUN" = "true" ]; then
         print_info "[ドライラン] 作成: $dest -> $src"
+        COUNT_CREATED=$((COUNT_CREATED + 1))
         if [ -e "$dest" ] && [ ! -L "$dest" ]; then
             print_info "[ドライラン] バックアップ: $dest -> ${dest}.bak"
+            COUNT_BACKUP=$((COUNT_BACKUP + 1))
         fi
         return 0
     fi
@@ -313,6 +319,80 @@ select_shell_type() {
     print_success "シェル設定: ${SHELL_TYPE}"
 }
 
+# シェルコンポーネント選択
+select_shell_components() {
+    echo ""
+    printf "${COLOR_BOLD}インストールする内容を選択:${COLOR_RESET}\n"
+    printf "  ${COLOR_BOLD}1)${COLOR_RESET} フルセット (すべての設定)\n"
+    printf "     → .bashrc/.zshrc 等をリンク、全機能有効\n"
+    printf "  ${COLOR_BOLD}2)${COLOR_RESET} エイリアスのみ\n"
+    printf "     → ~/.aliases にリンク (既存の設定に source ~/.aliases を追加)\n"
+    printf "  ${COLOR_BOLD}3)${COLOR_RESET} 共通設定のみ (PATH/環境変数/エイリアス)\n"
+    printf "     → ~/.shell_common にリンク\n"
+    printf "  ${COLOR_BOLD}4)${COLOR_RESET} カスタム選択\n"
+    echo ""
+    printf "選択 (1-4) [1]: "
+    read -r choice
+
+    case "$choice" in
+        1|"")
+            SHELL_COMPONENTS="full"
+            print_success "フルセットを選択しました"
+            ;;
+        2)
+            SHELL_COMPONENTS="aliases"
+            SHELL_COMP_ALIASES=true
+            print_success "エイリアスのみを選択しました"
+            ;;
+        3)
+            SHELL_COMPONENTS="common"
+            SHELL_COMP_COMMON=true
+            SHELL_COMP_ALIASES=true
+            print_success "共通設定のみを選択しました"
+            ;;
+        4)
+            SHELL_COMPONENTS="custom"
+            select_shell_custom_components
+            ;;
+        *)
+            print_error "無効な選択です。フルセットを使用します"
+            SHELL_COMPONENTS="full"
+            ;;
+    esac
+}
+
+# カスタムコンポーネント選択
+select_shell_custom_components() {
+    echo ""
+    printf "${COLOR_BOLD}インストールするコンポーネントを選択 (複数可、スペース区切り):${COLOR_RESET}\n"
+    printf "  ${COLOR_BOLD}1)${COLOR_RESET} エイリアス (ls, git, docker等のショートカット)\n"
+    printf "  ${COLOR_BOLD}2)${COLOR_RESET} 共通設定 (PATH/環境変数/プラットフォーム設定)\n"
+    printf "  ${COLOR_BOLD}3)${COLOR_RESET} プロンプト設定 (git-prompt.sh)\n"
+    echo ""
+    printf "選択 (例: 1 2 3) [1]: "
+    read -r choices
+
+    # デフォルトはエイリアスのみ
+    if [ -z "$choices" ]; then
+        choices="1"
+    fi
+
+    for c in $choices; do
+        case "$c" in
+            1) SHELL_COMP_ALIASES=true ;;
+            2) SHELL_COMP_COMMON=true ;;
+            3) SHELL_COMP_PROMPT=true ;;
+        esac
+    done
+
+    # 選択結果を表示
+    components_list=""
+    [ "$SHELL_COMP_ALIASES" = "true" ] && components_list="${components_list}エイリアス "
+    [ "$SHELL_COMP_COMMON" = "true" ] && components_list="${components_list}共通設定 "
+    [ "$SHELL_COMP_PROMPT" = "true" ] && components_list="${components_list}プロンプト "
+    print_success "選択: ${components_list}"
+}
+
 install_shell_config() {
     if [ "$SHELL_SELECTED" != "true" ]; then
         return 0
@@ -320,6 +400,34 @@ install_shell_config() {
 
     print_header "シェル設定をインストール"
 
+    # フルセットの場合は従来通り
+    if [ "$SHELL_COMPONENTS" = "full" ]; then
+        install_shell_full
+        return 0
+    fi
+
+    # コンポーネント別インストール
+    if [ "$SHELL_COMP_ALIASES" = "true" ]; then
+        create_link "config/shell/aliases.sh" "${HOME}/.aliases"
+        print_info "ヒント: 既存の設定ファイルに以下を追加してください:"
+        printf "        ${COLOR_CYAN}[ -f ~/.aliases ] && . ~/.aliases${COLOR_RESET}\n"
+    fi
+
+    if [ "$SHELL_COMP_COMMON" = "true" ]; then
+        create_link "config/shell/common.sh" "${HOME}/.shell_common"
+        print_info "ヒント: 既存の設定ファイルに以下を追加してください:"
+        printf "        ${COLOR_CYAN}[ -f ~/.shell_common ] && . ~/.shell_common${COLOR_RESET}\n"
+    fi
+
+    if [ "$SHELL_COMP_PROMPT" = "true" ]; then
+        create_link "config/git/.git-prompt.sh" "${HOME}/.git-prompt.sh"
+        print_info "ヒント: 既存の設定ファイルに以下を追加してください:"
+        printf "        ${COLOR_CYAN}[ -f ~/.git-prompt.sh ] && . ~/.git-prompt.sh${COLOR_RESET}\n"
+    fi
+}
+
+# フルセットインストール (従来の動作)
+install_shell_full() {
     case "$SHELL_TYPE" in
         bash)
             create_link "config/shell/bash/bashrc" "${HOME}/.bashrc"
@@ -499,6 +607,7 @@ select_files_interactive() {
             a|A)
                 SHELL_SELECTED=true
                 select_shell_type
+                SHELL_COMPONENTS="full"
                 GIT_SELECTED=true
                 select_gitconfig_variant
                 VIM_SELECTED=true
@@ -508,6 +617,7 @@ select_files_interactive() {
             1)
                 SHELL_SELECTED=true
                 select_shell_type
+                select_shell_components
                 ;;
             2)
                 GIT_SELECTED=true
@@ -544,27 +654,40 @@ confirm_installation() {
     echo ""
 
     if [ "$SHELL_SELECTED" = "true" ]; then
-        printf "  ${COLOR_CYAN}シェル設定 (${SHELL_TYPE}):${COLOR_RESET}\n"
-        case "$SHELL_TYPE" in
-            bash)
-                printf "    + config/shell/bash/bashrc -> ~/.bashrc\n"
-                printf "    + config/shell/bash/bash_profile -> ~/.bash_profile\n"
-                ;;
-            zsh)
-                printf "    + config/shell/zsh/zshrc -> ~/.zshrc\n"
-                printf "    + config/shell/zsh/zprofile -> ~/.zprofile\n"
-                ;;
-            fish)
-                printf "    + config/shell/fish/config.fish -> ~/.config/fish/config.fish\n"
-                ;;
-            all)
-                printf "    + config/shell/bash/bashrc -> ~/.bashrc\n"
-                printf "    + config/shell/bash/bash_profile -> ~/.bash_profile\n"
-                printf "    + config/shell/zsh/zshrc -> ~/.zshrc\n"
-                printf "    + config/shell/zsh/zprofile -> ~/.zprofile\n"
-                printf "    + config/shell/fish/config.fish -> ~/.config/fish/config.fish\n"
-                ;;
-        esac
+        if [ "$SHELL_COMPONENTS" = "full" ]; then
+            printf "  ${COLOR_CYAN}シェル設定 - フルセット (${SHELL_TYPE}):${COLOR_RESET}\n"
+            case "$SHELL_TYPE" in
+                bash)
+                    printf "    + config/shell/bash/bashrc -> ~/.bashrc\n"
+                    printf "    + config/shell/bash/bash_profile -> ~/.bash_profile\n"
+                    ;;
+                zsh)
+                    printf "    + config/shell/zsh/zshrc -> ~/.zshrc\n"
+                    printf "    + config/shell/zsh/zprofile -> ~/.zprofile\n"
+                    ;;
+                fish)
+                    printf "    + config/shell/fish/config.fish -> ~/.config/fish/config.fish\n"
+                    ;;
+                all)
+                    printf "    + config/shell/bash/bashrc -> ~/.bashrc\n"
+                    printf "    + config/shell/bash/bash_profile -> ~/.bash_profile\n"
+                    printf "    + config/shell/zsh/zshrc -> ~/.zshrc\n"
+                    printf "    + config/shell/zsh/zprofile -> ~/.zprofile\n"
+                    printf "    + config/shell/fish/config.fish -> ~/.config/fish/config.fish\n"
+                    ;;
+            esac
+        else
+            printf "  ${COLOR_CYAN}シェル設定 - コンポーネント:${COLOR_RESET}\n"
+            if [ "$SHELL_COMP_ALIASES" = "true" ]; then
+                printf "    + config/shell/aliases.sh -> ~/.aliases\n"
+            fi
+            if [ "$SHELL_COMP_COMMON" = "true" ]; then
+                printf "    + config/shell/common.sh -> ~/.shell_common\n"
+            fi
+            if [ "$SHELL_COMP_PROMPT" = "true" ]; then
+                printf "    + config/git/.git-prompt.sh -> ~/.git-prompt.sh\n"
+            fi
+        fi
         echo ""
     fi
 
@@ -744,6 +867,7 @@ main() {
             # 強制モード: すべて選択
             SHELL_SELECTED=true
             SHELL_TYPE=$(detect_current_shell)
+            SHELL_COMPONENTS="full"
             GIT_SELECTED=true
             VIM_SELECTED=true
             CLAUDE_SELECTED=true
