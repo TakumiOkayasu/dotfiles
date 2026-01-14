@@ -86,6 +86,16 @@ check_requirements() {
 # ディレクトリ作成
 ensure_dir() {
     dir="$1"
+    
+    # シンボリックリンクの場合は削除(壊れたリンクも含む)
+    if [ -L "$dir" ]; then
+        if [ "$MODE_DRY_RUN" = "true" ]; then
+            print_info "[ドライラン] 既存リンク削除: $dir"
+        else
+            rm "$dir" 2>/dev/null || true
+        fi
+    fi
+
     if [ ! -d "$dir" ]; then
         if [ "$MODE_DRY_RUN" = "true" ]; then
             print_info "[ドライラン] ディレクトリ作成: $dir"
@@ -102,9 +112,7 @@ ensure_dir() {
 
 # プラットフォーム検出
 detect_platform() {
-    if [ -f /proc/sys/fs/binfmt_misc/WSLInterop ] || \
-       [ -n "${WSL_DISTRO_NAME:-}" ] || \
-       grep -qi microsoft /proc/version 2>/dev/null; then
+    if [ -f /proc/sys/fs/binfmt_misc/WSLInterop ] || [ -n "${WSL_DISTRO_NAME:-}" ] || grep -qi microsoft /proc/version 2>/dev/null; then
         echo "wsl"
     elif [ "$(uname)" = "Darwin" ]; then
         echo "macos"
@@ -528,10 +536,7 @@ select_files_interactive() {
 }
 
 confirm_installation() {
-    if [ "$SHELL_SELECTED" != "true" ] && \
-       [ "$GIT_SELECTED" != "true" ] && \
-       [ "$VIM_SELECTED" != "true" ] && \
-       [ "$CLAUDE_SELECTED" != "true" ]; then
+    if [ "$SHELL_SELECTED" != "true" ] && [ "$GIT_SELECTED" != "true" ] && [ "$VIM_SELECTED" != "true" ] && [ "$CLAUDE_SELECTED" != "true" ]; then
         die "ファイルが選択されていません"
     fi
 
