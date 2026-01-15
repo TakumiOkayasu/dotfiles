@@ -26,13 +26,15 @@ fi
 
 ### 2. API呼び出し
 
+**リクエスト形式:**
+
 ```bash
 QUERY="$1"
 
 RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
-  -H "x-api-key: ${API_KEY}" \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: ${API_KEY}" \
   -H "anthropic-version: 2023-06-01" \
-  -H "content-type: application/json" \
   -d "$(jq -n --arg q "$QUERY" '{
     model: "claude-sonnet-4-5-20250929",
     max_tokens: 8192,
@@ -40,7 +42,56 @@ RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
   }')")
 ```
 
-### 3. 結果出力
+**リクエストボディ構造:**
+
+```json
+{
+  "model": "claude-sonnet-4-5-20250929",
+  "max_tokens": 8192,
+  "messages": [
+    {
+      "role": "user",
+      "content": "<質問内容>"
+    }
+  ]
+}
+```
+
+### 3. レスポンス形式
+
+**成功時のレスポンス構造:**
+
+```json
+{
+  "id": "msg_...",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "<回答内容>"
+    }
+  ],
+  "model": "claude-sonnet-4-5-20250929",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 100,
+    "output_tokens": 500
+  }
+}
+```
+
+**主要フィールド:**
+
+| フィールド | 説明 |
+|-----------|------|
+| `id` | メッセージID (msg_で始まる) |
+| `content[0].text` | 回答テキスト |
+| `stop_reason` | 終了理由 (`end_turn`, `max_tokens`, `stop_sequence`) |
+| `usage.input_tokens` | 入力トークン数 |
+| `usage.output_tokens` | 出力トークン数 |
+
+### 4. 結果出力
 
 ```bash
 # 回答を出力
@@ -50,14 +101,14 @@ echo "$RESPONSE" | jq -r '.content[0].text'
 INPUT_TOKENS=$(echo "$RESPONSE" | jq -r '.usage.input_tokens')
 OUTPUT_TOKENS=$(echo "$RESPONSE" | jq -r '.usage.output_tokens')
 
-# コスト計算 (Sonnet: $3/1M input, $15/1M output)
+# コスト計算 (Sonnet 4.5: $3/1M input, $15/1M output)
 COST=$(echo "scale=4; ($INPUT_TOKENS * 3 + $OUTPUT_TOKENS * 15) / 1000000" | bc)
 
 echo ""
 echo "[Usage] input: ${INPUT_TOKENS} tokens, output: ${OUTPUT_TOKENS} tokens, cost: ~\$${COST}"
 ```
 
-### 4. 引数なしの場合
+### 5. 引数なしの場合
 
 引数がない場合は使い方を表示:
 
