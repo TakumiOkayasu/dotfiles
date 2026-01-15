@@ -171,6 +171,8 @@ $RECYCLE.BIN/
 # Claude Code
 claude_tmp/
 **/.claude/settings.local.json
+tmpclaude-*
+
 ### AL ###
 #Template for AL projects for Dynamics 365 Business Central
 #launch.json folder
