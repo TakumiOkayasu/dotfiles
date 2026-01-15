@@ -1,5 +1,8 @@
 {
   "permissions": {
+    "allowedPrompts": [
+      { "tool": "Bash", "prompt": "call Anthropic API for bounce" }
+    ],
     "allow": [
       "Bash(claude --update)",
       "Bash(claude update)",
