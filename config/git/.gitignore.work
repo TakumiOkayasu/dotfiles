@@ -173,6 +173,8 @@ CLAUDE.md
 .claude/
 **/.claude/
 claude_tmp/
+tmpclaude-*
+
 ### AL ###
 #Template for AL projects for Dynamics 365 Business Central
 #launch.json folder
