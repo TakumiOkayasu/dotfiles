@@ -252,11 +252,16 @@ remove_link() {
 install_git_files() {
     create_link "config/git/.git-completion.bash" "${HOME}/.git-completion.bash"
     create_link "config/git/.git-prompt.sh" "${HOME}/.git-prompt.sh"
+
+    # Git for Windows用プロンプト設定
+    ensure_dir "${HOME}/.config/git"
+    create_link "config/git/git-prompt.sh" "${HOME}/.config/git/git-prompt.sh"
 }
 
 uninstall_git_files() {
     remove_link "config/git/.git-completion.bash" "${HOME}/.git-completion.bash"
     remove_link "config/git/.git-prompt.sh" "${HOME}/.git-prompt.sh"
+    remove_link "config/git/git-prompt.sh" "${HOME}/.config/git/git-prompt.sh"
 }
 
 # Gitignore設定 (work/privateに応じて選択)
