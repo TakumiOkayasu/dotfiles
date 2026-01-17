@@ -540,9 +540,9 @@ install_claude_config() {
 
             relative="${file#claude/}"
 
-            # templates/ は除外
+            # templates/ と CLAUDE.md は除外 (CLAUDE.md はプロジェクトローカル用)
             case "$relative" in
-                templates/*)
+                templates/*|CLAUDE.md)
                     continue
                     ;;
             esac
@@ -578,9 +578,9 @@ uninstall_claude_config() {
 
             relative="${file#claude/}"
 
-            # templates/ は除外
+            # templates/ と CLAUDE.md は除外 (CLAUDE.md はプロジェクトローカル用)
             case "$relative" in
-                templates/*)
+                templates/*|CLAUDE.md)
                     continue
                     ;;
             esac
