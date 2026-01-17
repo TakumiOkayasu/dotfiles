@@ -1,6 +1,6 @@
 ---
 name: forbidden-actions
-description: [説明を追加]
+description: 絶対禁止事項の詳細と理由を明確化。hooksと連携して物理的に禁止操作を防ぐ。
 ---
 
 # Forbidden Actions Skill

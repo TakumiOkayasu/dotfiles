@@ -1,8 +1,6 @@
----
-description: 機能を実装する(TDDスタイル)
----
-
 # Implementation Guide
+
+機能を実装する(TDDスタイル)
 
 ## 引数
 $ARGUMENTS に実装する機能の説明が渡されます。
