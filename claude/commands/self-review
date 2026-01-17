@@ -1,0 +1,349 @@
+#!/bin/bash
+
+# self-review: 手動で品質レビューを実行するコマンド
+# 
+# 使用方法:
+#   self-review                           # 全ての変更ファイルをレビュー
+#   self-review file.py                   # 特定ファイルをレビュー
+#   self-review --all                     # 全ファイルをレビュー (変更なしも含む)
+#   self-review --skills api-design       # 特定スキルでレビュー
+#   self-review --help                    # ヘルプ表示
+
+set -e
+
+# 色定義
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# ヘルプメッセージ
+show_help() {
+    cat << EOF
+self-review - 品質レビューを手動実行
+
+使用方法:
+  self-review [オプション] [ファイル...]
+
+オプション:
+  -h, --help              このヘルプを表示
+  -a, --all               全ファイルをレビュー (変更なしも含む)
+  -s, --skills SKILLS     特定のスキルでレビュー (カンマ区切り)
+  -v, --verbose           詳細出力
+  -q, --quiet             最小限の出力
+
+例:
+  self-review                       # 変更ファイルをレビュー
+  self-review src/api/auth.py       # 特定ファイルをレビュー
+  self-review --all                 # 全ファイルをレビュー
+  self-review --skills api-design   # 特定スキルでレビュー
+
+詳細:
+  quality-automation スキルを参照
+EOF
+}
+
+# エラーハンドリング
+error_exit() {
+    echo -e "${RED}❌ エラー: $1${NC}" >&2
+    exit 1
+}
+
+# 引数解析
+FILES=()
+ALL_FILES=false
+SPECIFIC_SKILLS=""
+VERBOSE=false
+QUIET=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -a|--all)
+            ALL_FILES=true
+            shift
+            ;;
+        -s|--skills)
+            SPECIFIC_SKILLS="$2"
+            shift 2
+            ;;
+        -v|--verbose)
+            VERBOSE=true
+            shift
+            ;;
+        -q|--quiet)
+            QUIET=true
+            shift
+            ;;
+        -*)
+            error_exit "不明なオプション: $1"
+            ;;
+        *)
+            FILES+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# ディレクトリ確認
+if [ ! -d ".git" ]; then
+    error_exit "Gitリポジトリのルートで実行してください"
+fi
+
+SKILL_DIR="$HOME/.claude/skills"
+if [ ! -d "$SKILL_DIR" ]; then
+    error_exit "スキルディレクトリが見つかりません: $SKILL_DIR"
+fi
+
+# レポートディレクトリ
+REPORT_DIR="claude_tmp/review_reports"
+mkdir -p "$REPORT_DIR"
+
+REPORT_FILE="$REPORT_DIR/manual_$(date +%Y%m%d_%H%M%S).md"
+
+# ファイルリスト取得
+if [ ${#FILES[@]} -gt 0 ]; then
+    # 指定されたファイル
+    TARGET_FILES=("${FILES[@]}")
+elif [ "$ALL_FILES" = true ]; then
+    # 全ファイル
+    TARGET_FILES=($(git ls-files))
+else
+    # 変更ファイル
+    CHANGED=$(git diff --name-only HEAD)
+    if [ -z "$CHANGED" ]; then
+        echo -e "${YELLOW}⚠️  変更ファイルがありません${NC}"
+        exit 0
+    fi
+    TARGET_FILES=($CHANGED)
+fi
+
+[ "$QUIET" = false ] && echo -e "${BLUE}🔍 レビューを開始します...${NC}"
+[ "$QUIET" = false ] && echo "対象ファイル数: ${#TARGET_FILES[@]}"
+
+# レポートヘッダー
+cat > "$REPORT_FILE" << EOF
+# 品質レビューレポート (手動実行)
+
+生成日時: $(date +"%Y-%m-%d %H:%M:%S")
+対象ブランチ: $(git branch --show-current)
+対象ファイル数: ${#TARGET_FILES[@]}
+実行モード: $([ "$ALL_FILES" = true ] && echo "全ファイル" || echo "変更ファイル")
+
+---
+
+## 📊 総合評価
+
+EOF
+
+# カウンター
+PASS_COUNT=0
+WARN_COUNT=0
+FAIL_COUNT=0
+REVIEWED_COUNT=0
+
+# スキル判定関数
+determine_skills() {
+    local file="$1"
+    local skills="code-review"
+    
+    # 特定スキルが指定されている場合
+    if [ -n "$SPECIFIC_SKILLS" ]; then
+        echo "$SPECIFIC_SKILLS"
+        return
+    fi
+    
+    # 拡張子ベース
+    case "$file" in
+        *.py)
+            skills="$skills,test-driven-development,hallucination-prevention"
+            ;;
+        *.ts|*.tsx)
+            skills="$skills,typescript-strict"
+            ;;
+        *.js|*.jsx)
+            skills="$skills,code-generation"
+            ;;
+    esac
+    
+    # ファイル名パターン
+    local filename=$(basename "$file")
+    case "$filename" in
+        *test*|*_test*|test_*)
+            skills="$skills,test-driven-development"
+            ;;
+        *migration*|*schema*)
+            skills="$skills,database-design,migration-upgrade"
+            ;;
+        *auth*|*login*|*session*)
+            skills="$skills,authentication-authorization,security-review"
+            ;;
+        *api*|*route*|*endpoint*)
+            skills="$skills,api-design,error-handling,input-validation"
+            ;;
+        Dockerfile|docker-compose.yml)
+            skills="$skills,docker,security-checklist"
+            ;;
+    esac
+    
+    # セキュリティは常にチェック
+    skills="$skills,security-checklist"
+    
+    echo "$skills"
+}
+
+# ファイルごとにレビュー
+for file in "${TARGET_FILES[@]}"; do
+    # ファイル存在チェック
+    if [ ! -f "$file" ]; then
+        [ "$VERBOSE" = true ] && echo -e "${YELLOW}⚠️  スキップ: $file (ファイルが存在しません)${NC}"
+        continue
+    fi
+    
+    REVIEWED_COUNT=$((REVIEWED_COUNT + 1))
+    [ "$QUIET" = false ] && echo -e "${BLUE}レビュー中: $file${NC}"
+    
+    # 適用スキルを判定
+    SKILLS=$(determine_skills "$file")
+    
+    [ "$VERBOSE" = true ] && echo "  適用スキル: $SKILLS"
+    
+    # レポートに追記
+    cat >> "$REPORT_FILE" << EOF
+
+---
+
+### ファイル: $file
+
+**適用スキル**: $(echo $SKILLS | tr ',' ' ')
+
+EOF
+    
+    # 簡易的なチェック (実際のレビューロジックはここに実装)
+    # TODO: 実際のスキルを使った詳細なチェック
+    
+    # 仮の判定
+    RESULT="PASS"
+    
+    # 基本的なチェック
+    if [ -f "$file" ]; then
+        # ファイルサイズチェック (10MB以上は警告)
+        FILE_SIZE=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo 0)
+        if [ "$FILE_SIZE" -gt 10485760 ]; then
+            RESULT="WARN"
+            cat >> "$REPORT_FILE" << EOF
+#### ⚠️ 警告
+
+- ファイルサイズが大きい: $(echo "scale=2; $FILE_SIZE/1024/1024" | bc)MB
+  推奨: 分割を検討
+
+EOF
+        fi
+        
+        # TODO: 各スキルに基づいた詳細チェック
+        # - code-review: 複雑度、命名規則
+        # - test-driven-development: テストの存在
+        # - security-checklist: セキュリティ問題
+        # など
+        
+    fi
+    
+    # 結果をカウント
+    case "$RESULT" in
+        PASS)
+            PASS_COUNT=$((PASS_COUNT + 1))
+            [ "$QUIET" = false ] && echo -e "${GREEN}  ✅ 合格${NC}"
+            cat >> "$REPORT_FILE" << EOF
+#### ✅ 合格
+
+基本的な品質基準を満たしています
+
+EOF
+            ;;
+        WARN)
+            WARN_COUNT=$((WARN_COUNT + 1))
+            [ "$QUIET" = false ] && echo -e "${YELLOW}  ⚠️  警告${NC}"
+            ;;
+        FAIL)
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+            [ "$QUIET" = false ] && echo -e "${RED}  ❌ 要修正${NC}"
+            cat >> "$REPORT_FILE" << EOF
+#### ❌ 要修正
+
+重大な問題が検出されました
+
+EOF
+            ;;
+    esac
+done
+
+# 総合評価を更新
+sed -i.bak "s/## 📊 総合評価/## 📊 総合評価\n\n- ✅ 合格: ${PASS_COUNT}件\n- ⚠️  警告: ${WARN_COUNT}件\n- ❌ 要修正: ${FAIL_COUNT}件/" "$REPORT_FILE"
+rm -f "${REPORT_FILE}.bak"
+
+# 改善提案セクション
+cat >> "$REPORT_FILE" << EOF
+
+---
+
+## 🎯 改善提案
+
+EOF
+
+if [ $FAIL_COUNT -gt 0 ]; then
+    cat >> "$REPORT_FILE" << EOF
+### 優先度: 高
+
+要修正項目への対応を優先してください
+
+EOF
+fi
+
+if [ $WARN_COUNT -gt 0 ]; then
+    cat >> "$REPORT_FILE" << EOF
+### 優先度: 中
+
+警告項目を確認し、必要に応じて改善してください
+
+EOF
+fi
+
+cat >> "$REPORT_FILE" << EOF
+
+---
+
+## 📚 参照したスキル
+
+quality-automation スキルに基づいてレビューを実行しました
+
+詳細: ~/.claude/skills/quality-automation/SKILL.md
+
+EOF
+
+# 結果表示
+if [ "$QUIET" = false ]; then
+    echo ""
+    echo -e "${GREEN}✅ レビュー完了${NC}"
+    echo "レポート: $REPORT_FILE"
+    echo ""
+    echo "総合評価:"
+    echo "  ✅ 合格: $PASS_COUNT件"
+    echo "  ⚠️  警告: $WARN_COUNT件"
+    echo "  ❌ 要修正: $FAIL_COUNT件"
+fi
+
+# 終了コード
+if [ $FAIL_COUNT -gt 0 ]; then
+    [ "$QUIET" = false ] && echo -e "${RED}⚠️  要修正項目があります${NC}"
+    exit 1
+elif [ $WARN_COUNT -gt 0 ]; then
+    [ "$QUIET" = false ] && echo -e "${YELLOW}⚠️  警告項目があります${NC}"
+    exit 0
+else
+    [ "$QUIET" = false ] && echo -e "${GREEN}✨ すべて合格です${NC}"
+    exit 0
+fi

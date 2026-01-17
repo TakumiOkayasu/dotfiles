@@ -1,75 +1,116 @@
-# Claude Code 基本設定
+# Claude Code 運用ルール
 
-## 🚨 絶対厳守(毎タスク確認)
+## 🎯 作業フロー
 
-1. **git commit/push 禁止** - ユーザーのみ操作可能
-2. **mainブランチで作業禁止** - 必ず新ブランチを作成
-3. **テストファースト** - RED → GREEN → REFACTOR
-4. **1ブランチ1機能** - 「ついでに」修正は禁止
-5. **不明点は相談** - 実装前にスマホ/PCクライアントへ
-6. **複数案提示** - 単一解の押し付け禁止
-7. **スキル活用** - `~/.claude/skills/` を必ず確認
-8. **失敗を記録** - `claude_tmp/failure_log/` に書き出す
-
----
-
-## 📋 タスク受領時の必須アクション
-
-```
-1. git branch --show-current で現在ブランチ確認
-2. mainなら → git-new-feature で新ブランチ作成
-3. 該当スキルを読み、「{スキル名}を確認しました」と宣言
-4. ブランチ確認後、初めてコード変更開始
+```text
+git branch --show-current
+[main の場合] git-new-feature <機能名>
+view ~/.claude/skills/<該当スキル>/SKILL.md
+# 実装開始
 ```
 
-🛑 この手順を飛ばしてコード変更することは禁止
+---
+
+## 🚨 絶対禁止事項(CRITICAL)
+
+**以下は例外なく禁止。違反は重大なエラー。**
+
+詳細: `forbidden-actions` スキル
+
+### 実行前の必須確認
+
+**全てのGit操作前:**
+```text
+□ これはcommitまたはpushか? → YES なら中断
+□ mainブランチで作業していないか? → YES なら中断
+```
+
+**全ての実装前:**
+```text
+□ 該当スキルを読んだか? → NO なら中断
+□ テストを書いたか? → NO なら中断
+□ 複数案を検討したか? → NO なら中断
+```
 
 ---
 
-## 📁 スキル参照(必須)
+## 🌍 多角的思考
 
-**タスク開始前に該当スキルを読むこと。**
+**最初の案で実装禁止。必ず複数案(2-3)を検討。**
 
-`~/.claude/skills/` 内のSKILL.mdを確認:
-
-| タスク種別 | 読むべきスキル |
-|-----------|---------------|
-| Git操作 | git-workflow |
-| 実装 | test-driven-development, code-generation |
-| デバッグ | systematic-debugging |
-| 設計 | api-design, database-design, interface-composition-design |
-| リファクタ | refactoring |
-| レビュー | code-review, security-review |
-| 認証/認可 | authentication-authorization |
-| CI/CD | ci-cd, docker |
-| ドキュメント | documentation |
-| コード検証 | hallucination-prevention |
-| 失敗記録 | failure-logging |
-| 相談 | consultation |
+**スキル**: `brainstorming-design`, `pattern-thinking`, `problem-solving`
 
 ---
 
-## ⚙️ 基本設定
+## 💬 コミュニケーション
 
-- 半角記号優先(全角括弧禁止)
-- UTF-8のみ
-- ファイル作成は$(whoami)のユーザー/グループ
+**判断には根拠・メリデメ・代替案必須。**
 
----
-
-## 🗂️ ファイル管理
-
-- プロジェクトルートを基準に作業
-- 一時ファイルは `claude_tmp/` に配置
-- テストファイルは `tests/` に配置
-- `claude_tmp/` は `.gitignore` に追加推奨
+**スキル**: `communication-guidelines`
 
 ---
 
-## dotfiles管理ルール
+## 📋 スキルマップ
 
-**dotfile-work リポジトリは実質的な `$HOME` である。**
+### 🔥 頻出
 
-- 設定ファイルはすべて `dotfile-work/` 内で編集
-- 本当の `$HOME` にはシンボリックリンクを貼る
-- 直接 `$HOME` にファイルを作成・編集しない
+```text
+思考: brainstorming-design, pattern-thinking, problem-solving
+実装: test-driven-development, code-generation, hallucination-prevention
+Git: git-workflow, github, gitlab
+バグ: systematic-debugging, failure-logging
+```
+
+### 📋 設計・品質
+
+```text
+設計: api-design, database-design, interface-composition-design
+品質: code-review, security-review, security-checklist, refactoring
+```
+
+### 📚 特殊機能
+
+```text
+認証: authentication-authorization
+Web: ui-ux-design, websocket-realtime
+インフラ: docker, ci-cd
+その他: ls ~/.claude/skills/
+```
+
+---
+
+## 🎯 自動化
+
+**スキル**: `quality-automation`, `daily-report`
+
+---
+
+## ⚙️ 環境
+
+```text
+文字: UTF-8, 半角記号
+権限: $(whoami):$(whoami)
+
+claude_tmp/
+  ├── brainstorming/
+  ├── failure_log/
+  ├── analysis/
+  ├── daily_reports/
+  └── review_reports/
+tests/
+```
+
+---
+
+## 🔍 迷った時
+
+1. 該当スキル再読
+2. ローカルCLAUDE.md確認
+3. `auto-consultation`
+4. `/bounce`
+
+---
+
+## 💡 原則
+
+**本質を突く最小限のレスポンス。スキルを積極活用。**
