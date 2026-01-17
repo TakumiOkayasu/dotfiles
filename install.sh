@@ -548,6 +548,12 @@ install_claude_config() {
             esac
 
             # 配置先パスを計算
+            # global_CLAUDE.md は CLAUDE.md にリネーム
+            case "$relative" in
+                global_CLAUDE.md)
+                    relative="CLAUDE.md"
+                    ;;
+            esac
             dest="${HOME}/.claude/${relative}"
 
             # 配置先の親ディレクトリを作成
@@ -579,6 +585,12 @@ uninstall_claude_config() {
                     ;;
             esac
 
+            # global_CLAUDE.md は CLAUDE.md にリネーム
+            case "$relative" in
+                global_CLAUDE.md)
+                    relative="CLAUDE.md"
+                    ;;
+            esac
             dest="${HOME}/.claude/${relative}"
             remove_link "$file" "$dest"
         done
