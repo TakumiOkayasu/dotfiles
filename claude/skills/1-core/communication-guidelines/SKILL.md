@@ -1,6 +1,6 @@
 ---
 name: communication-guidelines
-description: [説明を追加]
+description: 判断提示・提案時の必須要素を定義。根拠のある明確なコミュニケーションを実現。
 ---
 
 # Communication Guidelines Skill

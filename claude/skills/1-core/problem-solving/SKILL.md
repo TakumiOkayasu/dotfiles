@@ -1,6 +1,6 @@
 ---
 name: problem-solving
-description: [説明を追加]
+description: 壁にぶつかった時の思考パターンとアプローチを提供。行き詰まりを打破する。
 ---
 
 # Problem Solving Skill
