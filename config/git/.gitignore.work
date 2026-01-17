@@ -245,7 +245,7 @@ MAlonzo/**
 ### Android ###
 # Gradle files
 .gradle/
-build/
+
 # Local configuration file (sdk path, etc)
 local.properties
 # Log/OS Files
@@ -301,7 +301,7 @@ build.log
 *.log.*
 *.sig
 pkg/
-src/
+
 ### Autotools ###
 # http://www.gnu.org/software/automake
 Makefile.in
@@ -349,7 +349,7 @@ m4/lt~obsolete.m4
 Makefile
 ### Ballerina ###
 # generated files
-target/
+
 generated/
 # dependencies
 Dependencies.toml
@@ -807,7 +807,7 @@ eagle.epf
 .eldev/
 .keg/
 # Built distribution
-dist/
+
 # Undo-tree save-files
 *.~undo-tree
 ### Elixir ###
@@ -1734,14 +1734,14 @@ inc/
 /config/development/
 ### PlayFramework ###
 # Ignore Play! working directory #
-bin/
+
 /db
 .eclipse
 /logs/
 /modules
 /project/project
 /project/target
-tmp/
+
 test-result
 server.pid
 *.eml
@@ -1774,7 +1774,7 @@ develop-eggs/
 downloads/
 eggs/
 .eggs/
-lib/
+
 lib64/
 parts/
 sdist/
@@ -3118,7 +3118,7 @@ protected/data/*.db
 themes/classic/views/
 ### ZendFramework ###
 # Composer files
-vendor/
+
 # Local configs
 config/autoload/*.local.php
 # Binary gettext files
