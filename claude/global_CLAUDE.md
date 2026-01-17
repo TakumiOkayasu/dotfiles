@@ -61,6 +61,23 @@ view ~/.claude/skills/<該当スキル>/SKILL.md
 
 ---
 
+## 🔧 リソース活用 (必須)
+
+**skills/commands/hooksを最大限活用すること。自前実装禁止。**
+
+| リソース | 場所 | 用途 |
+|----------|------|------|
+| skills | `~/.claude/skills/` | 作業手順・ルール |
+| commands | `~/.claude/commands/` | トリガーワード対応 |
+| hooks | `~/.claude/hooks/` | 自動処理 |
+
+```bash
+ls ~/.claude/skills/
+ls ~/.claude/commands/
+```
+
+---
+
 ## 💡 原則
 
-**最小出力。本質のみ。スキル活用。**
+**最小出力。本質のみ。リソース活用。**
