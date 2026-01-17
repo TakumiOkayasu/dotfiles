@@ -1,6 +1,6 @@
 ---
 name: quality-automation
-description: [説明を追加]
+description: タスク完了時の自動レビューを実装。手動チェックを削減し、一貫性のある品質を維持。
 ---
 
 # Quality Automation Skill

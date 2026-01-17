@@ -1,6 +1,6 @@
 ---
 name: daily-report
-description: [説明を追加]
+description: 作業記録を自動化し、問題解決パターンを蓄積。/quit時に自動生成。
 ---
 
 # Daily Report Skill
