@@ -61,6 +61,12 @@ view ~/.claude/skills/<該当スキル>/SKILL.md
 
 ---
 
+## 🔄 Bash実行ルール
+
+**Bashコマンドは常に `run_in_background: true` で実行すること。**
+
+---
+
 ## 🔧 リソース活用 (必須)
 
 **skills/commands/hooksを最大限活用すること。自前実装禁止。**
