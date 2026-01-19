@@ -24,16 +24,26 @@ EOF
     exit 0
 fi
 
-# stdin がない場合のタイムアウト対策
-if [ -t 0 ]; then
-    echo "エラー: 標準入力がありません" >&2
-    echo "使い方: echo '{\"tool_input\":{\"command\":\"git pull\"}}' | $0" >&2
-    echo "ヘルプ: $0 --help" >&2
-    exit 1
-fi
+# stdin から読み取り (タイムアウト付き)
+# Windows/Unix両対応: bash組み込みの read -t を使用
+INPUT=""
+while IFS= read -r -t 2 line; do
+    INPUT="${INPUT}${line}
+"
+done
 
-# Read JSON input from stdin
-INPUT=$(cat)
+# 入力がない場合
+if [ -z "$INPUT" ]; then
+    # 手動実行時 (stdout がターミナル) はエラー表示
+    if [ -t 1 ]; then
+        echo "エラー: 標準入力がありません" >&2
+        echo "使い方: echo '{\"tool_input\":{\"command\":\"git pull\"}}' | $0" >&2
+        echo "ヘルプ: $0 --help" >&2
+        exit 1
+    fi
+    # hook実行時は静かに終了
+    exit 0
+fi
 
 # Extract command from tool_input
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null || echo "")
