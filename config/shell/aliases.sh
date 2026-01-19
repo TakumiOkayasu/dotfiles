@@ -21,28 +21,28 @@ alias rd='rmdir'
 
 # eza/exa > GNU ls > BSD ls の優先順位で設定
 if command -v eza >/dev/null 2>&1; then
-    alias ls='eza --group-directories-first'
-    alias ll='eza -alF --git --group-directories-first'
-    alias la='eza -a --group-directories-first'
-    alias l='eza -F --group-directories-first'
-    alias lt='eza --tree --level=2 --group-directories-first'
-    alias lla='eza -la --git --group-directories-first'
+    alias ls='eza --group-directories-first --sort=name'
+    alias ll='eza -alF --git --group-directories-first --sort=name'
+    alias la='eza -a --group-directories-first --sort=name'
+    alias l='eza -F --group-directories-first --sort=name'
+    alias lt='eza --tree --level=2 --group-directories-first --sort=name'
+    alias lla='eza -la --git --group-directories-first --sort=name'
 elif command -v exa >/dev/null 2>&1; then
-    alias ls='exa --group-directories-first'
-    alias ll='exa -alF --git --group-directories-first'
-    alias la='exa -a --group-directories-first'
-    alias l='exa -F --group-directories-first'
-    alias lt='exa --tree --level=2 --group-directories-first'
-    alias lla='exa -la --git --group-directories-first'
+    alias ls='exa --group-directories-first --sort=name'
+    alias ll='exa -alF --git --group-directories-first --sort=name'
+    alias la='exa -a --group-directories-first --sort=name'
+    alias l='exa -F --group-directories-first --sort=name'
+    alias lt='exa --tree --level=2 --group-directories-first --sort=name'
+    alias lla='exa -la --git --group-directories-first --sort=name'
 elif ls --color=auto / >/dev/null 2>&1; then
-    # GNU ls
-    alias ls='ls --color=auto'
-    alias ll='ls -alF --color=auto'
-    alias la='ls -A --color=auto'
-    alias l='ls -CF --color=auto'
-    alias lla='ls -la --color=auto'
+    # GNU ls (Linux/WSL)
+    alias ls='ls --color=auto --group-directories-first'
+    alias ll='ls -alF --color=auto --group-directories-first'
+    alias la='ls -A --color=auto --group-directories-first'
+    alias l='ls -CF --color=auto --group-directories-first'
+    alias lla='ls -la --color=auto --group-directories-first'
 elif ls -G / >/dev/null 2>&1; then
-    # BSD ls (macOS)
+    # BSD ls (macOS) - --group-directories-first 非対応
     alias ls='ls -G'
     alias ll='ls -alFG'
     alias la='ls -AG'
