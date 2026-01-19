@@ -31,17 +31,17 @@ else
     _PS1_PROMPT="${_PS1_BLUE}\$${_PS1_RESET} "
 fi
 
-# Git情報取得(自前実装・絵文字版)
-# 形式: (branch ✏️✅📌❓ ⬆️1⬇️2)
-#   ✏️  = unstaged changes
-#   ✅  = staged changes
-#   📌  = stash あり
-#   ❓  = untracked files
-#   ⬆️n = ahead (push可能)
-#   ⬇️n = behind (pull必要)
-#   💥 CONFLICT = コンフリクト中
-#   🔀 REBASE   = rebase中
-#   🔀 MERGING  = merge中
+# Git情報取得(自前実装・直感的記号版)
+# 形式: (branch ✎✓⏸★ ⬆1⬇2)
+#   ✎  = 編集中 (unstaged changes)
+#   ✓  = 保存準備OK (staged changes)
+#   ⏸  = 一時停止 (stash あり)
+#   ★  = 新規ファイル (untracked files)
+#   ⬆n = アップロード可 (ahead/push可能)
+#   ⬇n = 更新あり (behind/pull必要)
+#   ⚠ CONFLICT = 要対応 (コンフリクト中)
+#   ⟳ REBASE   = 処理中 (rebase中)
+#   ⟳ MERGING  = 処理中 (merge中)
 _get_git_info() {
     # Gitリポジトリ内かチェック
     local git_dir
@@ -53,19 +53,19 @@ _get_git_info() {
 
     # 特殊状態チェック(rebase/merge/conflict)
     if [ -d "$git_dir/rebase-merge" ] || [ -d "$git_dir/rebase-apply" ]; then
-        special_state="🔀 REBASE"
+        special_state="⟳ REBASE"
         # rebase中のブランチ名
         if [ -f "$git_dir/rebase-merge/head-name" ]; then
             branch=$(cat "$git_dir/rebase-merge/head-name")
             branch=${branch#refs/heads/}
         fi
     elif [ -f "$git_dir/MERGE_HEAD" ]; then
-        special_state="🔀 MERGING"
+        special_state="⟳ MERGING"
     fi
 
     # コンフリクトチェック
     if git ls-files --unmerged 2>/dev/null | grep -q .; then
-        special_state="💥 CONFLICT"
+        special_state="⚠ CONFLICT"
     fi
 
     # ブランチ名取得(まだ取得できていない場合)
@@ -84,22 +84,22 @@ _get_git_info() {
     if [ "$inside_worktree" = "true" ]; then
         # unstaged changes
         if ! git diff --quiet 2>/dev/null; then
-            status_icons+="✏️ "
+            status_icons+="✎"
         fi
 
         # staged changes
         if ! git diff --cached --quiet 2>/dev/null; then
-            status_icons+="✅"
+            status_icons+="✓"
         fi
 
         # stash
         if git stash list 2>/dev/null | grep -q .; then
-            status_icons+="📌"
+            status_icons+="⏸"
         fi
 
         # untracked files
         if [ -n "$(git ls-files --others --exclude-standard 2>/dev/null)" ]; then
-            status_icons+="❓"
+            status_icons+="★"
         fi
 
         # upstream比較(ahead/behind)
@@ -109,8 +109,8 @@ _get_git_info() {
             local ahead behind
             ahead=$(git rev-list --count '@{upstream}..HEAD' 2>/dev/null)
             behind=$(git rev-list --count 'HEAD..@{upstream}' 2>/dev/null)
-            [ "$ahead" -gt 0 ] 2>/dev/null && status_icons+="⬆️ $ahead"
-            [ "$behind" -gt 0 ] 2>/dev/null && status_icons+="⬇️ $behind"
+            [ "$ahead" -gt 0 ] 2>/dev/null && status_icons+="⬆$ahead"
+            [ "$behind" -gt 0 ] 2>/dev/null && status_icons+="⬇$behind"
         fi
     fi
 
@@ -124,7 +124,7 @@ _get_git_info() {
 
 # プロンプト設定
 # 形式:
-#   user@host:path (branch ✏️✅📌❓ ⬆️1⬇️1|STATE)
+#   user@host:path (branch ✎✓⏸★ ⬆1⬇1|STATE)
 #   $ (青Bold、rootは赤Bold #)
 _update_ps1() {
     local git_info
