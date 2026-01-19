@@ -27,12 +27,19 @@ GIT_PS1_SHOWCONFLICTSTATE="yes"
 # 形式:
 #   user@host:path (branch *+$%<>|CONFLICT)
 #   $ (青Bold、rootは赤Bold #)
+
 if type __git_ps1 &>/dev/null; then
-    if [ "$(id -u)" -eq 0 ]; then
-        PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[33m\]$(__git_ps1 " (%s)")\[\033[00m\]\n\[\033[01;31m\]#\[\033[00m\] '
-    else
-        PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[33m\]$(__git_ps1 " (%s)")\[\033[00m\]\n\[\033[01;34m\]$\[\033[00m\] '
-    fi
+    # PROMPT_COMMAND方式でGitブランチを表示(シンタックスエラー回避)
+    __set_git_prompt() {
+        local git_info
+        git_info=$(__git_ps1 " (%s)")
+        if [ "$(id -u)" -eq 0 ]; then
+            PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[33m\]'"${git_info}"'\[\033[00m\]\n\[\033[01;31m\]#\[\033[00m\] '
+        else
+            PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[33m\]'"${git_info}"'\[\033[00m\]\n\[\033[01;34m\]$\[\033[00m\] '
+        fi
+    }
+    PROMPT_COMMAND=__set_git_prompt
 else
     # __git_ps1 が利用できない場合
     if [ "$(id -u)" -eq 0 ]; then
