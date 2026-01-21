@@ -1,5 +1,4 @@
 {
-  "language": "ja",
   "hooks": {
     "PreToolUse": [
       {
@@ -77,5 +76,7 @@
         ]
       }
     ]
-  }
+  },
+  "language": "ja",
+  "autoUpdatesChannel": "latest"
 }
