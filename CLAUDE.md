@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository Overview
 
 dotfile-work is a personal dotfiles repository with an emphasis on Claude Code configuration. It manages:
+
 - Shell configs (bash/zsh/fish)
 - Git configs (work/private variants)
 - Vim config
@@ -33,7 +34,7 @@ gh-setup-repo             # Setup GitHub repo (branch protection, auto-delete)
 
 ## Architecture
 
-```
+```text
 dotfile-work/
 ├── install.sh                 # Main installer (921 lines, POSIX sh)
 ├── config/
@@ -57,7 +58,7 @@ dotfile-work/
 │   │   ├── deepresearch.md    # /deepresearch - thorough research
 │   │   ├── implement.md       # /implement - implementation guide
 │   │   ├── commit.md          # /commit - commit message generation
-│   │   ├── review.md          # /review - code review
+│   │   ├── code-review.md     # /code-review - code review
 │   │   └── task.md            # /task - task management
 │   ├── hooks/                 # Auto-reminders
 │   │   ├── session-start-reminder.sh     # Session start
