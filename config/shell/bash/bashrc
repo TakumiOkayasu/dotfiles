@@ -67,7 +67,9 @@ DOTFILES_DIR="${DOTFILES_DIR:-$(dirname "$(dirname "$(dirname "$_bashrc_dir")")"
 unset _bashrc_dir
 
 # 共通設定を読み込み
-if [[ -f "$DOTFILES_DIR/config/shell/common.sh" ]]; then
+if [[ -f "$HOME/.shell_common" ]]; then
+    source "$HOME/.shell_common"
+elif [[ -f "$DOTFILES_DIR/config/shell/common.sh" ]]; then
     source "$DOTFILES_DIR/config/shell/common.sh"
 fi
 
@@ -115,6 +117,12 @@ if [[ -f "$HOME/.git-completion.bash" ]]; then
     source "$HOME/.git-completion.bash"
 elif [[ -f "$DOTFILES_DIR/.git-completion.bash" ]]; then
     source "$DOTFILES_DIR/.git-completion.bash"
+fi
+
+if [[ -f "$HOME/.git-prompt.sh" ]]; then
+    source "$HOME/.git-prompt.sh"
+elif [[ -f "$DOTFILES_DIR/.git-prompt.sh" ]]; then
+    source "$DOTFILES_DIR/.git-prompt.sh"
 fi
 
 # ============================================================================
@@ -225,3 +233,4 @@ fi
 if [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
+
