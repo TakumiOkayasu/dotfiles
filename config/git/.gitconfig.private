@@ -1,7 +1,7 @@
 [init]
         defaultBranch = main
 [user]
-        name = Takumi Okayasu
+	name = Takumi
         email = takumi_okys@icloud.com
 [alias]
         s = status
@@ -30,3 +30,8 @@
         windowMemory = 256m
 [fetch]
 	prune = true
+[filter "lfs"]
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
