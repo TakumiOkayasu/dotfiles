@@ -29,6 +29,8 @@
 	version = HTTP/1.1
 	lowSpeedLimit = 1000
 	lowSpeedTime = 600
+[sendpack]
+	sideband = false
 [pack]
         windowMemory = 256m
 [fetch]
