@@ -252,11 +252,16 @@ remove_link() {
 install_git_files() {
     create_link "config/git/.git-completion.bash" "${HOME}/.git-completion.bash"
     create_link "config/git/.git-prompt.sh" "${HOME}/.git-prompt.sh"
+
+    # Git for Windows用プロンプト設定
+    ensure_dir "${HOME}/.config/git"
+    create_link "config/git/.git-prompt.sh" "${HOME}/.config/git/.git-prompt.sh"
 }
 
 uninstall_git_files() {
     remove_link "config/git/.git-completion.bash" "${HOME}/.git-completion.bash"
     remove_link "config/git/.git-prompt.sh" "${HOME}/.git-prompt.sh"
+    remove_link "config/git/.git-prompt.sh" "${HOME}/.config/git/.git-prompt.sh"
 }
 
 # Gitignore設定 (work/privateに応じて選択)
@@ -525,6 +530,27 @@ install_claude_config() {
     ensure_dir "${HOME}/.claude/hooks"
     ensure_dir "${HOME}/.claude/skills"
 
+    # 古いフラット構造のスキルディレクトリをクリーンアップ
+    # (4ティア構造への移行に伴い、壊れたシンボリックリンクを削除)
+    if [ -d "${HOME}/.claude/skills" ]; then
+        for skill_dir in "${HOME}/.claude/skills"/*/; do
+            [ ! -d "$skill_dir" ] && continue
+            skill_name=$(basename "$skill_dir")
+            # 4ティア構造のディレクトリはスキップ
+            case "$skill_name" in
+                1-core|2-domain|3-task|4-utility)
+                    continue
+                    ;;
+            esac
+            # 壊れたシンボリックリンクを持つディレクトリを削除
+            skill_md="${skill_dir}SKILL.md"
+            if [ -L "$skill_md" ] && [ ! -e "$skill_md" ]; then
+                print_info "削除: 古いスキル: $skill_name"
+                rm -rf "$skill_dir"
+            fi
+        done
+    fi
+
     # claude/ 内のファイルを取得してリンク (templates/は除外)
     if [ -d "${DOTFILES_DIR}/claude" ]; then
         cd "$DOTFILES_DIR"
@@ -535,14 +561,20 @@ install_claude_config() {
 
             relative="${file#claude/}"
 
-            # templates/ は除外
+            # templates/ と CLAUDE.md は除外 (CLAUDE.md はプロジェクトローカル用)
             case "$relative" in
-                templates/*)
+                templates/*|CLAUDE.md)
                     continue
                     ;;
             esac
 
             # 配置先パスを計算
+            # global_CLAUDE.md は CLAUDE.md にリネーム
+            case "$relative" in
+                global_CLAUDE.md)
+                    relative="CLAUDE.md"
+                    ;;
+            esac
             dest="${HOME}/.claude/${relative}"
 
             # 配置先の親ディレクトリを作成
@@ -567,13 +599,19 @@ uninstall_claude_config() {
 
             relative="${file#claude/}"
 
-            # templates/ は除外
+            # templates/ と CLAUDE.md は除外 (CLAUDE.md はプロジェクトローカル用)
             case "$relative" in
-                templates/*)
+                templates/*|CLAUDE.md)
                     continue
                     ;;
             esac
 
+            # global_CLAUDE.md は CLAUDE.md にリネーム
+            case "$relative" in
+                global_CLAUDE.md)
+                    relative="CLAUDE.md"
+                    ;;
+            esac
             dest="${HOME}/.claude/${relative}"
             remove_link "$file" "$dest"
         done

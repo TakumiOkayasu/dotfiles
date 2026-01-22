@@ -4,6 +4,11 @@
 # 配置先: ~/.bashrc (シンボリックリンク)
 # 読み込み: 対話シェル起動時
 
+# Git Bashのとき
+if [[ -n "$MSYSTEM" ]]; then
+    export MSYS=winsymlinks:nativestrict
+fi
+
 # ============================================================================
 # 非対話シェルは即終了
 # ============================================================================
@@ -62,7 +67,9 @@ DOTFILES_DIR="${DOTFILES_DIR:-$(dirname "$(dirname "$(dirname "$_bashrc_dir")")"
 unset _bashrc_dir
 
 # 共通設定を読み込み
-if [[ -f "$DOTFILES_DIR/config/shell/common.sh" ]]; then
+if [[ -f "$HOME/.shell_common" ]]; then
+    source "$HOME/.shell_common"
+elif [[ -f "$DOTFILES_DIR/config/shell/common.sh" ]]; then
     source "$DOTFILES_DIR/config/shell/common.sh"
 fi
 
@@ -110,6 +117,12 @@ if [[ -f "$HOME/.git-completion.bash" ]]; then
     source "$HOME/.git-completion.bash"
 elif [[ -f "$DOTFILES_DIR/.git-completion.bash" ]]; then
     source "$DOTFILES_DIR/.git-completion.bash"
+fi
+
+if [[ -f "$HOME/.git-prompt.sh" ]]; then
+    source "$HOME/.git-prompt.sh"
+elif [[ -f "$DOTFILES_DIR/.git-prompt.sh" ]]; then
+    source "$DOTFILES_DIR/.git-prompt.sh"
 fi
 
 # ============================================================================
@@ -200,9 +213,28 @@ __custom_git_prompt() {
 }
 
 # oh-my-posh を試行、失敗したらシンプルなプロンプト
-if ! _setup_oh_my_posh; then
+# Git for Windows環境では ~/.config/git/.git-prompt.sh が使われるのでスキップ
+if [[ -z "$MSYSTEM" ]] && ! _setup_oh_my_posh; then
     # Git ブランチ付きのシンプルなプロンプト
-    PS1='\[\033[01;32m\]\u@\h \[\033[01;33m\]\w$(__custom_git_prompt)\[\033[00m\]\n\[\033[01;34m\]\$ \[\033[00m\]'
+    if declare -f __git_ps1 &>/dev/null; then
+        GIT_PS1_SHOWDIRTYSTATE=1
+        GIT_PS1_SHOWSTASHSTATE=1
+        GIT_PS1_SHOWUNTRACKEDFILES=1
+        GIT_PS1_SHOWUPSTREAM="auto"
+        GIT_PS1_SHOWCONFLICTSTATE="yes"
+        # 形式: user@host:path (branch)\n$ (青Bold、rootは赤Bold #)
+        if [[ "$(id -u)" -eq 0 ]]; then
+            PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[33m\]$(__git_ps1 " (%s)")\[\033[00m\]\n\[\033[01;31m\]#\[\033[00m\] '
+        else
+            PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[33m\]$(__git_ps1 " (%s)")\[\033[00m\]\n\[\033[01;34m\]$\[\033[00m\] '
+        fi
+    else
+        if [[ "$(id -u)" -eq 0 ]]; then
+            PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\n\[\033[01;31m\]#\[\033[00m\] '
+        else
+            PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\n\[\033[01;34m\]$\[\033[00m\] '
+        fi
+    fi
 fi
 
 unset -f _setup_oh_my_posh
@@ -238,4 +270,8 @@ if [[ -f "$HOME/.bashrc.local" ]]; then
     source "$HOME/.bashrc.local"
 fi
 
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+# Homebrew (Linux/WSL環境のみ)
+if [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+

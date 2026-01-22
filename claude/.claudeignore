@@ -1,0 +1,206 @@
+# .claudeignore - Global
+# ~/.claude/.claudeignore
+# 全プロジェクト共通の除外設定
+
+# ============================================
+# 📦 Dependencies (最優先)
+# ============================================
+
+# Node.js / JavaScript
+node_modules/
+bower_components/
+jspm_packages/
+
+# Python
+venv/
+env/
+ENV/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PHP
+vendor/
+
+# Ruby
+.bundle/
+vendor/bundle/
+
+# Go
+vendor/
+
+# Rust
+target/
+
+# ============================================
+# 🔐 Version Control (必須)
+# ============================================
+
+.git/
+.svn/
+.hg/
+.bzr/
+
+# ============================================
+# 🔨 Build Outputs (必須)
+# ============================================
+
+dist/
+build/
+out/
+output/
+target/
+
+# JavaScript/TypeScript
+.next/
+.nuxt/
+.output/
+.cache/
+.parcel-cache/
+.turbo/
+
+# ============================================
+# 🖥️ IDE / Editor (全体)
+# ============================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# JetBrains
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Vim
+*.swp
+*.swo
+*~
+.*.sw?
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ============================================
+# 📝 Logs (全体)
+# ============================================
+
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ============================================
+# 🧪 Test Coverage (全体)
+# ============================================
+
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.nyc_output/
+lcov.info
+
+# ============================================
+# 🔧 Environment (セキュリティ)
+# ============================================
+
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+*.secret
+*.key
+.secrets/
+
+# ============================================
+# 🖼️ OS (全体)
+# ============================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.directory
+.Trash-*
+
+# ============================================
+# 🔄 Temporary (全体)
+# ============================================
+
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+.cache/
+
+# ============================================
+# 🗄️ Database (データ)
+# ============================================
+
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# ============================================
+# 📦 Package Manager Locks (選択的)
+# ============================================
+
+# これらはプロジェクト固有で除外判断
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+# Cargo.lock
+# Gemfile.lock
+
+# ============================================
+# 🎯 Claude Code 固有
+# ============================================
+
+# Claude作業ディレクトリ
+claude_tmp/
+
+# セッション
+.claude/sessions/
+
+# 失敗ログ
+failure_log/
+
+# ============================================
+# 📊 Analytics
+# ============================================
+
+.lighthouseci/
+
+# ============================================
+# 🚀 Deployment
+# ============================================
+
+.vercel/
+.netlify/
+.firebase/

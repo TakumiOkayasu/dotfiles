@@ -24,9 +24,12 @@ fi
 UNIQUE_LINES=$(echo "$LAST_LINES" | sort -u | wc -l)
 
 if [ "$UNIQUE_LINES" -eq 1 ]; then
-    echo ""
-    echo "⚠️  同じエラーが${FAILURE_THRESHOLD}回発生しました。"
-    echo "💡 相談を実行: consult --check"
-    echo "   または直接: consult \"エラーの原因を教えて\""
-    echo ""
+    cat <<EOF
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PostToolUse",
+    "additionalContext": "[警告] 同じエラーが${FAILURE_THRESHOLD}回発生しました。\\n相談を実行: consult --check\\nまたは直接: consult \"エラーの原因を教えて\""
+  }
+}
+EOF
 fi
