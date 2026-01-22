@@ -26,6 +26,11 @@
         helper = !/home/linuxbrew/.linuxbrew/bin/gh auth git-credential
 [http]
 	postBuffer = 524288000
+	version = HTTP/1.1
+	lowSpeedLimit = 1000
+	lowSpeedTime = 600
+[sendpack]
+	sideband = false
 [pack]
         windowMemory = 256m
 [url "git@gitlab.twb.jp:"]
