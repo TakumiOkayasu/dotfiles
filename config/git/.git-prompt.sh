@@ -131,4 +131,3 @@ _update_ps1() {
     git_info=$(_get_git_info)
     PS1="${_PS1_USER_HOST}:${_PS1_PATH}${_PS1_YELLOW}${git_info}${_PS1_RESET}${_PS1_NEWLINE}${_PS1_PROMPT}"
 }
-PROMPT_COMMAND='_update_ps1'
