@@ -1,7 +1,7 @@
 [init]
         defaultBranch = main
 [user]
-        name = Takumi Okayasu
+	name = Takumi
         email = takumi_okys@icloud.com
 [alias]
         s = status
@@ -25,8 +25,18 @@
 [credential "https://gist.github.com"]
         helper = !/opt/homebrew/bin/gh auth git-credential
 [http]
-        postBuffer = 524288000
+	postBuffer = 524288000
+	version = HTTP/1.1
+	lowSpeedLimit = 1000
+	lowSpeedTime = 600
+[sendpack]
+	sideband = false
 [pack]
         windowMemory = 256m
 [fetch]
 	prune = true
+[filter "lfs"]
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
