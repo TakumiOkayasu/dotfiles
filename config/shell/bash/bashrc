@@ -172,7 +172,7 @@ _setup_oh_my_posh() {
 }
 
 # oh-my-posh を試行、失敗したらシンプルなプロンプト
-# Git for Windows環境では ~/.config/git/git-prompt.sh が使われるのでスキップ
+# Git for Windows環境では ~/.config/git/.git-prompt.sh が使われるのでスキップ
 if [[ -z "$MSYSTEM" ]] && ! _setup_oh_my_posh; then
     # Git ブランチ付きのシンプルなプロンプト
     if declare -f __git_ps1 &>/dev/null; then
