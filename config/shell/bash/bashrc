@@ -171,6 +171,47 @@ _setup_oh_my_posh() {
     return 0
 }
 
+# カスタムGitプロンプト関数
+__custom_git_prompt() {
+    # Gitリポジトリ内かチェック
+    if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+        return
+    fi
+
+    local branch
+    branch=$(git branch --show-current 2>/dev/null)
+    [[ -z "$branch" ]] && branch=$(git rev-parse --short HEAD 2>/dev/null)
+    [[ -z "$branch" ]] && return
+
+    local indicators=""
+
+    # 変更チェック(*, 赤Bold)
+    if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
+        indicators+="\001\033[1;31m\002*\001\033[0m\002"
+    fi
+
+    # リモートとの差分チェック
+    local upstream
+    upstream=$(git rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)
+    if [[ -n "$upstream" ]]; then
+        local ahead behind
+        ahead=$(git rev-list --count '@{upstream}..HEAD' 2>/dev/null)
+        behind=$(git rev-list --count 'HEAD..@{upstream}' 2>/dev/null)
+
+        # push必要(↑, ライトブルー)
+        if [[ "$ahead" -gt 0 ]]; then
+            indicators+="\001\033[1;96m\002↑\001\033[0m\002"
+        fi
+        # pull必要(↓, ライトブルー)
+        if [[ "$behind" -gt 0 ]]; then
+            indicators+="\001\033[1;96m\002↓\001\033[0m\002"
+        fi
+    fi
+
+    # ブランチ名は赤Bold
+    echo -e " (\001\033[1;31m\002${branch}\001\033[0m\002${indicators})"
+}
+
 # oh-my-posh を試行、失敗したらシンプルなプロンプト
 # Git for Windows環境では ~/.config/git/.git-prompt.sh が使われるのでスキップ
 if [[ -z "$MSYSTEM" ]] && ! _setup_oh_my_posh; then
