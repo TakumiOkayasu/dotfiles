@@ -7,6 +7,14 @@
           {
             "type": "command",
             "command": "~/prog/dotfile-work/claude/hooks/git-commit-push-block.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/docker-build-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/language-version-check.sh"
           }
         ]
       },
