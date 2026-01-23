@@ -15,6 +15,10 @@
           {
             "type": "command",
             "command": "~/prog/dotfile-work/claude/hooks/language-version-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/local-command-block.sh"
           }
         ]
       },
