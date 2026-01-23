@@ -1,4 +1,4 @@
-# Implementation Guide
+# 実装ガイド
 
 機能を実装する(TDDスタイル)
 
