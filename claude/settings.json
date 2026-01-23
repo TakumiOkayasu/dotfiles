@@ -19,6 +19,14 @@
           {
             "type": "command",
             "command": "~/prog/dotfile-work/claude/hooks/local-command-block.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/admin-command-block.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/background-command-check.sh"
           }
         ]
       },

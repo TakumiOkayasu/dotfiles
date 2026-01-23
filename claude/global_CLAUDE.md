@@ -50,11 +50,12 @@ view ~/.claude/skills/<該当スキル>/SKILL.md
 
 | 操作 | 条件 | 判定 |
 |------|------|------|
-| git commit/push | 常に | 🚫 |
-| mainブランチ編集 | 常に | 🚫 |
+| git commit/push | 常に | 🚫 (hook) |
+| mainブランチ編集 | 常に | 🚫 (hook) |
+| ローカルコマンド直接実行 | 常に | 🚫 (hook) |
+| 管理者権限 (sudo等) | 常に | 🚫 (hook) |
 | 単一案で実装 | 常に | 🚫 |
 | スキル未読で実装 | 常に | 🚫 |
-| 管理者権限 (--admin等) | 確認なし | 🚫 |
 
 ---
 
@@ -82,11 +83,7 @@ view ~/.claude/skills/<該当スキル>/SKILL.md
 
 ## 🔄 Bash実行ルール
 
-| コマンド種別 | run_in_background | 例 |
-|-------------|-------------------|-----|
-| 即時完了 | false | `ls`, `cat`, `git status`, `pwd` |
-| ビルド・テスト | true | `go build`, `npm install`, `docker build` |
-| 対話不要の長時間 | true | `sleep`, サーバー起動 |
+**hookで自動警告**: ビルド・テスト系は `run_in_background=true` 推奨
 
 ---
 
@@ -111,4 +108,3 @@ ls ~/.claude/commands/
 
 **最小出力。本質のみ。リソース活用。**
 **言語のバージョンは最新版のLTSを使用。**
-**一時的な検証で環境を作るならDockerを使用。**
