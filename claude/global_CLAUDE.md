@@ -82,7 +82,11 @@ view ~/.claude/skills/<該当スキル>/SKILL.md
 
 ## 🔄 Bash実行ルール
 
-**Bashコマンドは常に `run_in_background: true` で実行すること。**
+| コマンド種別 | run_in_background | 例 |
+|-------------|-------------------|-----|
+| 即時完了 | false | `ls`, `cat`, `git status`, `pwd` |
+| ビルド・テスト | true | `go build`, `npm install`, `docker build` |
+| 対話不要の長時間 | true | `sleep`, サーバー起動 |
 
 ---
 
