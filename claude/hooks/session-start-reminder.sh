@@ -46,3 +46,22 @@ else
     echo "   Expected: ~/.claude/bin/claude-config-info.sh"
     echo ""
 fi
+
+# スキルファイルをカテゴリ別に列挙
+SKILLS_DIR="$HOME/.claude/skills"
+if [ -d "$SKILLS_DIR" ]; then
+    echo "📚 SKILLS (read as needed):"
+    for category in "$SKILLS_DIR"/*/; do
+        if [ -d "$category" ]; then
+            cat_name=$(basename "$category")
+            skills=$(find "$category" -maxdepth 2 -name "SKILL.md" \( -type f -o -type l \) 2>/dev/null | \
+                sed 's|.*/\([^/]*\)/SKILL\.md|\1|' | \
+                grep -v "^$cat_name$" | \
+                sort | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+            if [ -n "$skills" ]; then
+                echo "  $cat_name: $skills"
+            fi
+        fi
+    done
+    echo ""
+fi
