@@ -45,6 +45,7 @@ dotfile-work/
 │   │   ├── common.sh          # Shared env/PATH
 │   │   └── aliases.sh         # Shared aliases
 │   ├── git/
+│   │   ├── .gitconfig-common  # Shared settings (included by work/private)
 │   │   ├── .gitconfig.work    # Linux/work environment
 │   │   └── .gitconfig.private # macOS/personal environment
 │   └── vim/.vimrc

@@ -502,10 +502,16 @@ install_gitconfig() {
         return 0
     fi
 
+    # 共通設定（work/privateから include される）
+    create_link "config/git/.gitconfig-common" "${HOME}/.gitconfig-common"
+    # 環境固有設定
     create_link "config/git/.gitconfig.${GITCONFIG_VARIANT}" "${HOME}/.gitconfig"
 }
 
 uninstall_gitconfig() {
+    # 共通設定
+    remove_link "config/git/.gitconfig-common" "${HOME}/.gitconfig-common"
+    # 環境固有設定
     target=$(readlink "${HOME}/.gitconfig" 2>/dev/null) || true
     case "$target" in
         */.gitconfig.work)   remove_link "config/git/.gitconfig.work" "${HOME}/.gitconfig" ;;
@@ -744,6 +750,7 @@ confirm_installation() {
         printf "    + config/git/.git-completion.bash -> ~/.git-completion.bash\n"
         printf "    + config/git/.git-prompt.sh -> ~/.git-prompt.sh\n"
         if [ -n "$GITCONFIG_VARIANT" ]; then
+            printf "    + config/git/.gitconfig-common -> ~/.gitconfig-common\n"
             printf "    + config/git/.gitconfig.%s -> ~/.gitconfig\n" "$GITCONFIG_VARIANT"
             printf "    + config/git/.gitignore.%s -> ~/.gitignore_global\n" "$GITCONFIG_VARIANT"
         fi
