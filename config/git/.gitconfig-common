@@ -19,6 +19,10 @@
     editor = code --wait
     symlinks = true
     excludesfile = ~/.gitignore_global
+    compression = 1
+
+[safe]
+    directory = ~/prog
 
 [credential "https://github.com"]
     helper = !gh auth git-credential
