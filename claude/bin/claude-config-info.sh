@@ -227,7 +227,8 @@ collect_skills() {
 
 print_skills_text() {
     skills=$(collect_skills)
-    count=$(echo "$skills" | grep -c . 2>/dev/null || echo "0")
+    count=$(echo "$skills" | grep -c . || true)
+    count=$((count + 0))
 
     if [ "$count" -eq 0 ] || [ -z "$skills" ]; then
         echo "  No skills found in ~/.claude/skills/"
