@@ -5,6 +5,7 @@
 #   - セッション開始メッセージの表示
 #   - リマインダーの表示
 #   - claude-config-info.sh の呼び出し
+#   - project-environment-check.sh の呼び出し
 #
 # 配置先: claude-config/hooks/session-start-reminder.sh
 #         -> ~/.claude/hooks/session-start-reminder.sh (symlink)
@@ -64,4 +65,10 @@ if [ -d "$SKILLS_DIR" ]; then
         fi
     done
     echo ""
+fi
+
+# プロジェクト環境チェック（Docker/Git/hookルール）
+SCRIPT_DIR=$(dirname "$0")
+if [ -x "$SCRIPT_DIR/project-environment-check.sh" ]; then
+    "$SCRIPT_DIR/project-environment-check.sh"
 fi
