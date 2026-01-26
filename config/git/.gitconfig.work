@@ -7,8 +7,5 @@
     name = Takumi Okayasu
     email = t.okayasu@twb.jp
 
-[safe]
-    directory = ~/prog
-
 [url "git@gitlab.twb.jp:"]
     insteadOf = https://gitlab.twb.jp/
