@@ -1,37 +1,14 @@
-[init]
-        defaultBranch = main
+# Git設定 - 仕事用
+
+[include]
+    path = ~/.gitconfig-common
+
 [user]
-        name = Takumi Okayasu
-        email = t.okayasu@twb.jp
-[alias]
-        s = status
-        ss = status -s
-        co = checkout
-        br-rename = branch -m
-        brd = branch -d
-        cob = checkout -b
-        adu = add -u
-        cmt = commit -m
-        undo = "!f() { git reset --hard $(git rev-parse --abbrev-ref HEAD)@{${1-1}} && git checkout $(git rev-parse --abbrev-ref HEAD); }; f"
-[core]
-        editor = code --wait
-        symlinks = true
-	excludesfile = /home/okayasu/.gitignore_global
-        compression = 1
+    name = Takumi Okayasu
+    email = t.okayasu@twb.jp
+
 [safe]
-        directory = ~/prog
-[credential "https://github.com"]
-        helper = !/home/linuxbrew/.linuxbrew/bin/gh auth git-credential
-[credential "https://gist.github.com"]
-        helper = !/home/linuxbrew/.linuxbrew/bin/gh auth git-credential
-[http]
-	postBuffer = 524288000
-	version = HTTP/1.1
-	lowSpeedLimit = 1000
-	lowSpeedTime = 600
-[sendpack]
-	sideband = false
-[pack]
-        windowMemory = 256m
+    directory = ~/prog
+
 [url "git@gitlab.twb.jp:"]
-        insteadOf = https://gitlab.twb.jp/
+    insteadOf = https://gitlab.twb.jp/
