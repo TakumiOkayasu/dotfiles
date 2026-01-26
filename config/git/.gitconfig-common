@@ -1,0 +1,49 @@
+# Git共通設定
+# work/privateの.gitconfigから include で読み込む
+
+[init]
+    defaultBranch = main
+
+[alias]
+    s = status
+    ss = status -s
+    co = checkout
+    br-rename = branch -m
+    brd = branch -d
+    cob = checkout -b
+    adu = add -u
+    cmt = commit -m
+    undo = "!f() { git reset --hard $(git rev-parse --abbrev-ref HEAD)@{${1-1}} && git checkout $(git rev-parse --abbrev-ref HEAD); }; f"
+
+[core]
+    editor = code --wait
+    symlinks = true
+    excludesfile = ~/.gitignore_global
+
+[credential "https://github.com"]
+    helper = !gh auth git-credential
+[credential "https://gist.github.com"]
+    helper = !gh auth git-credential
+[credential]
+    helper = store
+
+[http]
+    postBuffer = 524288000
+    version = HTTP/1.1
+    lowSpeedLimit = 1000
+    lowSpeedTime = 600
+
+[sendpack]
+    sideband = false
+
+[pack]
+    windowMemory = 256m
+
+[fetch]
+    prune = true
+
+[filter "lfs"]
+    required = true
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
