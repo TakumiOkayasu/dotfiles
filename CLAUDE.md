@@ -62,13 +62,14 @@ dotfile-work/
 │   │   ├── code-review.md     # /code-review - code review
 │   │   └── task.md            # /task - task management
 │   ├── hooks/                 # Auto-reminders
-│   │   ├── session-start-reminder.sh     # Session start
-│   │   ├── git-commit-push-block.sh      # Block Claude from commit/push
-│   │   ├── main-branch-code-warning.sh   # Warn edits on main
-│   │   ├── branch-from-main-check.sh     # Verify branch from main
-│   │   ├── git-post-command-reminder.sh  # Auto cleanup merged branches
-│   │   ├── doc-consistency-reminder.sh   # Doc consistency check
-│   │   └── failure-check.sh              # Error detection
+│   │   ├── session-start-reminder.sh           # Session start
+│   │   ├── git-commit-push-block.sh            # Block Claude from commit/push
+│   │   ├── main-branch-code-warning.sh         # Warn edits on main
+│   │   ├── branch-from-main-check.sh           # Verify branch from main
+│   │   ├── git-post-command-reminder.sh        # Auto cleanup merged branches
+│   │   ├── doc-consistency-reminder.sh         # Doc consistency check
+│   │   ├── dev-environment-docker-enforce.sh   # Block local package manager commands
+│   │   └── failure-check.sh                    # Error detection
 │   ├── skills/                # 4-tier skill system (55 skills)
 │   │   ├── 1-core/            # Always applied (10)
 │   │   ├── 2-domain/          # Project selection (21)
