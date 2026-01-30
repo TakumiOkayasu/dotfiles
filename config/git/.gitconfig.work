@@ -1,7 +1,7 @@
 # Git設定 - 仕事用
 
 [include]
-    path = ~/.gitconfig-common
+    path = ~/.gitconfig.common
 
 [user]
     name = Takumi Okayasu

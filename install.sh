@@ -264,21 +264,49 @@ uninstall_git_files() {
     remove_link "config/git/.git-prompt.sh" "${HOME}/.config/git/.git-prompt.sh"
 }
 
-# Gitignore設定 (work/privateに応じて選択)
+# Gitignore設定 (base + work/privateを結合)
 install_gitignore() {
     if [ -z "$GITCONFIG_VARIANT" ]; then
         return 0
     fi
 
-    create_link "config/git/.gitignore.${GITCONFIG_VARIANT}" "${HOME}/.gitignore_global"
+    local target="${HOME}/.gitignore_global"
+    local base="${SCRIPT_DIR}/config/git/.gitignore.common"
+    local variant="${SCRIPT_DIR}/config/git/.gitignore.${GITCONFIG_VARIANT}"
+
+    if [ "$DRY_RUN" = "true" ]; then
+        printf "%s[DRY-RUN]%s Would create: %s (base + %s)\n" "$YELLOW" "$NC" "$target" "$GITCONFIG_VARIANT"
+        return 0
+    fi
+
+    # 既存ファイルをバックアップ（シンボリックリンクの場合は削除）
+    if [ -f "$target" ] || [ -L "$target" ]; then
+        if [ -L "$target" ]; then
+            rm "$target"
+        else
+            mv "$target" "${target}.bak"
+            printf "%s[BACKUP]%s %s -> %s.bak\n" "$YELLOW" "$NC" "$target" "$target"
+        fi
+    fi
+
+    # 結合してコピー
+    cat "$base" "$variant" > "$target"
+    printf "%s[CREATE]%s %s (base + %s)\n" "$GREEN" "$NC" "$target" "$GITCONFIG_VARIANT"
 }
 
 uninstall_gitignore() {
-    target=$(readlink "${HOME}/.gitignore_global" 2>/dev/null) || true
-    case "$target" in
-        */.gitignore.work)   remove_link "config/git/.gitignore.work" "${HOME}/.gitignore_global" ;;
-        */.gitignore.private) remove_link "config/git/.gitignore.private" "${HOME}/.gitignore_global" ;;
-    esac
+    local target="${HOME}/.gitignore_global"
+
+    if [ -f "$target" ]; then
+        rm "$target"
+        printf "%s[REMOVE]%s %s\n" "$RED" "$NC" "$target"
+    fi
+
+    # バックアップがあれば復元
+    if [ -f "${target}.bak" ]; then
+        mv "${target}.bak" "$target"
+        printf "%s[RESTORE]%s %s.bak -> %s\n" "$GREEN" "$NC" "$target" "$target"
+    fi
 }
 
 # Vim設定ファイル
@@ -503,14 +531,14 @@ install_gitconfig() {
     fi
 
     # 共通設定（work/privateから include される）
-    create_link "config/git/.gitconfig-common" "${HOME}/.gitconfig-common"
+    create_link "config/git/.gitconfig.common" "${HOME}/.gitconfig.common"
     # 環境固有設定
     create_link "config/git/.gitconfig.${GITCONFIG_VARIANT}" "${HOME}/.gitconfig"
 }
 
 uninstall_gitconfig() {
     # 共通設定
-    remove_link "config/git/.gitconfig-common" "${HOME}/.gitconfig-common"
+    remove_link "config/git/.gitconfig.common" "${HOME}/.gitconfig.common"
     # 環境固有設定
     target=$(readlink "${HOME}/.gitconfig" 2>/dev/null) || true
     case "$target" in
@@ -750,9 +778,9 @@ confirm_installation() {
         printf "    + config/git/.git-completion.bash -> ~/.git-completion.bash\n"
         printf "    + config/git/.git-prompt.sh -> ~/.git-prompt.sh\n"
         if [ -n "$GITCONFIG_VARIANT" ]; then
-            printf "    + config/git/.gitconfig-common -> ~/.gitconfig-common\n"
+            printf "    + config/git/.gitconfig.common -> ~/.gitconfig.common\n"
             printf "    + config/git/.gitconfig.%s -> ~/.gitconfig\n" "$GITCONFIG_VARIANT"
-            printf "    + config/git/.gitignore.%s -> ~/.gitignore_global\n" "$GITCONFIG_VARIANT"
+            printf "    + config/git/.gitignore.common + .gitignore.%s -> ~/.gitignore_global\n" "$GITCONFIG_VARIANT"
         fi
         echo ""
     fi
