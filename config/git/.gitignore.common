@@ -993,6 +993,7 @@ $tf/
 .env.test
 .env.test.local
 .envrc
+secrets/
 .eslintcache
 .eunit
 .externalNativeBuild/
