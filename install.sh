@@ -274,8 +274,8 @@ install_gitignore() {
     local base="${DOTFILES_DIR}/config/git/.gitignore.common"
     local variant="${DOTFILES_DIR}/config/git/.gitignore.${GITCONFIG_VARIANT}"
 
-    if [ "$DRY_RUN" = "true" ]; then
-        printf "%s[DRY-RUN]%s Would create: %s (base + %s)\n" "$YELLOW" "$NC" "$target" "$GITCONFIG_VARIANT"
+    if [ "$MODE_DRY_RUN" = "true" ]; then
+        printf "%s[DRY-RUN]%s Would create: %s (base + %s)\n" "$COLOR_YELLOW" "$COLOR_RESET" "$target" "$GITCONFIG_VARIANT"
         return 0
     fi
 
@@ -285,13 +285,13 @@ install_gitignore() {
             rm "$target"
         else
             mv "$target" "${target}.bak"
-            printf "%s[BACKUP]%s %s -> %s.bak\n" "$YELLOW" "$NC" "$target" "$target"
+            printf "%s[BACKUP]%s %s -> %s.bak\n" "$COLOR_YELLOW" "$COLOR_RESET" "$target" "$target"
         fi
     fi
 
     # 結合してコピー
     cat "$base" "$variant" > "$target"
-    printf "%s[CREATE]%s %s (base + %s)\n" "$GREEN" "$NC" "$target" "$GITCONFIG_VARIANT"
+    printf "%s[CREATE]%s %s (base + %s)\n" "$COLOR_GREEN" "$COLOR_RESET" "$target" "$GITCONFIG_VARIANT"
 }
 
 uninstall_gitignore() {
@@ -299,13 +299,13 @@ uninstall_gitignore() {
 
     if [ -f "$target" ]; then
         rm "$target"
-        printf "%s[REMOVE]%s %s\n" "$RED" "$NC" "$target"
+        printf "%s[REMOVE]%s %s\n" "$COLOR_RED" "$COLOR_RESET" "$target"
     fi
 
     # バックアップがあれば復元
     if [ -f "${target}.bak" ]; then
         mv "${target}.bak" "$target"
-        printf "%s[RESTORE]%s %s.bak -> %s\n" "$GREEN" "$NC" "$target" "$target"
+        printf "%s[RESTORE]%s %s.bak -> %s\n" "$COLOR_GREEN" "$COLOR_RESET" "$target" "$target"
     fi
 }
 
