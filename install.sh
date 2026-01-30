@@ -46,13 +46,13 @@ GITCONFIG_VARIANT=""
 # ============================================================================
 
 if [ -t 1 ]; then
-    COLOR_GREEN='\033[0;32m'
-    COLOR_YELLOW='\033[0;33m'
-    COLOR_RED='\033[0;31m'
-    COLOR_BLUE='\033[0;34m'
-    COLOR_CYAN='\033[0;36m'
-    COLOR_BOLD='\033[1m'
-    COLOR_RESET='\033[0m'
+    COLOR_GREEN=$(printf '\033[0;32m')
+    COLOR_YELLOW=$(printf '\033[0;33m')
+    COLOR_RED=$(printf '\033[0;31m')
+    COLOR_BLUE=$(printf '\033[0;34m')
+    COLOR_CYAN=$(printf '\033[0;36m')
+    COLOR_BOLD=$(printf '\033[1m')
+    COLOR_RESET=$(printf '\033[0m')
 else
     COLOR_GREEN=''
     COLOR_YELLOW=''
@@ -270,9 +270,9 @@ install_gitignore() {
         return 0
     fi
 
-    local target="${HOME}/.gitignore_global"
-    local base="${DOTFILES_DIR}/config/git/.gitignore.common"
-    local variant="${DOTFILES_DIR}/config/git/.gitignore.${GITCONFIG_VARIANT}"
+    target="${HOME}/.gitignore_global"
+    base="${DOTFILES_DIR}/config/git/.gitignore.common"
+    variant="${DOTFILES_DIR}/config/git/.gitignore.${GITCONFIG_VARIANT}"
 
     if [ "$MODE_DRY_RUN" = "true" ]; then
         printf "%s[DRY-RUN]%s Would create: %s (base + %s)\n" "$COLOR_YELLOW" "$COLOR_RESET" "$target" "$GITCONFIG_VARIANT"
@@ -295,7 +295,7 @@ install_gitignore() {
 }
 
 uninstall_gitignore() {
-    local target="${HOME}/.gitignore_global"
+    target="${HOME}/.gitignore_global"
 
     if [ -f "$target" ]; then
         rm "$target"
