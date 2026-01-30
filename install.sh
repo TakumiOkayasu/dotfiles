@@ -271,8 +271,8 @@ install_gitignore() {
     fi
 
     local target="${HOME}/.gitignore_global"
-    local base="${SCRIPT_DIR}/config/git/.gitignore.common"
-    local variant="${SCRIPT_DIR}/config/git/.gitignore.${GITCONFIG_VARIANT}"
+    local base="${DOTFILES_DIR}/config/git/.gitignore.common"
+    local variant="${DOTFILES_DIR}/config/git/.gitignore.${GITCONFIG_VARIANT}"
 
     if [ "$DRY_RUN" = "true" ]; then
         printf "%s[DRY-RUN]%s Would create: %s (base + %s)\n" "$YELLOW" "$NC" "$target" "$GITCONFIG_VARIANT"
