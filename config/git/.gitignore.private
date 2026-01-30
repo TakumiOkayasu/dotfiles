@@ -145,167 +145,6 @@
 !var/logs/.gitkeep
 !var/sessions/.gitkeep
 !var/SymfonyRequirements.php
-# Private-specific gitignore
-### Actionscript ###
-### Ada ###
-### AdventureGameStudio ###
-### Agda ###
-### AL ###
-### Android ###
-### Angular ###
-### AppceleratorTitanium ###
-### AppEngine ###
-### ArchLinuxPackages ###
-### Autotools ###
-### Ballerina ###
-### C ###
-### C++ ###
-### CakePHP ###
-### CFWheels ###
-### ChefCookbook ###
-### Clojure ###
-### CMake ###
-### CodeIgniter ###
-### CommonLisp ###
-### Composer ###
-### Concrete5 ###
-### Coq ###
-### CraftCMS ###
-### CUDA ###
-### D ###
-### Dart ###
-### Delphi ###
-### DM ###
-### dotenv ###
-### Dotnet ###
-### Drupal ###
-### Eagle ###
-### ecu.test ###
-### Elisp ###
-### Elixir ###
-### Elm ###
-### EPiServer ###
-### Erlang ###
-### ExpressionEngine ###
-### ExtJs ###
-### Fancy ###
-### Finale ###
-### Firebase ###
-### FlaxEngine ###
-### Flutter ###
-### ForceDotCom ###
-### Fortran ###
-### FuelPHP ###
-### Gcov ###
-### GitBook ###
-### GitHubPages ###
-### Gleam ###
-### Go ###
-### Godot ###
-### Gradle ###
-### Grails ###
-### GWT ###
-### Haskell ###
-### Haxe ###
-### HIP ###
-### IAR ###
-### Idris ###
-### IGORPro ###
-### Java ###
-### JBoss ###
-### Jekyll ###
-### Joomla ###
-### Julia ###
-### Katalon ###
-### KiCad ###
-### Kohana ###
-### Kotlin ###
-### LabVIEW ###
-### LangChain ###
-### Laravel ###
-### Leiningen ###
-### LemonStand ###
-### Lilypond ###
-### Linux ###
-### Lithium ###
-### Lua ###
-### Luau ###
-### macOS ###
-### macOS Patch ###
-### Magento ###
-### Maven ###
-### Mercury ###
-### MetaProgrammingSystem ###
-### Modelica ###
-### Nanoc ###
-### Nestjs ###
-### Nextjs ###
-### Nim ###
-### Nix ###
-### Node ###
-### Node Patch ###
-### Objective-C ###
-### OCaml ###
-### Opa ###
-### OpenCart ###
-### OracleForms ###
-### Packer ###
-### Perl ###
-### Phalcon ###
-### PlayFramework ###
-### Plone ###
-### Prestashop ###
-### Processing ###
-### PureScript ###
-### Python ###
-### Qooxdoo ###
-### Qt ###
-### R ###
-### Racket ###
-### Rails ###
-### Raku ###
-### ReScript ###
-### RhodesRhomobile ###
-### ROS ###
-### Ruby ###
-### Rust ###
-### Sass ###
-### Scala ###
-### Scheme ###
-### SCons ###
-### Scrivener ###
-### Sdcc ###
-### SeamGen ###
-### SketchUp ###
-### Smalltalk ###
-### Solidity-Remix ###
-### SSDT-sqlproj ###
-### Stella ###
-### SugarCRM ###
-### Swift ###
-### Symfony ###
-### SymphonyCMS ###
-### Terraform ###
-### TestComplete ###
-### TeX ###
-### Textpattern ###
-### TurboGears2 ###
-### TwinCAT3 ###
-### Typo3 ###
-### Unity ###
-### UnrealEngine ###
-### VBA ###
-### VisualStudio ###
-### VVVV ###
-### Waf ###
-### Windows ###
-### WordPress ###
-### Xojo ###
-### Yeoman ###
-### Yii ###
-### ZendFramework ###
-### Zephir ###
-### Zig ###
 $RECYCLE.BIN/
 $tf/
 *- [Bb]ackup ([0-9]).rdl
@@ -673,7 +512,6 @@ $tf/
 *.jl.mem
 *.jmconfig
 *.job
-*.js
 *.js.deps
 *.js.map
 *.js_
@@ -1017,7 +855,6 @@ $tf/
 *.xdv
 *.xdy
 *.xln
-*.xml
 *.xmpi
 *.xojo_uistate
 *.xref
@@ -1389,7 +1226,6 @@ $tf/
 /compile
 /components/
 /composer
-/composer.lock
 /composer.phar
 /config.cache
 /config.guess
@@ -1482,7 +1318,6 @@ $tf/
 /out/
 /out-tsc/
 /package-cache
-/package-lock.json
 /Packages
 /packages/flutter/coverage/
 /PATCH_*.sh
@@ -1559,7 +1394,6 @@ $tf/
 /wp-content/
 /wp-includes/
 /xmlrpc.php
-/yarn.lock
 /yarn-error.log
 /ylwrap
 [Aa][Rr][Mm]/
@@ -1845,7 +1679,6 @@ fp-info-cache
 Game.agf.bak
 Game.agf.user
 game28.dta
-Gemfile.lock
 generated/
 Generated_Code/
 Generated\ Files/
@@ -1927,8 +1760,6 @@ m4/ltoptions.m4
 m4/ltsugar.m4
 m4/ltversion.m4
 mails/*
-Makefile
-Makefile*
 Makefile.in
 MAlonzo/**
 MANIFEST
@@ -2009,7 +1840,6 @@ Plugins/**/Binaries/*
 Plugins/**/Intermediate/*
 pnpm-debug.log*
 po/*~
-pom.xml
 pom.xml.asc
 pom.xml.next
 pom.xml.releaseBackup
