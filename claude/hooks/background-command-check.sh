@@ -6,6 +6,20 @@ set -e
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     cat <<'EOF'
 background-command-check.sh - 長時間コマンドのバックグラウンド実行チェック
+
+使い方:
+  echo '{"tool_input":{"command":"npm install"}}' | ./background-command-check.sh
+
+説明:
+  Claude Code の PreToolUse hook として動作し、npm install, cargo build 等の
+  長時間コマンドに対して run_in_background=true を推奨します。
+
+依存関係:
+  jaq または jq が必要です (jaq優先)
+  - macOS: brew install jaq
+  - Ubuntu/Debian: apt install jq (または cargo install jaq)
+  - Arch: pacman -S jq (または paru -S jaq)
+  - Windows: scoop install jaq (または winget install jqlang.jq)
 EOF
     exit 0
 fi
@@ -13,8 +27,12 @@ fi
 [ -t 0 ] && exit 1
 
 INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null || echo "")
-RUN_IN_BG=$(echo "$INPUT" | jq -r '.tool_input.run_in_background // false' 2>/dev/null || echo "false")
+
+# jaq優先、jqフォールバック
+JQ=$(command -v jaq || command -v jq || echo "jq")
+
+COMMAND=$(echo "$INPUT" | $JQ -r '.tool_input.command // ""' 2>/dev/null || echo "")
+RUN_IN_BG=$(echo "$INPUT" | $JQ -r '.tool_input.run_in_background // false' 2>/dev/null || echo "false")
 
 [ "$RUN_IN_BG" = "true" ] && exit 0
 

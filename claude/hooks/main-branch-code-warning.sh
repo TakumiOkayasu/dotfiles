@@ -21,6 +21,13 @@ main-branch-code-warning.sh - mainブランチでのコード変更を警告
   Claude Code の PreToolUse hook として動作し、mainブランチで
   コードファイルを変更しようとした場合に警告を出します。
   (ドキュメントや設定ファイルはスキップ)
+
+依存関係:
+  jaq または jq が必要です (jaq優先)
+  - macOS: brew install jaq
+  - Ubuntu/Debian: apt install jq (または cargo install jaq)
+  - Arch: pacman -S jq (または paru -S jaq)
+  - Windows: scoop install jaq (または winget install jqlang.jq)
 EOF
     exit 0
 fi
@@ -36,8 +43,11 @@ fi
 # Read JSON input from stdin
 INPUT=$(cat)
 
+# jaq優先、jqフォールバック
+JQ=$(command -v jaq || command -v jq || echo "jq")
+
 # Extract file path from tool_input
-FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // ""' 2>/dev/null || echo "")
+FILE_PATH=$(echo "$INPUT" | $JQ -r '.tool_input.file_path // ""' 2>/dev/null || echo "")
 
 # ファイルパスがない場合はスキップ
 [ -z "$FILE_PATH" ] && exit 0

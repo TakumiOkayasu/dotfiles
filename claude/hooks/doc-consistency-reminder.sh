@@ -20,6 +20,13 @@ doc-consistency-reminder.sh - ドキュメント変更時の整合性チェッ�
   Claude Code の PostToolUse hook として動作し、ドキュメントファイル
   (.md, .rst, .txt, README, CLAUDE など) を変更した後に
   他のドキュメントとの整合性確認をリマインドします。
+
+依存関係:
+  jaq または jq が必要です (jaq優先)
+  - macOS: brew install jaq
+  - Ubuntu/Debian: apt install jq (または cargo install jaq)
+  - Arch: pacman -S jq (または paru -S jaq)
+  - Windows: scoop install jaq (または winget install jqlang.jq)
 EOF
     exit 0
 fi
@@ -35,8 +42,11 @@ fi
 # Read JSON input from stdin
 INPUT=$(cat)
 
+# jaq優先、jqフォールバック
+JQ=$(command -v jaq || command -v jq || echo "jq")
+
 # Extract file path from tool_input
-FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // ""' 2>/dev/null || echo "")
+FILE_PATH=$(echo "$INPUT" | $JQ -r '.tool_input.file_path // ""' 2>/dev/null || echo "")
 
 # Check if this is a documentation file
 if echo "$FILE_PATH" | grep -qiE '\.(md|markdown|rst|txt)$|README|CLAUDE|SKILL'; then

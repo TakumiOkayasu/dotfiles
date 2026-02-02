@@ -20,33 +20,33 @@ git-post-command-reminder.sh - Git操作後のリマインド・自動削除
   - git pull / gh pr merge: マージ済みローカルブランチを自動削除
   - git checkout main: ブランチ削除のリマインド
   - git-cleanup-branch: 削除完了の報告
+
+依存関係:
+  jaq または jq が必要です (jaq優先)
+  - macOS: brew install jaq
+  - Ubuntu/Debian: apt install jq (または cargo install jaq)
+  - Arch: pacman -S jq (または paru -S jaq)
+  - Windows: scoop install jaq (または winget install jqlang.jq)
 EOF
     exit 0
 fi
 
-# stdin から読み取り (タイムアウト付き)
-# Windows/Unix両対応: bash組み込みの read -t を使用
-INPUT=""
-while IFS= read -r -t 2 line; do
-    INPUT="${INPUT}${line}
-"
-done
-
-# 入力がない場合
-if [ -z "$INPUT" ]; then
-    # 手動実行時 (stdout がターミナル) はエラー表示
-    if [ -t 1 ]; then
-        echo "エラー: 標準入力がありません" >&2
-        echo "使い方: echo '{\"tool_input\":{\"command\":\"git pull\"}}' | $0" >&2
-        echo "ヘルプ: $0 --help" >&2
-        exit 1
-    fi
-    # hook実行時は静かに終了
-    exit 0
+# stdin がない場合のタイムアウト対策 (POSIX互換)
+if [ -t 0 ]; then
+    echo "エラー: 標準入力がありません" >&2
+    echo "使い方: echo '{\"tool_input\":{\"command\":\"git pull\"}}' | $0" >&2
+    echo "ヘルプ: $0 --help" >&2
+    exit 1
 fi
 
+# Read JSON input from stdin
+INPUT=$(cat)
+
+# jaq優先、jqフォールバック
+JQ=$(command -v jaq || command -v jq || echo "jq")
+
 # Extract command from tool_input
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null || echo "")
+COMMAND=$(echo "$INPUT" | $JQ -r '.tool_input.command // ""' 2>/dev/null || echo "")
 
 # PRマージ/pull検出 - マージ済みローカルブランチを自動削除
 if echo "$COMMAND" | grep -qE '(gh\s+pr\s+merge|git\s+pull)'; then
