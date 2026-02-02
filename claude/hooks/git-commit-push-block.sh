@@ -21,6 +21,13 @@ git-commit-push-block.sh - git commit/push をブロック
   Claude Code の PreToolUse hook として動作し、git commit/push を
   検出した場合に exit 2 でブロックします。
   CLAUDE.md ルール: git commit/push はユーザーのみ操作可能
+
+依存関係:
+  jaq または jq が必要です (jaq優先)
+  - macOS: brew install jaq
+  - Ubuntu/Debian: apt install jq (または cargo install jaq)
+  - Arch: pacman -S jq (または paru -S jaq)
+  - Windows: scoop install jaq (または winget install jqlang.jq)
 EOF
     exit 0
 fi
@@ -36,8 +43,11 @@ fi
 # Read JSON input from stdin
 INPUT=$(cat)
 
+# jaq優先、jqフォールバック
+JQ=$(command -v jaq || command -v jq || echo "jq")
+
 # Extract command from tool_input
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null || echo "")
+COMMAND=$(echo "$INPUT" | $JQ -r '.tool_input.command // ""' 2>/dev/null || echo "")
 
 # git commit または git push を検出
 # コマンド内のどこにあっても検出（セキュリティ優先）
