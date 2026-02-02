@@ -18,6 +18,13 @@ local-command-block.sh - ローカル環境のコマンド実行をブロック
   Python, Node.js, PHP, Ruby, Go などのコマンドを
   Docker外で直接実行しようとした場合にブロックします。
   docker exec/run/compose 経由の実行は許可されます。
+
+依存関係:
+  jaq または jq が必要です (jaq優先)
+  - macOS: brew install jaq
+  - Ubuntu/Debian: apt install jq (または cargo install jaq)
+  - Arch: pacman -S jq (または paru -S jaq)
+  - Windows: scoop install jaq (または winget install jqlang.jq)
 EOF
     exit 0
 fi
@@ -28,7 +35,11 @@ if [ -t 0 ]; then
 fi
 
 INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null || echo "")
+
+# jaq優先、jqフォールバック
+JQ=$(command -v jaq || command -v jq || echo "jq")
+
+COMMAND=$(echo "$INPUT" | $JQ -r '.tool_input.command // ""' 2>/dev/null || echo "")
 
 # ブロック対象のコマンドパターン
 # python, python3, node, npm, npx, yarn, pnpm, php, ruby, go, perl, cargo, rustc

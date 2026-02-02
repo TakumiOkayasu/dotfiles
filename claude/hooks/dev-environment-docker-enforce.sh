@@ -5,19 +5,42 @@
 
 set -eu
 
-# jaq優先、jqフォールバック
-if command -v jaq >/dev/null 2>&1; then
-  JQ_CMD="jaq"
-elif command -v jq >/dev/null 2>&1; then
-  JQ_CMD="jq"
-else
-  echo '{"decision":"block","reason":"❌ jaq/jq が見つかりません。インストールしてください。"}'
-  exit 0
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    cat <<'EOF'
+dev-environment-docker-enforce.sh - パッケージマネージャーのローカル実行をブロック
+
+使い方:
+  echo '{"tool_name":"Bash","tool_input":{"command":"npm install"}}' | ./dev-environment-docker-enforce.sh
+
+説明:
+  Claude Code の PreToolUse hook として動作し、npm, pip, cargo 等の
+  パッケージマネージャーをローカルで実行しようとした場合にブロックします。
+  docker 経由での実行は許可されます。
+
+依存関係:
+  jaq または jq が必要です (jaq優先)
+  - macOS: brew install jaq
+  - Ubuntu/Debian: apt install jq (または cargo install jaq)
+  - Arch: pacman -S jq (または paru -S jaq)
+  - Windows: scoop install jaq (または winget install jqlang.jq)
+EOF
+    exit 0
+fi
+
+# stdin がない場合のタイムアウト対策 (POSIX互換)
+if [ -t 0 ]; then
+    echo "エラー: 標準入力がありません" >&2
+    echo "使い方: echo '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"npm install\"}}' | $0" >&2
+    echo "ヘルプ: $0 --help" >&2
+    exit 1
 fi
 
 INPUT=$(cat)
 
-echo "$INPUT" | $JQ_CMD -r '
+# jaq優先、jqフォールバック
+JQ=$(command -v jaq || command -v jq || echo "jq")
+
+echo "$INPUT" | $JQ -r '
   if .tool_name != "Bash" or (.tool_input.command // "") == "" then
     {"decision":"approve"}
   elif .tool_input.command | test("^\\s*docker") then
