@@ -98,5 +98,8 @@
     ]
   },
   "language": "japanese",
-  "autoUpdatesChannel": "latest"
+  "autoUpdatesChannel": "latest",
+  "enabledPlugins": {
+    "gopls-lsp@claude-plugins-official": true
+  }
 }
