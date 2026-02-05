@@ -44,6 +44,7 @@ _setup_ssh_agent() {
 
 _setup_ssh_agent
 unset -f _setup_ssh_agent
+export GIT_SSH_COMMAND="ssh"
 
 # ============================================================================
 # 共通設定の読み込み
@@ -129,7 +130,16 @@ bindkey '^N' history-beginning-search-forward
 bindkey '^R' history-incremental-search-backward
 
 # ============================================================================
-# プロンプト
+# prezto / oh-my-zsh 連携 (使用している場合)
+# ============================================================================
+
+# prezto (プロンプト設定含む場合があるため先に読み込む)
+if [[ -s "${ZDOTDIR:-$HOME}/.zprezto/init.zsh" ]]; then
+    source "${ZDOTDIR:-$HOME}/.zprezto/init.zsh"
+fi
+
+# ============================================================================
+# プロンプト (preztoで未設定の場合のみ)
 # ============================================================================
 
 # oh-my-posh (インストールされていれば使用)
@@ -137,10 +147,10 @@ _setup_oh_my_posh() {
     if ! command -v oh-my-posh &>/dev/null; then
         return 1
     fi
-    
+
     local theme="${OH_MY_POSH_THEME:-sim-web.omp.json}"
     local config=""
-    
+
     # テーマファイルの検索
     for dir in "$HOME/.poshthemes" "$DOTFILES_DIR/poshthemes" "/usr/share/oh-my-posh/themes"; do
         if [[ -f "$dir/$theme" ]]; then
@@ -148,41 +158,34 @@ _setup_oh_my_posh() {
             break
         fi
     done
-    
+
     if [[ -z "$config" ]]; then
         return 1
     fi
-    
+
     # キャッシュディレクトリ
     local cache_dir="$HOME/.cache/oh-my-posh"
     mkdir -p "$cache_dir"
-    
+
     # 初期化
     eval "$(oh-my-posh init zsh --config "$config")"
-    
+
     return 0
 }
 
-# oh-my-posh を試行、失敗したらシンプルなプロンプト
-if ! _setup_oh_my_posh; then
-    # Git情報付きのシンプルなプロンプト
-    autoload -Uz vcs_info
-    precmd() { vcs_info }
-    zstyle ':vcs_info:git:*' formats ' (%b)'
-    setopt PROMPT_SUBST
-    PROMPT='%F{green}%n@%m%f:%F{blue}%~%f%F{yellow}${vcs_info_msg_0_}%f$ '
+# preztoでプロンプトが設定されていなければoh-my-poshまたはフォールバック
+if [[ -z "$PROMPT" ]] || [[ "$PROMPT" == '%m%# ' ]]; then
+    if ! _setup_oh_my_posh; then
+        # Git情報付きのシンプルなプロンプト
+        autoload -Uz vcs_info
+        precmd() { vcs_info }
+        zstyle ':vcs_info:git:*' formats ' (%b)'
+        setopt PROMPT_SUBST
+        PROMPT='%F{green}%n@%m%f:%F{blue}%~%f%F{yellow}${vcs_info_msg_0_}%f$ '
+    fi
 fi
 
 unset -f _setup_oh_my_posh
-
-# ============================================================================
-# prezto / oh-my-zsh 連携 (使用している場合)
-# ============================================================================
-
-# prezto
-if [[ -s "${ZDOTDIR:-$HOME}/.zprezto/init.zsh" ]]; then
-    source "${ZDOTDIR:-$HOME}/.zprezto/init.zsh"
-fi
 
 # ============================================================================
 # zsh固有エイリアス
