@@ -7,4 +7,5 @@
     name = Takumi Okayasu
     email = takumi_okys@icloud.com
 [core]
-	sshCommand = ssh
+	sshCommand = C:/Windows/System32/OpenSSH/ssh.exe
+	quotePath = false
