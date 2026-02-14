@@ -130,7 +130,7 @@ _dotfiles_add_path "$HOME/bin"
 _dotfiles_add_path "$HOME/.cargo/bin"           # Rust
 _dotfiles_add_path "$HOME/go/bin"               # Go
 _dotfiles_add_path "$HOME/.npm-global/bin"      # npm global
-_dotfiles_add_path "$HOME/.bun/bin"              # Bun
+_dotfiles_add_path "$HOME/.bun/bin"             # Bun
 
 export PATH
 
@@ -146,6 +146,9 @@ elif command -v vim >/dev/null 2>&1; then
 elif command -v vi >/dev/null 2>&1; then
     export EDITOR="vi"
 fi
+
+# Bun
+export BUN_INSTALL="$HOME/.bun"
 
 # ロケール
 export LANG="${LANG:-ja_JP.UTF-8}"
