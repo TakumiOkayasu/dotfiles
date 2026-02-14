@@ -130,6 +130,7 @@ _dotfiles_add_path "$HOME/bin"
 _dotfiles_add_path "$HOME/.cargo/bin"           # Rust
 _dotfiles_add_path "$HOME/go/bin"               # Go
 _dotfiles_add_path "$HOME/.npm-global/bin"      # npm global
+_dotfiles_add_path "$HOME/.bun/bin"              # Bun
 
 export PATH
 

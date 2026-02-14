@@ -108,6 +108,15 @@ dotfile-work/
 - Linux/WSL: Uses `.gitconfig.work`
 - Detected via `detect_platform()` in `install.sh:118`
 
+## Shell Config Rules
+
+| 設定種別 | 配置先 | 理由 |
+|----------|--------|------|
+| PATH・環境変数 (共通) | `config/shell/common.sh` | bash/zsh/fish共通で使うため |
+| エイリアス (共通) | `config/shell/aliases.sh` | 同上 |
+| シェル固有設定 | `config/shell/<shell>/` | そのシェルでしか使わない設定 |
+| ローカル設定 (Git管理外) | `~/.local.sh` or `~/.bash_profile.local` | 環境固有の設定 |
+
 ## Development Notes
 
 - All shell scripts use POSIX sh for portability
