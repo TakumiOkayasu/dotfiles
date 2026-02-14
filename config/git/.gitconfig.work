@@ -9,3 +9,5 @@
 
 [url "git@gitlab.twb.jp:"]
     insteadOf = https://gitlab.twb.jp/
+[core]
+    quotePath = false
