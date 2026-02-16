@@ -1,5 +1,7 @@
 #!/bin/sh
 # dev-environment-docker-enforce.sh
+# [DEPRECATED] パッケージマネージャ検知は local-command-block.sh に統合済み
+# このhookは jaq/jq ベースの先頭コマンド検知として残存 (互換性維持)
 # PreToolUse hook: パッケージマネージャー/環境構築コマンドのローカル実行をブロック
 # Docker経由での実行のみ許可
 

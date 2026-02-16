@@ -53,9 +53,24 @@ view ~/.claude/skills/<該当スキル>/SKILL.md
 | git commit/push | 常に | 🚫 (hook) |
 | mainブランチ編集 | 常に | 🚫 (hook) |
 | ローカルコマンド直接実行 | 常に | 🚫 (hook) |
+| コマンド難読化・間接実行 | 常に | 🚫 (hook) |
 | 管理者権限 (sudo等) | 常に | 🚫 (hook) |
 | 単一案で実装 | 常に | 🚫 |
 | スキル未読で実装 | 常に | 🚫 |
+
+### 🔒 コマンド難読化の禁止
+
+hookを迂回するための難読化・間接実行は**絶対禁止**。
+
+| 手法 | 例 | 判定 |
+|------|---|------|
+| 文字列分割 | `eval "pyt""hon3"` | 🚫 |
+| 変数構築 | `P=pytho; "${P}n3"` | 🚫 |
+| base64デコード実行 | `echo ... \| base64 -d \| sh` | 🚫 |
+| hex/octalエスケープ | `$'\x70\x79...'` | 🚫 |
+| Write+Execute | Write→bash実行 | 🚫 |
+| curl/wgetパイプ | `curl ... \| sh` | 🚫 |
+| printf実行 | `printf '\x70...' \| sh` | 🚫 |
 
 ---
 
