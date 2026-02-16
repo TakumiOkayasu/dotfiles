@@ -72,12 +72,13 @@ dotfile-work/
 │   │   ├── git-post-command-reminder.sh        # Auto cleanup merged branches
 │   │   ├── doc-consistency-reminder.sh         # Doc consistency check
 │   │   ├── dev-environment-docker-enforce.sh   # Block local package manager commands
+│   │   ├── hierarchical-architecture-naming-check.sh  # Naming convention check
 │   │   └── failure-check.sh                    # Error detection
-│   ├── skills/                # 4-tier skill system (55 skills)
-│   │   ├── 1-core/            # Always applied (10)
-│   │   ├── 2-domain/          # Project selection (21)
-│   │   ├── 3-task/            # On-demand (17)
-│   │   └── 4-utility/         # Special purpose (7)
+│   ├── skills/                # 4-tier skill system
+│   │   ├── 1-core/            # Always applied
+│   │   ├── 2-domain/          # Project selection
+│   │   ├── 3-task/            # On-demand
+│   │   └── 4-utility/         # Special purpose
 │   └── templates/lang/        # Project templates
 └── docs/
     ├── USAGE.md               # Usage guide v2.0
@@ -88,12 +89,12 @@ dotfile-work/
 
 ### 4-Tier Skills System
 
-| Tier | Directory | Load | Count | Purpose |
-|------|-----------|------|-------|---------|
-| 1-core | skills/1-core/ | Always | 10 | Mandatory rules (TDD, debugging, forbidden-actions) |
-| 2-domain | skills/2-domain/ | Project config | 21 | Domain-specific (web-backend, embedded, security) |
-| 3-task | skills/3-task/ | On-demand | 17 | Task-specific (design, integration, maintenance) |
-| 4-utility | skills/4-utility/ | Manual | 7 | Special utilities (consultation, daily-report) |
+| Tier | Directory | Load | Purpose |
+|------|-----------|------|---------|
+| 1-core | skills/1-core/ | Always | Mandatory rules (TDD, debugging, forbidden-actions) |
+| 2-domain | skills/2-domain/ | Project config | Domain-specific (web-backend, embedded, security) |
+| 3-task | skills/3-task/ | On-demand | Task-specific (design, integration, maintenance) |
+| 4-utility | skills/4-utility/ | Manual | Special utilities (consultation, daily-report) |
 
 ### Install Flow
 
