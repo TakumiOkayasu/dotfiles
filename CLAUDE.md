@@ -73,6 +73,7 @@ dotfile-work/
 │   │   ├── doc-consistency-reminder.sh         # Doc consistency check
 │   │   ├── dev-environment-docker-enforce.sh   # Block local package manager commands
 │   │   ├── hierarchical-architecture-naming-check.sh  # Naming convention check
+│   │   ├── write-execute-guard.sh              # Write+Execute attack detection
 │   │   └── failure-check.sh                    # Error detection
 │   ├── skills/                # 4-tier skill system
 │   │   ├── 1-core/            # Always applied

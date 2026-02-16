@@ -28,6 +28,9 @@ if script=$(find_config_info_script 2>/dev/null); then
     CONFIG_INFO_SCRIPT="$script"
 fi
 
+# Write+Execute ガードのセンチネルファイルをクリア
+rm -f /tmp/.claude_written_files
+
 # メイン出力
 echo ""
 echo "🚀 Claude Code Session Started"
