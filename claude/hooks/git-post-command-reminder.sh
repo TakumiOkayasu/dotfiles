@@ -6,7 +6,7 @@
 #
 # Claude Code hook として自動実行される場合は stdin から JSON を受け取る
 
-set -e
+# set -e を使わない（exit 1 = hookエラー = サイレント停止リスク）
 
 # 手動実行時のヘルプ
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
@@ -45,8 +45,14 @@ INPUT=$(cat)
 # jaq優先、jqフォールバック
 JQ=$(command -v jaq || command -v jq || echo "jq")
 
-# Extract command from tool_input
+# Extract command and cwd from tool_input
 COMMAND=$(echo "$INPUT" | $JQ -r '.tool_input.command // ""' 2>/dev/null || echo "")
+CWD=$(echo "$INPUT" | $JQ -r '.cwd // ""' 2>/dev/null || echo "")
+
+# CWD が指定されていればそこに移動（別プロジェクト対応）
+if [ -n "$CWD" ] && [ -d "$CWD" ]; then
+    cd "$CWD" 2>/dev/null || true
+fi
 
 # PRマージ/pull検出 - マージ済みローカルブランチを自動削除
 if echo "$COMMAND" | grep -qE '(gh\s+pr\s+merge|git\s+pull)'; then
