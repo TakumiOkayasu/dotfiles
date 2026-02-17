@@ -125,3 +125,50 @@ dotfile-work/
 - Japanese documentation throughout (user preference)
 - Token optimization is a primary concern (settings.json: maxTokens: 2000)
 - Hooks block Claude from running `git commit` or `git push` directly
+
+## [自動] セッション継続プロトコル
+
+以下のルールはClaude自身が自律的に実行する。ユーザーへの確認は不要。
+
+### PROGRESS.md 自動更新
+
+ファイル: `.claude/progress.md`
+
+以下のタイミングで自動的に更新すること:
+
+1. **タスク着手時** → 「現在のタスク」セクションを更新
+2. **設計判断を下した時** → 「判断ログ」に理由(Why)とともに追記
+3. **Planモードで結論が出た時** → 実装に入る前に書き出し
+4. **タスク完了時** → 完了マーク + 次のタスク
+
+### コンテキスト警告への対応
+
+hookがコンテキスト使用率の警告を発した場合:
+
+- **⚠️ 70%警告**: PROGRESS.md が最新か確認し、必要なら更新
+- **🚨 85%警告**: 即座に PROGRESS.md を更新。特に:
+  - 現在のタスクの状況
+  - 設計判断の理由(Why) ← 最も失われやすい
+  - 未完了事項と次のステップ
+- **Planモード中に警告が出た場合**: 一度Planを抜けて PROGRESS.md を更新し、再度Planに戻る
+
+### セッション開始時
+
+1. `.claude/progress.md` がhookから注入されるので、その内容を確認
+2. 未完了タスクがあれば、そこから再開
+3. ユーザーに「前回の続きから再開します」と一言伝える
+
+### PROGRESS.md フォーマット
+
+```markdown
+# PROGRESS
+
+## 現在のタスク
+- [ ] タスク名 - 目的: xxx
+
+## 判断ログ
+- YYYY-MM-DD: 判断内容。理由: ...
+
+## 完了
+- [x] 完了したタスク
+```
