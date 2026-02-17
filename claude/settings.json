@@ -295,25 +295,52 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/git-commit-push-block.sh" },
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/docker-build-check.sh" },
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/language-version-check.sh" },
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/local-command-block.sh" },
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/admin-command-block.sh" },
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/background-command-check.sh" },
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/write-execute-guard.sh" }
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/git-commit-push-block.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/docker-build-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/language-version-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/local-command-block.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/admin-command-block.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/background-command-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/write-execute-guard.sh"
+          }
         ]
       },
       {
         "matcher": "Edit",
         "hooks": [
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/main-branch-code-warning.sh" }
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/main-branch-code-warning.sh"
+          }
         ]
       },
       {
         "matcher": "Write",
         "hooks": [
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/main-branch-code-warning.sh" }
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/main-branch-code-warning.sh"
+          }
         ]
       }
     ],
@@ -321,44 +348,80 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/branch-from-main-check.sh" },
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/git-post-command-reminder.sh" },
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/failure-check.sh" },
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/commit-checkpoint.sh" }
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/branch-from-main-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/git-post-command-reminder.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/failure-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/commit-checkpoint.sh"
+          }
         ]
       },
       {
         "matcher": "Edit",
         "hooks": [
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/doc-consistency-reminder.sh" },
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/hierarchical-architecture-naming-check.sh" }
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/doc-consistency-reminder.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/hierarchical-architecture-naming-check.sh"
+          }
         ]
       },
       {
         "matcher": "Write",
         "hooks": [
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/doc-consistency-reminder.sh" },
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/hierarchical-architecture-naming-check.sh" },
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/write-execute-guard.sh" }
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/doc-consistency-reminder.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/hierarchical-architecture-naming-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/write-execute-guard.sh"
+          }
         ]
       },
       {
         "hooks": [
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/context-monitor.sh" }
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/context-monitor.sh"
+          }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/context-monitor.sh" }
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/context-monitor.sh"
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/context-monitor.sh" }
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/context-monitor.sh"
+          }
         ]
       }
     ],
@@ -377,8 +440,14 @@
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/session-start-reminder.sh" },
-          { "type": "command", "command": "~/prog/dotfile-work/claude/hooks/session-resume.sh" }
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/session-start-reminder.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/session-resume.sh"
+          }
         ]
       }
     ]
