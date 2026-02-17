@@ -67,11 +67,17 @@ if [ ! -f "$FILE_PATH" ]; then
     exit 0
 fi
 
+# マーカーファイル判定 - プロジェクトが opt-in している場合のみチェック
+CWD=$(echo "$INPUT" | $JQ -r '.cwd // ""' 2>/dev/null || echo "")
+if [ -n "$CWD" ] && [ ! -f "${CWD}/.hierarchical-architecture" ]; then
+    exit 0
+fi
+
 WARNINGS=""
 
 # --- チェック1: 同一型の連番getter ---
 # パターン: get_xxx_1_yyy, get_xxx_2_yyy (数字が含まれる連番getter)
-NUMBERED=$(grep -nE 'get_[a-z]+_[0-9]+_[a-z]+' "$FILE_PATH" 2>/dev/null | head -5)
+NUMBERED=$(perl -ne 'print "$.:$_" if /get_[a-z]+_[0-9]+_[a-z]+/' "$FILE_PATH" 2>/dev/null | head -5)
 if [ -n "$NUMBERED" ]; then
     WARNINGS="${WARNINGS}[命名規則] 同一型の連番getterを検出。パラメータ化を検討してください:\n${NUMBERED}\n\n"
 fi
@@ -79,14 +85,14 @@ fi
 # --- チェック2: get_プレフィックスなしのaccessor/provider返却 ---
 # パターン: xxx_accessor() や xxx_provider() で get_ が付いていない
 # ただし get_xxx_accessor / get_xxx_provider は正しいのでスキップ
-NOGETTER=$(grep -nE '\b[a-z_]+_(accessor|provider|context)\s*\(' "$FILE_PATH" 2>/dev/null | grep -vE '\bget_' | head -5)
+NOGETTER=$(perl -ne 'print "$.:$_" if /\b[a-z_]+_(accessor|provider|context)\s*\(/ && !/\bget_/' "$FILE_PATH" 2>/dev/null | head -5)
 if [ -n "$NOGETTER" ]; then
     WARNINGS="${WARNINGS}[命名規則] get_プレフィックスなしのgetter候補を検出:\n${NOGETTER}\nhierarchical-architecture スキルの命名規則を確認してください。\n\n"
 fi
 
 # --- チェック3: サブコンポーネント層への不適切なサフィックス ---
 # BLE*, HTTP*, MQTT* 等のドメイン概念に Context/Provider/Accessor が付いている
-SUBCOMP=$(grep -nE '\b(BLE|HTTP|MQTT|USB|SPI|I2C|UART|CAN|GPIO|ADC|DAC|PWM|DMA|RTC|WDT|NFC|RFID)(Service|Characteristic|Request|Response|Header|Packet|Frame|Message|Channel|Endpoint)(Context|Provider|Accessor)\b' "$FILE_PATH" 2>/dev/null | head -5)
+SUBCOMP=$(perl -ne 'print "$.:$_" if /\b(BLE|HTTP|MQTT|USB|SPI|I2C|UART|CAN|GPIO|ADC|DAC|PWM|DMA|RTC|WDT|NFC|RFID)(Service|Characteristic|Request|Response|Header|Packet|Frame|Message|Channel|Endpoint)(Context|Provider|Accessor)\b/' "$FILE_PATH" 2>/dev/null | head -5)
 if [ -n "$SUBCOMP" ]; then
     WARNINGS="${WARNINGS}[命名規則] サブコンポーネント層にContext/Provider/Accessorサフィックスを検出:\n${SUBCOMP}\nドメイン標準用語のみを使用してください。\n\n"
 fi
@@ -98,8 +104,8 @@ fi
 
 # 警告をClaude Codeにフィードバック
 # additionalContext でClaude Codeに認識させる
-ESCAPED_WARNINGS=$(printf '%s' "$WARNINGS" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
-ESCAPED_PATH=$(printf '%s' "$FILE_PATH" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
+ESCAPED_WARNINGS=$(printf '%s' "$WARNINGS" | perl -pe 's/\\/\\\\/g; s/"/\\"/g; s/\n/\\n/g')
+ESCAPED_PATH=$(printf '%s' "$FILE_PATH" | perl -pe 's/\\/\\\\/g; s/"/\\"/g')
 
 cat <<EOF
 {
