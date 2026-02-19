@@ -7,7 +7,7 @@
 #
 # Claude Code hook として自動実行される場合は stdin から JSON を受け取る
 
-set -e
+# set -e を使わない（exit 1 = hookエラー = 許可扱いリスク）
 
 # 手動実行時のヘルプ
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
@@ -43,16 +43,19 @@ fi
 # Read JSON input from stdin
 INPUT=$(cat)
 
-# jaq優先、jqフォールバック
-JQ=$(command -v jaq || command -v jq || echo "jq")
+# jaq優先、jqフォールバック（見つからない場合は空文字→許可）
+JQ=$(command -v jaq 2>/dev/null || command -v jq 2>/dev/null || echo "")
+if [ -z "$JQ" ]; then
+    exit 0
+fi
 
 # Extract command from tool_input
-COMMAND=$(echo "$INPUT" | $JQ -r '.tool_input.command // ""' 2>/dev/null || echo "")
+COMMAND=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.command // ""' 2>/dev/null) || COMMAND=""
 
 # git commit または git push を検出
 # コマンド内のどこにあっても検出（セキュリティ優先）
 # 対応: 直接実行, チェーン(; && ||), パイプ(|), サブシェル($() ``), グループ(() {}), 制御構文(then do else)
-if echo "$COMMAND" | grep -qE '\bgit\s+(commit|push)(\s|$)'; then
+if printf '%s\n' "$COMMAND" | grep -qE '\bgit\s+(commit|push)(\s|$)'; then
     # exit 2 でブロック、stderr にメッセージ
     echo "[CLAUDE.md ルール違反] git commit/push はユーザーのみ操作可能です。コミットの準備ができたらユーザーに依頼してください。" >&2
     exit 2

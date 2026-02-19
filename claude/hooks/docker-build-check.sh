@@ -27,8 +27,17 @@ CD_PREFIX='^[[:space:]]*(cd[[:space:]]+[^[:space:]]+[[:space:]]*(&&|;)[[:space:]
 # 許可: docker / docker-compose / docker compose (コンテナ内実行)
 printf '%s\n' "$CMD" | grep -qE "${CD_PREFIX}docker[ -]" && exit 0
 
+# 許可: gh (GitHub CLI - 全面的に許可)
+printf '%s\n' "$CMD" | grep -qE "${CD_PREFIX}gh\b" && exit 0
+
 # 許可: システムパッケージマネージャ (システム管理は許可)
 printf '%s\n' "$CMD" | grep -qE "${CD_PREFIX}(apt|apt-get|brew|pacman|dnf|yum|apk)\b" && exit 0
+
+# ブロック: git commit/push (CLAUDE.mdルール: ユーザーのみ操作可能)
+if printf '%s\n' "$CMD" | grep -qE '\bgit\s+(commit|push)(\s|$)'; then
+    echo "[CLAUDE.md ルール違反] git commit/push はユーザーのみ操作可能です。" >&2
+    exit 2
+fi
 
 # 許可: git (git add等がACTIONSパターンに誤マッチするのを防止)
 # チェーンコマンド (git add && npm install) はlocal-command-block.shがnpmを検知

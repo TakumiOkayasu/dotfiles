@@ -9,7 +9,7 @@
 # 発動: PreCompact (auto|manual)
 # 依存: jaq or jq, perl
 
-set -eu
+# set -e を使わない（exit 1 = hookエラー = 許可扱いリスク）
 
 if [ -t 0 ]; then
     exit 0
@@ -17,11 +17,15 @@ fi
 
 INPUT=$(cat)
 
-JQ=$(command -v jaq || command -v jq || echo "jq")
+# jaq優先、jqフォールバック（見つからない場合は空文字→許可）
+JQ=$(command -v jaq 2>/dev/null || command -v jq 2>/dev/null || echo "")
+if [ -z "$JQ" ]; then
+    exit 0
+fi
 
-TRANSCRIPT_PATH=$(echo "$INPUT" | $JQ -r '.transcript_path // ""' 2>/dev/null || echo "")
-CWD=$(echo "$INPUT" | $JQ -r '.cwd // ""' 2>/dev/null || echo "")
-TRIGGER=$(echo "$INPUT" | $JQ -r '.trigger // "unknown"' 2>/dev/null || echo "unknown")
+TRANSCRIPT_PATH=$(printf '%s\n' "$INPUT" | "$JQ" -r '.transcript_path // ""' 2>/dev/null) || TRANSCRIPT_PATH=""
+CWD=$(printf '%s\n' "$INPUT" | "$JQ" -r '.cwd // ""' 2>/dev/null) || CWD=""
+TRIGGER=$(printf '%s\n' "$INPUT" | "$JQ" -r '.trigger // "unknown"' 2>/dev/null) || TRIGGER="unknown"
 
 CHECKPOINT_DIR="${CWD}/.claude/checkpoints"
 PROGRESS_FILE="${CWD}/.claude/progress.md"

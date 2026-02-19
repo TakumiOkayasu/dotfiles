@@ -71,10 +71,8 @@ dotfile-work/
 │   │   ├── branch-from-main-check.sh           # Verify branch from main
 │   │   ├── git-post-command-reminder.sh        # Auto cleanup merged branches
 │   │   ├── doc-consistency-reminder.sh         # Doc consistency check
-│   │   ├── dev-environment-docker-enforce.sh   # Block local package manager commands
 │   │   ├── hierarchical-architecture-naming-check.sh  # Naming convention check
-│   │   ├── write-execute-guard.sh              # Write+Execute attack detection
-│   │   └── failure-check.sh                    # Error detection
+│   │   └── env-file-protect.sh                 # Block .env file read/edit
 │   ├── skills/                # 4-tier skill system
 │   │   ├── 1-core/            # Always applied
 │   │   ├── 2-domain/          # Project selection

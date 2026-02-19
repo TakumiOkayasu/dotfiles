@@ -12,7 +12,7 @@
 #   2. get_プレフィックスなしのaccessor/provider getter
 #   3. サブコンポーネント層へのContext/Provider/Accessorサフィックス混入
 
-set -e
+# set -e を使わない（exit 1 = hookエラー = 許可扱いリスク）
 
 # 手動実行時のヘルプ
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
@@ -47,11 +47,14 @@ fi
 # Read JSON input from stdin
 INPUT=$(cat)
 
-# jaq優先、jqフォールバック
-JQ=$(command -v jaq || command -v jq || echo "jq")
+# jaq優先、jqフォールバック（見つからない場合は空文字→許可）
+JQ=$(command -v jaq 2>/dev/null || command -v jq 2>/dev/null || echo "")
+if [ -z "$JQ" ]; then
+    exit 0
+fi
 
 # Extract file path from tool_input
-FILE_PATH=$(echo "$INPUT" | $JQ -r '.tool_input.file_path // ""' 2>/dev/null || echo "")
+FILE_PATH=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.file_path // ""' 2>/dev/null) || FILE_PATH=""
 
 # 対象拡張子のみチェック
 case "$FILE_PATH" in
@@ -68,7 +71,7 @@ if [ ! -f "$FILE_PATH" ]; then
 fi
 
 # マーカーファイル判定 - プロジェクトが opt-in している場合のみチェック
-CWD=$(echo "$INPUT" | $JQ -r '.cwd // ""' 2>/dev/null || echo "")
+CWD=$(printf '%s\n' "$INPUT" | "$JQ" -r '.cwd // ""' 2>/dev/null) || CWD=""
 if [ -n "$CWD" ] && [ ! -f "${CWD}/.hierarchical-architecture" ]; then
     exit 0
 fi

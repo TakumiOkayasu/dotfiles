@@ -122,8 +122,7 @@ main → feature/xxx → 編集 → テスト → レビュー → merge
 
 ```text
 層1: local-command-block.sh (base64, eval, hex, curl|sh パターン検知)
-層2: write-execute-guard.sh (Write→Bash実行パターン検知)
-層3: この行動ルール (Claude自身が難読化コマンドを構築しない)
+層2: この行動ルール (Claude自身が難読化コマンドを構築しない)
 ```
 
 ---

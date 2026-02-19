@@ -7,7 +7,7 @@
 #   echo '{"tool_name":"Bash","tool_input":{"command":"cat .env"}}' | ./env-file-protect.sh
 #   echo '{"tool_name":"Read","tool_input":{"file_path":"/app/.env.local"}}' | ./env-file-protect.sh
 
-set -e
+# set -e を使わない（exit 1 = hookエラー = 許可扱いリスク）
 
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     cat <<'EOF'
@@ -41,10 +41,13 @@ fi
 
 INPUT=$(cat)
 
-# jaq優先、jqフォールバック
-JQ=$(command -v jaq || command -v jq || echo "jq")
+# jaq優先、jqフォールバック（見つからない場合は空文字→許可）
+JQ=$(command -v jaq 2>/dev/null || command -v jq 2>/dev/null || echo "")
+if [ -z "$JQ" ]; then
+    exit 0
+fi
 
-TOOL_NAME=$(echo "$INPUT" | $JQ -r '.tool_name // ""' 2>/dev/null || echo "")
+TOOL_NAME=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_name // ""' 2>/dev/null) || TOOL_NAME=""
 
 # --- ホワイトリスト(テンプレート系): これらはブロックしない ---
 WHITELIST_PATTERN='\.env\.(example|sample|template|dist)\b'
@@ -60,12 +63,12 @@ check_env_access() {
     TARGET="$1"
 
     # ホワイトリストに該当すればスキップ
-    if echo "$TARGET" | grep -qE "$WHITELIST_PATTERN"; then
+    if printf '%s\n' "$TARGET" | grep -qE "$WHITELIST_PATTERN"; then
         return 1
     fi
 
     # .envパターンに該当すればブロック対象
-    if echo "$TARGET" | grep -qE "$ENV_FILE_PATTERN"; then
+    if printf '%s\n' "$TARGET" | grep -qE "$ENV_FILE_PATTERN"; then
         return 0
     fi
 
@@ -74,7 +77,7 @@ check_env_access() {
 
 case "$TOOL_NAME" in
     Bash)
-        COMMAND=$(echo "$INPUT" | $JQ -r '.tool_input.command // ""' 2>/dev/null || echo "")
+        COMMAND=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.command // ""' 2>/dev/null) || COMMAND=""
 
         # 空コマンドはスキップ
         if [ -z "$COMMAND" ]; then
@@ -82,7 +85,7 @@ case "$TOOL_NAME" in
         fi
 
         # 存在確認系は許可
-        if echo "$COMMAND" | grep -qE "$EXISTENCE_CHECK_PATTERN"; then
+        if printf '%s\n' "$COMMAND" | grep -qE "$EXISTENCE_CHECK_PATTERN"; then
             exit 0
         fi
 
@@ -95,7 +98,7 @@ case "$TOOL_NAME" in
         ;;
 
     Read)
-        FILE_PATH=$(echo "$INPUT" | $JQ -r '.tool_input.file_path // ""' 2>/dev/null || echo "")
+        FILE_PATH=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.file_path // ""' 2>/dev/null) || FILE_PATH=""
 
         if [ -z "$FILE_PATH" ]; then
             exit 0
@@ -109,7 +112,7 @@ case "$TOOL_NAME" in
         ;;
 
     Edit)
-        FILE_PATH=$(echo "$INPUT" | $JQ -r '.tool_input.file_path // ""' 2>/dev/null || echo "")
+        FILE_PATH=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.file_path // ""' 2>/dev/null) || FILE_PATH=""
 
         if [ -z "$FILE_PATH" ]; then
             exit 0

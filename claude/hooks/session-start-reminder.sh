@@ -10,7 +10,7 @@
 # 配置先: claude-config/hooks/session-start-reminder.sh
 #         -> ~/.claude/hooks/session-start-reminder.sh (symlink)
 
-set -eu
+# set -e を使わない（exit 1 = hookエラー = 許可扱いリスク）
 
 # claude-config-info.sh を検索
 find_config_info_script() {
@@ -27,9 +27,6 @@ CONFIG_INFO_SCRIPT=""
 if script=$(find_config_info_script 2>/dev/null); then
     CONFIG_INFO_SCRIPT="$script"
 fi
-
-# Write+Execute ガードのセンチネルファイルをクリア
-rm -f /tmp/.claude_written_files
 
 # メイン出力
 echo ""

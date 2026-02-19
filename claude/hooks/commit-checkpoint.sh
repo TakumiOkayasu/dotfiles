@@ -9,7 +9,7 @@
 # 発動: PostToolUse (Bash) - git commit を含むコマンドのみ
 # 依存: jaq or jq
 
-set -eu
+# set -e を使わない（exit 1 = hookエラー = 許可扱いリスク）
 
 if [ -t 0 ]; then
     exit 0
@@ -17,11 +17,15 @@ fi
 
 INPUT=$(cat)
 
-JQ=$(command -v jaq || command -v jq || echo "jq")
+# jaq優先、jqフォールバック（見つからない場合は空文字→許可）
+JQ=$(command -v jaq 2>/dev/null || command -v jq 2>/dev/null || echo "")
+if [ -z "$JQ" ]; then
+    exit 0
+fi
 
 # Bash コマンドを取得
-COMMAND=$(echo "$INPUT" | $JQ -r '.tool_input.command // ""' 2>/dev/null || echo "")
-CWD=$(echo "$INPUT" | $JQ -r '.cwd // ""' 2>/dev/null || echo "")
+COMMAND=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.command // ""' 2>/dev/null) || COMMAND=""
+CWD=$(printf '%s\n' "$INPUT" | "$JQ" -r '.cwd // ""' 2>/dev/null) || CWD=""
 
 # git commit を含むコマンドのみ対象
 case "$COMMAND" in
