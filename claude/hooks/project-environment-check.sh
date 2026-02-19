@@ -9,7 +9,7 @@
 # 配置先: claude-config/hooks/project-environment-check.sh
 #         -> ~/.claude/hooks/project-environment-check.sh (symlink)
 
-set -eu
+# set -e を使わない（exit 1 = hookエラー = 許可扱いリスク）
 
 # ═══════════════════════════════════════════════════════════════
 # Docker環境チェック
