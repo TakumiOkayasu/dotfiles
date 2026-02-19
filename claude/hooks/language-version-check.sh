@@ -29,13 +29,10 @@ LANGS="python|node|golang|go|openjdk|ruby|rust|php|perl|swift|elixir|erlang|hask
 
 # バージョン番号指定を検知 (例: python:3.9, node:18)
 if printf '%s\n' "$CMD" | grep -qE "(${LANGS}):[0-9]"; then
-    echo "⚠️ 検証用途は latest を使用してください"
-    echo ""
-    echo "検知: $CMD"
-    echo ""
-    echo "推奨: python:slim, node:slim, golang:alpine 等"
-    echo "BLOCK"
-    exit 0
+    echo "[バージョン固定検知] 検証用途は latest を使用してください。" >&2
+    echo "検知: $CMD" >&2
+    echo "推奨: python:slim, node:slim, golang:alpine 等" >&2
+    exit 2
 fi
 
 exit 0

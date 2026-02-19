@@ -6,7 +6,7 @@
 #
 # Claude Code hook として自動実行される場合は stdin から JSON を受け取る
 
-set -e
+# set -e を使わない（exit 1 = hookエラー = 許可扱いリスク）
 
 # 手動実行時のヘルプ
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
@@ -43,14 +43,17 @@ fi
 # Read JSON input from stdin
 INPUT=$(cat)
 
-# jaq優先、jqフォールバック
-JQ=$(command -v jaq || command -v jq || echo "jq")
+# jaq優先、jqフォールバック（見つからない場合は空文字→許可）
+JQ=$(command -v jaq 2>/dev/null || command -v jq 2>/dev/null || echo "")
+if [ -z "$JQ" ]; then
+    exit 0
+fi
 
 # Extract command from tool_input
-COMMAND=$(echo "$INPUT" | $JQ -r '.tool_input.command // ""' 2>/dev/null || echo "")
+COMMAND=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.command // ""' 2>/dev/null) || COMMAND=""
 
 # git checkout -b を検出 (新規ブランチ作成)
-if echo "$COMMAND" | grep -qE 'git\s+checkout\s+-b'; then
+if printf '%s\n' "$COMMAND" | grep -qE 'git\s+checkout\s+-b'; then
     # 現在のブランチの親がmainか確認
     MAIN_BRANCH=$(git config --local --get claude.mainBranch 2>/dev/null || echo "main")
     CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
