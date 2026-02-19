@@ -12,7 +12,7 @@
 #
 # 依存: jaq or jq, perl
 
-set -eu
+# set -e を使わない（exit 1 = hookエラー = 許可扱いリスク）
 
 # stdin がない場合はスキップ
 if [ -t 0 ]; then
@@ -21,11 +21,15 @@ fi
 
 INPUT=$(cat)
 
-JQ=$(command -v jaq || command -v jq || echo "jq")
+# jaq優先、jqフォールバック（見つからない場合は空文字→許可）
+JQ=$(command -v jaq 2>/dev/null || command -v jq 2>/dev/null || echo "")
+if [ -z "$JQ" ]; then
+    exit 0
+fi
 
-HOOK_EVENT=$(echo "$INPUT" | $JQ -r '.hook_event_name // ""' 2>/dev/null || echo "")
-TRANSCRIPT_PATH=$(echo "$INPUT" | $JQ -r '.transcript_path // ""' 2>/dev/null || echo "")
-CWD=$(echo "$INPUT" | $JQ -r '.cwd // ""' 2>/dev/null || echo "")
+HOOK_EVENT=$(printf '%s\n' "$INPUT" | "$JQ" -r '.hook_event_name // ""' 2>/dev/null) || HOOK_EVENT=""
+TRANSCRIPT_PATH=$(printf '%s\n' "$INPUT" | "$JQ" -r '.transcript_path // ""' 2>/dev/null) || TRANSCRIPT_PATH=""
+CWD=$(printf '%s\n' "$INPUT" | "$JQ" -r '.cwd // ""' 2>/dev/null) || CWD=""
 
 # transcript がなければスキップ
 if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then

@@ -290,6 +290,7 @@
     ],
     "defaultMode": "plan"
   },
+  "model": "opus",
   "hooks": {
     "PreToolUse": [
       {
@@ -321,7 +322,16 @@
           },
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/write-execute-guard.sh"
+            "command": "~/prog/dotfile-work/claude/hooks/env-file-protect.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/env-file-protect.sh"
           }
         ]
       },
@@ -331,6 +341,10 @@
           {
             "type": "command",
             "command": "~/prog/dotfile-work/claude/hooks/main-branch-code-warning.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/env-file-protect.sh"
           }
         ]
       },
@@ -355,10 +369,6 @@
           {
             "type": "command",
             "command": "~/prog/dotfile-work/claude/hooks/git-post-command-reminder.sh"
-          },
-          {
-            "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/failure-check.sh"
           },
           {
             "type": "command",
@@ -389,10 +399,6 @@
           {
             "type": "command",
             "command": "~/prog/dotfile-work/claude/hooks/hierarchical-architecture-naming-check.sh"
-          },
-          {
-            "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/write-execute-guard.sh"
           }
         ]
       },

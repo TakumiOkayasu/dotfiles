@@ -42,12 +42,15 @@ fi
 # Read JSON input from stdin
 INPUT=$(cat)
 
-# jaq優先、jqフォールバック
-JQ=$(command -v jaq || command -v jq || echo "jq")
+# jaq優先、jqフォールバック（見つからない場合は空文字→許可）
+JQ=$(command -v jaq 2>/dev/null || command -v jq 2>/dev/null || echo "")
+if [ -z "$JQ" ]; then
+    exit 0
+fi
 
 # Extract command and cwd from tool_input
-COMMAND=$(echo "$INPUT" | $JQ -r '.tool_input.command // ""' 2>/dev/null || echo "")
-CWD=$(echo "$INPUT" | $JQ -r '.cwd // ""' 2>/dev/null || echo "")
+COMMAND=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.command // ""' 2>/dev/null) || COMMAND=""
+CWD=$(printf '%s\n' "$INPUT" | "$JQ" -r '.cwd // ""' 2>/dev/null) || CWD=""
 
 # CWD が指定されていればそこに移動（別プロジェクト対応）
 if [ -n "$CWD" ] && [ -d "$CWD" ]; then
@@ -55,7 +58,7 @@ if [ -n "$CWD" ] && [ -d "$CWD" ]; then
 fi
 
 # PRマージ/pull検出 - マージ済みローカルブランチを自動削除
-if echo "$COMMAND" | grep -qE '(gh\s+pr\s+merge|git\s+pull)'; then
+if printf '%s\n' "$COMMAND" | grep -qE '(gh\s+pr\s+merge|git\s+pull)'; then
     # mainブランチにいる場合のみ自動削除
     CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
     MAIN_BRANCH=$(git config --local --get claude.mainBranch 2>/dev/null || echo "main")
@@ -101,7 +104,7 @@ EOF
 fi
 
 # git checkout main/master 検出 (マージ後のmain移動)
-if echo "$COMMAND" | grep -qE 'git\s+checkout\s+(main|master)'; then
+if printf '%s\n' "$COMMAND" | grep -qE 'git\s+checkout\s+(main|master)'; then
     cat <<'EOF'
 {
   "hookSpecificOutput": {
@@ -114,7 +117,7 @@ EOF
 fi
 
 # git-cleanup-branch 検出
-if echo "$COMMAND" | grep -qE 'git-cleanup-branch'; then
+if printf '%s\n' "$COMMAND" | grep -qE 'git-cleanup-branch'; then
     cat <<'EOF'
 {
   "hookSpecificOutput": {
