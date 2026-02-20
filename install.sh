@@ -34,12 +34,16 @@ COUNT_ERROR=0
 # 選択状態
 SHELL_SELECTED=false
 SHELL_TYPE=""  # bash, zsh, fish, all
-SHELL_COMPONENTS=""  # full, aliases, common, custom
+SHELL_COMPONENTS=""  # full, append, custom
 SHELL_COMP_ALIASES=false
 SHELL_COMP_COMMON=false
 SHELL_COMP_PROMPT=false
 CLAUDE_SELECTED=false
 GITCONFIG_VARIANT=""
+
+# 追記モード用マーカー
+DOTWORK_MARKER_BEGIN="# === dotfile-work: BEGIN ==="
+DOTWORK_MARKER_END="# === dotfile-work: END ==="
 
 # ============================================================================
 # カラー出力
@@ -359,40 +363,32 @@ select_shell_type() {
 select_shell_components() {
     echo ""
     printf "${COLOR_BOLD}インストールする内容を選択:${COLOR_RESET}\n"
-    printf "  ${COLOR_BOLD}1)${COLOR_RESET} フルセット (すべての設定)\n"
-    printf "     → .bashrc/.zshrc 等をリンク、全機能有効\n"
-    printf "  ${COLOR_BOLD}2)${COLOR_RESET} エイリアスのみ\n"
-    printf "     → ~/.shell_aliases にリンク\n"
-    printf "  ${COLOR_BOLD}3)${COLOR_RESET} 共通設定のみ (PATH/環境変数/エイリアス)\n"
-    printf "     → ~/.shell_common にリンク\n"
-    printf "  ${COLOR_BOLD}4)${COLOR_RESET} カスタム選択\n"
+    printf "  ${COLOR_BOLD}1)${COLOR_RESET} フルセット (既存設定を置き換え) ${COLOR_RED}⚠ 破壊的${COLOR_RESET}\n"
+    printf "     → ~/.bashrc 等をリポジトリのものに置換 (既存は .bak にバックアップ)\n"
+    printf "  ${COLOR_BOLD}2)${COLOR_RESET} 追記モード (既存設定を保持) ${COLOR_GREEN}★推奨${COLOR_RESET}\n"
+    printf "     → 既存の ~/.bashrc 等にsource行を自動挿入\n"
+    printf "  ${COLOR_BOLD}3)${COLOR_RESET} カスタム選択\n"
+    printf "     → コンポーネントを個別選択 (source行は手動追記)\n"
     echo ""
-    printf "選択 (1-4) [1]: "
+    printf "選択 (1-3) [2]: "
     read -r choice
 
     case "$choice" in
-        1|"")
+        1)
             SHELL_COMPONENTS="full"
             print_success "フルセットを選択しました"
             ;;
-        2)
-            SHELL_COMPONENTS="aliases"
-            SHELL_COMP_ALIASES=true
-            print_success "エイリアスのみを選択しました"
+        2|"")
+            SHELL_COMPONENTS="append"
+            print_success "追記モードを選択しました"
             ;;
         3)
-            SHELL_COMPONENTS="common"
-            SHELL_COMP_COMMON=true
-            SHELL_COMP_ALIASES=true
-            print_success "共通設定のみを選択しました"
-            ;;
-        4)
             SHELL_COMPONENTS="custom"
             select_shell_custom_components
             ;;
         *)
-            print_error "無効な選択です。フルセットを使用します"
-            SHELL_COMPONENTS="full"
+            print_error "無効な選択です。追記モードを使用します"
+            SHELL_COMPONENTS="append"
             ;;
     esac
 }
@@ -436,28 +432,32 @@ install_shell_config() {
 
     print_header "シェル設定をインストール"
 
-    # フルセットの場合は従来通り
-    if [ "$SHELL_COMPONENTS" = "full" ]; then
-        install_shell_full
-        return 0
-    fi
+    case "$SHELL_COMPONENTS" in
+        full)
+            install_shell_full
+            ;;
+        append)
+            install_shell_append
+            ;;
+        *)
+            # custom: コンポーネント別インストール
+            if [ "$SHELL_COMP_ALIASES" = "true" ]; then
+                create_link "config/shell/aliases.sh" "${HOME}/.shell_aliases"
+            fi
 
-    # コンポーネント別インストール
-    if [ "$SHELL_COMP_ALIASES" = "true" ]; then
-        create_link "config/shell/aliases.sh" "${HOME}/.shell_aliases"
-    fi
+            if [ "$SHELL_COMP_COMMON" = "true" ]; then
+                create_link "config/shell/common.sh" "${HOME}/.shell_common"
+                print_info "ヒント: 既存の設定ファイルに以下を追加してください:"
+                printf "        ${COLOR_CYAN}[ -f ~/.shell_common ] && . ~/.shell_common${COLOR_RESET}\n"
+            fi
 
-    if [ "$SHELL_COMP_COMMON" = "true" ]; then
-        create_link "config/shell/common.sh" "${HOME}/.shell_common"
-        print_info "ヒント: 既存の設定ファイルに以下を追加してください:"
-        printf "        ${COLOR_CYAN}[ -f ~/.shell_common ] && . ~/.shell_common${COLOR_RESET}\n"
-    fi
-
-    if [ "$SHELL_COMP_PROMPT" = "true" ]; then
-        create_link "config/git/.git-prompt.sh" "${HOME}/.git-prompt.sh"
-        print_info "ヒント: 既存の設定ファイルに以下を追加してください:"
-        printf "        ${COLOR_CYAN}[ -f ~/.git-prompt.sh ] && . ~/.git-prompt.sh${COLOR_RESET}\n"
-    fi
+            if [ "$SHELL_COMP_PROMPT" = "true" ]; then
+                create_link "config/git/.git-prompt.sh" "${HOME}/.git-prompt.sh"
+                print_info "ヒント: 既存の設定ファイルに以下を追加してください:"
+                printf "        ${COLOR_CYAN}[ -f ~/.git-prompt.sh ] && . ~/.git-prompt.sh${COLOR_RESET}\n"
+            fi
+            ;;
+    esac
 }
 
 # フルセットインストール (従来の動作)
@@ -486,14 +486,175 @@ install_shell_full() {
     esac
 }
 
+# ============================================================================
+# 追記モード
+# ============================================================================
+
+# rcファイルにsourceブロックを挿入 (bash/zsh用)
+inject_source_block() {
+    target_rc="$1"
+
+    if [ ! -f "$target_rc" ]; then
+        print_skip "スキップ: $target_rc (ファイルが存在しません)"
+        return 0
+    fi
+
+    # 冪等性: マーカーが既に存在すればスキップ
+    if grep -qF "$DOTWORK_MARKER_BEGIN" "$target_rc" 2>/dev/null; then
+        print_skip "スキップ: $target_rc (source行は挿入済み)"
+        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+        return 0
+    fi
+
+    if [ "$MODE_DRY_RUN" = "true" ]; then
+        print_info "[ドライラン] source行を挿入: $target_rc"
+        COUNT_CREATED=$((COUNT_CREATED + 1))
+        return 0
+    fi
+
+    # 末尾に改行があるか確認し、なければ追加
+    if [ -s "$target_rc" ]; then
+        tail_char=$(tail -c 1 "$target_rc" 2>/dev/null | wc -l)
+        if [ "$tail_char" -eq 0 ]; then
+            printf '\n' >> "$target_rc"
+        fi
+    fi
+
+    cat >> "$target_rc" << EOF
+
+$DOTWORK_MARKER_BEGIN
+[ -f "\$HOME/.shell_common" ] && . "\$HOME/.shell_common"
+$DOTWORK_MARKER_END
+EOF
+
+    print_success "source行を挿入: $target_rc"
+    COUNT_CREATED=$((COUNT_CREATED + 1))
+}
+
+# 追記モード: rcファイルにsourceブロックを挿入 (fish用)
+inject_source_block_fish() {
+    target_rc="$1"
+
+    if [ ! -f "$target_rc" ]; then
+        print_skip "スキップ: $target_rc (ファイルが存在しません)"
+        return 0
+    fi
+
+    if grep -qF "$DOTWORK_MARKER_BEGIN" "$target_rc" 2>/dev/null; then
+        print_skip "スキップ: $target_rc (source行は挿入済み)"
+        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+        return 0
+    fi
+
+    if [ "$MODE_DRY_RUN" = "true" ]; then
+        print_info "[ドライラン] source行を挿入: $target_rc"
+        COUNT_CREATED=$((COUNT_CREATED + 1))
+        return 0
+    fi
+
+    if [ -s "$target_rc" ]; then
+        tail_char=$(tail -c 1 "$target_rc" 2>/dev/null | wc -l)
+        if [ "$tail_char" -eq 0 ]; then
+            printf '\n' >> "$target_rc"
+        fi
+    fi
+
+    cat >> "$target_rc" << EOF
+
+$DOTWORK_MARKER_BEGIN
+bass source "\$HOME/.shell_common"
+$DOTWORK_MARKER_END
+EOF
+
+    print_success "source行を挿入: $target_rc"
+    print_info "注意: fishでは bass プラグインが必要です (fisher install edc/bass)"
+    COUNT_CREATED=$((COUNT_CREATED + 1))
+}
+
+# 追記モード: rcファイルからsourceブロックを削除
+remove_source_block() {
+    target_rc="$1"
+
+    if [ ! -f "$target_rc" ]; then
+        return 0
+    fi
+
+    if ! grep -qF "$DOTWORK_MARKER_BEGIN" "$target_rc" 2>/dev/null; then
+        return 0
+    fi
+
+    if [ "$MODE_DRY_RUN" = "true" ]; then
+        print_info "[ドライラン] source行を削除: $target_rc"
+        return 0
+    fi
+
+    # 一時ファイル経由で書き換え (sed -i はPOSIX非準拠)
+    tmp_file="${target_rc}.dotwork_tmp"
+    in_block=false
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in
+            *"$DOTWORK_MARKER_BEGIN"*)
+                in_block=true
+                continue
+                ;;
+            *"$DOTWORK_MARKER_END"*)
+                in_block=false
+                continue
+                ;;
+        esac
+        if [ "$in_block" = "false" ]; then
+            printf '%s\n' "$line"
+        fi
+    done < "$target_rc" > "$tmp_file"
+
+    mv "$tmp_file" "$target_rc"
+
+    print_success "source行を削除: $target_rc"
+    COUNT_REMOVED=$((COUNT_REMOVED + 1))
+}
+
+# 追記モードインストール
+install_shell_append() {
+    # ~/.shell_common のシンボリックリンクを作成
+    create_link "config/shell/common.sh" "${HOME}/.shell_common"
+
+    # 選択シェルのrcファイルにsourceブロックを挿入
+    case "$SHELL_TYPE" in
+        bash)
+            inject_source_block "${HOME}/.bashrc"
+            ;;
+        zsh)
+            inject_source_block "${HOME}/.zshrc"
+            ;;
+        fish)
+            ensure_dir "${HOME}/.config/fish"
+            inject_source_block_fish "${HOME}/.config/fish/config.fish"
+            ;;
+        all)
+            inject_source_block "${HOME}/.bashrc"
+            inject_source_block "${HOME}/.zshrc"
+            ensure_dir "${HOME}/.config/fish"
+            inject_source_block_fish "${HOME}/.config/fish/config.fish"
+            ;;
+    esac
+}
+
 uninstall_shell_config() {
     print_header "シェル設定をアンインストール"
 
+    # フルセットのリンク削除
     remove_link "config/shell/bash/bashrc" "${HOME}/.bashrc"
     remove_link "config/shell/bash/bash_profile" "${HOME}/.bash_profile"
     remove_link "config/shell/zsh/zshrc" "${HOME}/.zshrc"
     remove_link "config/shell/zsh/zprofile" "${HOME}/.zprofile"
     remove_link "config/shell/fish/config.fish" "${HOME}/.config/fish/config.fish"
+
+    # 追記モード・カスタムモードのクリーンアップ
+    remove_link "config/shell/common.sh" "${HOME}/.shell_common"
+    remove_link "config/shell/aliases.sh" "${HOME}/.shell_aliases"
+    remove_source_block "${HOME}/.bashrc"
+    remove_source_block "${HOME}/.zshrc"
+    remove_source_block "${HOME}/.config/fish/config.fish"
 }
 
 # ============================================================================
@@ -736,40 +897,61 @@ confirm_installation() {
     echo ""
 
     if [ "$SHELL_SELECTED" = "true" ]; then
-        if [ "$SHELL_COMPONENTS" = "full" ]; then
-            printf "  ${COLOR_CYAN}シェル設定 - フルセット (${SHELL_TYPE}):${COLOR_RESET}\n"
-            case "$SHELL_TYPE" in
-                bash)
-                    printf "    + config/shell/bash/bashrc -> ~/.bashrc\n"
-                    printf "    + config/shell/bash/bash_profile -> ~/.bash_profile\n"
-                    ;;
-                zsh)
-                    printf "    + config/shell/zsh/zshrc -> ~/.zshrc\n"
-                    printf "    + config/shell/zsh/zprofile -> ~/.zprofile\n"
-                    ;;
-                fish)
-                    printf "    + config/shell/fish/config.fish -> ~/.config/fish/config.fish\n"
-                    ;;
-                all)
-                    printf "    + config/shell/bash/bashrc -> ~/.bashrc\n"
-                    printf "    + config/shell/bash/bash_profile -> ~/.bash_profile\n"
-                    printf "    + config/shell/zsh/zshrc -> ~/.zshrc\n"
-                    printf "    + config/shell/zsh/zprofile -> ~/.zprofile\n"
-                    printf "    + config/shell/fish/config.fish -> ~/.config/fish/config.fish\n"
-                    ;;
-            esac
-        else
-            printf "  ${COLOR_CYAN}シェル設定 - コンポーネント:${COLOR_RESET}\n"
-            if [ "$SHELL_COMP_ALIASES" = "true" ]; then
-                printf "    + config/shell/aliases.sh -> ~/.shell_aliases\n"
-            fi
-            if [ "$SHELL_COMP_COMMON" = "true" ]; then
+        case "$SHELL_COMPONENTS" in
+            full)
+                printf "  ${COLOR_CYAN}シェル設定 - フルセット (${SHELL_TYPE}):${COLOR_RESET}\n"
+                case "$SHELL_TYPE" in
+                    bash)
+                        printf "    + config/shell/bash/bashrc -> ~/.bashrc\n"
+                        printf "    + config/shell/bash/bash_profile -> ~/.bash_profile\n"
+                        ;;
+                    zsh)
+                        printf "    + config/shell/zsh/zshrc -> ~/.zshrc\n"
+                        printf "    + config/shell/zsh/zprofile -> ~/.zprofile\n"
+                        ;;
+                    fish)
+                        printf "    + config/shell/fish/config.fish -> ~/.config/fish/config.fish\n"
+                        ;;
+                    all)
+                        printf "    + config/shell/bash/bashrc -> ~/.bashrc\n"
+                        printf "    + config/shell/bash/bash_profile -> ~/.bash_profile\n"
+                        printf "    + config/shell/zsh/zshrc -> ~/.zshrc\n"
+                        printf "    + config/shell/zsh/zprofile -> ~/.zprofile\n"
+                        printf "    + config/shell/fish/config.fish -> ~/.config/fish/config.fish\n"
+                        ;;
+                esac
+                ;;
+            append)
+                printf "  ${COLOR_CYAN}シェル設定 - 追記モード (${SHELL_TYPE}):${COLOR_RESET}\n"
                 printf "    + config/shell/common.sh -> ~/.shell_common\n"
-            fi
-            if [ "$SHELL_COMP_PROMPT" = "true" ]; then
-                printf "    + config/git/.git-prompt.sh -> ~/.git-prompt.sh\n"
-            fi
-        fi
+                case "$SHELL_TYPE" in
+                    bash)
+                        printf "    → ~/.bashrc にsource行を自動挿入\n"
+                        ;;
+                    zsh)
+                        printf "    → ~/.zshrc にsource行を自動挿入\n"
+                        ;;
+                    fish)
+                        printf "    → ~/.config/fish/config.fish にsource行を自動挿入\n"
+                        ;;
+                    all)
+                        printf "    → ~/.bashrc, ~/.zshrc, ~/.config/fish/config.fish にsource行を自動挿入\n"
+                        ;;
+                esac
+                ;;
+            *)
+                printf "  ${COLOR_CYAN}シェル設定 - コンポーネント:${COLOR_RESET}\n"
+                if [ "$SHELL_COMP_ALIASES" = "true" ]; then
+                    printf "    + config/shell/aliases.sh -> ~/.shell_aliases\n"
+                fi
+                if [ "$SHELL_COMP_COMMON" = "true" ]; then
+                    printf "    + config/shell/common.sh -> ~/.shell_common\n"
+                fi
+                if [ "$SHELL_COMP_PROMPT" = "true" ]; then
+                    printf "    + config/git/.git-prompt.sh -> ~/.git-prompt.sh\n"
+                fi
+                ;;
+        esac
         echo ""
     fi
 
