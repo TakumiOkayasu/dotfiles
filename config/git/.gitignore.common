@@ -224,6 +224,11 @@ core
 
 # === AI / Tool ===
 .claude/
+claude_tmp/
+
+# === Secrets ===
+secrets/
+**/secrets/
 
 # === VCS ===
 .svn/
