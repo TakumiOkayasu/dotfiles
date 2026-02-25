@@ -63,6 +63,8 @@ description: コードやPRをレビューする際に使用。品質、保守�
 
 ### 可読性
 - 命名は明確か
+  - `handle*`, `process*`, `do*` など意味のない接頭辞を使っていないか → 具体的な動作を名前にする
+  - 悪例: `handleConnect` → 良例: `connectToDatabase`, `submitConnectionConfig`
 - 複雑すぎないか
 - コメントは適切か
 
