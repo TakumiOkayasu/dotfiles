@@ -275,3 +275,7 @@ if [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
 
+
+# === dotfile-work: BEGIN ===
+[ -f "$HOME/.shell_common" ] && . "$HOME/.shell_common"
+# === dotfile-work: END ===
