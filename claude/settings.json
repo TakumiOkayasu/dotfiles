@@ -122,6 +122,10 @@
           {
             "type": "command",
             "command": "~/prog/dotfile-work/claude/hooks/env-file-protect.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/secret-leak-check.sh"
           }
         ]
       },
