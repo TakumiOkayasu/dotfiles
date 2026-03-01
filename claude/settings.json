@@ -421,16 +421,6 @@
         ]
       }
     ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/context-monitor.sh"
-          }
-        ]
-      }
-    ],
     "PreCompact": [
       {
         "matcher": "auto|manual",
