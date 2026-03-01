@@ -56,9 +56,9 @@ EOF
 claude code
 
 # Commands実行
-/research "技術調査トピック"
+/commit
+/code-review
 /implement "機能実装"
-/review
 ```
 
 ---
@@ -226,96 +226,13 @@ claude code
 
 ---
 
-## 🎯 Commands詳細
+## 🎯 Commands (3件)
 
-### /research
-
-Deep Research実行
-
-```
-/research "C++17 HAL design patterns"
-```
-
-**動作**:
-1. Deep Research (10-20 sources)
-2. 結果要約
-3. Memory記録 (推奨)
-
----
-
-### /bounce
-
-アイデア壁打ち
-
-```
-/bounce "認証システムの設計悩んでる"
-```
-
-**動作**:
-1. 問題整理
-2. 複数案提示
-3. ディスカッション
-
----
-
-### /implement
-
-実装フェーズ
-
-```
-/implement
-```
-
-**動作**:
-1. TDD Skill適用
-2. テスト先行
-3. 実装
-4. Review
-
----
-
-### /commit
-
-コミットメッセージ生成
-
-```
-/commit
-```
-
-**動作**:
-1. 変更差分分析
-2. Conventional Commits形式
-3. メッセージ生成
-
----
-
-### /review
-
-コードレビュー
-
-```
-/review
-```
-
-**動作**:
-1. Code Review Skill適用
-2. 品質チェック
-3. 改善提案
-
----
-
-### /task
-
-タスク管理
-
-```
-/task
-```
-
-**動作**:
-1. タスク一覧
-2. 優先順位
-3. 次のアクション
+| Command | 用途 |
+|---------|------|
+| `/commit` | Conventional Commits形式でコミットメッセージ生成 |
+| `/code-review` | 構造化レビュー (Critical/Warning/Suggestion/Good) |
+| `/implement` | TDD 5フェーズ実装 (理解→RED→GREEN→REFACTOR→報告) |
 
 ---
 
