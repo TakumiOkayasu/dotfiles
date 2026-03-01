@@ -730,6 +730,74 @@ uninstall_gitconfig() {
 # Claude設定
 # ============================================================================
 
+# DOTFILES_DIR向きの壊れたシンボリックリンクか判定
+# return 0 = stale, return 1 = not stale
+_is_stale_link() {
+    [ ! -L "$1" ] && return 1
+    _sl_target=$(readlink "$1" 2>/dev/null) || return 1
+    case "$_sl_target" in "${DOTFILES_DIR}"/*) ;; *) return 1 ;; esac
+    [ -e "$1" ] && return 1
+    return 0
+}
+
+# 古いリンク/ディレクトリを削除 (ドライラン対応・エラー報告付き)
+# $1: パス, $2: メッセージ, $3: "rf"でrm -rf使用
+_remove_stale() {
+    if [ "$MODE_DRY_RUN" = "true" ]; then
+        print_info "[ドライラン] 削除: $2"
+        return 0
+    fi
+    _rs_ok=false
+    if [ "$3" = "rf" ]; then
+        rm -rf "$1" 2>/dev/null && _rs_ok=true
+    else
+        rm "$1" 2>/dev/null && _rs_ok=true
+    fi
+    if [ "$_rs_ok" = "true" ]; then
+        print_info "削除: $2"
+    else
+        print_error "削除失敗: $2"
+        COUNT_ERROR=$((COUNT_ERROR + 1))
+    fi
+}
+
+# ~/.claude/ 配下の孤立シンボリックリンクをクリーンアップ
+cleanup_stale_claude_links() {
+    for _dir in commands hooks skills; do
+        _target_dir="${HOME}/.claude/${_dir}"
+        [ ! -d "$_target_dir" ] && continue
+        for _entry in "$_target_dir"/*; do
+            if [ -L "$_entry" ]; then
+                # フラットリンク (commands/, hooks/)
+                _is_stale_link "$_entry" || continue
+                _name=$(basename "$_entry")
+                _remove_stale "$_entry" "古い${_dir}: $_name"
+            elif [ -d "$_entry" ]; then
+                # ディレクトリ (skills/)
+                _name=$(basename "$_entry")
+                # 旧4ティア構造
+                case "$_name" in
+                    1-core|2-domain|3-task|4-utility)
+                        _remove_stale "$_entry" "旧スキル構造: $_name" rf
+                        continue
+                        ;;
+                esac
+                # 中身が全てDOTFILES_DIR向き壊れたリンク → ディレクトリごと削除
+                # 空ディレクトリはスキップ（手動作成の可能性）
+                _has_entries=false
+                _all_stale=true
+                for _f in "$_entry"/*; do
+                    [ ! -L "$_f" ] && [ ! -e "$_f" ] && continue
+                    _has_entries=true
+                    _is_stale_link "$_f" || { _all_stale=false; break; }
+                done
+                [ "$_has_entries" = "true" ] && [ "$_all_stale" = "true" ] || continue
+                _remove_stale "$_entry" "古い${_dir}: $_name" rf
+            fi
+        done
+    done
+}
+
 install_claude_config() {
     if [ "$CLAUDE_SELECTED" != "true" ]; then
         return 0
@@ -743,28 +811,8 @@ install_claude_config() {
     ensure_dir "${HOME}/.claude/hooks"
     ensure_dir "${HOME}/.claude/skills"
 
-    # 古い4ティア構造のスキルディレクトリをクリーンアップ
-    # (flat構造への移行に伴い、旧ディレクトリと壊れたシンボリックリンクを削除)
-    if [ -d "${HOME}/.claude/skills" ]; then
-        for skill_dir in "${HOME}/.claude/skills"/*/; do
-            [ ! -d "$skill_dir" ] && continue
-            skill_name=$(basename "$skill_dir")
-            # 旧4ティア構造のディレクトリを削除
-            case "$skill_name" in
-                1-core|2-domain|3-task|4-utility)
-                    print_info "削除: 旧スキル構造: $skill_name"
-                    rm -rf "$skill_dir"
-                    continue
-                    ;;
-            esac
-            # 壊れたシンボリックリンクを持つディレクトリを削除
-            skill_md="${skill_dir}SKILL.md"
-            if [ -L "$skill_md" ] && [ ! -e "$skill_md" ]; then
-                print_info "削除: 古いスキル: $skill_name"
-                rm -rf "$skill_dir"
-            fi
-        done
-    fi
+    # 孤立シンボリックリンクをクリーンアップ
+    cleanup_stale_claude_links
 
     # claude/ 内のファイルを取得してリンク (templates/は除外)
     if [ -d "${DOTFILES_DIR}/claude" ]; then
