@@ -77,13 +77,15 @@
 
 ```json
 "skills": {
-  "hierarchy": "4-tier",       // 4階層構造
-  "core": [                    // Core Skills
+  "hierarchy": "flat",         // フラット構造 (6スキル)
+  "list": [                    // 全スキル
+    "hallucination-prevention",
     "systematic-debugging",
-    "test-driven-development"
-  ],
-  "autoDetect": true,          // 自動検出
-  "maxLoad": 20                // 最大読み込み
+    "test-driven-development",
+    "hierarchical-architecture",
+    "consultation",
+    "failure-logging"
+  ]
 }
 ```
 

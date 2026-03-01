@@ -35,23 +35,15 @@
 |----------|--------|------|
 | `CLAUDE.md` | `~/.claude/CLAUDE.md` | Claude Code用グローバル指示ファイル |
 | `settings.json` | `~/.claude/settings.json` | Claude Code権限・hooks設定 |
-| `skills/` | `~/.claude/skills/` | Claude Codeスキル定義 (35種類) |
+| `skills/` | `~/.claude/skills/` | Claude Codeスキル定義 (6種類) |
 | `hooks/` | `~/.claude/hooks/` | Claude Code自動リマインドhooks |
 
 新しいファイルを追加する場合は `claude-config/` に配置して `git add` するだけでOK。
 install.sh が `git ls-files` で自動検出してリンクを作成します。
 
-#### スキル一覧
+#### スキル一覧 (6件, flat構造)
 
-開発プロセス: `brainstorming-design`, `code-generation`, `code-review`, `refactoring`, `systematic-debugging`, `test-driven-development`
-
-設計・アーキテクチャ: `api-design`, `database-design`, `error-handling`, `interface-composition-design`, `concurrency-async`, `pattern-thinking`
-
-品質・セキュリティ: `security-review`, `security-checklist`, `input-validation`, `collaboration-principles`, `performance-optimization`
-
-インフラ・運用: `ci-cd`, `docker`, `environment-configuration`, `logging-observability`, `dependency-management`, `migration-upgrade`, `caching`
-
-その他: `authentication-authorization`, `documentation`, `email`, `file-storage`, `git-workflow`, `github`, `gitlab`, `internationalization`, `typescript-strict`, `ui-ux-design`, `websocket-realtime`
+`hallucination-prevention`, `systematic-debugging`, `test-driven-development`, `hierarchical-architecture`, `consultation`, `failure-logging`
 
 #### Hooks
 

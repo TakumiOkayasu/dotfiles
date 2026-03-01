@@ -743,15 +743,17 @@ install_claude_config() {
     ensure_dir "${HOME}/.claude/hooks"
     ensure_dir "${HOME}/.claude/skills"
 
-    # 古いフラット構造のスキルディレクトリをクリーンアップ
-    # (4ティア構造への移行に伴い、壊れたシンボリックリンクを削除)
+    # 古い4ティア構造のスキルディレクトリをクリーンアップ
+    # (flat構造への移行に伴い、旧ディレクトリと壊れたシンボリックリンクを削除)
     if [ -d "${HOME}/.claude/skills" ]; then
         for skill_dir in "${HOME}/.claude/skills"/*/; do
             [ ! -d "$skill_dir" ] && continue
             skill_name=$(basename "$skill_dir")
-            # 4ティア構造のディレクトリはスキップ
+            # 旧4ティア構造のディレクトリを削除
             case "$skill_name" in
                 1-core|2-domain|3-task|4-utility)
+                    print_info "削除: 旧スキル構造: $skill_name"
+                    rm -rf "$skill_dir"
                     continue
                     ;;
             esac

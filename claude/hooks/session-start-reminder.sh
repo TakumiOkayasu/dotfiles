@@ -48,23 +48,21 @@ else
     echo ""
 fi
 
-# スキルファイルをカテゴリ別に列挙
+# スキルファイルを列挙 (flat構造)
 SKILLS_DIR="$HOME/.claude/skills"
 if [ -d "$SKILLS_DIR" ]; then
-    echo "📚 SKILLS (read as needed):"
-    for category in "$SKILLS_DIR"/*/; do
-        if [ -d "$category" ]; then
-            cat_name=$(basename "$category")
-            skills=$(find "$category" -maxdepth 2 -name "SKILL.md" \( -type f -o -type l \) 2>/dev/null | \
-                sed 's|.*/\([^/]*\)/SKILL\.md|\1|' | \
-                grep -v "^$cat_name$" | \
-                sort | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
-            if [ -n "$skills" ]; then
-                echo "  $cat_name: $skills"
-            fi
-        fi
-    done
-    echo ""
+    skills=$(find "$SKILLS_DIR" -maxdepth 2 -name "SKILL.md" \( -type f -o -type l \) 2>/dev/null | \
+        sed 's|.*/\([^/]*\)/SKILL\.md|\1|' | \
+        sort | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+    if [ -n "$skills" ]; then
+        echo "📚 SKILLS (read as needed):"
+        echo "  $skills"
+        echo ""
+    else
+        echo "📚 AVAILABLE SKILLS:"
+        echo "  No skills found in $SKILLS_DIR"
+        echo ""
+    fi
 fi
 
 # プロジェクト環境チェック（Docker/Git/hookルール）
