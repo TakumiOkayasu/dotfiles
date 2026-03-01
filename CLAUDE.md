@@ -60,15 +60,24 @@ dotfile-work/
 │   │   ├── commit.md          # /commit - commit message generation
 │   │   ├── code-review.md     # /code-review - code review
 │   │   └── implement.md       # /implement - TDD implementation guide
-│   ├── hooks/                 # Auto-reminders
-│   │   ├── session-start-reminder.sh           # Session start
+│   ├── hooks/                 # Auto-reminders (18 hooks)
+│   │   ├── session-start-reminder.sh           # Session start reminder
+│   │   ├── session-resume.sh                   # Session resume from progress
 │   │   ├── git-commit-push-block.sh            # Block Claude from commit/push
 │   │   ├── main-branch-code-warning.sh         # Warn edits on main
 │   │   ├── branch-from-main-check.sh           # Verify branch from main
 │   │   ├── git-post-command-reminder.sh        # Auto cleanup merged branches
+│   │   ├── commit-checkpoint.sh                # Auto checkpoint on commit
+│   │   ├── context-monitor.sh                  # Context usage monitoring
+│   │   ├── pre-compact-backup.sh               # Backup before compaction
 │   │   ├── doc-consistency-reminder.sh         # Doc consistency check
 │   │   ├── hierarchical-architecture-naming-check.sh  # Naming convention check
-│   │   └── env-file-protect.sh                 # Block .env file read/edit
+│   │   ├── docker-build-check.sh               # Docker build validation
+│   │   ├── language-version-check.sh           # Language version check
+│   │   ├── local-command-block.sh              # Block local command execution
+│   │   ├── admin-command-block.sh              # Block sudo/admin commands
+│   │   ├── env-file-protect.sh                 # Block .env file read/edit
+│   │   └── secret-leak-check.sh               # Block hardcoded secrets in commands
 │   ├── skills/                # Flat skill structure (6 skills)
 │   │   ├── hallucination-prevention/
 │   │   ├── systematic-debugging/
