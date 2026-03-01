@@ -39,14 +39,12 @@
 ```text
 git branch --show-current
 [main の場合] git-new-feature <機能名>
-view ~/.claude/skills/<該当スキル>/SKILL.md
+view ~/.claude/skills/test-driven-development/SKILL.md
 ```
 
 ---
 
 ## 🚨 禁止事項
-
-詳細: `forbidden-actions` スキル
 
 | 操作 | 条件 | 判定 |
 |------|------|------|
@@ -57,6 +55,8 @@ view ~/.claude/skills/<該当スキル>/SKILL.md
 | 管理者権限 (sudo等) | 常に | 🚫 (hook) |
 | 単一案で実装 | 常に | 🚫 |
 | スキル未読で実装 | 常に | 🚫 |
+| おべっか・根拠なき称賛 | 常に | 🚫 |
+| 反論すべき点の黙認 | 常に | 🚫 |
 
 ### 🔒 コマンド難読化の禁止
 
@@ -88,16 +88,48 @@ hookを迂回するための難読化・間接実行は**絶対禁止**。
 
 ---
 
-## 📋 スキルマップ
+## 📋 スキル (flat構造, 6件)
 
-| 分類 | スキル |
-|------|--------|
-| 思考 | brainstorming-design, pattern-thinking, problem-solving |
-| 実装 | test-driven-development, code-generation |
-| Git | git-workflow, github |
-| デバッグ | systematic-debugging, failure-logging |
+| スキル | 用途 |
+|--------|------|
+| hallucination-prevention | API/パッケージ存在確認チェック |
+| systematic-debugging | 4フェーズ根本原因分析 |
+| test-driven-development | RED-GREEN-REFACTOR強制 |
+| hierarchical-architecture | ピラミッド依存・レイヤー設計 |
+| consultation | 構造化された相談テンプレート |
+| failure-logging | 失敗DB記録・参照 |
 
-その他: `ls ~/.claude/skills/`
+---
+
+## 🔀 Git ワークフロー
+
+### ブランチ操作
+
+```bash
+git-new-feature 機能名        # feat/機能名
+git-new-feature -f バグ名     # fix/バグ名
+git-new-feature -d 内容       # docs/内容
+git-new-feature -r 対象       # refactor/対象
+git-new-feature -c 内容       # chore/内容
+git-cleanup-branch            # マージ済みブランチ削除
+```
+
+### Conventional Commits
+
+| タイプ | 用途 |
+|--------|------|
+| feat | 新機能 |
+| fix | バグ修正 |
+| docs | ドキュメント |
+| refactor | リファクタリング |
+| test | テスト |
+| chore | 雑務 |
+
+### ルール
+
+- **1ブランチ = 1機能 = 1PR** (「ついでに」修正禁止)
+- **ロックファイル**: `package-lock.json`, `poetry.lock` 等は必ずコミット
+- **1コミット = 1つの論理的変更**
 
 ---
 

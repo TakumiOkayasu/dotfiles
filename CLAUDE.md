@@ -73,11 +73,13 @@ dotfile-work/
 │   │   ├── doc-consistency-reminder.sh         # Doc consistency check
 │   │   ├── hierarchical-architecture-naming-check.sh  # Naming convention check
 │   │   └── env-file-protect.sh                 # Block .env file read/edit
-│   ├── skills/                # 4-tier skill system
-│   │   ├── 1-core/            # Always applied
-│   │   ├── 2-domain/          # Project selection
-│   │   ├── 3-task/            # On-demand
-│   │   └── 4-utility/         # Special purpose
+│   ├── skills/                # Flat skill structure (6 skills)
+│   │   ├── hallucination-prevention/
+│   │   ├── systematic-debugging/
+│   │   ├── test-driven-development/
+│   │   ├── hierarchical-architecture/
+│   │   ├── consultation/
+│   │   └── failure-logging/
 │   └── templates/lang/        # Project templates
 └── docs/
     ├── USAGE.md               # Usage guide v2.0
@@ -86,14 +88,16 @@ dotfile-work/
 
 ## Key Concepts
 
-### 4-Tier Skills System
+### Skills (Flat Structure)
 
-| Tier | Directory | Load | Purpose |
-|------|-----------|------|---------|
-| 1-core | skills/1-core/ | Always | Mandatory rules (TDD, debugging, forbidden-actions) |
-| 2-domain | skills/2-domain/ | Project config | Domain-specific (web-backend, embedded, security) |
-| 3-task | skills/3-task/ | On-demand | Task-specific (design, integration, maintenance) |
-| 4-utility | skills/4-utility/ | Manual | Special utilities (consultation, daily-report) |
+| Skill | Purpose |
+|-------|---------|
+| hallucination-prevention | API/package existence verification checklist |
+| systematic-debugging | 4-phase root cause analysis |
+| test-driven-development | RED-GREEN-REFACTOR enforcement |
+| hierarchical-architecture | Pyramid dependency, layer design |
+| consultation | Structured consultation template |
+| failure-logging | Failure DB recording |
 
 ### Install Flow
 
