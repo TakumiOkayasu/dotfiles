@@ -4,11 +4,11 @@
 # 責務:
 #   - transcript JSONL を解析してコンテキスト使用率を算出
 #   - 閾値超過時にClaude側へ PROGRESS.md 更新を催促
-#   - UserPromptSubmit / Stop / PostToolUse から呼ばれる
+#   - UserPromptSubmit / PostToolUse から呼ばれる
 #
 # 出力形式:
 #   - UserPromptSubmit: プレーンテキスト(stdout → Claudeのコンテキストに注入)
-#   - Stop / PostToolUse: JSON(additionalContext)
+#   - PostToolUse: JSON(additionalContext)
 #
 # 依存: jaq or jq, perl
 
@@ -99,18 +99,6 @@ case "$HOOK_EVENT" in
     UserPromptSubmit)
         # stdout がそのまま Claude のコンテキストに注入される
         echo "$MSG"
-        ;;
-    Stop)
-        # Stop hook: JSON で additionalContext
-        ESCAPED_MSG=$(printf '%s' "$MSG" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
-        cat <<EOF
-{
-  "hookSpecificOutput": {
-    "hookEventName": "Stop",
-    "additionalContext": "${ESCAPED_MSG}"
-  }
-}
-EOF
         ;;
     PostToolUse|PostToolUseFailure)
         # PostToolUse hook: JSON で additionalContext
