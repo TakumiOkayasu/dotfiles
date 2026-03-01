@@ -129,9 +129,8 @@
 "commands": {
   "enabled": true,
   "aliases": {                 // エイリアス
-    "/r": "/research",
-    "/b": "/bounce",
-    "/i": "/implement"
+    "/i": "/implement",
+    "/cr": "/code-review"
   }
 }
 ```

@@ -56,14 +56,10 @@ dotfile-work/
 │   ├── global_CLAUDE.md       # Global instructions (Japanese)
 │   ├── settings.json          # Claude settings (hooks, skills, lang:ja)
 │   ├── .claudeignore          # Global ignore patterns (209 lines)
-│   ├── commands/              # Slash commands
-│   │   ├── bounce.md          # /bounce - idea discussion
-│   │   ├── research.md        # /research - quick search
-│   │   ├── deepresearch.md    # /deepresearch - thorough research
-│   │   ├── implement.md       # /implement - implementation guide
+│   ├── commands/              # Slash commands (3 commands)
 │   │   ├── commit.md          # /commit - commit message generation
 │   │   ├── code-review.md     # /code-review - code review
-│   │   └── task.md            # /task - task management
+│   │   └── implement.md       # /implement - TDD implementation guide
 │   ├── hooks/                 # Auto-reminders
 │   │   ├── session-start-reminder.sh           # Session start
 │   │   ├── git-commit-push-block.sh            # Block Claude from commit/push

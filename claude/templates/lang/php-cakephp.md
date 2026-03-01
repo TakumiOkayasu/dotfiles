@@ -52,10 +52,9 @@ bin/cake test --coverage-html coverage/
 ```
 
 ## Available Commands
-- `/task` - tasks/ 内のタスクファイルを実行
-- `/implement` - 機能実装 (TDDスタイル)
-- `/review` - コードレビュー
-- `/commit` - コミット準備
+- `/commit` - コミットメッセージ生成
+- `/code-review` - コードレビュー
+- `/implement` - TDD実装ガイド
 
 ## Constraints
 - 大きな変更は一度に行わない、段階的に進める

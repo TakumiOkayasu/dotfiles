@@ -51,16 +51,9 @@ EOF
 claude code
 
 # Commands実行
-/research "技術調査トピック"
-/implement "機能実装"
-<<<<<<< Updated upstream
-/review
-=======
-<<<<<<< Updated upstream
-=======
+/commit
 /code-review
->>>>>>> Stashed changes
->>>>>>> Stashed changes
+/implement "機能実装"
 ```
 
 ---
@@ -80,125 +73,13 @@ claude code
 
 ---
 
-## 🎯 Commands詳細
+## 🎯 Commands (3件)
 
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
 | Command | 用途 |
 |---------|------|
 | `/commit` | Conventional Commits形式でコミットメッセージ生成 |
 | `/code-review` | 構造化レビュー (Critical/Warning/Suggestion/Good) |
 | `/implement` | TDD 5フェーズ実装 (理解→RED→GREEN→REFACTOR→報告) |
-=======
->>>>>>> Stashed changes
-### /research
-
-Deep Research実行
-
-```
-/research "C++17 HAL design patterns"
-```
-
-<<<<<<< Updated upstream
-**動作**:
-1. Deep Research (10-20 sources)
-2. 結果要約
-3. Memory記録 (推奨)
-
----
-
-=======
->>>>>>> Stashed changes
-### /bounce
-
-アイデア壁打ち
-
-```
-/bounce "認証システムの設計悩んでる"
-```
-
-<<<<<<< Updated upstream
-**動作**:
-1. 問題整理
-2. 複数案提示
-3. ディスカッション
-
----
-
-=======
->>>>>>> Stashed changes
-### /implement
-
-実装フェーズ
-
-```
-/implement
-```
-
-<<<<<<< Updated upstream
-**動作**:
-1. TDD Skill適用
-2. テスト先行
-3. 実装
-4. Review
-
----
-
-=======
->>>>>>> Stashed changes
-### /commit
-
-コミットメッセージ生成
-
-```
-/commit
-```
-
-<<<<<<< Updated upstream
-**動作**:
-1. 変更差分分析
-2. Conventional Commits形式
-3. メッセージ生成
-
----
-
-### /review
-=======
-### /code-review
->>>>>>> Stashed changes
-
-コードレビュー
-
-```
-<<<<<<< Updated upstream
-/review
-```
-
-**動作**:
-1. Code Review Skill適用
-2. 品質チェック
-3. 改善提案
-
----
-
-### /task
-
-タスク管理
-
-```
-/task
-```
-
-**動作**:
-1. タスク一覧
-2. 優先順位
-3. 次のアクション
-=======
-/code-review
-```
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 
 ---
 
