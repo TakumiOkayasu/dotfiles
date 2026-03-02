@@ -698,27 +698,9 @@ install_gitconfig() {
     create_link "config/git/.gitconfig.common" "${HOME}/.gitconfig.common"
     # 環境固有設定
     create_link "config/git/.gitconfig.${GITCONFIG_VARIANT}" "${HOME}/.gitconfig"
-
-    # 動的設定 (SSH)
-    SSH_CMD=$(command -v ssh 2>/dev/null || echo "ssh")
-    if [ "$MODE_DRY_RUN" = "true" ]; then
-        print_info "[ドライラン] 作成: ${HOME}/.gitconfig.local (sshCommand = ${SSH_CMD})"
-    else
-        cat > "${HOME}/.gitconfig.local" <<EOF
-# install.sh により自動生成
-[core]
-    sshCommand = ${SSH_CMD}
-EOF
-        print_success "作成: ${HOME}/.gitconfig.local (sshCommand = ${SSH_CMD})"
-    fi
 }
 
 uninstall_gitconfig() {
-    # 動的設定ファイルの削除
-    if [ -f "${HOME}/.gitconfig.local" ]; then
-        rm "${HOME}/.gitconfig.local"
-        print_success "削除: ${HOME}/.gitconfig.local"
-    fi
     # 共通設定
     remove_link "config/git/.gitconfig.common" "${HOME}/.gitconfig.common"
     # 環境固有設定
