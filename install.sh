@@ -125,7 +125,10 @@ detect_platform() {
     elif [ "$(uname)" = "Darwin" ]; then
         echo "macos"
     else
-        echo "linux"
+        case "$(uname -s)" in
+            CYGWIN*|MINGW*|MSYS*) echo "windows" ;;
+            *) echo "linux" ;;
+        esac
     fi
 }
 
