@@ -78,7 +78,7 @@ claude code
 | Command | 用途 |
 |---------|------|
 | `/commit` | Conventional Commits形式でコミットメッセージ生成 |
-| `/code-review` | 構造化レビュー (Critical/Warning/Suggestion/Good) |
+| `/code-review` | 構造化レビュー (Critical/Warning/Suggestion) 修正コード付き |
 | `/implement` | TDD 5フェーズ実装 (理解→RED→GREEN→REFACTOR→報告) |
 
 ---
