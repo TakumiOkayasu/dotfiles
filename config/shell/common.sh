@@ -95,6 +95,51 @@ DOTFILES_PLATFORM="$(_dotfiles_detect_platform)"
 export DOTFILES_PLATFORM
 
 # ============================================================================
+# Windows連携ユーティリティ (WSL/Git Bash/Cygwin共通)
+# ============================================================================
+
+# Windowsホームディレクトリ検出 (Unix形式パスを返す)
+_dotfiles_detect_win_home() {
+    # 既に設定済みならそのまま返す
+    [ -n "${WIN_HOME:-}" ] && echo "$WIN_HOME" && return 0
+
+    case "$DOTFILES_PLATFORM" in
+        wsl)
+            # wslpath が最も確実
+            if command -v wslpath >/dev/null 2>&1; then
+                _dw_profile=$(cmd.exe /c "echo %USERPROFILE%" 2>/dev/null | tr -d '\r')
+                if [ -n "$_dw_profile" ]; then
+                    _dw_result=$(wslpath "$_dw_profile" 2>/dev/null)
+                    unset _dw_profile
+                    [ -n "$_dw_result" ] && echo "$_dw_result" && unset _dw_result && return 0
+                    unset _dw_result
+                fi
+                unset _dw_profile
+            fi
+            # フォールバック: cmd.exe でユーザー名取得
+            _dw_user=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r' 2>/dev/null) || _dw_user="$(whoami)"
+            if [ -d "/mnt/c/Users/$_dw_user" ]; then
+                echo "/mnt/c/Users/$_dw_user" && unset _dw_user && return 0
+            fi
+            unset _dw_user
+            ;;
+        windows)
+            # cygpath (Git Bash/MSYS/Cygwin)
+            if command -v cygpath >/dev/null 2>&1 && [ -n "${USERPROFILE:-}" ]; then
+                cygpath "$USERPROFILE" 2>/dev/null && return 0
+            fi
+            # フォールバック: 環境変数から推定
+            _dw_user="${USERNAME:-$(whoami)}"
+            if [ -d "/c/Users/$_dw_user" ]; then
+                echo "/c/Users/$_dw_user" && unset _dw_user && return 0
+            fi
+            unset _dw_user
+            ;;
+    esac
+    return 1
+}
+
+# ============================================================================
 # PATH設定
 # ============================================================================
 
@@ -193,5 +238,6 @@ fi
 
 unset -f _dotfiles_detect_root
 unset -f _dotfiles_detect_platform
+unset -f _dotfiles_detect_win_home
 unset -f _dotfiles_add_path
 unset -f _dotfiles_load_platform

@@ -7,11 +7,13 @@
 # Windows連携
 # ============================================================================
 
-# Windowsホームディレクトリ
-if [ -d "/mnt/c/Users" ]; then
-    WIN_USER="${WIN_USER:-$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r')}"
-    WIN_HOME="/mnt/c/Users/$WIN_USER"
+# Windowsホームディレクトリ (common.sh の _dotfiles_detect_win_home を使用)
+WIN_HOME="${WIN_HOME:-$(_dotfiles_detect_win_home)}"
+if [ -n "$WIN_HOME" ]; then
+    WIN_USER="${WIN_USER:-$(basename "$WIN_HOME")}"
     export WIN_USER WIN_HOME
+    # USERPROFILE: WSLでは未設定のため補完
+    export USERPROFILE="${USERPROFILE:-$WIN_HOME}"
 fi
 
 # ============================================================================
@@ -19,7 +21,9 @@ fi
 # ============================================================================
 
 # Visual Studio Code (Windows版)
-_dotfiles_add_path "/mnt/c/Users/$WIN_USER/AppData/Local/Programs/Microsoft VS Code/bin" append
+if [ -n "${WIN_HOME:-}" ]; then
+    _dotfiles_add_path "$WIN_HOME/AppData/Local/Programs/Microsoft VS Code/bin" append
+fi
 
 # ============================================================================
 # エイリアス
