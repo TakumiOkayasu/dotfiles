@@ -216,6 +216,10 @@
           {
             "type": "command",
             "command": "~/prog/dotfile-work/claude/hooks/context-monitor.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/plan-mode-question-detect.sh"
           }
         ]
       }

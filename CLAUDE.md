@@ -60,7 +60,7 @@ dotfile-work/
 │   │   ├── commit.md          # /commit - commit message generation
 │   │   ├── code-review.md     # /code-review - code review
 │   │   └── implement.md       # /implement - TDD implementation guide
-│   ├── hooks/                 # Auto-reminders (18 hooks)
+│   ├── hooks/                 # Auto-reminders (19 hooks)
 │   │   ├── session-start-reminder.sh           # Session start reminder
 │   │   ├── session-resume.sh                   # Session resume from progress
 │   │   ├── git-commit-push-block.sh            # Block Claude from commit/push
@@ -77,7 +77,8 @@ dotfile-work/
 │   │   ├── local-command-block.sh              # Block local command execution
 │   │   ├── admin-command-block.sh              # Block sudo/admin commands
 │   │   ├── env-file-protect.sh                 # Block .env file read/edit
-│   │   └── secret-leak-check.sh               # Block hardcoded secrets in commands
+│   │   ├── secret-leak-check.sh               # Block hardcoded secrets in commands
+│   │   └── plan-mode-question-detect.sh       # Plan mode intent detection
 │   ├── skills/                # Flat skill structure (6 skills)
 │   │   ├── hallucination-prevention/
 │   │   ├── systematic-debugging/
