@@ -748,7 +748,7 @@ _remove_stale() {
         return 0
     fi
     _rs_ok=false
-    if [ "$3" = "rf" ]; then
+    if [ "${3:-}" = "rf" ]; then
         rm -rf "$1" 2>/dev/null && _rs_ok=true
     else
         rm "$1" 2>/dev/null && _rs_ok=true
