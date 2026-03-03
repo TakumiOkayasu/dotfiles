@@ -93,6 +93,7 @@
     ],
     "defaultMode": "plan"
   },
+  "includeCoAuthoredBy": false,
   "model": "opus",
   "hooks": {
     "PreToolUse": [
