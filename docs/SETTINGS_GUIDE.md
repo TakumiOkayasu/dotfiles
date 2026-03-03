@@ -1,364 +1,205 @@
 # settings.json ガイド
 
-## 📍 配置場所
+Claude Code の `settings.json` 設定リファレンス。
 
-```bash
-~/.claude/settings.json        # グローバル設定
-./CLAUDE.md                    # プロジェクト設定 (優先)
-```
-
-**優先順位**: プロジェクトCLAUDE.md > グローバルsettings.json
+公式ドキュメント: https://code.claude.com/docs/en/settings
 
 ---
 
-## 🚀 クイックスタート
+## 1. 配置場所と優先順位
 
-### 最小構成 (推奨)
+| スコープ | パス | 用途 |
+|---------|------|------|
+| グローバル | `~/.claude/settings.json` | 全プロジェクト共通 |
+| プロジェクト | `.claude/settings.json` | リポジトリ固有 |
+| ローカル | `.claude/settings.local.json` | 個人用（Git管理外） |
+| マネージド | 組織管理者が配布 | 組織ポリシー強制 |
+
+**評価順**: deny → ask → allow（先にマッチしたルールが優先）
+
+---
+
+## 2. スキーマ一覧（主要キー）
 
 ```json
 {
-  "output": {
-    "maxTokens": 2000,
-    "noPreamble": true
-  },
-  "context": {
-    "mode": "incremental"
-  },
-  "security": {
-    "blockGitCommit": true
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {},
+  "hooks": {},
+  "model": "string",
+  "language": "string",
+  "includeCoAuthoredBy": false,
+  "autoUpdatesChannel": "string",
+  "env": {},
+  "sandbox": {},
+  "outputStyle": "string",
+  "additionalDirectories": []
+}
+```
+
+| キー | 型 | 説明 |
+|------|---|------|
+| `permissions` | object | ツール実行の許可/拒否ルール |
+| `hooks` | object | ライフサイクルイベントのフック |
+| `model` | string | デフォルトモデル (`opus`, `sonnet`, `haiku`) |
+| `language` | string | 応答言語 (`japanese` 等) |
+| `includeCoAuthoredBy` | boolean | コミットにCo-Authored-By追加 |
+| `autoUpdatesChannel` | string | 自動更新チャンネル (`latest`, `stable`) |
+| `env` | object | 環境変数の注入 |
+| `sandbox` | object | サンドボックス設定 |
+| `outputStyle` | string | 出力スタイル指示 |
+
+---
+
+## 3. permissions 詳細
+
+```json
+{
+  "permissions": {
+    "allow": ["パターン..."],
+    "ask": ["パターン..."],
+    "deny": ["パターン..."],
+    "defaultMode": "plan"
   }
 }
 ```
 
-**効果**: トークン▼60%, ロード▼90%
+### パターン構文
+
+| パターン | 効果 |
+|---------|------|
+| `Bash(cmd:*)` | cmdで始まるコマンドを許可 |
+| `Bash(cmd arg)` | 完全一致で許可 |
+| `Read(path)` | 特定パスの読み取り許可 |
+| `Edit(path)` | 特定パスの編集許可 |
+| `WebFetch(domain:example.com)` | ドメイン指定のfetch許可 |
+| `mcp__server__tool` | MCP ツール許可 |
+| `Skill(name)` | スキル許可 |
+
+### defaultMode
+
+| 値 | 動作 |
+|---|------|
+| `plan` | デフォルトでPlanモード |
+| `acceptEdits` | 編集は自動許可、Bashは確認 |
+| `bypassPermissions` | 全許可（非推奨） |
 
 ---
 
-## 📋 主要設定項目
-
-### 1. Output最適化 (最優先)
+## 4. hooks 詳細
 
 ```json
-"output": {
-  "maxTokens": 2000,           // 目標トークン数
-  "format": "table-preferred", // テーブル優先
-  "noPreamble": true,          // 前置き禁止
-  "noPostamble": true,         // 締め禁止
-  "useSymbols": true           // 記号活用 (✅❌⚠️)
-}
-```
-
-**効果**: Output▼60%
-
----
-
-### 2. Context Loading
-
-```json
-"context": {
-  "mode": "incremental",       // 段階的読み込み
-  "initial": [                 // 初期ファイル
-    "CLAUDE.md",
-    "README.md"
-  ],
-  "autoExpandMax": 3,          // 自動展開最大数
-  "exclude": [                 // 除外パターン
-    "node_modules/**",
-    ".git/**"
-  ]
-}
-```
-
-**効果**: ロード▼90%
-
----
-
-### 3. Skills設定
-
-```json
-"skills": {
-  "hierarchy": "flat",         // フラット構造 (6スキル)
-  "list": [                    // 全スキル
-    "hallucination-prevention",
-    "systematic-debugging",
-    "test-driven-development",
-    "hierarchical-architecture",
-    "consultation",
-    "failure-logging"
-  ]
-}
-```
-
-**効果**: Skills▼55-77%
-
----
-
-### 4. Security
-
-```json
-"security": {
-  "blockGitCommit": true,      // commit禁止
-  "blockGitPush": true,        // push禁止
-  "protectMainBranch": true,   // main保護
-  "detectSecrets": true        // 機密情報検出
-}
-```
-
-**効果**: 事故防止
-
----
-
-### 5. Import Management
-
-```json
-"imports": {
-  "autoImport": true,          // 自動import
-  "sortImports": true,         // ソート
-  "removeUnused": true,        // 未使用削除
-  "style": "absolute"          // 絶対パス
-}
-```
-
-**効果**: コード整理自動化
-
----
-
-### 6. Commands
-
-```json
-"commands": {
-  "enabled": true,
-  "aliases": {                 // エイリアス
-    "/i": "/implement",
-    "/cr": "/code-review"
+{
+  "hooks": {
+    "イベント名": [
+      {
+        "matcher": "ツール名",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "スクリプトパス"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
-**効果**: タイピング削減
+### イベント種別
+
+| イベント | タイミング | matcher |
+|---------|----------|---------|
+| `PreToolUse` | ツール実行前 | Bash, Read, Edit, Write 等 |
+| `PostToolUse` | ツール実行後 | 同上 |
+| `SessionStart` | セッション開始時 | なし |
+| `UserPromptSubmit` | ユーザー入力時 | なし |
+| `PreCompact` | コンテキスト圧縮前 | なし |
+
+### Exit code による制御
+
+| Exit code | 効果 |
+|----------|------|
+| `0` | 許可（stdoutをフィードバック） |
+| `2` | ブロック（stderrを理由表示） |
+| その他 | 無視 |
+
+### async オプション
+
+```json
+{ "type": "command", "command": "...", "async": true }
+```
+
+`async: true` で非同期実行（ブロッキングしない）。
 
 ---
 
-### 7. Development
+## 5. 本リポジトリの設計方針
 
-```json
-"development": {
-  "testFirst": false,          // Test-First Mode
-  "diffPreview": true,         // 差分プレビュー
-  "autoSave": false,           // 自動保存
-  "backupOnEdit": false        // 編集時バックアップ
-}
+### allow の方針
+
+| 方針 | 理由 |
+|------|------|
+| `git commit/push` を allow に入れない | hookでブロックするが、allowに入れると許可プロンプトをスキップしてしまう |
+| `node/php/python` を allow に入れない | local-command-block.sh でdocker使用を強制 |
+| `bash:*` を allow に入れない | `bash -c "node ..."` でhook迂回可能 |
+| `docker:*` で集約 | 個別サブコマンド列挙は冗長 |
+| プロジェクト固有スクリプト除外 | `./dbash.sh` 等はプロジェクト側で許可 |
+
+### hookとallowの役割分担
+
+```text
+allow: 許可プロンプトのスキップ（利便性）
+hook:  実行の強制ブロック（セキュリティ）
+
+allowに入っていても、hookがexit 2を返せばブロックされる。
+ただし、allowに不要なエントリがあると防御の多層性が下がる。
+```
+
+### allowのグルーピング（配置順）
+
+```text
+1. ファイル操作    (ls, mkdir, rm, mv, ln, chmod, du, unzip)
+2. テキスト処理    (cat, echo, sed, awk, grep, find, xargs, xxd)
+3. シェル制御      (source, for, set -a, set +a, timeout)
+4. システム情報    (env, getconf, ip, ping)
+5. ネットワーク    (curl, ssh, ssh-add, scp)
+6. DB             (mysql)
+7. Git            (commit/push除外、アルファベット順)
+8. Docker         (docker:*, docker-compose:*)
+9. パッケージ管理  (brew install)
+10. Linter/テスト  (eslint, phpunit, phpcs)
+11. CLI           (gh, glab, git-new-feature)
+12. その他        (Read, WebFetch, MCP, Skill)
 ```
 
 ---
 
-### 8. Symbol Navigation
-
-```json
-"symbols": {
-  "enabled": true,             // 有効化
-  "autoIndex": true,           // 自動インデックス
-  "cacheTTL": 3600            // キャッシュ有効期限
-}
-```
-
-**効果**: リファクタリング▼70%
-
----
-
-## 🎯 プロジェクト別推奨設定
-
-### Embedded (C++/Arduino)
-
-```json
-{
-  "output": {
-    "maxTokens": 2000,
-    "noPreamble": true
-  },
-  "context": {
-    "mode": "incremental",
-    "exclude": [".pio/**", "*.o", "*.bin"]
-  },
-  "development": {
-    "testFirst": false
-  }
-}
-```
-
----
-
-### Web Backend (Node.js/Python)
-
-```json
-{
-  "output": {
-    "maxTokens": 2000,
-    "noPreamble": true
-  },
-  "context": {
-    "mode": "incremental",
-    "exclude": ["node_modules/**", "venv/**"]
-  },
-  "imports": {
-    "autoImport": true,
-    "sortImports": true
-  },
-  "security": {
-    "detectSecrets": true
-  }
-}
-```
-
----
-
-### Web Frontend (React/Vue)
-
-```json
-{
-  "output": {
-    "maxTokens": 2000,
-    "noPreamble": true
-  },
-  "context": {
-    "mode": "incremental",
-    "exclude": ["node_modules/**", "dist/**", ".next/**"]
-  },
-  "imports": {
-    "autoImport": true,
-    "sortImports": true,
-    "removeUnused": true
-  }
-}
-```
-
----
-
-## 💡 ベストプラクティス
-
-### 必須設定 (全プロジェクト)
-
-```json
-{
-  "output": {"maxTokens": 2000, "noPreamble": true},
-  "context": {"mode": "incremental"},
-  "security": {"blockGitCommit": true}
-}
-```
-
----
-
-### 推奨設定 (開発効率化)
-
-```json
-{
-  "imports": {"autoImport": true, "sortImports": true},
-  "symbols": {"enabled": true},
-  "commands": {"enabled": true}
-}
-```
-
----
-
-### オプション設定 (高度)
-
-```json
-{
-  "session": {"persistence": true},
-  "performance": {"parallel": true},
-  "analytics": {"enabled": false}
-}
-```
-
----
-
-## 🔧 設定確認
+## 6. JSONバリデーション
 
 ```bash
-# 設定ファイル確認
-cat ~/.claude/settings.json
+# docker経由でJSON構文チェック
+docker run --rm -v "$(pwd)/claude/settings.json:/data/s.json" \
+  python:3-slim python3 -c "import json; json.load(open('/data/s.json')); print('OK')"
 
-# 有効な設定確認
-claude code --show-config
-
-# 設定テスト
-claude code --test-config
+# jqが使える環境
+jq . ~/.claude/settings.json > /dev/null && echo "OK"
 ```
 
 ---
 
-## 🐛 トラブルシューティング
+## 7. よくある問題
 
-### Q1. 設定が反映されない
+### allowに入れたのに許可プロンプトが出る
 
-**A**: 優先順位確認
+パターンが不一致の可能性。`Bash(git add:*)` と `Bash(git add *)` は異なる。コロン付きが推奨。
 
-```
-1. プロジェクトCLAUDE.md
-2. グローバルsettings.json
-3. デフォルト設定
-```
+### hookが動かない
 
-### Q2. JSONエラー
+- パスが正しいか確認（`~` 展開は有効）
+- 実行権限があるか: `chmod +x hook.sh`
+- exit codeが正しいか: ブロックは `exit 2`
 
-**A**: 構文チェック
+### 設定変更が反映されない
 
-```bash
-# JSONバリデーション
-jq . ~/.claude/settings.json
-
-# または
-python -m json.tool ~/.claude/settings.json
-```
-
-### Q3. どの設定が有効か分からない
-
-**A**: 設定出力
-
-```bash
-claude code --show-config
-```
-
----
-
-## 📊 設定別効果
-
-| 設定 | 効果 | 推奨度 |
-|------|------|--------|
-| output最適化 | ▼60% | ⭐⭐⭐⭐⭐ |
-| Incremental Loading | ▼90% | ⭐⭐⭐⭐⭐ |
-| Security | 事故防止 | ⭐⭐⭐⭐⭐ |
-| Import Management | 自動化 | ⭐⭐⭐⭐ |
-| Symbol Navigation | ▼70% | ⭐⭐⭐⭐ |
-| Commands | 効率化 | ⭐⭐⭐ |
-
----
-
-## 🎓 使用例
-
-### グローバル設定
-
-```bash
-# ~/.claude/settings.json に配置
-cp templates/settings.minimal.json ~/.claude/settings.json
-```
-
-### プロジェクト設定
-
-```bash
-# プロジェクトルートのCLAUDE.md に追加
-cat >> CLAUDE.md << 'EOF'
-
-## Settings
-
-- Context mode: incremental
-- Max tokens: 2000
-- Test-first: true
-EOF
-```
-
----
-
-**テンプレート**:
-- `settings.json` - 完全版
-- `settings.minimal.json` - 最小版
+新しいセッションを開始する。settings.json はセッション開始時に読み込まれる。
