@@ -1,6 +1,9 @@
 # Temporary files
 claude_tmp/
 
+# Claude Code session files (per-project)
+.claude/
+
 # Local settings (user-specific, not tracked)
 **/.claude/settings.local.json
 
