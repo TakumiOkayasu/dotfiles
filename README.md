@@ -21,7 +21,6 @@
 
 | ファイル | 説明 |
 |----------|------|
-| `claude-init` | Claude Code プロジェクト初期化ツール |
 | `git-new-feature` | 機能ブランチ作成 (feat/fix/docs/refactor/chore) |
 | `git-cleanup-branch` | マージ済みブランチ削除 (ローカル・リモート両方) |
 | `gh-setup-repo` | GitHubリポジトリ初期設定 (ブランチ保護、自動削除) |
@@ -37,7 +36,7 @@
 | `rules/` | `~/.claude/rules/` | 常時適用の制約・規約 (2件) |
 | `skills/` | `~/.claude/skills/` | オンデマンドの作業手順 (4件) |
 | `hooks/` | `~/.claude/hooks/` | Claude Code自動リマインドhooks |
-| `templates/` | (配布用) | claude-init テンプレート |
+| `templates/` | `~/.claude/templates/` | /project-init テンプレート |
 
 新しいファイルを追加する場合は `claude/` に配置して `git add` するだけでOK。
 install.sh が `git ls-files` で自動検出してリンクを作成します。
@@ -65,26 +64,24 @@ Claude Codeの動作時に自動でリマインドを表示:
 
 ### プロジェクトテンプレート (claude/templates/)
 
-`claude-init` コマンドで使用するテンプレート。
+`/project-init` スラッシュコマンドで使用するテンプレート。
 
 | ディレクトリ | 内容 |
 |--------------|------|
-| `base/` | 共通テンプレート (commands, tasks) |
 | `lang/` | 言語別 CLAUDE.md テンプレート |
 | `rules/common/` | 共通ルール (security, design-principles, error-handling) |
 | `rules/<lang>/` | 言語別ルール (code-style, testing) |
 
 対応言語: `python`, `typescript`, `cpp`, `go`, `php-laravel`, `php-cakephp`
 
-#### claude-init の使い方
+#### /project-init の使い方
 
-新しいプロジェクトでClaude Code用の設定を初期化:
+Claude Codeセッション内で実行:
 
-```bash
-claude-init python        # Python用テンプレートで初期化
-claude-init typescript    # TypeScript用テンプレートで初期化
-claude-init --list        # 利用可能なテンプレート一覧
-claude-init --help        # ヘルプ表示
+```
+/project-init python        # Python用テンプレートで初期化
+/project-init typescript    # TypeScript用テンプレートで初期化
+/project-init               # 利用可能なテンプレート一覧
 ```
 
 #### Claude設定の更新 (update-claude-config.sh)
@@ -116,7 +113,7 @@ chmod +x update-claude-config.sh
 | shell | `.bashrc`, `.shell_aliases` |
 | git | `.gitconfig`, `.git-completion.bash`, `.git-prompt.sh`, `.gitignore` |
 | vim | `.vimrc` |
-| claude | `claude/` 内のファイル全て (templates/除く) |
+| claude | `claude/` 内のファイル全て |
 | bin | `bin/` 内の実行可能スクリプト |
 
 ### インストール例

@@ -800,7 +800,7 @@ install_claude_config() {
     # 孤立シンボリックリンクをクリーンアップ
     cleanup_stale_claude_links
 
-    # claude/ 内のファイルを取得してリンク (templates/は除外)
+    # claude/ 内のファイルを取得してリンク
     if [ -d "${DOTFILES_DIR}/claude" ]; then
         cd "$DOTFILES_DIR"
         # サブシェルを避けるため一時ファイル経由で処理
@@ -810,9 +810,9 @@ install_claude_config() {
 
             relative="${file#claude/}"
 
-            # templates/ と CLAUDE.md は除外 (CLAUDE.md はプロジェクトローカル用)
+            # CLAUDE.md は除外 (プロジェクトローカル用)
             case "$relative" in
-                templates/*|CLAUDE.md)
+                CLAUDE.md)
                     continue
                     ;;
             esac
@@ -848,9 +848,9 @@ uninstall_claude_config() {
 
             relative="${file#claude/}"
 
-            # templates/ と CLAUDE.md は除外 (CLAUDE.md はプロジェクトローカル用)
+            # CLAUDE.md は除外 (プロジェクトローカル用)
             case "$relative" in
-                templates/*|CLAUDE.md)
+                CLAUDE.md)
                     continue
                     ;;
             esac
