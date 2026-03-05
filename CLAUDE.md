@@ -25,11 +25,15 @@ dotfile-work is a personal dotfiles repository with an emphasis on Claude Code c
 ### CLI Tools (bin/)
 
 ```bash
-claude-init <lang>        # Initialize Claude Code in a project (python|typescript|cpp|go|php-laravel|php-cakephp)
-claude-init --list        # List available templates
 git-new-feature <name>    # Create feature branch (feat/fix/docs/refactor/chore)
 git-cleanup-branch        # Delete merged branches (local and remote)
 gh-setup-repo             # Setup GitHub repo (branch protection, auto-delete)
+```
+
+### Slash Commands
+
+```
+/project-init <lang>      # Initialize Claude Code in a project (python|typescript|cpp|go|php-laravel|php-cakephp)
 ```
 
 ## Architecture
@@ -56,10 +60,11 @@ dotfile-work/
 │   ├── global_CLAUDE.md       # Global instructions (Japanese)
 │   ├── settings.json          # Claude settings (hooks, skills, lang:ja)
 │   ├── .claudeignore          # Global ignore patterns (209 lines)
-│   ├── commands/              # Slash commands (3 commands)
+│   ├── commands/              # Slash commands (4 commands)
 │   │   ├── commit.md          # /commit - commit message generation
 │   │   ├── code-review.md     # /code-review - code review
-│   │   └── implement.md       # /implement - TDD implementation guide
+│   │   ├── implement.md       # /implement - TDD implementation guide
+│   │   └── project-init.md    # /project-init - project template initializer
 │   ├── hooks/                 # Auto-reminders (18 hooks)
 │   │   ├── session-start-reminder.sh           # Session start reminder
 │   │   ├── session-resume.sh                   # Session resume from progress
@@ -86,7 +91,7 @@ dotfile-work/
 │   │   ├── test-driven-development/
 │   │   ├── consultation/
 │   │   └── failure-logging/
-│   └── templates/             # claude-init templates
+│   └── templates/             # /project-init templates (~/.claude/templates/)
 │       ├── lang/              # Language-specific CLAUDE.md
 │       └── rules/             # Rule templates (common + per-lang)
 └── docs/
@@ -168,7 +173,14 @@ Zenn記事「Claude Code設定構成ガイド」で推奨される `.claude/rule
 
 `~/.claude/rules/` では `paths:` が無視されるバグ (Issue #21858) があるため、pathsなしの常時適用ルールとして配置する。
 
-### `claude-init` に `.claude/rules/` を導入 (2026-03-05)
+### `claude-init` CLI 廃止 → `/project-init` スラッシュコマンドに移行 (2026-03-05)
+
+`claude-init` はシェルスクリプトとして `bin/` に配置していたが、Claude Code のスラッシュコマンド `/project-init` に移行して廃止。理由:
+- Claude が直接テンプレートを読み取り配置するため、シェルスクリプトの中間処理が不要
+- `templates/` は `install.sh` で `~/.claude/templates/` にシンボリックリンクされる
+- ユーザーは Claude Code セッション内で `/project-init python` のように実行する
+
+### `/project-init` に `.claude/rules/` を導入 (2026-03-05)
 
 テンプレートの Code Style / Testing / Constraints を `.claude/rules/` に分離し、CLAUDE.md はプロジェクト概要・ビルドコマンドのみに縮小する。
 
