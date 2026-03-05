@@ -133,6 +133,54 @@ dotfile-work/
 - Token optimization is a primary concern (settings.json: maxTokens: 2000)
 - Hooks block Claude from running `git commit` or `git push` directly
 
+## Design Decisions
+
+### `.claude/rules/` は本リポジトリでは不採用 (2026-03-05)
+
+Zenn記事「Claude Code設定構成ガイド」で推奨される `.claude/rules/` を評価した結果、本リポジトリでは不採用とした。
+
+| 理由 | 詳細 |
+|------|------|
+| dotfileリポジトリの特殊性 | `.claude/rules/` はプロジェクト固有ルール向け。グローバル設定配布には不適合 |
+| 既に分離済み | skills + hooks + commands で CLAUDE.md 肥大化問題は解決済み |
+| グローバル配布不可 | `.claude/rules/` はプロジェクトローカル。`~/.claude/` へのシンボリックリンク配布に使えない |
+
+### グローバル skills → rules 移行 (2026-03-05)
+
+制約/規約の性質が強い2スキルを `~/.claude/rules/` に移行する。
+
+| スキル | 判定 | 理由 |
+|--------|------|------|
+| hallucination-prevention | **rules移行** | 全出力に適用すべき行動制約 |
+| hierarchical-architecture | **rules移行** | 設計・命名の制約集。常時適用すべき |
+| systematic-debugging | skill維持 | 4フェーズ手順書。オンデマンドで十分 |
+| test-driven-development | skill維持 | 手順書+制約の混合。手順部分が主 |
+| consultation | skill維持 | 相談テンプレート。オンデマンド |
+| failure-logging | skill維持 | 記録フォーマット。オンデマンド |
+
+`~/.claude/rules/` では `paths:` が無視されるバグ (Issue #21858) があるため、pathsなしの常時適用ルールとして配置する。
+
+### `claude-init` に `.claude/rules/` を導入 (2026-03-05)
+
+テンプレートの Code Style / Testing / Constraints を `.claude/rules/` に分離し、CLAUDE.md はプロジェクト概要・ビルドコマンドのみに縮小する。
+
+**生成するルールファイル構成** (言語共通 + 言語固有):
+
+| ファイル | paths | 内容 |
+|----------|-------|------|
+| `.claude/rules/testing.md` | 言語別テストglob | テスト規約 (AAA, 命名, モック最小) |
+| `.claude/rules/security.md` | なし | 入力バリデーション, パラメータ化クエリ, 秘密情報禁止 |
+| `.claude/rules/code-style.md` | なし | 言語固有の命名規則・フォーマッタ設定 |
+
+**既知の注意点**:
+
+| 注意 | 詳細 |
+|------|------|
+| YAML引用符必須 | `paths:` のglobは `"**/*.ts"` と引用符で囲む (Issue #13905) |
+| `~/.claude/rules/` でpaths不可 | ユーザーレベルでは `paths:` が無視される (Bug #21858, OPEN) |
+| 1ファイル1トピック | 500行超はNG。簡潔に保つ |
+| Lint強制可能なルールは書かない | hooks/formatter に委譲してコンテキスト節約 |
+
 ## [自動] セッション継続プロトコル
 
 以下のルールはClaude自身が自律的に実行する。ユーザーへの確認は不要。
