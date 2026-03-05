@@ -9,9 +9,10 @@ set -euo pipefail
 # Constants
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOTFILES_DIR="$(dirname "$SCRIPT_DIR")"
-TEMPLATES_DIR="$DOTFILES_DIR/claude-templates"
+TEMPLATES_DIR="$DOTFILES_DIR/claude/templates"
 BASE_DIR="$TEMPLATES_DIR/base"
 LANG_DIR="$TEMPLATES_DIR/lang"
+RULES_DIR="$TEMPLATES_DIR/rules"
 
 # Available languages
 AVAILABLE_LANGS=("python" "typescript" "cpp" "php-cakephp" "php-laravel" "go")
@@ -179,12 +180,6 @@ init_project() {
     echo ""
 
     # Check if templates exist
-    if [ ! -d "$BASE_DIR" ]; then
-        print_error "Base templates not found: $BASE_DIR"
-        print_error "Please run install.sh first."
-        exit 1
-    fi
-
     if [ ! -f "$LANG_DIR/$lang.md" ]; then
         print_error "Language template not found: $LANG_DIR/$lang.md"
         exit 1
@@ -202,6 +197,18 @@ init_project() {
         copy_directory "$BASE_DIR/tasks" "$project_dir/.claude/tasks"
     fi
 
+    # Copy common rules
+    if [ -d "$RULES_DIR/common" ]; then
+        print_info "Copying common rules..."
+        copy_directory "$RULES_DIR/common" "$project_dir/.claude/rules"
+    fi
+
+    # Copy language-specific rules
+    if [ -d "$RULES_DIR/$lang" ]; then
+        print_info "Copying $lang rules..."
+        copy_directory "$RULES_DIR/$lang" "$project_dir/.claude/rules"
+    fi
+
     # Copy language-specific CLAUDE.md
     print_info "Copying CLAUDE.md..."
     copy_file "$LANG_DIR/$lang.md" "$project_dir/CLAUDE.md"
@@ -214,8 +221,8 @@ init_project() {
         echo ""
         echo "Next steps:"
         echo "  1. Review and customize CLAUDE.md for your project"
-        echo "  2. Create task files in .claude/tasks/ as needed"
-        echo "  3. Use /task, /implement, /review, /commit commands"
+        echo "  2. Review .claude/rules/ and adjust for your project"
+        echo "  3. Use /commit, /code-review, /implement commands"
     fi
 }
 
