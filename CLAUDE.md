@@ -133,6 +133,20 @@ dotfile-work/
 - Token optimization is a primary concern (settings.json: maxTokens: 2000)
 - Hooks block Claude from running `git commit` or `git push` directly
 
+## Design Decisions
+
+### `.claude/rules/` は不採用 (2026-03-05)
+
+Zenn記事「Claude Code設定構成ガイド」で推奨される `.claude/rules/` (YAML frontmatter `paths:` による条件付きルール注入) を評価した結果、本リポジトリでは不採用とした。
+
+| 理由 | 詳細 |
+|------|------|
+| dotfileリポジトリの特殊性 | `.claude/rules/` はプロジェクト固有ルール向け。グローバル設定配布には不適合 |
+| 既に分離済み | skills + hooks + commands で CLAUDE.md 肥大化問題は解決済み |
+| グローバル配布不可 | `.claude/rules/` はプロジェクトローカル。`~/.claude/` へのシンボリックリンク配布に使えない |
+
+個別プロジェクトでの `.claude/rules/` 活用は将来的に検討の価値あり（テンプレートへの追加等）。
+
 ## [自動] セッション継続プロトコル
 
 以下のルールはClaude自身が自律的に実行する。ユーザーへの確認は不要。
