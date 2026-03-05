@@ -6,37 +6,63 @@ Claude Code用のプロジェクトテンプレートを配置する。
 
 $ARGUMENTS に言語名が渡されます。
 
-## 対応言語
-
-python, typescript, cpp, go, php-laravel, php-cakephp
-
 ## 実行手順
 
-### 引数なしの場合 ($ARGUMENTS が空)
+### Step 1: 利用可能な言語を検出
 
-対応言語の一覧を表示して終了。
+Glob ツールで `~/.claude/templates/lang/*.md` を検索し、ファイル名 (拡張子除く) を利用可能な言語リストとする。
 
-### 言語が指定された場合
+### Step 2: 引数の検証
 
-1. `$ARGUMENTS` が対応言語リスト (python, typescript, cpp, go, php-laravel, php-cakephp) に完全一致するか検証。一致しなければエラー表示して終了。
-2. `~/.claude/templates/lang/<lang>.md` が存在するか確認。なければエラー表示して終了。
+| 条件 | 動作 |
+|------|------|
+| `$ARGUMENTS` が空 | 利用可能な言語一覧を表示して終了 |
+| 完全一致あり | Step 3 へ進む |
+| エイリアス一致あり | 対応する言語名に自動変換して Step 3 へ進む |
+| 部分一致・類似あり | 候補をサジェスト表示し、ユーザーに確認 |
+| 該当なし | エラー表示 + 利用可能な言語一覧を表示して終了 |
 
-2. 以下のテンプレートファイルを読み取る:
-   - `~/.claude/templates/rules/common/` 内の全 `.md` ファイル
-   - `~/.claude/templates/rules/<lang>/` 内の全 `.md` ファイル
+**言語一覧の表示順** (使用頻度順):
+
+1. java, cpp, typescript, python, go, c, swift
+2. php-cakephp, php-laravel, dart, kotlin
+3. その他 (アルファベット順)
+
+**エイリアス → 自動変換** (確認なしで直接変換):
+
+| 入力 | 変換先 |
+|------|--------|
+| `py`, `python3` | python |
+| `ts`, `node`, `js` | typescript |
+| `c++` | cpp |
+| `cake`, `cakephp` | php-cakephp |
+| `laravel` | php-laravel |
+| `rs` | rust |
+| `c#`, `dotnet`, `.net` | csharp |
+| `rb`, `rails` | ruby |
+| `kt`, `android` | kotlin |
+| `ios` | swift |
+| `flutter` | dart |
+
+### Step 3: テンプレート読み取りと配置
+
+1. Glob ツールで以下のテンプレートファイルを検索:
+   - `~/.claude/templates/rules/common/*.md`
+   - `~/.claude/templates/rules/<lang>/*.md`
    - `~/.claude/templates/lang/<lang>.md`
+   - `~/.claude/templates/progress.md`
 
-3. `.claude/rules/` ディレクトリにルールファイルを Write:
-   - common ルール → `.claude/rules/<filename>`
-   - 言語別ルール → `.claude/rules/<filename>`
+   **注意**: これらはシンボリックリンク。Glob/Read ツールはシンボリックリンクを透過的に読める。
 
-4. `CLAUDE.md` を Write (テンプレートの内容をそのまま配置)
+2. 見つかったテンプレートを Read ツールで全て読み取る。
 
-5. `.claude/progress.md` を `~/.claude/templates/progress.md` から Write
+3. 読み取った内容を Write ツールでプロジェクトに配置:
+   - `~/.claude/templates/rules/common/<file>` → `.claude/rules/<file>`
+   - `~/.claude/templates/rules/<lang>/<file>` → `.claude/rules/<file>`
+   - `~/.claude/templates/lang/<lang>.md` → `CLAUDE.md`
+   - `~/.claude/templates/progress.md` → `.claude/progress.md`
 
-### 既存ファイルがある場合
-
-CLAUDE.md や `.claude/rules/` 内のファイルが既に存在する場合は、ユーザーに上書きするか確認してから実行する。
+4. 既存ファイルがある場合はユーザーに上書き確認してから実行する。
 
 ### 完了後
 

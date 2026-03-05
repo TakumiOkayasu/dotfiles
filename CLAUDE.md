@@ -33,7 +33,7 @@ gh-setup-repo             # Setup GitHub repo (branch protection, auto-delete)
 ### Slash Commands
 
 ```
-/project-init <lang>      # Initialize Claude Code in a project (python|typescript|cpp|go|php-laravel|php-cakephp)
+/project-init <lang>      # Initialize Claude Code in a project (auto-detected from templates, supports aliases like ts/py/rs)
 ```
 
 ## Architecture
