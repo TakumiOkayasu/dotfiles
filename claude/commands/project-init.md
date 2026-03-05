@@ -8,27 +8,44 @@ $ARGUMENTS に言語名が渡されます。
 
 ## 実行手順
 
-### Step 1: 利用可能な言語を検出
+### Step 1: 言語の決定
 
-Glob ツールで `~/.claude/templates/lang/*.md` を検索し、ファイル名 (拡張子除く) を利用可能な言語リストとする。
-
-### Step 2: 引数の検証
+#### 引数ありの場合
 
 | 条件 | 動作 |
 |------|------|
-| `$ARGUMENTS` が空 | 利用可能な言語一覧を表示して終了 |
-| 完全一致あり | Step 3 へ進む |
-| エイリアス一致あり | 対応する言語名に自動変換して Step 3 へ進む |
+| エイリアス一致あり | 対応する言語名に自動変換して Step 2 へ |
+| `~/.claude/templates/lang/<入力>.md` が存在 | Step 2 へ |
 | 部分一致・類似あり | 候補をサジェスト表示し、ユーザーに確認 |
 | 該当なし | エラー表示 + 利用可能な言語一覧を表示して終了 |
 
-**言語一覧の表示順** (使用頻度順):
+#### 引数なしの場合: プロジェクト自動検出
 
-1. java, cpp, typescript, python, go, c, swift
-2. php-cakephp, php-laravel, dart, kotlin
-3. その他 (アルファベット順)
+Glob ツールでカレントディレクトリの設定ファイルを検索し、言語を推定する。
 
-**エイリアス → 自動変換** (確認なしで直接変換):
+| 検出ファイル | 推定言語 |
+|-------------|---------|
+| `pyproject.toml`, `setup.py`, `requirements.txt` | python |
+| `package.json`, `tsconfig.json` | typescript |
+| `go.mod` | go |
+| `Cargo.toml` | rust |
+| `composer.json` + `config/app.php` | php-laravel |
+| `composer.json` + `config/app_local.php` | php-cakephp |
+| `composer.json` (上記以外) | php-laravel |
+| `build.gradle`, `build.gradle.kts`, `pom.xml` | java |
+| `*.kt` + (`build.gradle` or `build.gradle.kts`) | kotlin |
+| `Package.swift`, `*.xcodeproj` | swift |
+| `pubspec.yaml` | dart |
+| `Gemfile` | ruby |
+| `*.csproj`, `*.sln` | csharp |
+| `Makefile` + `*.c` (`.cpp` なし) | c |
+| `CMakeLists.txt`, `Makefile` + `*.cpp` | cpp |
+
+- 1件検出 → 「<lang> として初期化しますか？」と確認して Step 2 へ
+- 複数検出 → 候補を表示してユーザーに選択させる
+- 0件検出 → 利用可能な言語一覧を表示して終了
+
+#### エイリアス一覧
 
 | 入力 | 変換先 |
 |------|--------|
@@ -44,7 +61,13 @@ Glob ツールで `~/.claude/templates/lang/*.md` を検索し、ファイル名
 | `ios` | swift |
 | `flutter` | dart |
 
-### Step 3: テンプレート読み取りと配置
+#### 言語一覧の表示順 (固定)
+
+1. java, cpp, typescript, python, go, c, swift
+2. php-cakephp, php-laravel, dart, kotlin
+3. rust, ruby, csharp
+
+### Step 2: テンプレート読み取りと配置
 
 1. Glob ツールで以下のテンプレートファイルを検索:
    - `~/.claude/templates/rules/common/*.md`
