@@ -135,9 +135,9 @@ dotfile-work/
 
 ## Design Decisions
 
-### `.claude/rules/` は不採用 (2026-03-05)
+### `.claude/rules/` は本リポジトリでは不採用 (2026-03-05)
 
-Zenn記事「Claude Code設定構成ガイド」で推奨される `.claude/rules/` (YAML frontmatter `paths:` による条件付きルール注入) を評価した結果、本リポジトリでは不採用とした。
+Zenn記事「Claude Code設定構成ガイド」で推奨される `.claude/rules/` を評価した結果、本リポジトリでは不採用とした。
 
 | 理由 | 詳細 |
 |------|------|
@@ -145,7 +145,26 @@ Zenn記事「Claude Code設定構成ガイド」で推奨される `.claude/rule
 | 既に分離済み | skills + hooks + commands で CLAUDE.md 肥大化問題は解決済み |
 | グローバル配布不可 | `.claude/rules/` はプロジェクトローカル。`~/.claude/` へのシンボリックリンク配布に使えない |
 
-個別プロジェクトでの `.claude/rules/` 活用は将来的に検討の価値あり（テンプレートへの追加等）。
+### `.claude/rules/` の活用指針 (2026-03-05)
+
+個別プロジェクトでは `.claude/rules/` を積極活用すべき。`claude-init` テンプレートへの組み込みを検討する。
+
+**CLAUDE.md vs .claude/rules/ の使い分け**:
+
+| 置き場所 | 用途 |
+|----------|------|
+| `CLAUDE.md` | プロジェクト概要・ビルドコマンド・アーキテクチャ (80行以下推奨) |
+| `.claude/rules/` (pathsなし) | 全体適用だが分類整理したいもの (コードスタイル、セキュリティ) |
+| `.claude/rules/` (pathsあり) | 特定ファイル操作時のみ適用 (API規約、テスト規約) |
+
+**既知の注意点**:
+
+| 注意 | 詳細 |
+|------|------|
+| YAML引用符必須 | `paths:` のglobパターンは `"**/*.ts"` と引用符で囲む (Issue #13905) |
+| `~/.claude/rules/` でpaths不可 | ユーザーレベルでは `paths:` が無視される (Bug #21858, OPEN) |
+| 1ファイル1トピック | 500行超はNG。簡潔に保つ |
+| Lint強制可能なルールは書かない | hooks/formatter に委譲してコンテキスト節約 |
 
 ## [自動] セッション継続プロトコル
 
