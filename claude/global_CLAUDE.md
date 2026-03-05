@@ -99,14 +99,19 @@ hookを迂回するための難読化・間接実行は**絶対禁止**。
 
 ---
 
-## 📋 スキル (flat構造, 6件)
+## 📋 ルール (常時適用, 2件)
+
+| ルール | 用途 |
+| -------- | ------ |
+| hallucination-prevention | AI出力検証・API/パッケージ存在確認 |
+| hierarchical-architecture | ピラミッド依存・レイヤー設計制約 |
+
+## 📋 スキル (オンデマンド, 4件)
 
 | スキル | 用途 |
 | -------- | ------ |
-| hallucination-prevention | API/パッケージ存在確認チェック |
 | systematic-debugging | 4フェーズ根本原因分析 |
 | test-driven-development | RED-GREEN-REFACTOR強制 |
-| hierarchical-architecture | ピラミッド依存・レイヤー設計 |
 | consultation | 構造化された相談テンプレート |
 | failure-logging | 失敗DB記録・参照 |
 
@@ -161,15 +166,17 @@ git-cleanup-branch           # マージ済みブランチ削除
 
 ## 🔧 リソース活用 (必須)
 
-**skills/commands/hooksを最大限活用すること。自前実装禁止。**
+**rules/skills/commands/hooksを最大限活用すること。自前実装禁止。**
 
 | リソース | 場所 | 用途 |
 | ---------- | ------ | ------ |
-| skills | `~/.claude/skills/` | 作業手順・ルール |
+| rules | `~/.claude/rules/` | 常時適用の制約・規約 |
+| skills | `~/.claude/skills/` | オンデマンドの作業手順 |
 | commands | `~/.claude/commands/` | トリガーワード対応 |
 | hooks | `~/.claude/hooks/` | 自動処理 |
 
 ```bash
+ls ~/.claude/rules/
 ls ~/.claude/skills/
 ls ~/.claude/commands/
 ```

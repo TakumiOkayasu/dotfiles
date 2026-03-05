@@ -41,9 +41,13 @@
 新しいファイルを追加する場合は `claude-config/` に配置して `git add` するだけでOK。
 install.sh が `git ls-files` で自動検出してリンクを作成します。
 
-#### スキル一覧 (6件, flat構造)
+#### ルール (常時適用, 2件)
 
-`hallucination-prevention`, `systematic-debugging`, `test-driven-development`, `hierarchical-architecture`, `consultation`, `failure-logging`
+`hallucination-prevention`, `hierarchical-architecture`
+
+#### スキル (オンデマンド, 4件)
+
+`systematic-debugging`, `test-driven-development`, `consultation`, `failure-logging`
 
 #### Hooks
 

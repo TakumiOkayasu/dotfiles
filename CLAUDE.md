@@ -78,11 +78,12 @@ dotfile-work/
 │   │   ├── admin-command-block.sh              # Block sudo/admin commands
 │   │   ├── env-file-protect.sh                 # Block .env file read/edit
 │   │   └── secret-leak-check.sh               # Block hardcoded secrets in commands
-│   ├── skills/                # Flat skill structure (6 skills)
-│   │   ├── hallucination-prevention/
+│   ├── rules/                 # Always-loaded constraints (2 rules)
+│   │   ├── hallucination-prevention.md  # AI output verification
+│   │   └── hierarchical-architecture.md # Pyramid dependency design
+│   ├── skills/                # On-demand procedure guides (4 skills)
 │   │   ├── systematic-debugging/
 │   │   ├── test-driven-development/
-│   │   ├── hierarchical-architecture/
 │   │   ├── consultation/
 │   │   └── failure-logging/
 │   └── templates/lang/        # Project templates
@@ -93,14 +94,19 @@ dotfile-work/
 
 ## Key Concepts
 
-### Skills (Flat Structure)
+### Rules (Always Loaded)
+
+| Rule | Purpose |
+|------|---------|
+| hallucination-prevention | AI output verification, API/package existence check |
+| hierarchical-architecture | Pyramid dependency, layer design constraints |
+
+### Skills (On-Demand)
 
 | Skill | Purpose |
 |-------|---------|
-| hallucination-prevention | API/package existence verification checklist |
 | systematic-debugging | 4-phase root cause analysis |
 | test-driven-development | RED-GREEN-REFACTOR enforcement |
-| hierarchical-architecture | Pyramid dependency, layer design |
 | consultation | Structured consultation template |
 | failure-logging | Failure DB recording |
 

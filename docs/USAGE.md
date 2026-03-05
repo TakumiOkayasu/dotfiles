@@ -58,14 +58,21 @@ claude code
 
 ---
 
-## 📋 Skills (Flat構造, 6件)
+## 📏 Rules (常時適用, 2件)
+
+| ルール | 用途 |
+|--------|------|
+| hallucination-prevention | AI出力検証・API/パッケージ存在確認 |
+| hierarchical-architecture | ピラミッド依存・レイヤー設計制約 |
+
+Rules はセッション開始時に自動で読み込まれる。配置先: `~/.claude/rules/`
+
+## 📋 Skills (オンデマンド, 4件)
 
 | スキル | 用途 | 参照タイミング |
 |--------|------|---------------|
-| hallucination-prevention | API/パッケージ存在確認チェック | コード生成・情報提供時 |
 | systematic-debugging | 4フェーズ根本原因分析 | バグ・テスト失敗時 |
 | test-driven-development | RED-GREEN-REFACTOR強制 | 機能実装・バグ修正時 |
-| hierarchical-architecture | ピラミッド依存・レイヤー設計 | 設計・レビュー時 |
 | consultation | 構造化された相談テンプレート | 判断が必要な時 |
 | failure-logging | 失敗DB記録・参照 | エラー・失敗時 |
 
