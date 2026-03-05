@@ -86,7 +86,9 @@ dotfile-work/
 │   │   ├── test-driven-development/
 │   │   ├── consultation/
 │   │   └── failure-logging/
-│   └── templates/lang/        # Project templates
+│   └── templates/             # claude-init templates
+│       ├── lang/              # Language-specific CLAUDE.md
+│       └── rules/             # Rule templates (common + per-lang)
 └── docs/
     ├── USAGE.md               # Usage guide v2.0
     └── SETTINGS_GUIDE.md      # settings.json guide

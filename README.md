@@ -14,8 +14,7 @@
 | `.git-completion.bash` | Git補完スクリプト |
 | `.git-prompt.sh` | Gitプロンプト表示スクリプト |
 | `bin/` | 実行可能スクリプト (後述) |
-| `claude-config/` | Claude Code設定ファイル (後述) |
-| `claude-templates/` | Claude Code プロジェクトテンプレート (後述) |
+| `claude/` | Claude Code設定・テンプレート (後述) |
 | `install.sh` | シンボリックリンク作成スクリプト |
 
 ### 実行可能スクリプト (bin/)
@@ -29,16 +28,18 @@
 
 `install.sh` 実行時に PATH に追加されます (.bashrc に設定済み)。
 
-### Claude Code設定 (claude-config/)
+### Claude Code設定 (claude/)
 
 | ファイル | 配置先 | 説明 |
 |----------|--------|------|
-| `CLAUDE.md` | `~/.claude/CLAUDE.md` | Claude Code用グローバル指示ファイル |
+| `global_CLAUDE.md` | `~/.claude/CLAUDE.md` | Claude Code用グローバル指示ファイル |
 | `settings.json` | `~/.claude/settings.json` | Claude Code権限・hooks設定 |
-| `skills/` | `~/.claude/skills/` | Claude Codeスキル定義 (6種類) |
+| `rules/` | `~/.claude/rules/` | 常時適用の制約・規約 (2件) |
+| `skills/` | `~/.claude/skills/` | オンデマンドの作業手順 (4件) |
 | `hooks/` | `~/.claude/hooks/` | Claude Code自動リマインドhooks |
+| `templates/` | (配布用) | claude-init テンプレート |
 
-新しいファイルを追加する場合は `claude-config/` に配置して `git add` するだけでOK。
+新しいファイルを追加する場合は `claude/` に配置して `git add` するだけでOK。
 install.sh が `git ls-files` で自動検出してリンクを作成します。
 
 #### ルール (常時適用, 2件)
@@ -62,14 +63,16 @@ Claude Codeの動作時に自動でリマインドを表示:
 | `branch-from-main-check.sh` | ブランチ作成後 | mainから分岐していなければ警告 |
 | `doc-consistency-reminder.sh` | ドキュメント編集後 | 関連ドキュメントとの整合性確認を促す |
 
-### プロジェクトテンプレート (claude-templates/)
+### プロジェクトテンプレート (claude/templates/)
 
 `claude-init` コマンドで使用するテンプレート。
 
 | ディレクトリ | 内容 |
 |--------------|------|
 | `base/` | 共通テンプレート (commands, tasks) |
-| `lang/` | 言語別テンプレート |
+| `lang/` | 言語別 CLAUDE.md テンプレート |
+| `rules/common/` | 共通ルール (security, design-principles, error-handling) |
+| `rules/<lang>/` | 言語別ルール (code-style, testing) |
 
 対応言語: `python`, `typescript`, `cpp`, `go`, `php-laravel`, `php-cakephp`
 
@@ -113,7 +116,7 @@ chmod +x update-claude-config.sh
 | shell | `.bashrc`, `.shell_aliases` |
 | git | `.gitconfig`, `.git-completion.bash`, `.git-prompt.sh`, `.gitignore` |
 | vim | `.vimrc` |
-| claude | `claude-config/` 内のファイル全て |
+| claude | `claude/` 内のファイル全て (templates/除く) |
 | bin | `bin/` 内の実行可能スクリプト |
 
 ### インストール例
