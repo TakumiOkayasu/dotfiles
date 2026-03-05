@@ -81,9 +81,9 @@ Claude Codeの動作時に自動でリマインドを表示:
 Claude Codeセッション内で実行:
 
 ```
+/project-init               # プロジェクトから言語を自動検出して初期化
 /project-init python        # Python用テンプレートで初期化
-/project-init typescript    # TypeScript用テンプレートで初期化
-/project-init               # 利用可能なテンプレート一覧
+/project-init ts            # エイリアスも使用可能
 ```
 
 #### Claude設定の更新 (update-claude-config.sh)

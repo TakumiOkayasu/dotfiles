@@ -33,7 +33,7 @@ gh-setup-repo             # Setup GitHub repo (branch protection, auto-delete)
 ### Slash Commands
 
 ```
-/project-init <lang>      # Initialize Claude Code in a project (auto-detected from templates, supports aliases like ts/py/rs)
+/project-init [lang]      # Initialize Claude Code in a project (auto-detect or specify, 14 languages, aliases supported)
 ```
 
 ## Architecture
