@@ -748,7 +748,7 @@ _remove_stale() {
 
 # ~/.claude/ 配下の孤立シンボリックリンクをクリーンアップ
 cleanup_stale_claude_links() {
-    for _dir in commands hooks skills; do
+    for _dir in commands hooks skills rules; do
         _target_dir="${HOME}/.claude/${_dir}"
         [ ! -d "$_target_dir" ] && continue
         for _entry in "$_target_dir"/*; do
@@ -795,6 +795,7 @@ install_claude_config() {
     ensure_dir "${HOME}/.claude/bin"
     ensure_dir "${HOME}/.claude/hooks"
     ensure_dir "${HOME}/.claude/skills"
+    ensure_dir "${HOME}/.claude/rules"
 
     # 孤立シンボリックリンクをクリーンアップ
     cleanup_stale_claude_links

@@ -37,7 +37,7 @@ echo "  1. Read CLAUDE.md before starting any task"
 echo "  2. Create a new branch before coding (no work on main)"
 echo "  3. Test-first approach (RED-GREEN-REFACTOR)"
 echo "  4. Consult before implementing if unclear"
-echo "  5. Check ~/.claude/skills/ for available skills"
+echo "  5. Check ~/.claude/rules/ and ~/.claude/skills/"
 echo ""
 
 if [ -n "$CONFIG_INFO_SCRIPT" ]; then
@@ -48,7 +48,20 @@ else
     echo ""
 fi
 
-# スキルファイルを列挙 (flat構造)
+# ルールファイルを列挙 (常時適用)
+RULES_DIR="$HOME/.claude/rules"
+if [ -d "$RULES_DIR" ]; then
+    rules=$(find "$RULES_DIR" -maxdepth 1 -name "*.md" \( -type f -o -type l \) 2>/dev/null | \
+        sed 's|.*/||; s|\.md$||' | \
+        sort | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+    if [ -n "$rules" ]; then
+        echo "📏 RULES (always loaded):"
+        echo "  $rules"
+        echo ""
+    fi
+fi
+
+# スキルファイルを列挙 (オンデマンド)
 SKILLS_DIR="$HOME/.claude/skills"
 if [ -d "$SKILLS_DIR" ]; then
     skills=$(find "$SKILLS_DIR" -maxdepth 2 -name "SKILL.md" \( -type f -o -type l \) 2>/dev/null | \

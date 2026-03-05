@@ -90,7 +90,7 @@ fi
 # ただし get_xxx_accessor / get_xxx_provider は正しいのでスキップ
 NOGETTER=$(perl -ne 'print "$.:$_" if /\b[a-z_]+_(accessor|provider|context)\s*\(/ && !/\bget_/' "$FILE_PATH" 2>/dev/null | head -5)
 if [ -n "$NOGETTER" ]; then
-    WARNINGS="${WARNINGS}[命名規則] get_プレフィックスなしのgetter候補を検出:\n${NOGETTER}\nhierarchical-architecture スキルの命名規則を確認してください。\n\n"
+    WARNINGS="${WARNINGS}[命名規則] get_プレフィックスなしのgetter候補を検出:\n${NOGETTER}\nhierarchical-architecture ルールの命名規則を確認してください。\n\n"
 fi
 
 # --- チェック3: サブコンポーネント層への不適切なサフィックス ---
@@ -114,7 +114,7 @@ cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "PostToolUse",
-    "additionalContext": "[hierarchical-architecture 命名規則チェック] ${ESCAPED_PATH} で以下の命名規則違反の可能性を検出しました:\\n\\n${ESCAPED_WARNINGS}hierarchical-architecture スキルの命名規則を参照し、必要に応じて修正してください。"
+    "additionalContext": "[hierarchical-architecture 命名規則チェック] ${ESCAPED_PATH} で以下の命名規則違反の可能性を検出しました:\\n\\n${ESCAPED_WARNINGS}hierarchical-architecture ルールの命名規則を参照し、必要に応じて修正してください。"
   }
 }
 EOF
