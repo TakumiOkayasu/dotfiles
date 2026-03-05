@@ -72,16 +72,18 @@ Claude Codeの動作時に自動でリマインドを表示:
 | `rules/common/` | 共通ルール (security, design-principles, error-handling) |
 | `rules/<lang>/` | 言語別ルール (code-style, testing) |
 
-対応言語: `python`, `typescript`, `cpp`, `go`, `php-laravel`, `php-cakephp`
+対応言語 (使用頻度順): `java`, `cpp`, `typescript`, `python`, `go`, `c`, `swift`, `php-cakephp`, `php-laravel`, `dart`, `kotlin`, `rust`, `ruby`, `csharp`
+
+エイリアス入力にも対応 (例: `ts`→typescript, `py`→python, `c++`→cpp, `cake`→php-cakephp)
 
 #### /project-init の使い方
 
 Claude Codeセッション内で実行:
 
 ```
+/project-init               # プロジェクトから言語を自動検出して初期化
 /project-init python        # Python用テンプレートで初期化
-/project-init typescript    # TypeScript用テンプレートで初期化
-/project-init               # 利用可能なテンプレート一覧
+/project-init ts            # エイリアスも使用可能
 ```
 
 #### Claude設定の更新 (update-claude-config.sh)
