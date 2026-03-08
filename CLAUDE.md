@@ -71,12 +71,13 @@ dotfile-work/
 │   │   ├── code-review.md     # /code-review - code review
 │   │   ├── implement.md       # /implement - TDD implementation guide
 │   │   └── project-init.md    # /project-init - project template initializer
-│   ├── hooks/                 # Auto-reminders (18 hooks)
+│   ├── hooks/                 # Auto-reminders (19 hooks)
 │   │   ├── session-start-reminder.sh           # Session start reminder
 │   │   ├── session-resume.sh                   # Session resume from progress
 │   │   ├── git-commit-push-block.sh            # Block Claude from commit/push
 │   │   ├── main-branch-code-warning.sh         # Warn edits on main
 │   │   ├── branch-from-main-check.sh           # Verify branch from main
+│   │   ├── gh-repo-auto-setup.sh               # Auto-set delete-branch-on-merge
 │   │   ├── git-post-command-reminder.sh        # Auto cleanup merged branches
 │   │   ├── commit-checkpoint.sh                # Auto checkpoint on commit
 │   │   ├── context-monitor.sh                  # Context usage monitoring
