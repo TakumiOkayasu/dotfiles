@@ -2,14 +2,14 @@
 
 Claude Code の `settings.json` 設定リファレンス。
 
-公式ドキュメント: https://code.claude.com/docs/en/settings
+公式ドキュメント: <https://code.claude.com/docs/en/settings>
 
 ---
 
 ## 1. 配置場所と優先順位
 
 | スコープ | パス | 用途 |
-|---------|------|------|
+| --------- | ------ | ------ |
 | グローバル | `~/.claude/settings.json` | 全プロジェクト共通 |
 | プロジェクト | `.claude/settings.json` | リポジトリ固有 |
 | ローカル | `.claude/settings.local.json` | 個人用（Git管理外） |
@@ -38,7 +38,7 @@ Claude Code の `settings.json` 設定リファレンス。
 ```
 
 | キー | 型 | 説明 |
-|------|---|------|
+| ------ | --- | ------ |
 | `permissions` | object | ツール実行の許可/拒否ルール |
 | `hooks` | object | ライフサイクルイベントのフック |
 | `model` | string | デフォルトモデル (`opus`, `sonnet`, `haiku`) |
@@ -67,7 +67,7 @@ Claude Code の `settings.json` 設定リファレンス。
 ### パターン構文
 
 | パターン | 効果 |
-|---------|------|
+| --------- | ------ |
 | `Bash(cmd:*)` | cmdで始まるコマンドを許可 |
 | `Bash(cmd arg)` | 完全一致で許可 |
 | `Read(path)` | 特定パスの読み取り許可 |
@@ -79,7 +79,7 @@ Claude Code の `settings.json` 設定リファレンス。
 ### defaultMode
 
 | 値 | 動作 |
-|---|------|
+| --- | ------ |
 | `plan` | デフォルトでPlanモード |
 | `acceptEdits` | 編集は自動許可、Bashは確認 |
 | `bypassPermissions` | 全許可（非推奨） |
@@ -109,7 +109,7 @@ Claude Code の `settings.json` 設定リファレンス。
 ### イベント種別
 
 | イベント | タイミング | matcher |
-|---------|----------|---------|
+| --------- | ---------- | --------- |
 | `PreToolUse` | ツール実行前 | Bash, Read, Edit, Write 等 |
 | `PostToolUse` | ツール実行後 | 同上 |
 | `SessionStart` | セッション開始時 | なし |
@@ -119,7 +119,7 @@ Claude Code の `settings.json` 設定リファレンス。
 ### Exit code による制御
 
 | Exit code | 効果 |
-|----------|------|
+| ---------- | ------ |
 | `0` | 許可（stdoutをフィードバック） |
 | `2` | ブロック（stderrを理由表示） |
 | その他 | 無視 |
@@ -139,7 +139,7 @@ Claude Code の `settings.json` 設定リファレンス。
 ### allow の方針
 
 | 方針 | 理由 |
-|------|------|
+| ------ | ------ |
 | `git commit/push` を allow に入れない | hookでブロックするが、allowに入れると許可プロンプトをスキップしてしまう |
 | `node/php/python` を allow に入れない | local-command-block.sh でdocker使用を強制 |
 | `bash:*` を allow に入れない | `bash -c "node ..."` でhook迂回可能 |

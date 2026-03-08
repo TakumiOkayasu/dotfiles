@@ -6,7 +6,7 @@ CLAUDE.mdは、Claude Codeがプロジェクトで作業する際に**常に読�
 
 ## 配置場所
 
-```
+```text
 プロジェクトルート/
 ├── CLAUDE.md          # プロジェクト設定(常に読み込まれる)
 └── .claude/
@@ -20,7 +20,7 @@ CLAUDE.mdは、Claude Codeがプロジェクトで作業する際に**常に読�
 ## CLAUDE.md と SKILL.md の使い分け
 
 | | CLAUDE.md | SKILL.md |
-|---|-----------|----------|
+| --- | ----------- | ---------- |
 | **読み込み** | 常に | 必要なときのみ |
 | **内容** | 全体ルール、規約 | 特定タスクの手順 |
 | **長さ** | 短く(〜200行目安) | 詳細可(〜500行) |
@@ -235,7 +235,7 @@ CLAUDE.mdからSKILL.mdを参照することで、必要な時だけ詳細を読
 特定のタスクには以下のスキルを参照:
 
 | タスク | スキル |
-|--------|--------|
+| -------- | -------- |
 | 機能実装 | `.claude/skills/test-driven-development/` |
 | バグ修正 | `.claude/skills/systematic-debugging/` |
 | PR作成 | `.claude/skills/code-review/` |
