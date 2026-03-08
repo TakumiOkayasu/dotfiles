@@ -802,37 +802,37 @@ install_claude_config() {
 
     # claude/ 内のファイルを取得してリンク
     if [ -d "${DOTFILES_DIR}/claude" ]; then
-        cd "$DOTFILES_DIR"
-        # サブシェルを避けるため一時ファイル経由で処理
-        _claude_files=$(git ls-files claude/ 2>/dev/null)
-        for file in $_claude_files; do
-            [ -z "$file" ] && continue
+        (
+            cd "$DOTFILES_DIR"
+            # サブシェル内で処理するため cd の影響は外に漏れない
+            git ls-files claude/ 2>/dev/null | while IFS= read -r file; do
+                [ -z "$file" ] && continue
 
-            relative="${file#claude/}"
+                relative="${file#claude/}"
 
-            # CLAUDE.md は除外 (プロジェクトローカル用)
-            case "$relative" in
-                CLAUDE.md)
-                    continue
-                    ;;
-            esac
+                # CLAUDE.md は除外 (プロジェクトローカル用)
+                case "$relative" in
+                    CLAUDE.md)
+                        continue
+                        ;;
+                esac
 
-            # 配置先パスを計算
-            # global_CLAUDE.md は CLAUDE.md にリネーム
-            case "$relative" in
-                global_CLAUDE.md)
-                    relative="CLAUDE.md"
-                    ;;
-            esac
-            dest="${HOME}/.claude/${relative}"
+                # 配置先パスを計算
+                # global_CLAUDE.md は CLAUDE.md にリネーム
+                case "$relative" in
+                    global_CLAUDE.md)
+                        relative="CLAUDE.md"
+                        ;;
+                esac
+                dest="${HOME}/.claude/${relative}"
 
-            # 配置先の親ディレクトリを作成
-            dest_dir=$(dirname "$dest")
-            ensure_dir "$dest_dir"
+                # 配置先の親ディレクトリを作成
+                dest_dir=$(dirname "$dest")
+                ensure_dir "$dest_dir"
 
-            create_link "$file" "$dest"
-        done
-        unset _claude_files
+                create_link "$file" "$dest"
+            done
+        )
     fi
 }
 
@@ -840,31 +840,31 @@ uninstall_claude_config() {
     print_header "Claude設定をアンインストール"
 
     if [ -d "${DOTFILES_DIR}/claude" ]; then
-        cd "$DOTFILES_DIR"
-        # サブシェルを避けるため変数経由で処理
-        _claude_files=$(git ls-files claude/ 2>/dev/null)
-        for file in $_claude_files; do
-            [ -z "$file" ] && continue
+        (
+            cd "$DOTFILES_DIR"
+            # サブシェル内で処理するため cd の影響は外に漏れない
+            git ls-files claude/ 2>/dev/null | while IFS= read -r file; do
+                [ -z "$file" ] && continue
 
-            relative="${file#claude/}"
+                relative="${file#claude/}"
 
-            # CLAUDE.md は除外 (プロジェクトローカル用)
-            case "$relative" in
-                CLAUDE.md)
-                    continue
-                    ;;
-            esac
+                # CLAUDE.md は除外 (プロジェクトローカル用)
+                case "$relative" in
+                    CLAUDE.md)
+                        continue
+                        ;;
+                esac
 
-            # global_CLAUDE.md は CLAUDE.md にリネーム
-            case "$relative" in
-                global_CLAUDE.md)
-                    relative="CLAUDE.md"
-                    ;;
-            esac
-            dest="${HOME}/.claude/${relative}"
-            remove_link "$file" "$dest"
-        done
-        unset _claude_files
+                # global_CLAUDE.md は CLAUDE.md にリネーム
+                case "$relative" in
+                    global_CLAUDE.md)
+                        relative="CLAUDE.md"
+                        ;;
+                esac
+                dest="${HOME}/.claude/${relative}"
+                remove_link "$file" "$dest"
+            done
+        )
     fi
 }
 
