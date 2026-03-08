@@ -34,7 +34,7 @@ statusline-command.sh     # Claude Code statusline (3-line: session/5h/7d usage)
 
 ### Slash Commands
 
-```
+```sh
 /project-init [lang]      # Initialize Claude Code in a project (auto-detect or specify, 14 languages, aliases supported)
 ```
 
@@ -42,7 +42,7 @@ statusline-command.sh     # Claude Code statusline (3-line: session/5h/7d usage)
 
 ```text
 dotfile-work/
-├── install.sh                 # Main installer (921 lines, POSIX sh)
+├── install.sh                 # Main installer (POSIX sh)
 ├── config/
 │   ├── shell/                 # Shell configs
 │   │   ├── bash/bashrc        # Bash config
@@ -61,7 +61,7 @@ dotfile-work/
 ├── claude/                    # Claude Code config (~/.claude)
 │   ├── global_CLAUDE.md       # Global instructions (Japanese)
 │   ├── settings.json          # Claude settings (hooks, skills, lang:ja)
-│   ├── .claudeignore          # Global ignore patterns (209 lines)
+│   ├── .claudeignore          # Global ignore patterns
 │   ├── bin/                   # CLI tools (~/.claude/bin/)
 │   │   ├── claude-config-info.sh      # Config info utility
 │   │   ├── skills-update.sh           # Vendor skills auto-updater (Docker+scan)
@@ -71,7 +71,7 @@ dotfile-work/
 │   │   ├── code-review.md     # /code-review - code review
 │   │   ├── implement.md       # /implement - TDD implementation guide
 │   │   └── project-init.md    # /project-init - project template initializer
-│   ├── hooks/                 # Auto-reminders (19 hooks)
+│   ├── hooks/                 # Auto-reminders (20 hooks)
 │   │   ├── session-start-reminder.sh           # Session start reminder
 │   │   ├── session-resume.sh                   # Session resume from progress
 │   │   ├── git-commit-push-block.sh            # Block Claude from commit/push
@@ -89,7 +89,8 @@ dotfile-work/
 │   │   ├── local-command-block.sh              # Block local command execution
 │   │   ├── admin-command-block.sh              # Block sudo/admin commands
 │   │   ├── env-file-protect.sh                 # Block .env file read/edit
-│   │   └── secret-leak-check.sh               # Block hardcoded secrets in commands
+│   │   ├── secret-leak-check.sh               # Block hardcoded secrets in commands
+│   │   └── project-environment-check.sh       # Docker/Git status (called by session-start)
 │   ├── rules/                 # Always-loaded constraints (2 rules)
 │   │   ├── hallucination-prevention.md  # AI output verification
 │   │   └── hierarchical-architecture.md # Pyramid dependency design
@@ -111,14 +112,14 @@ dotfile-work/
 ### Rules (Always Loaded)
 
 | Rule | Purpose |
-|------|---------|
+| ------ | --------- |
 | hallucination-prevention | AI output verification, API/package existence check |
 | hierarchical-architecture | Pyramid dependency, layer design constraints |
 
 ### Skills (On-Demand)
 
 | Skill | Purpose |
-|-------|---------|
+| ------- | --------- |
 | systematic-debugging | 4-phase root cause analysis |
 | test-driven-development | RED-GREEN-REFACTOR enforcement |
 | consultation | Structured consultation template |
@@ -140,7 +141,7 @@ dotfile-work/
 ## Shell Config Rules
 
 | 設定種別 | 配置先 | 理由 |
-|----------|--------|------|
+| ---------- | -------- | ------ |
 | PATH・環境変数 (共通) | `config/shell/common.sh` | bash/zsh/fish共通で使うため |
 | エイリアス (共通) | `config/shell/aliases.sh` | 同上 |
 | シェル固有設定 | `config/shell/<shell>/` | そのシェルでしか使わない設定 |
@@ -160,7 +161,7 @@ dotfile-work/
 Zenn記事「Claude Code設定構成ガイド」で推奨される `.claude/rules/` を評価した結果、本リポジトリでは不採用とした。
 
 | 理由 | 詳細 |
-|------|------|
+| ------ | ------ |
 | dotfileリポジトリの特殊性 | `.claude/rules/` はプロジェクト固有ルール向け。グローバル設定配布には不適合 |
 | 既に分離済み | skills + hooks + commands で CLAUDE.md 肥大化問題は解決済み |
 | グローバル配布不可 | `.claude/rules/` はプロジェクトローカル。`~/.claude/` へのシンボリックリンク配布に使えない |
@@ -170,7 +171,7 @@ Zenn記事「Claude Code設定構成ガイド」で推奨される `.claude/rule
 制約/規約の性質が強い2スキルを `~/.claude/rules/` に移行する。
 
 | スキル | 判定 | 理由 |
-|--------|------|------|
+| -------- | ------ | ------ |
 | hallucination-prevention | **rules移行** | 全出力に適用すべき行動制約 |
 | hierarchical-architecture | **rules移行** | 設計・命名の制約集。常時適用すべき |
 | systematic-debugging | skill維持 | 4フェーズ手順書。オンデマンドで十分 |
@@ -183,6 +184,7 @@ Zenn記事「Claude Code設定構成ガイド」で推奨される `.claude/rule
 ### `claude-init` CLI 廃止 → `/project-init` スラッシュコマンドに移行 (2026-03-05)
 
 `claude-init` はシェルスクリプトとして `bin/` に配置していたが、Claude Code のスラッシュコマンド `/project-init` に移行して廃止。理由:
+
 - Claude が直接テンプレートを読み取り配置するため、シェルスクリプトの中間処理が不要
 - `templates/` は `install.sh` で `~/.claude/templates/` にシンボリックリンクされる
 - ユーザーは Claude Code セッション内で `/project-init python` のように実行する
@@ -194,7 +196,7 @@ Zenn記事「Claude Code設定構成ガイド」で推奨される `.claude/rule
 **生成するルールファイル構成** (言語共通 + 言語固有):
 
 | ファイル | paths | 内容 |
-|----------|-------|------|
+| ---------- | ------- | ------ |
 | `.claude/rules/testing.md` | 言語別テストglob | テスト規約 (AAA, 命名, モック最小) |
 | `.claude/rules/security.md` | なし | 入力バリデーション, パラメータ化クエリ, 秘密情報禁止 |
 | `.claude/rules/code-style.md` | なし | 言語固有の命名規則・フォーマッタ設定 |
@@ -202,7 +204,7 @@ Zenn記事「Claude Code設定構成ガイド」で推奨される `.claude/rule
 **既知の注意点**:
 
 | 注意 | 詳細 |
-|------|------|
+| ------ | ------ |
 | YAML引用符必須 | `paths:` のglobは `"**/*.ts"` と引用符で囲む (Issue #13905) |
 | `~/.claude/rules/` でpaths不可 | ユーザーレベルでは `paths:` が無視される (Bug #21858, OPEN) |
 | 1ファイル1トピック | 500行超はNG。簡潔に保つ |
