@@ -291,7 +291,7 @@ fi
 
 if command -v ghostty &>/dev/null && [[ -z "$GHOSTTY_RESOURCES_DIR" && -n "$DISPLAY" ]]; then
     if ! pgrep -x ghostty > /dev/null 2>&1; then
-        ghostty > /dev/null 2>&1 & disown
+        ghostty --window-width=200 --window-height=50 > /dev/null 2>&1 & disown
     fi
 fi
 
