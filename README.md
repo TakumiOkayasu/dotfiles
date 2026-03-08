@@ -4,18 +4,14 @@
 
 ## 含まれるファイル
 
-| ファイル | 説明 |
-|----------|------|
-| `.bashrc` | Bash設定ファイル |
-| `.shell_aliases` | シェル共通エイリアス定義 (Bash/Zsh, macOS/Linux対応) |
-| `.vimrc` | Vim設定ファイル |
-| `.gitconfig` | Git設定 (エイリアス, ユーザー情報等) |
-| `.gitignore` | グローバルgitignore |
-| `.git-completion.bash` | Git補完スクリプト |
-| `.git-prompt.sh` | Gitプロンプト表示スクリプト |
+| ディレクトリ | 内容 |
+|--------------|------|
+| `config/shell/` | シェル設定 (bash, zsh, fish, 共通aliases/env) |
+| `config/git/` | Git設定 (.gitconfig, .gitignore, 補完/プロンプト) |
+| `config/vim/` | Vim設定 (.vimrc) |
 | `bin/` | 実行可能スクリプト (後述) |
 | `claude/` | Claude Code設定・テンプレート (後述) |
-| `install.sh` | シンボリックリンク作成スクリプト |
+| `install.sh` | シンボリックリンク作成スクリプト (POSIX sh) |
 
 ### 実行可能スクリプト (bin/)
 
@@ -24,10 +20,8 @@
 | `git-new-feature` | 機能ブランチ作成 (feat/fix/docs/refactor/chore) |
 | `git-cleanup-branch` | マージ済みブランチ削除 (ローカル・リモート両方) |
 | `gh-setup-repo` | GitHubリポジトリ初期設定 (ブランチ保護、自動削除) |
-| `skills-update.sh` | 外部Skills自動更新 (Docker隔離+セキュリティスキャン) |
-| `statusline-command.sh` | Claude Codeステータスライン (セッション/使用量表示) |
 
-`install.sh` 実行時に PATH に追加されます (.bashrc に設定済み)。
+`install.sh` 実行時に PATH に追加されます (common.sh に設定済み)。
 
 ### Claude Code設定 (claude/)
 
@@ -35,26 +29,26 @@
 |----------|--------|------|
 | `global_CLAUDE.md` | `~/.claude/CLAUDE.md` | Claude Code用グローバル指示ファイル |
 | `settings.json` | `~/.claude/settings.json` | Claude Code権限・hooks設定 |
-| `rules/` | `~/.claude/rules/` | 常時適用の制約・規約 (2件) |
-| `skills/` | `~/.claude/skills/` | オンデマンドの作業手順 (4件) |
-| `bin/` | `~/.claude/bin/` | CLIツール (3件) |
-| `hooks/` | `~/.claude/hooks/` | Claude Code自動リマインドhooks (19件) |
+| `rules/` | `~/.claude/rules/` | 常時適用の制約・規約 |
+| `skills/` | `~/.claude/skills/` | オンデマンドの作業手順 |
+| `bin/` | `~/.claude/bin/` | CLIツール |
+| `hooks/` | `~/.claude/hooks/` | Claude Code自動リマインドhooks |
 | `templates/` | `~/.claude/templates/` | /project-init テンプレート |
 
 新しいファイルを追加する場合は `claude/` に配置して `git add` するだけでOK。
 install.sh が `git ls-files` で自動検出してリンクを作成します。
 
-#### ルール (常時適用, 2件)
+#### ルール (常時適用)
 
 `hallucination-prevention`, `hierarchical-architecture`
 
-#### スキル (オンデマンド, 4件)
+#### スキル (オンデマンド)
 
 `systematic-debugging`, `test-driven-development`, `consultation`, `failure-logging`
 
 #### Hooks
 
-Claude Codeの動作時に自動でリマインドを表示。代表的なhooks (全19件の詳細はCLAUDE.mdを参照):
+Claude Codeの動作時に自動でリマインドを表示。代表的なhooks (詳細はCLAUDE.mdを参照):
 
 | ファイル | トリガー | 内容 |
 |----------|----------|------|
@@ -92,16 +86,6 @@ Claude Codeセッション内で実行:
 /project-init ts            # エイリアスも使用可能
 ```
 
-#### Claude設定の更新 (update-claude-config.sh)
-
-リポジトリをクローンせずにClaude設定のみを更新したい場合:
-
-```bash
-curl -o update-claude-config.sh https://raw.githubusercontent.com/TakumiOkayasu/dotfile-work/refs/heads/main/update-claude-config.sh
-chmod +x update-claude-config.sh
-./update-claude-config.sh
-```
-
 ## 使い方
 
 ### インストール
@@ -118,9 +102,9 @@ chmod +x update-claude-config.sh
 
 | カテゴリ | 内容 |
 |----------|------|
-| shell | `.bashrc`, `.shell_aliases` |
-| git | `.gitconfig`, `.git-completion.bash`, `.git-prompt.sh`, `.gitignore` |
-| vim | `.vimrc` |
+| shell | `config/shell/` (bash, zsh, fish, 共通設定) |
+| git | `config/git/` (.gitconfig, .gitignore, 補完/プロンプト) |
+| vim | `config/vim/.vimrc` |
 | claude | `claude/` 内のファイル全て |
 | bin | `bin/` 内の実行可能スクリプト |
 

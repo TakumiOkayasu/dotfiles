@@ -45,18 +45,22 @@ dotfile-work/
 ├── install.sh                 # Main installer (POSIX sh)
 ├── config/
 │   ├── shell/                 # Shell configs
-│   │   ├── bash/bashrc        # Bash config
-│   │   ├── zsh/zshrc          # Zsh config
+│   │   ├── bash/              # bashrc, bash_profile
+│   │   ├── zsh/               # zshrc, zprofile
 │   │   ├── fish/config.fish   # Fish config
 │   │   ├── common.sh          # Shared env/PATH
-│   │   └── aliases.sh         # Shared aliases
+│   │   ├── aliases.sh         # Shared aliases
+│   │   ├── aliases.local      # Local alias overrides
+│   │   └── local/             # Platform-specific (macos, linux, wsl, windows)
 │   ├── git/
 │   │   ├── .gitconfig.common  # Shared settings (included by work/private)
 │   │   ├── .gitconfig.work    # Linux/work environment
-│   │   └── .gitconfig.private # macOS/personal environment
-│   ├── .gitignore.common  # Common gitignore patterns
-│   ├── .gitignore.work    # Work-specific patterns (ignores .claude/)
-│   └── .gitignore.private # Private-specific patterns
+│   │   ├── .gitconfig.private # macOS/personal environment
+│   │   ├── .gitignore.common  # Common gitignore patterns
+│   │   ├── .gitignore.work    # Work-specific patterns (ignores .claude/)
+│   │   ├── .gitignore.private # Private-specific patterns
+│   │   ├── .git-completion.bash  # Git completion script
+│   │   └── .git-prompt.sh       # Git prompt script
 │   └── vim/.vimrc
 ├── claude/                    # Claude Code config (~/.claude)
 │   ├── global_CLAUDE.md       # Global instructions (Japanese)
@@ -66,12 +70,12 @@ dotfile-work/
 │   │   ├── claude-config-info.sh      # Config info utility
 │   │   ├── skills-update.sh           # Vendor skills auto-updater (Docker+scan)
 │   │   └── statusline-command.sh      # Statusline (session/usage display)
-│   ├── commands/              # Slash commands (4 commands)
+│   ├── commands/              # Slash commands
 │   │   ├── commit.md          # /commit - commit message generation
 │   │   ├── code-review.md     # /code-review - code review
 │   │   ├── implement.md       # /implement - TDD implementation guide
 │   │   └── project-init.md    # /project-init - project template initializer
-│   ├── hooks/                 # Auto-reminders (20 hooks)
+│   ├── hooks/                 # Auto-reminders
 │   │   ├── session-start-reminder.sh           # Session start reminder
 │   │   ├── session-resume.sh                   # Session resume from progress
 │   │   ├── git-commit-push-block.sh            # Block Claude from commit/push
@@ -91,10 +95,10 @@ dotfile-work/
 │   │   ├── env-file-protect.sh                 # Block .env file read/edit
 │   │   ├── secret-leak-check.sh               # Block hardcoded secrets in commands
 │   │   └── project-environment-check.sh       # Docker/Git status (called by session-start)
-│   ├── rules/                 # Always-loaded constraints (2 rules)
+│   ├── rules/                 # Always-loaded constraints
 │   │   ├── hallucination-prevention.md  # AI output verification
 │   │   └── hierarchical-architecture.md # Pyramid dependency design
-│   ├── skills/                # On-demand procedure guides (4 skills)
+│   ├── skills/                # On-demand procedure guides
 │   │   ├── systematic-debugging/
 │   │   ├── test-driven-development/
 │   │   ├── consultation/
@@ -103,8 +107,11 @@ dotfile-work/
 │       ├── lang/              # Language-specific CLAUDE.md
 │       └── rules/             # Rule templates (common + per-lang)
 └── docs/
-    ├── USAGE.md               # Usage guide v2.0
-    └── SETTINGS_GUIDE.md      # settings.json guide
+    ├── USAGE.md                       # Usage guide
+    ├── SETTINGS_GUIDE.md              # settings.json guide
+    ├── CLAUDE-MD-WRITING-GUIDE.md     # CLAUDE.md writing guide
+    ├── SETUP-CLAUDE.md                # Claude Code setup guide
+    └── bug-report-gitignore-jenkins-2026-01-12.md  # Bug report
 ```
 
 ## Key Concepts
@@ -136,7 +143,7 @@ dotfile-work/
 
 - macOS: Uses `.gitconfig.private`
 - Linux/WSL: Uses `.gitconfig.work`
-- Detected via `detect_platform()` in `install.sh:118`
+- Detected via `detect_platform()` in `install.sh`
 
 ## Shell Config Rules
 
@@ -151,8 +158,9 @@ dotfile-work/
 
 - Shell scripts use POSIX sh where possible; bash-dependent scripts use `#!/bin/sh` + bash re-exec pattern
 - Japanese documentation throughout (user preference)
-- Token optimization is a primary concern (settings.json: maxTokens: 2000)
+- Token optimization is a primary concern
 - Hooks block Claude from running `git commit` or `git push` directly
+- ドキュメントに具体的な数値 (件数・行数) を書かない。ドリフトしてハルシネーションの原因になるため
 
 ## Design Decisions
 
