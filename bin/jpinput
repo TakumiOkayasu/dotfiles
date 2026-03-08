@@ -1,0 +1,108 @@
+#!/bin/bash
+# jpinput - Windows IME を使った日本語入力ヘルパー
+#
+# 使い方:
+#   jpinput          → 入力テキストを標準出力
+#   jpinput -t       → 入力テキストをアクティブウィンドウにタイプ
+#   jpinput -c       → 入力テキストをクリップボードにコピー
+#   echo "$(jpinput)" → コマンド置換で利用
+
+set -euo pipefail
+
+# $0 がPATH経由のコマンド名のみの場合に対応
+_resolve_self() {
+    local cmd="$1"
+    # 絶対/相対パスならそのまま解決
+    if [[ "$cmd" == */* ]]; then
+        readlink -f "$cmd"
+        return
+    fi
+    # PATH経由: type -P で実パスを取得
+    local found
+    found="$(type -P "$cmd" 2>/dev/null)" || return 1
+    readlink -f "$found"
+}
+
+SCRIPT_DIR="$(dirname "$(_resolve_self "$0")")"
+PS1_SCRIPT="${SCRIPT_DIR}/jpinput-dialog.ps1"
+
+# PowerShell実行パス検出
+_find_powershell() {
+    local candidates=(
+        "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+        "/mnt/c/Windows/SysWOW64/WindowsPowerShell/v1.0/powershell.exe"
+    )
+    for p in "${candidates[@]}"; do
+        [[ -x "$p" ]] && echo "$p" && return 0
+    done
+    # PATH上のpowershell.exe
+    command -v powershell.exe 2>/dev/null && return 0
+    return 1
+}
+
+# Windowsパスに変換
+_to_winpath() {
+    if command -v wslpath &>/dev/null; then
+        wslpath -w "$1"
+    else
+        echo "$1" | sed 's|/mnt/\([a-z]\)/|\U\1:\\|;s|/|\\|g'
+    fi
+}
+
+main() {
+    local mode="stdout"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -t|--type)  mode="type"; shift ;;
+            -c|--clip)  mode="clip"; shift ;;
+            -h|--help)
+                echo "使い方: jpinput [-t|-c]"
+                echo "  -t  アクティブウィンドウにタイプ"
+                echo "  -c  クリップボードにコピー"
+                echo "  (無指定) 標準出力"
+                return 0
+                ;;
+            *) shift ;;
+        esac
+    done
+
+    local ps
+    ps="$(_find_powershell)" || {
+        echo "エラー: powershell.exe が見つかりません" >&2
+        return 1
+    }
+
+    [[ -f "$PS1_SCRIPT" ]] || {
+        echo "エラー: $PS1_SCRIPT が見つかりません" >&2
+        return 1
+    }
+
+    local win_script
+    win_script="$(_to_winpath "$PS1_SCRIPT")"
+
+    # PowerShellダイアログ実行
+    local text
+    text=$("$ps" -NoProfile -ExecutionPolicy Bypass -File "$win_script" 2>/dev/null | tr -d '\r')
+
+    [[ -z "$text" ]] && return 0
+
+    case "$mode" in
+        stdout)
+            echo "$text"
+            ;;
+        clip)
+            echo -n "$text" | clip.exe
+            echo "クリップボードにコピーしました" >&2
+            ;;
+        type)
+            if command -v xdotool &>/dev/null; then
+                xdotool type --clearmodifiers --delay 10 -- "$text"
+            else
+                echo "エラー: xdotool が必要です (sudo apt install xdotool)" >&2
+                echo "$text"
+            fi
+            ;;
+    esac
+}
+
+main "$@"

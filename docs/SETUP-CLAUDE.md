@@ -9,7 +9,7 @@ dotfile-work リポジトリの Claude Code 設定を `~/.claude` にシンボ�
 配置されるファイル:
 
 | ソース | 配置先 | 説明 |
-|--------|--------|------|
+| -------- | -------- | ------ |
 | `claude/global_CLAUDE.md` | `~/.claude/CLAUDE.md` | グローバル指示ファイル |
 | `claude/settings.json` | `~/.claude/settings.json` | 権限・hooks設定 |
 | `claude/rules/*.md` | `~/.claude/rules/*.md` | 常時適用の制約・規約 |
@@ -40,7 +40,7 @@ ls -la ~/.claude
 
 シンボリックリンクが `->` で表示されます:
 
-```
+```sh
 lrwxrwxrwx 1 user user   42 Jan  6 12:00 CLAUDE.md -> /path/to/dotfile-work/claude/global_CLAUDE.md
 lrwxrwxrwx 1 user user   48 Jan  6 12:00 settings.json -> /path/to/dotfile-work/claude/settings.json
 lrwxrwxrwx 1 user user   43 Jan  6 12:00 rules/hallucination-prevention.md -> ...

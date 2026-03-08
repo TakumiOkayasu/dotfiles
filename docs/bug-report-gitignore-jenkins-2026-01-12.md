@@ -12,7 +12,7 @@
 
 ## 問題のファイル
 
-```
+```sh
 ~/.gitignore_global -> /Users/yamazaki/prog/dotfile-work/.gitignore.private
 ```
 
@@ -48,7 +48,7 @@
 
 ```bash
 $ git check-ignore -v docs/mape-setup-2026-01-12.md
-/Users/yamazaki/.gitignore_global:1284:/*	docs/mape-setup-2026-01-12.md
+/Users/yamazaki/.gitignore_global:1284:/* docs/mape-setup-2026-01-12.md
 ```
 
 ## 根本原因
@@ -97,10 +97,12 @@ git add testfile.txt  # エラーなく追加できればOK
 グローバルgitignoreに追加するテンプレートは、以下のカテゴリのみとする:
 
 **追加してよいもの**:
+
 - OS固有 (macOS, Linux, Windows)
 - エディタ/IDE固有 (Vim, VSCode, JetBrains)
 - 言語固有のビルド成果物 (*.pyc, node_modules, etc.)
 
 **追加してはいけないもの**:
+
 - 特定ディレクトリ構造を前提とするもの (JENKINS_HOME, etc.)
 - ルートパターン (`/*`, `/特定ディレクトリ`) を含むもの

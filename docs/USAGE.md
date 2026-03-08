@@ -61,7 +61,7 @@ claude code
 ## 📏 Rules (常時適用, 2件)
 
 | ルール | 用途 |
-|--------|------|
+| -------- | ------ |
 | hallucination-prevention | AI出力検証・API/パッケージ存在確認 |
 | hierarchical-architecture | ピラミッド依存・レイヤー設計制約 |
 
@@ -70,7 +70,7 @@ Rules はセッション開始時に自動で読み込まれる。配置先: `~/
 ## 📋 Skills (オンデマンド, 4件)
 
 | スキル | 用途 | 参照タイミング |
-|--------|------|---------------|
+| -------- | ------ | --------------- |
 | systematic-debugging | 4フェーズ根本原因分析 | バグ・テスト失敗時 |
 | test-driven-development | RED-GREEN-REFACTOR強制 | 機能実装・バグ修正時 |
 | consultation | 構造化された相談テンプレート | 判断が必要な時 |
@@ -83,7 +83,7 @@ Rules はセッション開始時に自動で読み込まれる。配置先: `~/
 ## 🎯 Commands (3件)
 
 | Command | 用途 |
-|---------|------|
+| --------- | ------ |
 | `/commit` | Conventional Commits形式でコミットメッセージ生成 |
 | `/code-review` | 構造化レビュー (Critical/Warning/Suggestion) 修正コード付き |
 | `/implement` | TDD 5フェーズ実装 (理解→RED→GREEN→REFACTOR→報告) |
@@ -94,9 +94,9 @@ Rules はセッション開始時に自動で読み込まれる。配置先: `~/
 
 ### 1. .claudeignore (必須)
 
-**トークン削減: 80-95%**
+#### トークン削減: 80-95%
 
-```
+```text
 # .claudeignore
 node_modules/
 .git/
