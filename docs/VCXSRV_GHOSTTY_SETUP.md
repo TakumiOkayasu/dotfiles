@@ -6,7 +6,7 @@ WSLgのRDP描画を迂回し、X11直接描画で安定した表示を得る。
 ## 背景
 
 | 問題 | 原因 |
-|------|------|
+| ------ | ------ |
 | Windows Terminalのデバイスロスト | DirectX + GPUドライバのTDR |
 | WSLg経由のカーソル肥大化 | RDP + GTKの二重スケーリング |
 | WSLg経由のIME不安定 | fcitx5とWSLgの相性 |
@@ -47,7 +47,7 @@ Set-ItemProperty -Path $regPath -Name $vcxsrvPath -Value "~ HIGHDPIAWARE" -Type 
 XLaunchを起動して以下の通り設定:
 
 | 画面 | 設定 | 値 | 理由 |
-|------|------|----|------|
+| ------ | ------ | ---- | ------ |
 | 1 | Display mode | Multiple windows | アプリごとに独立ウィンドウ |
 | 1 | Display number | 0 | DISPLAYの:0に対応 |
 | 2 | Client startup | Start no client | WSL側から接続 |
@@ -123,7 +123,7 @@ source ~/.bashrc
 `wsl.sh` が自動的に以下を設定する:
 
 | 設定 | 値 | 目的 |
-|------|----|------|
+| ------ | ---- | ------ |
 | DISPLAY | `<ホストIP>:0` | VcXsrvに接続 |
 | XCURSOR_SIZE | 24 | カーソルサイズ |
 | XCURSOR_THEME | Adwaita | カーソルテーマ |
@@ -136,7 +136,7 @@ source ~/.bashrc
 
 `~/.config/ghostty/config`:
 
-```
+```text
 font-family = UbuntuMono Nerd Font Mono
 font-size = 16
 theme = Dracula
@@ -174,7 +174,7 @@ Ctrl+Space で日本語入力切替。
 ## トラブルシューティング
 
 | 症状 | 原因 | 対策 |
-|------|------|------|
+| ------ | ------ | ------ |
 | VcXsrv起動エラー (ポート競合) | 既存プロセスが残っている | `Stop-Process -Name vcxsrv -Force` で殺してから再起動 |
 | DISPLAY が `:0` のまま | `~/.local.sh` の読み込み順 | `common.sh` でローカル設定がプラットフォーム設定より先に読まれるか確認。`unset DOTFILES_LOADED && source ~/.bashrc` |
 | DISPLAY のIPが間違っている | `resolv.conf` のDNSプロキシIPとホストIPが異なる | wsl.shは `ip route show default` でホストIPを取得する。`resolv.conf` は使わない |
@@ -190,7 +190,7 @@ Ctrl+Space で日本語入力切替。
 ### 未完了 (要対応)
 
 | タスク | 詳細 | 優先度 |
-|--------|------|--------|
+| -------- | ------ | -------- |
 | `install.sh` に `config/gtk-4.0/` の配置を追加 | `~/.config/gtk-4.0/settings.ini` へのシンボリックリンク作成。現在は手動コピーが必要 | 高 |
 | `install.sh` に `config/windows/` の配置を追加 | Windowsファイルはシンボリックリンクではなくコピーが適切。install.shのWindows対応検討 | 中 |
 | `jpinput` が未動作 | PowerShellダイアログが起動しない。`$0` パス解決バグは修正済みだが、PowerShell側のWinFormsダイアログ表示自体が動作していない。Goシングルバイナリへの書き直しを検討 | 高 |
@@ -200,7 +200,7 @@ Ctrl+Space で日本語入力切替。
 ### 既知の制限
 
 | 制限 | 原因 | 回避策 |
-|------|------|--------|
+| ------ | ------ | -------- |
 | GTK4 4.14のカーソルスケーリングバグ | Ubuntu 24.04のGTK4が古い (4.14.5)。4.18で修正済み | `settings.ini` + `xrdb` + `gsettings` の三重設定で対応 |
 | VcXsrv の Native OpenGL が使えない | ONにするとGhosttyが黒画面になる | OFFで運用。ソフトウェアレンダリングのため描画欠け(黒い矩形)が発生する場合がある |
 | PowerShellのjpinputダイアログ起動が遅い | PowerShellの初回起動コスト (0.5-1秒) | 許容できなければGoシングルバイナリに置き換え |
@@ -209,7 +209,7 @@ Ctrl+Space で日本語入力切替。
 ### 将来の改善案
 
 | 案 | 効果 | コスト |
-|----|------|--------|
+| ---- | ------ | -------- |
 | jpinput を Go で書き直し | 起動高速化、ダイアログの安定性向上 | 中 |
 | chezmoi 移行 | install.sh の全問題を構造的に解決 | 大 (別プロジェクトで進行中) |
 | Ghostty config のdotfiles管理 | 環境再現性の向上 | 小 |
@@ -218,7 +218,7 @@ Ctrl+Space で日本語入力切替。
 ## 関連ファイル
 
 | ファイル | 役割 |
-|----------|------|
+| ---------- | ------ |
 | `config/shell/local/wsl.sh` | DISPLAY設定、カーソル修正、fcitx5自動起動 |
 | `config/shell/common.sh` | `~/.local.sh` → `wsl.sh` の読み込み順を管理 |
 | `config/windows/config.xlaunch` | VcXsrv起動設定 |
