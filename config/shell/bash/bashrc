@@ -25,6 +25,9 @@ esac
 _setup_ssh_agent() {
     local ssh_env="$HOME/.ssh/agent.env"
 
+    # .sshディレクトリがなければ作成
+    [[ -d "$HOME/.ssh" ]] || mkdir -p -m 700 "$HOME/.ssh"
+
     # 既存のagentに接続を試みる
     if [[ -f "$ssh_env" ]]; then
         source "$ssh_env" >/dev/null
@@ -275,9 +278,21 @@ if [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
 
+# mise (ランタイムバージョン管理)
+if command -v mise &>/dev/null; then
+    eval "$(mise activate bash)"
+elif [[ -x "$HOME/.local/bin/mise" ]]; then
+    eval "$("${HOME}/.local/bin/mise" activate bash)"
+fi
 
-if [[ -f "$HOME/.shell_common" ]]; then
-    . "$HOME/.shell_common"
+# ============================================================================
+# Ghostty 自動起動 (WSL/X11環境)
+# ============================================================================
+
+if command -v ghostty &>/dev/null && [[ -z "$GHOSTTY_RESOURCES_DIR" && -n "$DISPLAY" ]]; then
+    if ! pgrep -x ghostty > /dev/null 2>&1; then
+        ghostty > /dev/null 2>&1 & disown
+    fi
 fi
 
 # ============================================================================
