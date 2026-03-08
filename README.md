@@ -24,6 +24,8 @@
 | `git-new-feature` | 機能ブランチ作成 (feat/fix/docs/refactor/chore) |
 | `git-cleanup-branch` | マージ済みブランチ削除 (ローカル・リモート両方) |
 | `gh-setup-repo` | GitHubリポジトリ初期設定 (ブランチ保護、自動削除) |
+| `skills-update.sh` | 外部Skills自動更新 (Docker隔離+セキュリティスキャン) |
+| `statusline-command.sh` | Claude Codeステータスライン (セッション/使用量表示) |
 
 `install.sh` 実行時に PATH に追加されます (.bashrc に設定済み)。
 
@@ -35,7 +37,8 @@
 | `settings.json` | `~/.claude/settings.json` | Claude Code権限・hooks設定 |
 | `rules/` | `~/.claude/rules/` | 常時適用の制約・規約 (2件) |
 | `skills/` | `~/.claude/skills/` | オンデマンドの作業手順 (4件) |
-| `hooks/` | `~/.claude/hooks/` | Claude Code自動リマインドhooks |
+| `bin/` | `~/.claude/bin/` | CLIツール (3件) |
+| `hooks/` | `~/.claude/hooks/` | Claude Code自動リマインドhooks (19件) |
 | `templates/` | `~/.claude/templates/` | /project-init テンプレート |
 
 新しいファイルを追加する場合は `claude/` に配置して `git add` するだけでOK。
@@ -51,7 +54,7 @@ install.sh が `git ls-files` で自動検出してリンクを作成します�
 
 #### Hooks
 
-Claude Codeの動作時に自動でリマインドを表示:
+Claude Codeの動作時に自動でリマインドを表示。代表的なhooks (全19件の詳細はCLAUDE.mdを参照):
 
 | ファイル | トリガー | 内容 |
 |----------|----------|------|
@@ -61,6 +64,9 @@ Claude Codeの動作時に自動でリマインドを表示:
 | `git-post-command-reminder.sh` | git操作後 | マージ済みローカルブランチを自動削除 |
 | `branch-from-main-check.sh` | ブランチ作成後 | mainから分岐していなければ警告 |
 | `doc-consistency-reminder.sh` | ドキュメント編集後 | 関連ドキュメントとの整合性確認を促す |
+| `gh-repo-auto-setup.sh` | gh repo create/git push後 | delete-branch-on-merge自動設定 |
+| `commit-checkpoint.sh` | git commit後 | 進捗の自動チェックポイント |
+| `context-monitor.sh` | 全Bash操作後 | コンテキスト使用量監視 |
 
 ### プロジェクトテンプレート (claude/templates/)
 
@@ -129,7 +135,7 @@ chmod +x update-claude-config.sh
 source ~/.bashrc
 ```
 
-### GitHubリポジトリの初期設定 (手動)
+### GitHubリポジトリの初期設定
 
 新しいGitHubリポジトリを作成したら、以下を実行:
 
@@ -141,6 +147,8 @@ gh-setup-repo --check      # 現在の設定を確認
 設定内容:
 - mainブランチの保護 (直接push禁止、PR必須)
 - PRマージ後のリモートブランチ自動削除
+
+Claude Code使用時は `gh repo create` や `git push` 後に `gh-repo-auto-setup.sh` hookが自動で delete-branch-on-merge を設定します。ブランチ保護は引き続き `gh-setup-repo` で手動設定が必要です。
 
 **注意**: ブランチ保護はGitHub API の制限により失敗する場合があります。
 その場合は GitHub Web UI から手動で設定してください:
