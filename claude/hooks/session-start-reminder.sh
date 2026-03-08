@@ -78,6 +78,16 @@ if [ -d "$SKILLS_DIR" ]; then
     fi
 fi
 
+# Vendor skills auto-update (throttled to 24h)
+SKILLS_UPDATE="$HOME/.claude/bin/skills-update.sh"
+if [ -x "$SKILLS_UPDATE" ]; then
+    skills_result=$("$SKILLS_UPDATE" --quiet 2>&1) || true
+    if [ -n "$skills_result" ]; then
+        echo "$skills_result"
+        echo ""
+    fi
+fi
+
 # プロジェクト環境チェック（Docker/Git/hookルール）
 SCRIPT_DIR=$(dirname "$0")
 if [ -x "$SCRIPT_DIR/project-environment-check.sh" ]; then
