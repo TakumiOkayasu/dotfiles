@@ -28,6 +28,8 @@ dotfile-work is a personal dotfiles repository with an emphasis on Claude Code c
 git-new-feature <name>    # Create feature branch (feat/fix/docs/refactor/chore)
 git-cleanup-branch        # Delete merged branches (local and remote)
 gh-setup-repo             # Setup GitHub repo (branch protection, auto-delete)
+skills-update.sh          # Auto-update vendor skills (Docker-isolated, security scan)
+statusline-command.sh     # Claude Code statusline (3-line: session/5h/7d usage)
 ```
 
 ### Slash Commands
@@ -60,6 +62,10 @@ dotfile-work/
 │   ├── global_CLAUDE.md       # Global instructions (Japanese)
 │   ├── settings.json          # Claude settings (hooks, skills, lang:ja)
 │   ├── .claudeignore          # Global ignore patterns (209 lines)
+│   ├── bin/                   # CLI tools (~/.claude/bin/)
+│   │   ├── claude-config-info.sh      # Config info utility
+│   │   ├── skills-update.sh           # Vendor skills auto-updater (Docker+scan)
+│   │   └── statusline-command.sh      # Statusline (session/usage display)
 │   ├── commands/              # Slash commands (4 commands)
 │   │   ├── commit.md          # /commit - commit message generation
 │   │   ├── code-review.md     # /code-review - code review
@@ -141,7 +147,7 @@ dotfile-work/
 
 ## Development Notes
 
-- All shell scripts use POSIX sh for portability
+- Shell scripts use POSIX sh where possible; bash-dependent scripts use `#!/bin/sh` + bash re-exec pattern
 - Japanese documentation throughout (user preference)
 - Token optimization is a primary concern (settings.json: maxTokens: 2000)
 - Hooks block Claude from running `git commit` or `git push` directly
