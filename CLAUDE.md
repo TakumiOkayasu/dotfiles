@@ -28,6 +28,7 @@ dotfile-work is a personal dotfiles repository with an emphasis on Claude Code c
 git-new-feature <name>    # Create feature branch (feat/fix/docs/refactor/chore)
 git-cleanup-branch        # Delete merged branches (local and remote)
 gh-setup-repo             # Setup GitHub repo (branch protection, auto-delete)
+jpinput                   # Windows IME経由の日本語入力ヘルパー (-t: type, -c: clip)
 skills-update.sh          # Auto-update vendor skills (Docker-isolated, security scan)
 statusline-command.sh     # Claude Code statusline (3-line: session/5h/7d usage)
 ```
@@ -61,6 +62,10 @@ dotfile-work/
 │   │   ├── .gitignore.private # Private-specific patterns
 │   │   ├── .git-completion.bash  # Git completion script
 │   │   └── .git-prompt.sh       # Git prompt script
+│   ├── windows/
+│   │   └── config.xlaunch     # VcXsrv起動設定
+│   ├── gtk-4.0/
+│   │   └── settings.ini       # GTK4カーソルテーマ・サイズ
 │   └── vim/.vimrc
 ├── claude/                    # Claude Code config (~/.claude)
 │   ├── global_CLAUDE.md       # Global instructions (Japanese)
@@ -111,6 +116,7 @@ dotfile-work/
     ├── SETTINGS_GUIDE.md              # settings.json guide
     ├── CLAUDE-MD-WRITING-GUIDE.md     # CLAUDE.md writing guide
     ├── SETUP-CLAUDE.md                # Claude Code setup guide
+    ├── VCXSRV_GHOSTTY_SETUP.md        # VcXsrv + Ghostty setup guide (WSL2)
     └── bug-report-gitignore-jenkins-2026-01-12.md  # Bug report
 ```
 

@@ -61,14 +61,52 @@ fi
 # X Server (GUI アプリ用)
 # ============================================================================
 
-# WSLg が有効でない場合の VcXsrv/X410 設定
-if [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ]; then
-    # WSL2 の場合は Windows ホストの IP を使用
+# USE_VCXSRV=1 で VcXsrv を優先 (WSLg を迂回)
+# ~/.local.sh 等で export USE_VCXSRV=1 を設定
+if [ "${USE_VCXSRV:-0}" = "1" ]; then
+    _wsl_host_ip="$(ip route show default 2>/dev/null | awk '{print $3}')"
+    export DISPLAY="${_wsl_host_ip}:0"
+    unset _wsl_host_ip
+elif [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ]; then
+    # WSLg が無効な場合のフォールバック
     if grep -qi "microsoft.*WSL2" /proc/version 2>/dev/null; then
-        export DISPLAY="$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0"
+        export DISPLAY="$(grep nameserver /etc/resolv.conf | awk '{print $2}'):0"
     else
         # WSL1
         export DISPLAY=":0"
+    fi
+fi
+
+# ============================================================================
+# カーソルサイズ (WSLg/GTKの二重スケーリング防止)
+# ============================================================================
+
+export XCURSOR_SIZE=24
+export XCURSOR_THEME=Adwaita
+export GDK_SCALE=1
+export GDK_DPI_SCALE=1
+# GTK4: dconf/gsettings でカーソルサイズを指定
+if command -v gsettings >/dev/null 2>&1; then
+    gsettings set org.gnome.desktop.interface cursor-size 24 2>/dev/null
+    gsettings set org.gnome.desktop.interface cursor-theme Adwaita 2>/dev/null
+fi
+# X11: Xリソースでカーソルサイズを指定 (GTK4設定ファイルと併用)
+if command -v xrdb >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
+    echo "Xcursor.size: 24" | xrdb -merge 2>/dev/null
+fi
+
+# ============================================================================
+# 日本語入力 (fcitx5)
+# ============================================================================
+
+if command -v fcitx5 >/dev/null 2>&1; then
+    export GTK_IM_MODULE=fcitx
+    export QT_IM_MODULE=fcitx
+    export XMODIFIERS=@im=fcitx
+    export INPUT_METHOD=fcitx
+    # fcitx5 がまだ起動していなければバックグラウンドで起動
+    if ! pgrep -x fcitx5 >/dev/null 2>&1; then
+        fcitx5 --disable=wayland -d -r >/dev/null 2>&1
     fi
 fi
 
