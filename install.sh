@@ -717,11 +717,17 @@ uninstall_gitconfig() {
 
 # DOTFILES_DIR向きの壊れたシンボリックリンクか判定
 # return 0 = stale, return 1 = not stale
+# DOTFILES_DIR を指すシンボリックリンクのうち、git管理外のものを判定
+# (壊れたリンク or リンク先がgit ls-filesに含まれない)
 _is_stale_link() {
     [ ! -L "$1" ] && return 1
     _sl_target=$(readlink "$1" 2>/dev/null) || return 1
     case "$_sl_target" in "${DOTFILES_DIR}"/*) ;; *) return 1 ;; esac
-    [ -e "$1" ] && return 1
+    # 壊れたリンク → stale
+    [ ! -e "$1" ] && return 0
+    # リンク先がgit管理下にあるか確認
+    _sl_relative="${_sl_target#"${DOTFILES_DIR}"/}"
+    (cd "$DOTFILES_DIR" && git ls-files --error-unmatch "$_sl_relative" >/dev/null 2>&1) && return 1
     return 0
 }
 
@@ -802,37 +808,38 @@ install_claude_config() {
 
     # claude/ 内のファイルを取得してリンク
     if [ -d "${DOTFILES_DIR}/claude" ]; then
-        (
-            cd "$DOTFILES_DIR"
-            # サブシェル内で処理するため cd の影響は外に漏れない
-            git ls-files claude/ 2>/dev/null | while IFS= read -r file; do
-                [ -z "$file" ] && continue
+        _claude_filelist=$(mktemp)
+        (cd "$DOTFILES_DIR" && git ls-files claude/ 2>/dev/null) > "$_claude_filelist"
 
-                relative="${file#claude/}"
+        while IFS= read -r file; do
+            [ -z "$file" ] && continue
 
-                # CLAUDE.md は除外 (プロジェクトローカル用)
-                case "$relative" in
-                    CLAUDE.md)
-                        continue
-                        ;;
-                esac
+            relative="${file#claude/}"
 
-                # 配置先パスを計算
-                # global_CLAUDE.md は CLAUDE.md にリネーム
-                case "$relative" in
-                    global_CLAUDE.md)
-                        relative="CLAUDE.md"
-                        ;;
-                esac
-                dest="${HOME}/.claude/${relative}"
+            # CLAUDE.md は除外 (プロジェクトローカル用)
+            case "$relative" in
+                CLAUDE.md)
+                    continue
+                    ;;
+            esac
 
-                # 配置先の親ディレクトリを作成
-                dest_dir=$(dirname "$dest")
-                ensure_dir "$dest_dir"
+            # 配置先パスを計算
+            # global_CLAUDE.md は CLAUDE.md にリネーム
+            case "$relative" in
+                global_CLAUDE.md)
+                    relative="CLAUDE.md"
+                    ;;
+            esac
+            dest="${HOME}/.claude/${relative}"
 
-                create_link "$file" "$dest"
-            done
-        )
+            # 配置先の親ディレクトリを作成
+            dest_dir=$(dirname "$dest")
+            ensure_dir "$dest_dir"
+
+            create_link "$file" "$dest"
+        done < "$_claude_filelist"
+
+        rm -f "$_claude_filelist"
     fi
 }
 
@@ -840,31 +847,32 @@ uninstall_claude_config() {
     print_header "Claude設定をアンインストール"
 
     if [ -d "${DOTFILES_DIR}/claude" ]; then
-        (
-            cd "$DOTFILES_DIR"
-            # サブシェル内で処理するため cd の影響は外に漏れない
-            git ls-files claude/ 2>/dev/null | while IFS= read -r file; do
-                [ -z "$file" ] && continue
+        _claude_filelist=$(mktemp)
+        (cd "$DOTFILES_DIR" && git ls-files claude/ 2>/dev/null) > "$_claude_filelist"
 
-                relative="${file#claude/}"
+        while IFS= read -r file; do
+            [ -z "$file" ] && continue
 
-                # CLAUDE.md は除外 (プロジェクトローカル用)
-                case "$relative" in
-                    CLAUDE.md)
-                        continue
-                        ;;
-                esac
+            relative="${file#claude/}"
 
-                # global_CLAUDE.md は CLAUDE.md にリネーム
-                case "$relative" in
-                    global_CLAUDE.md)
-                        relative="CLAUDE.md"
-                        ;;
-                esac
-                dest="${HOME}/.claude/${relative}"
-                remove_link "$file" "$dest"
-            done
-        )
+            # CLAUDE.md は除外 (プロジェクトローカル用)
+            case "$relative" in
+                CLAUDE.md)
+                    continue
+                    ;;
+            esac
+
+            # global_CLAUDE.md は CLAUDE.md にリネーム
+            case "$relative" in
+                global_CLAUDE.md)
+                    relative="CLAUDE.md"
+                    ;;
+            esac
+            dest="${HOME}/.claude/${relative}"
+            remove_link "$file" "$dest"
+        done < "$_claude_filelist"
+
+        rm -f "$_claude_filelist"
     fi
 }
 
