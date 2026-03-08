@@ -87,7 +87,7 @@ Test-Path "\\wsl.localhost\Ubuntu"
 Test-Path "\\wsl.localhost\Ubuntu-24.04"
 ```
 
-## Step 5: WSL側設定
+## Step 6: WSL側設定
 
 ### USE_VCXSRV 有効化
 
@@ -132,7 +132,7 @@ source ~/.bashrc
 | gsettings cursor-size | 24 | dconf経由のカーソル指定 |
 | xrdb Xcursor.size | 24 | X11リソース経由のカーソル指定 |
 
-## Step 6: Ghostty設定
+## Step 7: Ghostty設定
 
 `~/.config/ghostty/config`:
 
@@ -147,7 +147,7 @@ keybind = ctrl+shift+c=copy_to_clipboard
 keybind = ctrl+shift+v=paste_from_clipboard
 ```
 
-## Step 7: 動作確認
+## Step 8: 動作確認
 
 ```bash
 echo $DISPLAY          # → <ホストIP>:0
@@ -182,6 +182,8 @@ Ctrl+Space で日本語入力切替。
 | カーソルが巨大 | GTK4のスケーリングバグ | `~/.config/gtk-4.0/settings.ini` + `xrdb -merge` で24に固定 |
 | Ghosttyが黒画面 | Native OpenGLがON | XLaunchで Native opengl を OFF にする |
 | `\\wsl$` でパスが見つからない | ディストロ名の不一致 | `\\wsl.localhost\<正しいディストロ名>` を使用 |
+| Ghosttyウィンドウが2つ出る | WSLg版とVcXsrv版が両方起動 | `pkill ghostty` で全プロセスを殺してから `source ~/.bashrc` で再起動 |
+| ファイアウォール変更後も接続不可 | VcXsrvがルール変更前の状態で動作 | VcXsrvを再起動する (`Stop-Process -Name vcxsrv -Force` → XLaunch再実行) |
 
 ## 残タスク
 
