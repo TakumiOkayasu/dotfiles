@@ -1,0 +1,289 @@
+#!/usr/bin/env python3
+"""ghostty-migrate - Terminal.app の設定を Ghostty config / VSCode JSON に変換"""
+
+import argparse
+import json
+import os
+import plistlib
+import re
+import sys
+from datetime import date
+from pathlib import Path
+
+PLIST_PATH = Path.home() / "Library/Preferences/com.apple.Terminal.plist"
+
+CURSOR_MAP = {0: "block", 1: "underline", 2: "bar"}
+
+ANSI_KEYS = [
+    "ANSIBlackColor", "ANSIRedColor", "ANSIGreenColor", "ANSIYellowColor",
+    "ANSIBlueColor", "ANSIMagentaColor", "ANSICyanColor", "ANSIWhiteColor",
+    "ANSIBrightBlackColor", "ANSIBrightRedColor", "ANSIBrightGreenColor",
+    "ANSIBrightYellowColor", "ANSIBrightBlueColor", "ANSIBrightMagentaColor",
+    "ANSIBrightCyanColor", "ANSIBrightWhiteColor",
+]
+
+VSCODE_ANSI = [
+    "terminal.ansiBlack", "terminal.ansiRed", "terminal.ansiGreen",
+    "terminal.ansiYellow", "terminal.ansiBlue", "terminal.ansiMagenta",
+    "terminal.ansiCyan", "terminal.ansiWhite", "terminal.ansiBrightBlack",
+    "terminal.ansiBrightRed", "terminal.ansiBrightGreen",
+    "terminal.ansiBrightYellow", "terminal.ansiBrightBlue",
+    "terminal.ansiBrightMagenta", "terminal.ansiBrightCyan",
+    "terminal.ansiBrightWhite",
+]
+
+RED = "\033[0;31m"
+GREEN = "\033[0;32m"
+NC = "\033[0m"
+
+
+# --- NSKeyedArchiver パーサー ---
+
+
+def _resolve(objects, value):
+    """UID 参照を実体に解決"""
+    if isinstance(value, plistlib.UID):
+        return objects[value.data]
+    return value
+
+
+def parse_ns_color(data):
+    """NSKeyedArchiver NSColor バイナリから (r, g, b) タプルを返す。失敗時 None"""
+    try:
+        archive = plistlib.loads(data)
+        for obj in archive.get("$objects", []):
+            if not isinstance(obj, dict):
+                continue
+            nsrgb = obj.get("NSRGB")
+            if nsrgb is not None:
+                raw = _resolve(archive["$objects"], nsrgb)
+                if isinstance(raw, bytes):
+                    parts = raw.decode("ascii").strip().split()
+                    if len(parts) >= 3:
+                        return tuple(float(x) for x in parts[:3])
+    except Exception:
+        pass
+    return None
+
+
+def parse_ns_font(data):
+    """NSKeyedArchiver NSFont バイナリから (name, size) タプルを返す。失敗時 None"""
+    try:
+        archive = plistlib.loads(data)
+        objects = archive.get("$objects", [])
+        name = None
+        size = None
+        for obj in objects:
+            if not isinstance(obj, dict):
+                continue
+            ns_name = obj.get("NSName")
+            if ns_name is not None:
+                resolved = _resolve(objects, ns_name)
+                if isinstance(resolved, str):
+                    name = resolved
+            ns_size = obj.get("NSSize")
+            if isinstance(ns_size, (int, float)):
+                size = float(ns_size)
+        if name and size is not None:
+            return (name, size)
+    except Exception:
+        pass
+    return None
+
+
+# --- 変換ユーティリティ ---
+
+
+def rgb_to_hex(r, g, b):
+    """RGB (0.0-1.0) → #rrggbb"""
+    return "#{:02x}{:02x}{:02x}".format(
+        round(r * 255), round(g * 255), round(b * 255)
+    )
+
+
+def ps_to_family(ps_name):
+    """PostScript フォント名 → ファミリー名"""
+    if ps_name.startswith(("SFMono", "SF-Mono")):
+        return "SF Mono"
+    if ps_name.startswith("Menlo"):
+        return "Menlo"
+    if ps_name.startswith("Monaco"):
+        return "Monaco"
+    base = ps_name.split("-")[0]
+    return re.sub(r"([a-z])([A-Z])", r"\1 \2", base)
+
+
+def get_color_hex(profile, key):
+    """プロファイルの色キー → hex 文字列。取得失敗時 None"""
+    data = profile.get(key)
+    if not isinstance(data, bytes):
+        return None
+    rgb = parse_ns_color(data)
+    if rgb is None:
+        return None
+    return rgb_to_hex(*rgb)
+
+
+# --- 出力生成 ---
+
+
+def generate_ghostty(profile, profile_name):
+    """Ghostty config を生成して文字列で返す"""
+    lines = [
+        f"# Ghostty config - migrated from Terminal.app profile: {profile_name}",
+        f"# Generated: {date.today().isoformat()}",
+        "",
+    ]
+
+    font_data = profile.get("Font")
+    if isinstance(font_data, bytes):
+        result = parse_ns_font(font_data)
+        if result:
+            name, size = result
+            lines += [f"font-family = {ps_to_family(name)}", f"font-size = {int(size)}", ""]
+
+    bg = get_color_hex(profile, "BackgroundColor")
+    fg = get_color_hex(profile, "TextColor")
+    if bg:
+        lines.append(f"background = {bg}")
+    if fg:
+        lines.append(f"foreground = {fg}")
+    lines.append("")
+
+    cursor_type = profile.get("CursorType", 0)
+    lines.append(f"cursor-style = {CURSOR_MAP.get(cursor_type, 'block')}")
+    lines.append(
+        f"cursor-style-blink = {'true' if profile.get('CursorBlink', False) else 'false'}"
+    )
+
+    sel = get_color_hex(profile, "SelectionColor")
+    if sel:
+        lines.append(f"selection-background = {sel}")
+    cur = get_color_hex(profile, "CursorColor")
+    if cur:
+        lines.append(f"cursor-color = {cur}")
+    lines.append("")
+
+    lines.append("# ANSI color palette")
+    for i, key in enumerate(ANSI_KEYS):
+        c = get_color_hex(profile, key)
+        if c:
+            lines.append(f"palette = {i}={c}")
+    lines.append("")
+
+    shell = Path(os.environ.get("SHELL", "/bin/zsh")).name
+    lines += [
+        "# copy-command: trim trailing whitespace",
+        "copy-command = sed 's/[[:space:]]*$//'",
+        "",
+        "# shell integration",
+        f"shell-integration = {shell}",
+    ]
+    return "\n".join(lines)
+
+
+def generate_vscode(profile, profile_name):
+    """VSCode terminal 設定 JSON を生成して文字列で返す"""
+    config = {}
+
+    font_data = profile.get("Font")
+    if isinstance(font_data, bytes):
+        result = parse_ns_font(font_data)
+        if result:
+            name, size = result
+            config["terminal.integrated.fontFamily"] = ps_to_family(name)
+            config["terminal.integrated.fontSize"] = int(size)
+
+    cursor_type = profile.get("CursorType", 0)
+    style = CURSOR_MAP.get(cursor_type, "block")
+    config["terminal.integrated.cursorStyle"] = "line" if style == "bar" else style
+
+    if profile.get("CursorBlink", False):
+        config["terminal.integrated.cursorBlinking"] = True
+
+    colors = {}
+    for plist_key, vscode_key in [
+        ("BackgroundColor", "terminal.background"),
+        ("TextColor", "terminal.foreground"),
+        ("SelectionColor", "terminal.selectionBackground"),
+        ("CursorColor", "terminalCursor.foreground"),
+    ]:
+        c = get_color_hex(profile, plist_key)
+        if c:
+            colors[vscode_key] = c
+    for i, key in enumerate(ANSI_KEYS):
+        c = get_color_hex(profile, key)
+        if c:
+            colors[VSCODE_ANSI[i]] = c
+    if colors:
+        config["workbench.colorCustomizations"] = colors
+
+    return "\n".join([
+        f"// VSCode terminal settings - migrated from Terminal.app profile: {profile_name}",
+        f"// Generated: {date.today().isoformat()}",
+        "// settings.json の該当箇所にマージしてください",
+        json.dumps(config, indent=2, ensure_ascii=False),
+    ])
+
+
+# --- CLI ---
+
+
+def _error(msg):
+    print(f"{RED}{msg}{NC}", file=sys.stderr)
+    sys.exit(1)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="ghostty-migrate",
+        description=(
+            "使い方: ghostty-migrate [オプション]\n\n"
+            "Terminal.app の設定を Ghostty / VSCode 形式に変換して stdout に出力"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--vscode", action="store_true", help="VSCode terminal 設定 JSON を出力")
+    parser.add_argument(
+        "--all", action="store_true", help="Ghostty config + VSCode JSON を両方出力"
+    )
+    parser.add_argument(
+        "--profile",
+        metavar="NAME",
+        help="指定プロファイルを変換 (デフォルト: アクティブプロファイル)",
+    )
+    args = parser.parse_args()
+
+    if not PLIST_PATH.exists():
+        _error(f"エラー: Terminal.app の設定ファイルが見つかりません: {PLIST_PATH}")
+
+    try:
+        with open(PLIST_PATH, "rb") as f:
+            plist = plistlib.load(f)
+    except Exception as e:
+        _error(f"エラー: plist の読み込みに失敗しました: {e}")
+
+    profile_name = args.profile
+    if not profile_name:
+        profile_name = plist.get("Default Window Settings")
+        if not profile_name:
+            print("ヒント: --profile NAME で直接指定してください", file=sys.stderr)
+            _error("エラー: デフォルトプロファイルを取得できませんでした")
+        print(f"{GREEN}プロファイル: {profile_name}{NC}", file=sys.stderr)
+
+    profile = plist.get("Window Settings", {}).get(profile_name)
+    if profile is None:
+        _error(f"エラー: プロファイルが見つかりません: {profile_name}")
+
+    if args.all:
+        print(generate_ghostty(profile, profile_name))
+        print("\n# ================================================================\n")
+        print(generate_vscode(profile, profile_name))
+    elif args.vscode:
+        print(generate_vscode(profile, profile_name))
+    else:
+        print(generate_ghostty(profile, profile_name))
+
+
+if __name__ == "__main__":
+    main()
