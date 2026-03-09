@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """ghostty-migrate - Terminal.app の設定を Ghostty config / VSCode JSON に変換"""
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -9,6 +11,7 @@ import re
 import sys
 from datetime import date
 from pathlib import Path
+from typing import NoReturn
 
 PLIST_PATH = Path.home() / "Library/Preferences/com.apple.Terminal.plist"
 
@@ -229,7 +232,7 @@ def generate_vscode(profile, profile_name):
 # --- CLI ---
 
 
-def _error(msg):
+def _error(msg: str) -> NoReturn:
     print(f"{RED}{msg}{NC}", file=sys.stderr)
     sys.exit(1)
 

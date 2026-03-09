@@ -96,6 +96,18 @@ def _make_test_plist():
     }
 
 
+# --- UID解決テスト ---
+
+
+class TestResolve(unittest.TestCase):
+    def test_uid_resolves(self):
+        objects = ["a", "b", "c"]
+        self.assertEqual(gm._resolve(objects, plistlib.UID(1)), "b")
+
+    def test_non_uid_passthrough(self):
+        self.assertEqual(gm._resolve([], "plain"), "plain")
+
+
 # --- NSKeyedArchiver パーサーテスト ---
 
 
