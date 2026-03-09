@@ -55,10 +55,6 @@ Claude Codeの動作時に自動でリマインドを表示。代表的なhooks 
 | `session-start-reminder.sh` | セッション開始時 | CLAUDE.mdの重要ルールをリマインド |
 | `git-commit-push-block.sh` | git commit/push実行前 | **ブロック**: commit/pushはユーザーのみ |
 | `main-branch-code-warning.sh` | コード編集前 | mainブランチでの編集を警告 |
-| `git-post-command-reminder.sh` | git操作後 | マージ済みローカルブランチを自動削除 |
-| `branch-from-main-check.sh` | ブランチ作成後 | mainから分岐していなければ警告 |
-| `doc-consistency-reminder.sh` | ドキュメント編集後 | 関連ドキュメントとの整合性確認を促す |
-| `gh-repo-auto-setup.sh` | gh repo create/git push後 | delete-branch-on-merge自動設定 |
 | `commit-checkpoint.sh` | git commit後 | 進捗の自動チェックポイント |
 | `context-monitor.sh` | 全Bash操作後 | コンテキスト使用量監視 |
 
@@ -132,7 +128,7 @@ gh-setup-repo --check      # 現在の設定を確認
 - mainブランチの保護 (直接push禁止、PR必須)
 - PRマージ後のリモートブランチ自動削除
 
-Claude Code使用時は `gh repo create` や `git push` 後に `gh-repo-auto-setup.sh` hookが自動で delete-branch-on-merge を設定します。ブランチ保護は引き続き `gh-setup-repo` で手動設定が必要です。
+ブランチ保護は `gh-setup-repo` で手動設定が必要です。
 
 **注意**: ブランチ保護はGitHub API の制限により失敗する場合があります。
 その場合は GitHub Web UI から手動で設定してください:

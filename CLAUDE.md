@@ -85,14 +85,9 @@ dotfile-work/
 │   │   ├── session-resume.sh                   # Session resume from progress
 │   │   ├── git-commit-push-block.sh            # Block Claude from commit/push
 │   │   ├── main-branch-code-warning.sh         # Warn edits on main
-│   │   ├── branch-from-main-check.sh           # Verify branch from main
-│   │   ├── gh-repo-auto-setup.sh               # Auto-set delete-branch-on-merge
-│   │   ├── git-post-command-reminder.sh        # Auto cleanup merged branches
 │   │   ├── commit-checkpoint.sh                # Auto checkpoint on commit
 │   │   ├── context-monitor.sh                  # Context usage monitoring
 │   │   ├── pre-compact-backup.sh               # Backup before compaction
-│   │   ├── doc-consistency-reminder.sh         # Doc consistency check
-│   │   ├── hierarchical-architecture-naming-check.sh  # Naming convention check
 │   │   ├── docker-build-check.sh               # Docker build validation
 │   │   ├── language-version-check.sh           # Language version check
 │   │   ├── local-command-block.sh              # Block local command execution
