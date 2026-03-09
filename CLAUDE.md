@@ -85,6 +85,7 @@ dotfile-work/
 │   │   ├── session-resume.sh                   # Session resume from progress
 │   │   ├── git-commit-push-block.sh            # Block Claude from commit/push
 │   │   ├── main-branch-code-warning.sh         # Warn edits on main
+│   │   ├── gh-repo-auto-setup.sh               # Auto repo setup (delete-branch-on-merge + Rulesets)
 │   │   ├── commit-checkpoint.sh                # Auto checkpoint on commit
 │   │   ├── context-monitor.sh                  # Context usage monitoring
 │   │   ├── pre-compact-backup.sh               # Backup before compaction
