@@ -52,7 +52,12 @@ INPUT=$(cat)
 debug_log "RAW_INPUT: $INPUT"
 
 # --- ブロック対象パターン（jqチェックより前に定義すること） ---
-BLOCKED_PATTERN='\b(python[0-9.]*|node|npm|npx|yarn|pnpm|corepack|bun|deno|php|ruby|go|perl|cargo|rustc|rustup|pip3?|uv|poetry|pipenv|conda|pyenv|virtualenv|gem|bundler?|rbenv|rvm|composer|mvn|gradlew?|sbt|dotnet|nuget|nvm|fnm|asdf|mise|volta)\b'
+# 言語ランタイム
+_BLOCKED_RUNTIME='python[0-9.]*|node|bun|deno|php|ruby|go|perl'
+# パッケージマネージャ / ビルドツール
+_BLOCKED_PACKAGE='npm|npx|yarn|pnpm|corepack|pip3?|poetry|pipenv|conda|cargo|rustc|gem|bundler?|composer|mvn|gradlew?|sbt|dotnet|nuget'
+# 注: バージョン/環境マネージャ (uv,pyenv,nvm,fnm,asdf,mise,volta等) はブロック対象外
+BLOCKED_PATTERN="\b(${_BLOCKED_RUNTIME}|${_BLOCKED_PACKAGE})\b"
 
 # jaq優先、jqフォールバック（見つからない場合は空文字）
 JQ=$(command -v jaq 2>/dev/null || command -v jq 2>/dev/null || echo "")
