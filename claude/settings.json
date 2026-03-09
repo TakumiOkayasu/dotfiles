@@ -20,10 +20,6 @@
       "Bash(xxd:*)",
       "Bash(source:*)",
       "Bash(for:*)",
-      "Bash(set -a)",
-      "Bash(set +a)",
-      "Bash(timeout:*)",
-      "Bash(env)",
       "Bash(getconf:*)",
       "Bash(ip:*)",
       "Bash(ping:*)",
@@ -32,47 +28,23 @@
       "Bash(ssh-add:*)",
       "Bash(scp:*)",
       "Bash(mysql:*)",
-      "Bash(git add:*)",
-      "Bash(git branch:*)",
-      "Bash(git cat-file:*)",
-      "Bash(git check-ignore:*)",
-      "Bash(git checkout:*)",
-      "Bash(git clean:*)",
-      "Bash(git config:*)",
-      "Bash(git diff:*)",
-      "Bash(git fetch:*)",
-      "Bash(git grep:*)",
-      "Bash(git log:*)",
-      "Bash(git merge:*)",
-      "Bash(git pull:*)",
-      "Bash(git rebase:*)",
-      "Bash(git reset:*)",
-      "Bash(git restore:*)",
-      "Bash(git rm:*)",
-      "Bash(git show:*)",
-      "Bash(git stash:*)",
-      "Bash(git status:*)",
-      "Bash(git update-index:*)",
-      "Bash(docker:*)",
-      "Bash(docker-compose:*)",
-      "Bash(brew install:*)",
-      "Bash(eslint:*)",
-      "Bash(./vendor/bin/phpunit:*)",
-      "Bash(./vendor/bin/phpcs:*)",
+      "Bash(git:*)",
       "Bash(gh:*)",
       "Bash(glab:*)",
       "Bash(git-new-feature:*)",
-      "Read(//home/okayasu/.claude/**)",
-      "Read(//home/okayasu/prog/**)",
-      "Read(//mnt/c/Users/okayasu/Pictures/Screenshots/**)",
-      "WebFetch(domain:127.0.0.1)",
+      "Bash(docker:*)",
+      "Bash(docker compose:*)",
+      "Bash(brew install:*)",
+      "WebFetch",
       "mcp__ide__getDiagnostics",
       "mcp__ide__executeCode",
       "Skill(review)"
     ],
     "deny": [
       "Read(.env)",
-      "Edit(.env)"
+      "Edit(.env)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "defaultMode": "plan"
   },
@@ -104,16 +76,12 @@
           },
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/env-file-protect.sh"
-          },
-          {
-            "type": "command",
             "command": "~/prog/dotfile-work/claude/hooks/secret-leak-check.sh"
           }
         ]
       },
       {
-        "matcher": "Read",
+        "matcher": "Bash|Read|Edit",
         "hooks": [
           {
             "type": "command",
@@ -122,20 +90,7 @@
         ]
       },
       {
-        "matcher": "Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/main-branch-code-warning.sh"
-          },
-          {
-            "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/env-file-protect.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Write",
+        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
@@ -171,20 +126,7 @@
         ]
       },
       {
-        "matcher": "Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/doc-consistency-reminder.sh"
-          },
-          {
-            "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/hierarchical-architecture-naming-check.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Write",
+        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
@@ -233,7 +175,34 @@
       }
     ]
   },
-  "language": "japanese",
-  "autoUpdatesChannel": "latest",
-  "effortLevel": "high"
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "commit-commands@claude-plugins-official": true,
+    "pr-review-toolkit@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "slack@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "feature-dev@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "plugin-dev@claude-plugins-official": true,
+    "php-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "clangd-lsp@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "git",
+        "url": "git@github.com:anthropics/claude-plugins-official.git"
+      }
+    }
+  },
+  "language": "japanese"
 }
