@@ -909,6 +909,12 @@ uninstall_claude_config() {
         done < "$_claude_filelist"
 
         rm -f "$_claude_filelist"
+
+        # dotfiles が作成した空ディレクトリを削除 (深い順、ネスト対応)
+        # ~/.claude/ 自体は Claude Code のデータがあるため削除しない
+        find "${HOME}/.claude" -mindepth 1 -depth -type d 2>/dev/null | while IFS= read -r _dir; do
+            rmdir "$_dir" 2>/dev/null && print_success "空ディレクトリ削除: ${_dir#$HOME/}"
+        done
     fi
 }
 

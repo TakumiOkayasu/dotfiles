@@ -132,13 +132,6 @@ fi
 # プロンプト
 # ============================================================================
 
-# Git ブランチ表示用
-if [[ -f "$HOME/.git-prompt.sh" ]]; then
-    source "$HOME/.git-prompt.sh"
-elif [[ -f "$DOTFILES_DIR/.git-prompt.sh" ]]; then
-    source "$DOTFILES_DIR/.git-prompt.sh"
-fi
-
 # oh-my-posh (インストールされていれば使用)
 _setup_oh_my_posh() {
     if ! command -v oh-my-posh &>/dev/null; then
@@ -168,7 +161,9 @@ _setup_oh_my_posh() {
     if ! eval "$(oh-my-posh init bash --config "$config")" 2>/dev/null; then
         rm -rf "$cache_dir"
         mkdir -p "$cache_dir"
-        eval "$(oh-my-posh init bash --config "$config")"
+        if ! eval "$(oh-my-posh init bash --config "$config")" 2>/dev/null; then
+            return 1
+        fi
     fi
     
     return 0
