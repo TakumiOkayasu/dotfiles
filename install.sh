@@ -12,6 +12,15 @@
 
 set -eu
 
+# 一時ファイル cleanup
+_TMPFILES=""
+cleanup_tmpfiles() {
+    for _f in $_TMPFILES; do
+        rm -f "$_f"
+    done
+}
+trap cleanup_tmpfiles EXIT INT TERM
+
 # ============================================================================
 # 定数・設定
 # ============================================================================
@@ -311,6 +320,12 @@ install_gitignore() {
             mv "$target" "${target}.bak"
             printf "%s[BACKUP]%s %s -> %s.bak\n" "$COLOR_YELLOW" "$COLOR_RESET" "$target" "$target"
         fi
+    fi
+
+    # variant ファイルの存在チェック
+    if [ ! -f "$variant" ]; then
+        printf "%s[ERROR]%s variant not found: %s\n" "$COLOR_RED" "$COLOR_RESET" "$variant"
+        return 1
     fi
 
     # 結合してコピー
@@ -828,6 +843,7 @@ install_claude_config() {
     # claude/ 内のファイルを取得してリンク
     if [ -d "${DOTFILES_DIR}/claude" ]; then
         _claude_filelist=$(mktemp)
+        _TMPFILES="$_TMPFILES $_claude_filelist"
         (cd "$DOTFILES_DIR" && git ls-files claude/ 2>/dev/null) > "$_claude_filelist"
 
         while IFS= read -r file; do
@@ -867,6 +883,7 @@ uninstall_claude_config() {
 
     if [ -d "${DOTFILES_DIR}/claude" ]; then
         _claude_filelist=$(mktemp)
+        _TMPFILES="$_TMPFILES $_claude_filelist"
         (cd "$DOTFILES_DIR" && git ls-files claude/ 2>/dev/null) > "$_claude_filelist"
 
         while IFS= read -r file; do
