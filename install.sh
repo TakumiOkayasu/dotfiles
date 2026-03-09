@@ -41,6 +41,12 @@ SHELL_COMP_PROMPT=false
 CLAUDE_SELECTED=false
 GITCONFIG_VARIANT=""
 
+# アンインストール対象
+UNINSTALL_SHELL=false
+UNINSTALL_GIT=false
+UNINSTALL_VIM=false
+UNINSTALL_CLAUDE=false
+
 # 追記モード用マーカー
 DOTWORK_MARKER_BEGIN="# === dotfile-work: BEGIN ==="
 DOTWORK_MARKER_END="# === dotfile-work: END ==="
@@ -140,6 +146,17 @@ detect_current_shell() {
         */zsh)  echo "zsh" ;;
         */fish) echo "fish" ;;
         *)      echo "bash" ;;
+    esac
+}
+
+# シェルのrcファイル名を返す (メニュー表示用)
+get_shell_rc_display() {
+    case "$1" in
+        bash) echo "~/.bashrc" ;;
+        zsh)  echo "~/.zshrc" ;;
+        fish) echo "~/.config/fish/config.fish" ;;
+        all)  echo "~/.bashrc, ~/.zshrc, config.fish" ;;
+        *)    echo "~/.bashrc" ;;
     esac
 }
 
@@ -366,10 +383,11 @@ select_shell_type() {
 select_shell_components() {
     echo ""
     printf "${COLOR_BOLD}インストールする内容を選択:${COLOR_RESET}\n"
+    shell_rc=$(get_shell_rc_display "$SHELL_TYPE")
     printf "  ${COLOR_BOLD}1)${COLOR_RESET} フルセット (既存設定を置き換え) ${COLOR_RED}⚠ 破壊的${COLOR_RESET}\n"
-    printf "     → ~/.bashrc 等をリポジトリのものに置換 (既存は .bak にバックアップ)\n"
+    printf "     → %s 等をリポジトリのものに置換 (既存は .bak にバックアップ)\n" "$shell_rc"
     printf "  ${COLOR_BOLD}2)${COLOR_RESET} 追記モード (既存設定を保持) ${COLOR_GREEN}★推奨${COLOR_RESET}\n"
-    printf "     → 既存の ~/.bashrc 等にsource行を自動挿入\n"
+    printf "     → 既存の %s にsource行を自動挿入\n" "$shell_rc"
     printf "  ${COLOR_BOLD}3)${COLOR_RESET} カスタム選択\n"
     printf "     → コンポーネントを個別選択 (source行は手動追記)\n"
     echo ""
@@ -417,6 +435,7 @@ select_shell_custom_components() {
             1) SHELL_COMP_ALIASES=true ;;
             2) SHELL_COMP_COMMON=true ;;
             3) SHELL_COMP_PROMPT=true ;;
+            *) print_error "無効な選択をスキップ: $c" ;;
         esac
     done
 
@@ -881,15 +900,61 @@ uninstall_claude_config() {
 # 対話的選択
 # ============================================================================
 
+select_uninstall_components() {
+    echo ""
+    printf "${COLOR_BOLD}アンインストールするカテゴリを選択 (複数可、スペース区切り):${COLOR_RESET}\n"
+    printf "  ${COLOR_BOLD}1)${COLOR_RESET} シェル設定\n"
+    printf "  ${COLOR_BOLD}2)${COLOR_RESET} Git設定\n"
+    printf "  ${COLOR_BOLD}3)${COLOR_RESET} Vim設定\n"
+    printf "  ${COLOR_BOLD}4)${COLOR_RESET} Claude設定\n"
+    printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべて\n"
+    echo ""
+    printf "選択 (例: 1 3 / a) [a]: "
+    read -r choices
+
+    case "$choices" in
+        a|A|"")
+            UNINSTALL_SHELL=true
+            UNINSTALL_GIT=true
+            UNINSTALL_VIM=true
+            UNINSTALL_CLAUDE=true
+            ;;
+        *)
+            for c in $choices; do
+                case "$c" in
+                    1) UNINSTALL_SHELL=true ;;
+                    2) UNINSTALL_GIT=true ;;
+                    3) UNINSTALL_VIM=true ;;
+                    4) UNINSTALL_CLAUDE=true ;;
+                    *) print_error "無効な選択をスキップ: $c" ;;
+                esac
+            done
+            ;;
+    esac
+
+    # 選択結果を表示
+    selected=""
+    [ "$UNINSTALL_SHELL" = "true" ] && selected="${selected}シェル "
+    [ "$UNINSTALL_GIT" = "true" ] && selected="${selected}Git "
+    [ "$UNINSTALL_VIM" = "true" ] && selected="${selected}Vim "
+    [ "$UNINSTALL_CLAUDE" = "true" ] && selected="${selected}Claude "
+
+    if [ -z "$selected" ]; then
+        die "カテゴリが選択されていません"
+    fi
+
+    print_success "アンインストール対象: ${selected}"
+}
+
 show_category_menu() {
     print_header "インストールするカテゴリを選択"
     echo ""
     printf "  ${COLOR_BOLD}1)${COLOR_RESET} シェル設定 (bash/zsh/fish)\n"
-    printf "  ${COLOR_BOLD}2)${COLOR_RESET} Git設定と補完\n"
-    printf "  ${COLOR_BOLD}3)${COLOR_RESET} Vimエディタ設定\n"
-    printf "  ${COLOR_BOLD}4)${COLOR_RESET} Claude Code AI アシスタント設定\n"
+    printf "  ${COLOR_BOLD}2)${COLOR_RESET} Git設定\n"
+    printf "  ${COLOR_BOLD}3)${COLOR_RESET} Vim設定\n"
+    printf "  ${COLOR_BOLD}4)${COLOR_RESET} Claude設定\n"
     echo ""
-    printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべてのカテゴリ\n"
+    printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべて\n"
     printf "  ${COLOR_BOLD}q)${COLOR_RESET} 終了\n"
     echo ""
 }
@@ -1036,7 +1101,7 @@ confirm_installation() {
     fi
 
     if [ "$CLAUDE_SELECTED" = "true" ]; then
-        printf "  ${COLOR_CYAN}Claude Code設定:${COLOR_RESET}\n"
+        printf "  ${COLOR_CYAN}Claude設定:${COLOR_RESET}\n"
         printf "    + claude/* -> ~/.claude/*\n"
         echo ""
     fi
@@ -1076,12 +1141,20 @@ install_files() {
 uninstall_files() {
     print_header "dotfilesをアンインストール"
 
-    uninstall_shell_config
-    uninstall_git_files
-    uninstall_gitconfig
-    uninstall_gitignore
-    uninstall_vim_files
-    uninstall_claude_config
+    if [ "$UNINSTALL_SHELL" = "true" ]; then
+        uninstall_shell_config
+    fi
+    if [ "$UNINSTALL_GIT" = "true" ]; then
+        uninstall_git_files
+        uninstall_gitconfig
+        uninstall_gitignore
+    fi
+    if [ "$UNINSTALL_VIM" = "true" ]; then
+        uninstall_vim_files
+    fi
+    if [ "$UNINSTALL_CLAUDE" = "true" ]; then
+        uninstall_claude_config
+    fi
 }
 
 show_summary() {
@@ -1120,7 +1193,7 @@ dotfiles インストーラー - dotfilesのシンボリックリンクを作成
     shell   シェル設定 (bash/zsh/fish 選択可能)
     git     Git設定(.gitconfig.work/private, .git-completion.bash等)
     vim     Vim設定(.vimrc)
-    claude  Claude Code設定(claude/から)
+    claude  Claude設定 (claude/)
 
 例:
     ./install.sh              # 対話的にインストール
@@ -1177,13 +1250,21 @@ main() {
     fi
 
     if [ "$MODE_UNINSTALL" = "true" ]; then
-        if [ "$MODE_INTERACTIVE" = "true" ] && [ "$MODE_DRY_RUN" != "true" ]; then
-            printf "すべてのdotfilesシンボリックリンクを削除しますか? [y/N]: "
-            read -r confirm
-            case "$confirm" in
-                y|Y) ;;
-                *) echo "キャンセルしました。"; exit 0 ;;
-            esac
+        if [ "$MODE_INTERACTIVE" = "true" ]; then
+            select_uninstall_components
+            if [ "$MODE_DRY_RUN" != "true" ]; then
+                printf "\nアンインストールを実行しますか? [y/N]: "
+                read -r confirm
+                case "$confirm" in
+                    y|Y) ;;
+                    *) echo "キャンセルしました。"; exit 0 ;;
+                esac
+            fi
+        else
+            UNINSTALL_SHELL=true
+            UNINSTALL_GIT=true
+            UNINSTALL_VIM=true
+            UNINSTALL_CLAUDE=true
         fi
         uninstall_files
     else
