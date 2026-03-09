@@ -193,8 +193,8 @@ alias localip="ip route get 1 2>/dev/null | awk '{print \$7}' || ipconfig getifa
 # ============================================================================
 
 # shell/aliases.local (dotfiles管理)
-if [ -f "$DOTFILES_DIR/shell/aliases.local" ]; then
-    . "$DOTFILES_DIR/shell/aliases.local"
+if [ -f "$DOTFILES_DIR/config/shell/aliases.local" ]; then
+    . "$DOTFILES_DIR/config/shell/aliases.local"
 fi
 
 # ~/.aliases.local (Git管理外、マシン固有)
