@@ -149,6 +149,10 @@
           {
             "type": "command",
             "command": "~/prog/dotfile-work/claude/hooks/session-resume.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/prog/dotfile-work/claude/hooks/project-environment-check.sh"
           }
         ]
       }

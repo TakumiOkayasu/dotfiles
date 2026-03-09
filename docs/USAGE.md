@@ -1,7 +1,7 @@
 # Claude Code 使い方ガイド v3.0
 
 **更新日**: 2026-03-01
-**構造**: Flat (6スキル)
+**構造**: Flat
 
 ---
 
@@ -80,13 +80,14 @@ Rules はセッション開始時に自動で読み込まれる。配置先: `~/
 
 ---
 
-## 🎯 Commands (3件)
+## 🎯 Commands
 
 | Command | 用途 |
 | --------- | ------ |
 | `/commit` | Conventional Commits形式でコミットメッセージ生成 |
 | `/code-review` | 構造化レビュー (Critical/Warning/Suggestion) 修正コード付き |
 | `/implement` | TDD 5フェーズ実装 (理解→RED→GREEN→REFACTOR→報告) |
+| `/project-init` | プロジェクト初期化 (CLAUDE.md + rules 生成) |
 
 ---
 
