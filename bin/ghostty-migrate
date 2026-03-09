@@ -61,7 +61,7 @@ def parse_ns_color(data):
             if nsrgb is not None:
                 raw = _resolve(archive["$objects"], nsrgb)
                 if isinstance(raw, bytes):
-                    parts = raw.decode("ascii").strip().split()
+                    parts = raw.replace(b"\x00", b"").decode("ascii").strip().split()
                     if len(parts) >= 3:
                         return tuple(float(x) for x in parts[:3])
     except Exception:

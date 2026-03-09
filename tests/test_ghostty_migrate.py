@@ -140,6 +140,29 @@ class TestParseNsColor(unittest.TestCase):
         data = plistlib.dumps(archive, fmt=plistlib.FMT_BINARY)
         self.assertEqual(gm.parse_ns_color(data), (0.5, 0.5, 0.5))
 
+    def test_null_terminated_rgb(self):
+        """NSRGB 値に末尾ヌルバイトが含まれる場合でもパースできる"""
+        archive = {
+            "$archiver": "NSKeyedArchiver",
+            "$version": 100000,
+            "$top": {"root": plistlib.UID(1)},
+            "$objects": [
+                "$null",
+                {
+                    "$class": plistlib.UID(2),
+                    "NSRGB": b"0.7764705882 0.7843137255 0.8196078431\x00",
+                    "NSColorSpace": 1,
+                },
+                {"$classname": "NSColor", "$classes": ["NSColor", "NSObject"]},
+            ],
+        }
+        data = plistlib.dumps(archive, fmt=plistlib.FMT_BINARY)
+        result = gm.parse_ns_color(data)
+        self.assertIsNotNone(result)
+        self.assertAlmostEqual(result[0], 0.7764705882, places=5)
+        self.assertAlmostEqual(result[1], 0.7843137255, places=5)
+        self.assertAlmostEqual(result[2], 0.8196078431, places=5)
+
     def test_invalid_data(self):
         self.assertIsNone(gm.parse_ns_color(b"invalid"))
 
