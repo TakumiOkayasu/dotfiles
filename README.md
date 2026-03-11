@@ -53,7 +53,7 @@ Claude Codeの動作時に自動でリマインドを表示。代表的なhooks 
 | ファイル | トリガー | 内容 |
 |----------|----------|------|
 | `session-start-reminder.sh` | セッション開始時 | CLAUDE.mdの重要ルールをリマインド |
-| `git-commit-push-block.sh` | git commit/push実行前 | **ブロック**: commit/pushはユーザーのみ |
+| `destructive-command-block.sh` | 破壊的操作実行前 | **ブロック**: commit/push・rm -rf・rebase等 |
 | `main-branch-code-warning.sh` | コード編集前 | mainブランチでの編集を警告 |
 | `gh-repo-auto-setup.sh` | gh repo create/git push後 | delete-branch-on-merge + Rulesets自動設定 |
 | `commit-checkpoint.sh` | git commit後 | 進捗の自動チェックポイント |

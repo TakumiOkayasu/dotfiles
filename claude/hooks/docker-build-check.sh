@@ -27,7 +27,7 @@ fi
 
 # --- Fast path: case (shell built-in, subprocess なし) ---
 
-# ブロック: git commit/push (git-commit-push-block.sh と二重チェック)
+# ブロック: git commit/push (destructive-command-block.sh と二重チェック)
 case "$CMD" in
     "git commit"|"git commit "*|*" git commit"|*" git commit "*)
         echo "[CLAUDE.md ルール違反] git commit/push はユーザーのみ操作可能です。" >&2

@@ -83,7 +83,7 @@ dotfile-work/
 │   ├── hooks/                 # Auto-reminders
 │   │   ├── session-start-reminder.sh           # Session start reminder
 │   │   ├── session-resume.sh                   # Session resume from progress
-│   │   ├── git-commit-push-block.sh            # Block Claude from commit/push
+│   │   ├── destructive-command-block.sh         # Block destructive operations
 │   │   ├── main-branch-code-warning.sh         # Warn edits on main
 │   │   ├── gh-repo-auto-setup.sh               # Auto repo setup (delete-branch-on-merge + Rulesets)
 │   │   ├── commit-checkpoint.sh                # Auto checkpoint on commit

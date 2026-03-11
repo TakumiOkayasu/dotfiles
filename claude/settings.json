@@ -22,27 +22,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/git-commit-push-block.sh"
+            "command": "~/.claude/hooks/destructive-command-block.sh"
           },
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/docker-build-check.sh"
+            "command": "~/.claude/hooks/docker-build-check.sh"
           },
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/language-version-check.sh"
+            "command": "~/.claude/hooks/language-version-check.sh"
           },
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/local-command-block.sh"
+            "command": "~/.claude/hooks/local-command-block.sh"
           },
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/admin-command-block.sh"
+            "command": "~/.claude/hooks/admin-command-block.sh"
           },
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/secret-leak-check.sh"
+            "command": "~/.claude/hooks/secret-leak-check.sh"
           }
         ]
       },
@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/env-file-protect.sh"
+            "command": "~/.claude/hooks/env-file-protect.sh"
           }
         ]
       },
@@ -60,7 +60,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/main-branch-code-warning.sh"
+            "command": "~/.claude/hooks/main-branch-code-warning.sh"
           }
         ]
       }
@@ -71,15 +71,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/commit-checkpoint.sh"
+            "command": "~/.claude/hooks/commit-checkpoint.sh"
           },
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/context-monitor.sh"
+            "command": "~/.claude/hooks/context-monitor.sh"
           },
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/gh-repo-auto-setup.sh"
+            "command": "~/.claude/hooks/gh-repo-auto-setup.sh"
           }
         ]
       }
@@ -89,7 +89,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/context-monitor.sh"
+            "command": "~/.claude/hooks/context-monitor.sh"
           }
         ]
       }
@@ -99,7 +99,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/pre-compact-backup.sh",
+            "command": "~/.claude/hooks/pre-compact-backup.sh",
             "async": true
           }
         ]
@@ -110,15 +110,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/session-start-reminder.sh"
+            "command": "~/.claude/hooks/session-start-reminder.sh"
           },
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/session-resume.sh"
+            "command": "~/.claude/hooks/session-resume.sh"
           },
           {
             "type": "command",
-            "command": "~/prog/dotfile-work/claude/hooks/project-environment-check.sh"
+            "command": "~/.claude/hooks/project-environment-check.sh"
           }
         ]
       }
