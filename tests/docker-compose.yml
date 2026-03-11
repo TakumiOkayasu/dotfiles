@@ -1,0 +1,16 @@
+services:
+  hooks-test:
+    build:
+      context: ..
+      dockerfile: tests/Dockerfile
+    volumes:
+      - ../claude/hooks:/workspace/hooks:ro
+      - ./test_hooks.sh:/workspace/test_hooks.sh:ro
+  bin-test:
+    build:
+      context: ..
+      dockerfile: tests/Dockerfile
+    entrypoint: ["/workspace/test_bin.sh"]
+    volumes:
+      - ../bin:/workspace/bin:ro
+      - ./test_bin.sh:/workspace/test_bin.sh:ro

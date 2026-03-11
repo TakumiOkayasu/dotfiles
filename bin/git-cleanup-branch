@@ -61,7 +61,7 @@ main() {
     echo ""
 
     # 確認プロンプト
-    read -p "このブランチを削除しますか? (ローカル・リモート両方) [y/N]: " confirm
+    read -rp "このブランチを削除しますか? (ローカル・リモート両方) [y/N]: " confirm
     if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
         echo -e "${YELLOW}キャンセルしました${NC}"
         exit 0
@@ -80,7 +80,7 @@ main() {
         echo -e "${GREEN}✓ ローカルブランチを削除しました${NC}"
     else
         echo -e "${YELLOW}! ローカルブランチが存在しないか、マージされていません${NC}"
-        read -p "強制削除しますか? [y/N]: " force_confirm
+        read -rp "強制削除しますか? [y/N]: " force_confirm
         if [[ "$force_confirm" =~ ^[Yy]$ ]]; then
             git branch -D "$branch_to_delete" 2>/dev/null || true
             echo -e "${GREEN}✓ ローカルブランチを強制削除しました${NC}"
