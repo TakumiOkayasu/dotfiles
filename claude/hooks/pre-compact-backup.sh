@@ -2,9 +2,9 @@
 # pre-compact-backup.sh - compact 前の自動バックアップ
 #
 # 責務:
-#   - PROGRESS.md のスナップショット保存
+#   - PROGRESS.md の内容を含むサマリーを latest.md に保存
 #   - transcript から直近のユーザーリクエスト・変更ファイルを抽出
-#   - .claude/checkpoints/ に保存
+#   - .claude/checkpoints/latest.md に集約
 #
 # 発動: PreCompact (auto|manual)
 # 依存: jaq or jq, perl
@@ -29,17 +29,16 @@ TRIGGER=$(printf '%s\n' "$INPUT" | "$JQ" -r '.trigger // "unknown"' 2>/dev/null)
 
 CHECKPOINT_DIR="${CWD}/.claude/checkpoints"
 PROGRESS_FILE="${CWD}/.claude/progress.md"
-TIMESTAMP=$(date '+%Y%m%d-%H%M%S')
 
 mkdir -p "$CHECKPOINT_DIR"
 
-# --- 1. PROGRESS.md スナップショット ---
-if [ -f "$PROGRESS_FILE" ]; then
-    cp "$PROGRESS_FILE" "${CHECKPOINT_DIR}/progress-${TIMESTAMP}.md"
-fi
+# 旧タイムスタンプ付きファイルを削除 (latest.md のみ残す)
+for _old in "$CHECKPOINT_DIR"/progress-*.md "$CHECKPOINT_DIR"/pre-compact-*.md; do
+    [ -f "$_old" ] && rm -f "$_old"
+done
 
-# --- 2. transcript からサマリー抽出 ---
-SUMMARY_FILE="${CHECKPOINT_DIR}/pre-compact-${TIMESTAMP}.md"
+# --- transcript からサマリー抽出 → latest.md に直接書き出し ---
+SUMMARY_FILE="${CHECKPOINT_DIR}/latest.md"
 
 {
     echo "# Pre-Compact Backup"
@@ -103,8 +102,5 @@ SUMMARY_FILE="${CHECKPOINT_DIR}/pre-compact-${TIMESTAMP}.md"
         cat "$PROGRESS_FILE"
     fi
 } > "$SUMMARY_FILE"
-
-# latest.md も更新
-cp "$SUMMARY_FILE" "${CHECKPOINT_DIR}/latest.md"
 
 exit 0
