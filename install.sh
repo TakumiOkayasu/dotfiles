@@ -86,6 +86,16 @@ fi
 # ユーティリティ関数
 # ============================================================================
 
+# パスを正規化 (クロスプラットフォーム対応)
+canonicalize_path() {
+    [ -z "$1" ] && return 0
+    readlink -f "$1" 2>/dev/null || realpath "$1" 2>/dev/null || {
+        # macOS BSD fallback: ディレクトリ部分を解決
+        _cp_dir=$(cd -P "$(dirname "$1")" 2>/dev/null && pwd -P) || { echo "$1"; return; }
+        echo "${_cp_dir}/$(basename "$1")"
+    }
+}
+
 die() {
     printf "${COLOR_RED}エラー:${COLOR_RESET} %s\n" "$1" >&2
     exit "${2:-1}"
@@ -246,8 +256,10 @@ remove_link() {
 
     target="$(readlink "$dest" 2>/dev/null)" || true
 
-    # このdotfilesへのリンクのみ削除
-    if [ "$target" != "$src" ]; then
+    # このdotfilesへのリンクのみ削除 (正規化パスで比較、クロスプラットフォーム対応)
+    resolved_target="$(canonicalize_path "$target")"
+    resolved_src="$(canonicalize_path "$src")"
+    if [ "$resolved_target" != "$resolved_src" ]; then
         print_skip "スキップ: $dest (別の場所を指しています)"
         COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
         return 0
@@ -756,11 +768,12 @@ uninstall_gitconfig() {
 _is_stale_link() {
     [ ! -L "$1" ] && return 1
     _sl_target=$(readlink "$1" 2>/dev/null) || return 1
-    case "$_sl_target" in "${DOTFILES_DIR}"/*) ;; *) return 1 ;; esac
+    _sl_target=$(canonicalize_path "$_sl_target")
+    case "$_sl_target" in "${_csl_dotfiles}"/*) ;; *) return 1 ;; esac
     # 壊れたリンク → stale
     [ ! -e "$1" ] && return 0
     # リンク先がgit管理下にあるか確認
-    _sl_relative="${_sl_target#"${DOTFILES_DIR}"/}"
+    _sl_relative="${_sl_target#"${_csl_dotfiles}"/}"
     (cd "$DOTFILES_DIR" && git ls-files --error-unmatch "$_sl_relative" >/dev/null 2>&1) && return 1
     return 0
 }
@@ -788,6 +801,7 @@ _remove_stale() {
 
 # ~/.claude/ 配下の孤立シンボリックリンクをクリーンアップ
 cleanup_stale_claude_links() {
+    _csl_dotfiles=$(canonicalize_path "$DOTFILES_DIR")
     for _dir in commands hooks skills rules; do
         _target_dir="${HOME}/.claude/${_dir}"
         [ ! -d "$_target_dir" ] && continue

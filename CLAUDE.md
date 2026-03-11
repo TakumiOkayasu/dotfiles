@@ -22,6 +22,8 @@ dotfile-work is a personal dotfiles repository with an emphasis on Claude Code c
 ./install.sh -u           # Uninstall (remove symlinks)
 ```
 
+> **Windows (PowerShell / Git Bash)**: `install.sh` は POSIX sh スクリプトです。PowerShell からは `wsl bash ./install.sh -f` で実行してください。Git Bash からは直接 `./install.sh` で実行可能です。
+
 ### CLI Tools (bin/)
 
 ```bash
