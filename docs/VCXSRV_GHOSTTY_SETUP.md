@@ -182,7 +182,7 @@ Ctrl+Space で日本語入力切替。
 | カーソルが巨大 | GTK4のスケーリングバグ | `~/.config/gtk-4.0/settings.ini` + `xrdb -merge` で24に固定 |
 | Ghosttyが黒画面 | Native OpenGLがON | XLaunchで Native opengl を OFF にする |
 | `\\wsl$` でパスが見つからない | ディストロ名の不一致 | `\\wsl.localhost\<正しいディストロ名>` を使用 |
-| Ghosttyウィンドウが2つ出る | WSLg版とVcXsrv版が両方起動 | `pkill ghostty` で全プロセスを殺してから `source ~/.bashrc` で再起動 |
+| Ghosttyウィンドウが2つ出る | WSLg版とVcXsrv版が両方起動 | `pkill ghostty` で全プロセスを殺してから手動で再起動 |
 | ファイアウォール変更後も接続不可 | VcXsrvがルール変更前の状態で動作 | VcXsrvを再起動する (`Stop-Process -Name vcxsrv -Force` → XLaunch再実行) |
 
 ## 残タスク
@@ -223,6 +223,6 @@ Ctrl+Space で日本語入力切替。
 | `config/shell/common.sh` | `~/.local.sh` → `wsl.sh` の読み込み順を管理 |
 | `config/windows/config.xlaunch` | VcXsrv起動設定 |
 | `config/gtk-4.0/settings.ini` | GTK4カーソルテーマ・サイズ |
-| `config/shell/bash/bashrc` | Ghostty自動起動 |
+| `config/shell/bash/bashrc` | シェル初期化 (mise, Claude Code等) |
 | `bin/jpinput` | Windows IME日本語入力ヘルパー (bashラッパー) |
 | `bin/jpinput-dialog.ps1` | PowerShellテキスト入力ダイアログ |
