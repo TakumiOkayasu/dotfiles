@@ -895,6 +895,9 @@ install_claude_config() {
 uninstall_claude_config() {
     print_header "Claude設定をアンインストール"
 
+    # 孤立シンボリックリンクをクリーンアップ (git管理外の旧ファイル)
+    cleanup_stale_claude_links
+
     if [ -d "${DOTFILES_DIR}/claude" ]; then
         _claude_filelist=$(mktemp)
         _TMPFILES="$_TMPFILES $_claude_filelist"
@@ -926,9 +929,10 @@ uninstall_claude_config() {
 
         # dotfiles が作成した空ディレクトリを削除 (深い順、ネスト対応)
         # ~/.claude/ 自体は Claude Code のデータがあるため削除しない
-        find "${HOME}/.claude" -mindepth 1 -depth -type d 2>/dev/null | while IFS= read -r _dir; do
-            rmdir "$_dir" 2>/dev/null && print_success "空ディレクトリ削除: ${_dir#$HOME/}"
-        done
+        _empty_count=$(find "${HOME}/.claude" -mindepth 1 -depth -type d 2>/dev/null \
+            | while IFS= read -r _dir; do rmdir "$_dir" 2>/dev/null && echo x; done \
+            | wc -l)
+        [ "$_empty_count" -gt 0 ] && print_success "空ディレクトリ削除: .claude/ 配下 ${_empty_count} 件"
     fi
 }
 

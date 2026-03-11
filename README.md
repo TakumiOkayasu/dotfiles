@@ -5,7 +5,7 @@
 ## 含まれるファイル
 
 | ディレクトリ | 内容 |
-|--------------|------|
+| -------------- | ------ |
 | `config/shell/` | シェル設定 (bash, zsh, fish, 共通aliases/env) |
 | `config/git/` | Git設定 (.gitconfig, .gitignore, 補完/プロンプト) |
 | `config/vim/` | Vim設定 (.vimrc) |
@@ -16,7 +16,7 @@
 ### 実行可能スクリプト (bin/)
 
 | ファイル | 説明 |
-|----------|------|
+| ---------- | ------ |
 | `git-new-feature` | 機能ブランチ作成 (feat/fix/docs/refactor/chore) |
 | `git-cleanup-branch` | マージ済みブランチ削除 (ローカル・リモート両方) |
 | `gh-setup-repo` | GitHubリポジトリ初期設定 (ブランチ保護、自動削除) |
@@ -26,7 +26,7 @@
 ### Claude Code設定 (claude/)
 
 | ファイル | 配置先 | 説明 |
-|----------|--------|------|
+| ---------- | -------- | ------ |
 | `global_CLAUDE.md` | `~/.claude/CLAUDE.md` | Claude Code用グローバル指示ファイル |
 | `settings.json` | `~/.claude/settings.json` | Claude Code権限・hooks設定 |
 | `rules/` | `~/.claude/rules/` | 常時適用の制約・規約 |
@@ -51,7 +51,7 @@ install.sh が `git ls-files` で自動検出してリンクを作成します�
 Claude Codeの動作時に自動でリマインドを表示。代表的なhooks (詳細はCLAUDE.mdを参照):
 
 | ファイル | トリガー | 内容 |
-|----------|----------|------|
+| ---------- | ---------- | ------ |
 | `session-start-reminder.sh` | セッション開始時 | CLAUDE.mdの重要ルールをリマインド |
 | `destructive-command-block.sh` | 破壊的操作実行前 | **ブロック**: commit/push・rm -rf・rebase等 |
 | `main-branch-code-warning.sh` | コード編集前 | mainブランチでの編集を警告 |
@@ -64,7 +64,7 @@ Claude Codeの動作時に自動でリマインドを表示。代表的なhooks 
 `/project-init` スラッシュコマンドで使用するテンプレート。
 
 | ディレクトリ | 内容 |
-|--------------|------|
+| -------------- | ------ |
 | `lang/` | 言語別 CLAUDE.md テンプレート |
 | `rules/common/` | 共通ルール (security, design-principles, error-handling) |
 | `rules/<lang>/` | 言語別ルール (code-style, testing) |
@@ -77,7 +77,7 @@ Claude Codeの動作時に自動でリマインドを表示。代表的なhooks 
 
 Claude Codeセッション内で実行:
 
-```
+```text
 /project-init               # プロジェクトから言語を自動検出して初期化
 /project-init python        # Python用テンプレートで初期化
 /project-init ts            # エイリアスも使用可能
@@ -98,7 +98,7 @@ Claude Codeセッション内で実行:
 ### カテゴリ
 
 | カテゴリ | 内容 |
-|----------|------|
+| ---------- | ------ |
 | shell | `config/shell/` (bash, zsh, fish, 共通設定) |
 | git | `config/git/` (.gitconfig, .gitignore, 補完/プロンプト) |
 | vim | `config/vim/.vimrc` |
@@ -126,10 +126,12 @@ gh-setup-repo --check      # 現在の設定を確認
 ```
 
 設定内容:
+
 - mainブランチの保護 (直接push禁止、PR必須)
 - PRマージ後のリモートブランチ自動削除
 
 Claude Code使用時は `gh repo create` や `git push` 後に `gh-repo-auto-setup.sh` hookが自動で以下を設定します:
+
 - 全リポジトリ: delete-branch-on-merge 有効化
 - publicリポジトリのみ: GitHub Rulesets (deletion禁止, force push禁止, PR必須)
 
