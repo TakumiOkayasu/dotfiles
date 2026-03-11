@@ -14,3 +14,7 @@ services:
     volumes:
       - ../bin:/workspace/bin:ro
       - ./test_bin.sh:/workspace/test_bin.sh:ro
+  install-test:
+    build:
+      context: ..
+      dockerfile: tests/Dockerfile.install
