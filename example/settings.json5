@@ -101,7 +101,7 @@
     // 自動実行
     "autoRun": [
       "session-start-reminder",
-      "git-commit-push-block"
+      "destructive-command-block"
     ],
     
     // 失敗時の動作
