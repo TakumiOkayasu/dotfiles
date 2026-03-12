@@ -80,7 +80,6 @@ dotfile-work/
 │   ├── commands/              # Slash commands
 │   │   ├── commit.md          # /commit - commit message generation
 │   │   ├── code-review.md     # /code-review - code review
-│   │   ├── implement.md       # /implement - TDD implementation guide
 │   │   └── project-init.md    # /project-init - project template initializer
 │   ├── hooks/                 # Auto-reminders
 │   │   ├── session-start-reminder.sh           # Session start reminder

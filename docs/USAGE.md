@@ -53,7 +53,7 @@ claude code
 # Commands実行
 /commit
 /code-review
-/implement "機能実装"
+/feat "機能実装"
 ```
 
 ---
@@ -86,7 +86,8 @@ Rules はセッション開始時に自動で読み込まれる。配置先: `~/
 | --------- | ------ |
 | `/commit` | Conventional Commits形式でコミットメッセージ生成 |
 | `/code-review` | 構造化レビュー (Critical/Warning/Suggestion) 修正コード付き |
-| `/implement` | TDD 5フェーズ実装 (理解→RED→GREEN→REFACTOR→報告) |
+| `/feat` | 機能実装ガイド (要件整理→RED→GREEN→REFACTOR→報告) |
+| `/fix` | バグ修正ガイド (再現→根本原因→失敗テスト→修正→リグレッション確認) |
 | `/project-init` | プロジェクト初期化 (CLAUDE.md + rules 生成) |
 
 ---
