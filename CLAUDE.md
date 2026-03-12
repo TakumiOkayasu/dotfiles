@@ -84,7 +84,6 @@ dotfile-work/
 │   │   ├── code-review.md     # /code-review - code review
 │   │   ├── feat.md            # /feat - feature implementation guide
 │   │   ├── fix.md             # /fix - bug fix guide
-│   │   ├── implement.md       # /implement - TDD implementation guide
 │   │   └── project-init.md    # /project-init - project template initializer
 │   ├── hooks/                 # Auto-reminders
 │   │   ├── session-start-reminder.sh           # Session start reminder
