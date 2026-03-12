@@ -62,14 +62,3 @@ if command -v systemctl >/dev/null 2>&1; then
     alias jcf='journalctl -f'
 fi
 
-# ============================================================================
-# SSH エージェント
-# ============================================================================
-
-# keychain があれば使用
-if command -v keychain >/dev/null 2>&1; then
-    eval "$(keychain --eval --quiet id_ed25519 id_rsa 2>/dev/null)"
-elif [ -z "$SSH_AUTH_SOCK" ]; then
-    # ssh-agent を起動
-    eval "$(ssh-agent -s)" >/dev/null 2>&1
-fi

@@ -19,55 +19,24 @@ case $- in
 esac
 
 # ============================================================================
+# DOTFILES_DIR 検出
+# ============================================================================
+
+_bashrc_dir="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")" && pwd)"
+DOTFILES_DIR="${DOTFILES_DIR:-$(dirname "$(dirname "$(dirname "$_bashrc_dir")")")}"
+unset _bashrc_dir
+
+# ============================================================================
 # SSH Agent 自動起動
 # ============================================================================
 
-_setup_ssh_agent() {
-    local ssh_env="$HOME/.ssh/agent.env"
-
-    # .sshディレクトリがなければ作成
-    [[ -d "$HOME/.ssh" ]] || mkdir -p -m 700 "$HOME/.ssh"
-
-    # 既存のagentに接続を試みる
-    if [[ -f "$ssh_env" ]]; then
-        source "$ssh_env" >/dev/null
-        # agentプロセスが生きているか確認
-        if ! kill -0 "$SSH_AGENT_PID" 2>/dev/null; then
-            # プロセスが死んでいるので再起動
-            rm -f "$ssh_env"
-            unset SSH_AUTH_SOCK SSH_AGENT_PID
-        fi
-    fi
-
-    # agentが起動していなければ新規起動
-    if [[ -z "$SSH_AUTH_SOCK" ]] || [[ ! -S "$SSH_AUTH_SOCK" ]]; then
-        ssh-agent -s > "$ssh_env"
-        chmod 600 "$ssh_env"
-        source "$ssh_env" >/dev/null
-    fi
-
-    # 鍵が登録されていなければ追加
-    if ! ssh-add -l &>/dev/null; then
-        for key in "$HOME"/.ssh/id_*; do
-            # 公開鍵(.pub)はスキップ
-            [[ "$key" == *.pub ]] && continue
-            # ファイルが存在すれば追加
-            [[ -f "$key" ]] && ssh-add "$key" 2>/dev/null
-        done
-    fi
-}
-
-_setup_ssh_agent
-unset -f _setup_ssh_agent
+if [[ -f "$DOTFILES_DIR/config/shell/ssh-agent.sh" ]]; then
+    source "$DOTFILES_DIR/config/shell/ssh-agent.sh"
+fi
 
 # ============================================================================
 # 共通設定の読み込み
 # ============================================================================
-
-# DOTFILES_DIR を検出 (config/shell/bash/ -> dotfiles root)
-_bashrc_dir="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")" && pwd)"
-DOTFILES_DIR="${DOTFILES_DIR:-$(dirname "$(dirname "$(dirname "$_bashrc_dir")")")}"
-unset _bashrc_dir
 
 # 共通設定を読み込み
 if [[ -f "$HOME/.shell_common" ]]; then
@@ -82,25 +51,31 @@ fi
 
 # ヒストリ設定
 HISTCONTROL=ignoreboth:erasedups
-HISTSIZE=10000
-HISTFILESIZE=20000
+HISTSIZE=50000
+HISTFILESIZE=100000
 HISTTIMEFORMAT="%Y-%m-%d %H:%M:%S "
+HISTIGNORE="ls:cd:pwd:exit:clear:history"
 
 shopt -s histappend      # ヒストリを追記
 shopt -s cmdhist         # 複数行コマンドを1行で保存
+shopt -s lithist         # 複数行コマンドの改行を保持
 
 # ディレクトリ
 shopt -s autocd          # ディレクトリ名だけで cd
 shopt -s cdspell         # cd のタイプミスを修正
 shopt -s dirspell        # 補完時のディレクトリ名タイプミスを修正
+shopt -s direxpand       # Tab補完で変数を展開
 
 # グロブ
 shopt -s globstar        # ** で再帰マッチ
 shopt -s nocaseglob      # 大文字小文字を無視
+shopt -s dotglob         # * でドットファイルもマッチ
+shopt -s extglob         # !(pattern) 等の拡張グロブ
 
 # その他
 shopt -s checkwinsize    # ウィンドウサイズを更新
 shopt -s expand_aliases  # エイリアスを展開
+shopt -s no_empty_cmd_completion  # 空行Tab補完防止
 
 # ============================================================================
 # 補完
@@ -127,6 +102,12 @@ if [[ -f "$HOME/.git-prompt.sh" ]]; then
 elif [[ -f "$DOTFILES_DIR/.git-prompt.sh" ]]; then
     source "$DOTFILES_DIR/.git-prompt.sh"
 fi
+
+# readline 補完強化
+bind 'set show-all-if-ambiguous on'         # 1回Tab で候補表示
+bind 'set completion-ignore-case on'        # 大文字小文字無視
+bind 'set mark-symlinked-directories on'    # symlink に / 付与
+bind 'set colored-stats on'                 # 補完候補に色
 
 # ============================================================================
 # プロンプト
@@ -278,6 +259,20 @@ if command -v mise &>/dev/null; then
     eval "$(mise activate bash)"
 elif [[ -x "$HOME/.local/bin/mise" ]]; then
     eval "$("${HOME}/.local/bin/mise" activate bash)"
+fi
+
+# ============================================================================
+# モダンツール (fzf, zoxide)
+# ============================================================================
+
+# fzf: Ctrl+R 履歴検索, Ctrl+T ファイル検索
+if command -v fzf &>/dev/null; then
+    eval "$(fzf --bash 2>/dev/null)"
+fi
+
+# zoxide: スマート cd (z コマンド)
+if command -v zoxide &>/dev/null; then
+    eval "$(zoxide init bash)"
 fi
 
 # ============================================================================

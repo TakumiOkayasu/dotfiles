@@ -5,55 +5,25 @@
 # 読み込み: 対話シェル起動時
 
 # ============================================================================
+# DOTFILES_DIR 検出
+# ============================================================================
+
+_zshrc_dir="${${(%):-%x}:A:h}"
+DOTFILES_DIR="${DOTFILES_DIR:-${_zshrc_dir:h:h:h}}"
+unset _zshrc_dir
+
+# ============================================================================
 # SSH Agent 自動起動
 # ============================================================================
-# bashrcと同等の機能: 既存のagentに接続を試み、なければ新規起動
-# 鍵が未登録なら ~/.ssh/id_* を自動追加
 
-_setup_ssh_agent() {
-    local ssh_env="$HOME/.ssh/agent.env"
-
-    # 既存のagentに接続を試みる
-    if [[ -f "$ssh_env" ]]; then
-        source "$ssh_env" >/dev/null
-        # agentプロセスが生きているか確認
-        if ! kill -0 "$SSH_AGENT_PID" 2>/dev/null; then
-            # プロセスが死んでいるので再起動
-            rm -f "$ssh_env"
-            unset SSH_AUTH_SOCK SSH_AGENT_PID
-        fi
-    fi
-
-    # agentが起動していなければ新規起動
-    if [[ -z "$SSH_AUTH_SOCK" ]] || [[ ! -S "$SSH_AUTH_SOCK" ]]; then
-        ssh-agent -s > "$ssh_env"
-        chmod 600 "$ssh_env"
-        source "$ssh_env" >/dev/null
-    fi
-
-    # 鍵が登録されていなければ追加
-    if ! ssh-add -l &>/dev/null; then
-        for key in "$HOME"/.ssh/id_*; do
-            # 公開鍵(.pub)はスキップ
-            [[ "$key" == *.pub ]] && continue
-            # ファイルが存在すれば追加
-            [[ -f "$key" ]] && ssh-add "$key" 2>/dev/null
-        done
-    fi
-}
-
-_setup_ssh_agent
-unset -f _setup_ssh_agent
+if [[ -f "$DOTFILES_DIR/config/shell/ssh-agent.sh" ]]; then
+    source "$DOTFILES_DIR/config/shell/ssh-agent.sh"
+fi
 export GIT_SSH_COMMAND="ssh"
 
 # ============================================================================
 # 共通設定の読み込み
 # ============================================================================
-
-# DOTFILES_DIR を検出 (config/shell/zsh/ -> dotfiles root)
-_zshrc_dir="${${(%):-%x}:A:h}"
-DOTFILES_DIR="${DOTFILES_DIR:-${_zshrc_dir:h:h:h}}"
-unset _zshrc_dir
 
 # 共通設定を読み込み
 # ~/.shell_common があれば優先 (install.sh --shell-common でインストール)
@@ -230,4 +200,18 @@ fi
 
 if [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
+# ============================================================================
+# モダンツール (fzf, zoxide)
+# ============================================================================
+
+# fzf: Ctrl+R 履歴検索, Ctrl+T ファイル検索
+if command -v fzf &>/dev/null; then
+    eval "$(fzf --zsh 2>/dev/null)"
+fi
+
+# zoxide: スマート cd (z コマンド)
+if command -v zoxide &>/dev/null; then
+    eval "$(zoxide init zsh)"
 fi

@@ -4,8 +4,13 @@
 # 読み込み元: bashrc, zshrc
 # 機能: 既存のagentに接続を試み、なければ新規起動、鍵を自動追加
 #
-# 注意: keychain等が既にSSH_AUTH_SOCKを設定している場合は何もしない
-#       (linux.sh/macos.shとの衝突回避)
+# 注意: keychain があれば優先使用。既にSSH_AUTH_SOCKが有効なら何もしない
+
+# keychain があれば優先使用 (パスフレーズキャッシュ機能付き)
+if command -v keychain >/dev/null 2>&1; then
+    eval "$(keychain --eval --quiet id_ed25519 id_rsa 2>/dev/null)"
+    return 0 2>/dev/null || :
+fi
 
 # SSH_AUTH_SOCK が既に有効なソケットを指していれば何もしない
 if [ -n "$SSH_AUTH_SOCK" ] && [ -S "$SSH_AUTH_SOCK" ]; then

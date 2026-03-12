@@ -74,15 +74,3 @@ if [ -d "$HOMEBREW_PREFIX/opt/openssl@3" ]; then
     export PKG_CONFIG_PATH="$HOMEBREW_PREFIX/opt/openssl@3/lib/pkgconfig"
 fi
 
-# ============================================================================
-# Keychain (SSH/GPG キー管理)
-# ============================================================================
-
-# SSH キーを Keychain に追加
-if [ -z "$SSH_AUTH_SOCK" ]; then
-    eval "$(ssh-agent -s)" >/dev/null 2>&1
-fi
-
-# macOS の ssh-add は --apple-use-keychain オプションが使える
-# 必要に応じてコメント解除
-# ssh-add --apple-load-keychain 2>/dev/null
