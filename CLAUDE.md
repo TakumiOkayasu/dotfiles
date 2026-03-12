@@ -39,6 +39,8 @@ statusline-command.sh     # Claude Code statusline (3-line: session/5h/7d usage)
 
 ```sh
 /project-init [lang]      # Initialize Claude Code in a project (auto-detect or specify, 14 languages, aliases supported)
+/feat [description]       # Feature implementation guide (TDD: requirements → RED → GREEN → REFACTOR → report)
+/fix [description]        # Bug fix guide (reproduce → root cause → failing test → fix → regression check)
 ```
 
 ## Architecture
@@ -80,6 +82,8 @@ dotfile-work/
 │   ├── commands/              # Slash commands
 │   │   ├── commit.md          # /commit - commit message generation
 │   │   ├── code-review.md     # /code-review - code review
+│   │   ├── feat.md            # /feat - feature implementation guide
+│   │   ├── fix.md             # /fix - bug fix guide
 │   │   └── project-init.md    # /project-init - project template initializer
 │   ├── hooks/                 # Auto-reminders
 │   │   ├── session-start-reminder.sh           # Session start reminder
