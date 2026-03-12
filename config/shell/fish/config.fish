@@ -4,68 +4,20 @@
 # 読み込み: fish起動時
 
 # ============================================================================
-# SSH Agent 自動起動
-# ============================================================================
-# bashrc/zshrcと同等の機能: 既存のagentに接続を試み、なければ新規起動
-# 鍵が未登録なら ~/.ssh/id_* を自動追加
-
-function _setup_ssh_agent
-    set -l ssh_env "$HOME/.ssh/agent.env"
-
-    # 既存のagentに接続を試みる
-    if test -f "$ssh_env"
-        # agent.envをfishで読み込む (SSH_AUTH_SOCK, SSH_AGENT_PID を抽出)
-        set -l auth_sock (grep SSH_AUTH_SOCK "$ssh_env" | sed 's/.*=\(.*\);.*/\1/')
-        set -l agent_pid (grep SSH_AGENT_PID "$ssh_env" | sed 's/.*=\(.*\);.*/\1/')
-
-        if test -n "$auth_sock" -a -n "$agent_pid"
-            set -gx SSH_AUTH_SOCK $auth_sock
-            set -gx SSH_AGENT_PID $agent_pid
-
-            # agentプロセスが生きているか確認
-            if not kill -0 $SSH_AGENT_PID 2>/dev/null
-                # プロセスが死んでいるので再起動
-                rm -f "$ssh_env"
-                set -e SSH_AUTH_SOCK
-                set -e SSH_AGENT_PID
-            end
-        end
-    end
-
-    # agentが起動していなければ新規起動
-    if test -z "$SSH_AUTH_SOCK"; or not test -S "$SSH_AUTH_SOCK"
-        ssh-agent -s > "$ssh_env"
-        chmod 600 "$ssh_env"
-
-        # 新しいagent.envを読み込む
-        set -l auth_sock (grep SSH_AUTH_SOCK "$ssh_env" | sed 's/.*=\(.*\);.*/\1/')
-        set -l agent_pid (grep SSH_AGENT_PID "$ssh_env" | sed 's/.*=\(.*\);.*/\1/')
-        set -gx SSH_AUTH_SOCK $auth_sock
-        set -gx SSH_AGENT_PID $agent_pid
-    end
-
-    # 鍵が登録されていなければ追加
-    if not ssh-add -l &>/dev/null
-        for key in $HOME/.ssh/id_*
-            # 公開鍵(.pub)はスキップ
-            string match -q '*.pub' $key; and continue
-            # ファイルが存在すれば追加
-            test -f $key; and ssh-add $key 2>/dev/null
-        end
-    end
-end
-
-_setup_ssh_agent
-functions -e _setup_ssh_agent
-
-# ============================================================================
 # DOTFILES_DIR 検出
 # ============================================================================
 
-# このファイルの場所から dotfiles ルートを検出 (config/shell/fish/ -> dotfiles root)
 set -l this_file (status filename)
 set -l config_dir (dirname (dirname (dirname (realpath $this_file))))
 set -gx DOTFILES_DIR (dirname $config_dir)
+
+# ============================================================================
+# SSH Agent 自動起動
+# ============================================================================
+
+if test -f $DOTFILES_DIR/config/shell/fish/ssh-agent.fish
+    source $DOTFILES_DIR/config/shell/fish/ssh-agent.fish
+end
 
 # ============================================================================
 # 共通設定の読み込み (bass 経由)
@@ -151,56 +103,8 @@ end
 # エイリアス
 # ============================================================================
 
-# ディレクトリ操作
-alias ..='cd ..'
-alias ...='cd ../..'
-alias ....='cd ../../..'
-alias md='mkdir -p'
-
-# ls (eza/exa 優先)
-if type -q eza
-    alias ls='eza'
-    alias ll='eza -alF --git'
-    alias la='eza -a'
-    alias lt='eza --tree --level=2'
-else if type -q exa
-    alias ls='exa'
-    alias ll='exa -alF --git'
-    alias la='exa -a'
-    alias lt='exa --tree --level=2'
-else
-    alias ll='ls -alF'
-    alias la='ls -A'
-end
-
-# Git
-alias g='git'
-alias gs='git status'
-alias ga='git add'
-alias gc='git commit'
-alias gp='git push'
-alias gl='git pull'
-alias gd='git diff'
-alias gco='git checkout'
-alias gb='git branch'
-alias glog='git log --oneline --graph --decorate'
-
-# Docker
-alias d='docker'
-alias dc='docker compose'
-alias dps='docker ps'
-alias dpsa='docker ps -a'
-
-# その他
-alias v='vim'
-alias c='code'
-alias c.='code .'
-
-# Claude Code
-if type -q claude
-    alias cc='claude'
-    alias ccr='claude --resume'
-    alias ccc='claude --continue'
+if test -f $DOTFILES_DIR/config/shell/fish/aliases.fish
+    source $DOTFILES_DIR/config/shell/fish/aliases.fish
 end
 
 # ============================================================================
@@ -248,4 +152,18 @@ end
 
 if test -x "/home/linuxbrew/.linuxbrew/bin/brew"
     eval (/home/linuxbrew/.linuxbrew/bin/brew shellenv)
+end
+
+# ============================================================================
+# モダンツール (fzf, zoxide)
+# ============================================================================
+
+# fzf: Ctrl+R 履歴検索, Ctrl+T ファイル検索
+if type -q fzf
+    fzf --fish 2>/dev/null | source
+end
+
+# zoxide: スマート cd (z コマンド)
+if type -q zoxide
+    zoxide init fish | source
 end

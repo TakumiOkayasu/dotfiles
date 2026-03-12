@@ -392,3 +392,63 @@ class TestRoundTrip:
         assert "古い" not in result.stdout, (
             "再 install 後に stale リンクメッセージが出るべきでない"
         )
+
+
+# ---------------------------------------------------------------------------
+# テスト: bin/ インストール
+# ---------------------------------------------------------------------------
+
+
+class TestBinInstall:
+    """bin/ の CLIツールが ~/.local/bin/ にインストール/アンインストールされること"""
+
+    def test_install_creates_bin_symlinks(self, tmp_path: Path) -> None:
+        """install -f で bin/ 内のファイルが ~/.local/bin/ にリンクされる"""
+        home = tmp_path / "home"
+        home.mkdir()
+        result = _run_install_sh(REPO_ROOT, home)
+        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+
+        local_bin = home / ".local" / "bin"
+        assert local_bin.is_dir(), "~/.local/bin/ should be created"
+
+        # bin/ 内の代表的なファイルがリンクされていること
+        for bin_file in (REPO_ROOT / "bin").iterdir():
+            if bin_file.is_file():
+                link = local_bin / bin_file.name
+                assert link.is_symlink(), f"{bin_file.name} should be symlinked"
+
+    def test_uninstall_removes_bin_symlinks(self, tmp_path: Path) -> None:
+        """uninstall で bin/ のシンボリックリンクが削除される"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _run_install_sh(REPO_ROOT, home)
+
+        local_bin = home / ".local" / "bin"
+        # install 後にリンクが存在することを前提確認
+        bin_files = list((REPO_ROOT / "bin").iterdir())
+        assert len(bin_files) > 0
+        assert (local_bin / bin_files[0].name).is_symlink()
+
+        _run_install_sh(REPO_ROOT, home, uninstall=True)
+        for bin_file in bin_files:
+            if bin_file.is_file():
+                link = local_bin / bin_file.name
+                assert not link.exists(), f"{bin_file.name} should be removed"
+
+    def test_dryrun_shows_bin(self, tmp_path: Path) -> None:
+        """ドライランで bin/ のインストールが表示される"""
+        home = tmp_path / "home"
+        home.mkdir()
+        env = os.environ.copy()
+        env["HOME"] = str(home)
+        result = subprocess.run(
+            ["sh", str(REPO_ROOT / "install.sh"), "-n", "-f"],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 0
+        assert ".local/bin" in result.stdout
