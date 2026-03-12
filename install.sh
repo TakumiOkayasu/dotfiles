@@ -43,10 +43,8 @@ COUNT_ERROR=0
 # 選択状態
 SHELL_SELECTED=false
 SHELL_TYPE=""  # bash, zsh, fish, all
-SHELL_COMPONENTS=""  # full, append, custom
-SHELL_COMP_ALIASES=false
-SHELL_COMP_COMMON=false
-SHELL_COMP_PROMPT=false
+SHELL_COMPONENTS=""  # full, append
+BIN_SELECTED=false
 CLAUDE_SELECTED=false
 GITCONFIG_VARIANT=""
 
@@ -54,6 +52,7 @@ GITCONFIG_VARIANT=""
 UNINSTALL_SHELL=false
 UNINSTALL_GIT=false
 UNINSTALL_VIM=false
+UNINSTALL_BIN=false
 UNINSTALL_CLAUDE=false
 
 # 追記モード用マーカー
@@ -415,10 +414,8 @@ select_shell_components() {
     printf "     → %s 等をリポジトリのものに置換 (既存は .bak にバックアップ)\n" "$shell_rc"
     printf "  ${COLOR_BOLD}2)${COLOR_RESET} 追記モード (既存設定を保持) ${COLOR_GREEN}★推奨${COLOR_RESET}\n"
     printf "     → 既存の %s にsource行を自動挿入\n" "$shell_rc"
-    printf "  ${COLOR_BOLD}3)${COLOR_RESET} カスタム選択\n"
-    printf "     → コンポーネントを個別選択 (source行は手動追記)\n"
     echo ""
-    printf "選択 (1-3) [2]: "
+    printf "選択 (1-2) [2]: "
     read -r choice
 
     case "$choice" in
@@ -430,48 +427,11 @@ select_shell_components() {
             SHELL_COMPONENTS="append"
             print_success "追記モードを選択しました"
             ;;
-        3)
-            SHELL_COMPONENTS="custom"
-            select_shell_custom_components
-            ;;
         *)
             print_error "無効な選択です。追記モードを使用します"
             SHELL_COMPONENTS="append"
             ;;
     esac
-}
-
-# カスタムコンポーネント選択
-select_shell_custom_components() {
-    echo ""
-    printf "${COLOR_BOLD}インストールするコンポーネントを選択 (複数可、スペース区切り):${COLOR_RESET}\n"
-    printf "  ${COLOR_BOLD}1)${COLOR_RESET} エイリアス (ls, git, docker等のショートカット)\n"
-    printf "  ${COLOR_BOLD}2)${COLOR_RESET} 共通設定 (PATH/環境変数/プラットフォーム設定)\n"
-    printf "  ${COLOR_BOLD}3)${COLOR_RESET} プロンプト設定 (git-prompt.sh)\n"
-    echo ""
-    printf "選択 (例: 1 2 3) [1]: "
-    read -r choices
-
-    # デフォルトはエイリアスのみ
-    if [ -z "$choices" ]; then
-        choices="1"
-    fi
-
-    for c in $choices; do
-        case "$c" in
-            1) SHELL_COMP_ALIASES=true ;;
-            2) SHELL_COMP_COMMON=true ;;
-            3) SHELL_COMP_PROMPT=true ;;
-            *) print_error "無効な選択をスキップ: $c" ;;
-        esac
-    done
-
-    # 選択結果を表示
-    components_list=""
-    [ "$SHELL_COMP_ALIASES" = "true" ] && components_list="${components_list}エイリアス "
-    [ "$SHELL_COMP_COMMON" = "true" ] && components_list="${components_list}共通設定 "
-    [ "$SHELL_COMP_PROMPT" = "true" ] && components_list="${components_list}プロンプト "
-    print_success "選択: ${components_list}"
 }
 
 install_shell_config() {
@@ -487,24 +447,6 @@ install_shell_config() {
             ;;
         append)
             install_shell_append
-            ;;
-        *)
-            # custom: コンポーネント別インストール
-            if [ "$SHELL_COMP_ALIASES" = "true" ]; then
-                create_link "config/shell/aliases.sh" "${HOME}/.shell_aliases"
-            fi
-
-            if [ "$SHELL_COMP_COMMON" = "true" ]; then
-                create_link "config/shell/common.sh" "${HOME}/.shell_common"
-                print_info "ヒント: 既存の設定ファイルに以下を追加してください:"
-                printf "        ${COLOR_CYAN}[ -f ~/.shell_common ] && . ~/.shell_common${COLOR_RESET}\n"
-            fi
-
-            if [ "$SHELL_COMP_PROMPT" = "true" ]; then
-                create_link "config/git/.git-prompt.sh" "${HOME}/.git-prompt.sh"
-                print_info "ヒント: 既存の設定ファイルに以下を追加してください:"
-                printf "        ${COLOR_CYAN}[ -f ~/.git-prompt.sh ] && . ~/.git-prompt.sh${COLOR_RESET}\n"
-            fi
             ;;
     esac
 }
@@ -698,12 +640,39 @@ uninstall_shell_config() {
     remove_link "config/shell/zsh/zprofile" "${HOME}/.zprofile"
     remove_link "config/shell/fish/config.fish" "${HOME}/.config/fish/config.fish"
 
-    # 追記モード・カスタムモードのクリーンアップ
+    # 追記モードのクリーンアップ
     remove_link "config/shell/common.sh" "${HOME}/.shell_common"
-    remove_link "config/shell/aliases.sh" "${HOME}/.shell_aliases"
     remove_source_block "${HOME}/.bashrc"
     remove_source_block "${HOME}/.zshrc"
     remove_source_block "${HOME}/.config/fish/config.fish"
+}
+
+# ============================================================================
+# CLIツール (bin/)
+# ============================================================================
+
+install_bin_files() {
+    if [ "$BIN_SELECTED" != "true" ]; then
+        return 0
+    fi
+
+    print_header "CLIツールをインストール"
+
+    ensure_dir "${HOME}/.local/bin"
+
+    for bin_file in "$DOTFILES_DIR"/bin/*; do
+        [ ! -f "$bin_file" ] && continue
+        bin_name=$(basename "$bin_file")
+        create_link "bin/$bin_name" "${HOME}/.local/bin/$bin_name"
+    done
+}
+
+uninstall_bin_files() {
+    for bin_file in "$DOTFILES_DIR"/bin/*; do
+        [ ! -f "$bin_file" ] && continue
+        bin_name=$(basename "$bin_file")
+        remove_link "bin/$bin_name" "${HOME}/.local/bin/$bin_name"
+    done
 }
 
 # ============================================================================
@@ -947,7 +916,8 @@ select_uninstall_components() {
     printf "  ${COLOR_BOLD}1)${COLOR_RESET} シェル設定\n"
     printf "  ${COLOR_BOLD}2)${COLOR_RESET} Git設定\n"
     printf "  ${COLOR_BOLD}3)${COLOR_RESET} Vim設定\n"
-    printf "  ${COLOR_BOLD}4)${COLOR_RESET} Claude設定\n"
+    printf "  ${COLOR_BOLD}4)${COLOR_RESET} CLIツール\n"
+    printf "  ${COLOR_BOLD}5)${COLOR_RESET} Claude Code設定\n"
     printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべて\n"
     echo ""
     printf "選択 (例: 1 3 / a) [a]: "
@@ -958,6 +928,7 @@ select_uninstall_components() {
             UNINSTALL_SHELL=true
             UNINSTALL_GIT=true
             UNINSTALL_VIM=true
+            UNINSTALL_BIN=true
             UNINSTALL_CLAUDE=true
             ;;
         *)
@@ -966,7 +937,8 @@ select_uninstall_components() {
                     1) UNINSTALL_SHELL=true ;;
                     2) UNINSTALL_GIT=true ;;
                     3) UNINSTALL_VIM=true ;;
-                    4) UNINSTALL_CLAUDE=true ;;
+                    4) UNINSTALL_BIN=true ;;
+                    5) UNINSTALL_CLAUDE=true ;;
                     *) print_error "無効な選択をスキップ: $c" ;;
                 esac
             done
@@ -978,6 +950,7 @@ select_uninstall_components() {
     [ "$UNINSTALL_SHELL" = "true" ] && selected="${selected}シェル "
     [ "$UNINSTALL_GIT" = "true" ] && selected="${selected}Git "
     [ "$UNINSTALL_VIM" = "true" ] && selected="${selected}Vim "
+    [ "$UNINSTALL_BIN" = "true" ] && selected="${selected}CLIツール "
     [ "$UNINSTALL_CLAUDE" = "true" ] && selected="${selected}Claude "
 
     if [ -z "$selected" ]; then
@@ -990,13 +963,18 @@ select_uninstall_components() {
 show_category_menu() {
     print_header "インストールするカテゴリを選択"
     echo ""
-    printf "  ${COLOR_BOLD}1)${COLOR_RESET} シェル設定 (bash/zsh/fish)\n"
+    printf "  ${COLOR_BOLD}1)${COLOR_RESET} シェル設定\n"
+    printf "     PATH, エイリアス, プロンプト, SSH Agent を設定\n"
     printf "  ${COLOR_BOLD}2)${COLOR_RESET} Git設定\n"
+    printf "     gitconfig, 補完, gitignore を設定\n"
     printf "  ${COLOR_BOLD}3)${COLOR_RESET} Vim設定\n"
-    printf "  ${COLOR_BOLD}4)${COLOR_RESET} Claude設定\n"
+    printf "     .vimrc を配置\n"
+    printf "  ${COLOR_BOLD}4)${COLOR_RESET} CLIツール\n"
+    printf "     git-new-feature 等を ~/.local/bin/ に配置\n"
+    printf "  ${COLOR_BOLD}5)${COLOR_RESET} Claude Code設定\n"
+    printf "     hooks, skills, rules, commands を ~/.claude/ に配置\n"
     echo ""
-    printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべて\n"
-    printf "  ${COLOR_BOLD}q)${COLOR_RESET} 終了\n"
+    printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべて  ${COLOR_BOLD}q)${COLOR_RESET} 終了\n"
     echo ""
 }
 
@@ -1007,7 +985,7 @@ select_files_interactive() {
 
     while true; do
         show_category_menu
-        printf "カテゴリを選択 (1-4/a/q): "
+        printf "カテゴリを選択 (1-5/a/q): "
         read -r choice
 
         case "$choice" in
@@ -1022,6 +1000,7 @@ select_files_interactive() {
                 GIT_SELECTED=true
                 select_gitconfig_variant
                 VIM_SELECTED=true
+                BIN_SELECTED=true
                 CLAUDE_SELECTED=true
                 return
                 ;;
@@ -1039,8 +1018,12 @@ select_files_interactive() {
                 print_success "Vim設定を追加しました"
                 ;;
             4)
+                BIN_SELECTED=true
+                print_success "CLIツールを追加しました"
+                ;;
+            5)
                 CLAUDE_SELECTED=true
-                print_success "Claude設定を追加しました"
+                print_success "Claude Code設定を追加しました"
                 ;;
             *)
                 print_error "無効な選択です"
@@ -1057,7 +1040,7 @@ select_files_interactive() {
 }
 
 confirm_installation() {
-    if [ "$SHELL_SELECTED" != "true" ] && [ "$GIT_SELECTED" != "true" ] && [ "$VIM_SELECTED" != "true" ] && [ "$CLAUDE_SELECTED" != "true" ]; then
+    if [ "$SHELL_SELECTED" != "true" ] && [ "$GIT_SELECTED" != "true" ] && [ "$VIM_SELECTED" != "true" ] && [ "$BIN_SELECTED" != "true" ] && [ "$CLAUDE_SELECTED" != "true" ]; then
         die "ファイルが選択されていません"
     fi
 
@@ -1107,18 +1090,6 @@ confirm_installation() {
                         ;;
                 esac
                 ;;
-            *)
-                printf "  ${COLOR_CYAN}シェル設定 - コンポーネント:${COLOR_RESET}\n"
-                if [ "$SHELL_COMP_ALIASES" = "true" ]; then
-                    printf "    + config/shell/aliases.sh -> ~/.shell_aliases\n"
-                fi
-                if [ "$SHELL_COMP_COMMON" = "true" ]; then
-                    printf "    + config/shell/common.sh -> ~/.shell_common\n"
-                fi
-                if [ "$SHELL_COMP_PROMPT" = "true" ]; then
-                    printf "    + config/git/.git-prompt.sh -> ~/.git-prompt.sh\n"
-                fi
-                ;;
         esac
         echo ""
     fi
@@ -1141,8 +1112,14 @@ confirm_installation() {
         echo ""
     fi
 
+    if [ "$BIN_SELECTED" = "true" ]; then
+        printf "  ${COLOR_CYAN}CLIツール:${COLOR_RESET}\n"
+        printf "    + bin/* -> ~/.local/bin/*\n"
+        echo ""
+    fi
+
     if [ "$CLAUDE_SELECTED" = "true" ]; then
-        printf "  ${COLOR_CYAN}Claude設定:${COLOR_RESET}\n"
+        printf "  ${COLOR_CYAN}Claude Code設定:${COLOR_RESET}\n"
         printf "    + claude/* -> ~/.claude/*\n"
         echo ""
     fi
@@ -1176,6 +1153,7 @@ install_files() {
         install_vim_files
     fi
 
+    install_bin_files
     install_claude_config
 }
 
@@ -1192,6 +1170,9 @@ uninstall_files() {
     fi
     if [ "$UNINSTALL_VIM" = "true" ]; then
         uninstall_vim_files
+    fi
+    if [ "$UNINSTALL_BIN" = "true" ]; then
+        uninstall_bin_files
     fi
     if [ "$UNINSTALL_CLAUDE" = "true" ]; then
         uninstall_claude_config
@@ -1234,7 +1215,8 @@ dotfiles インストーラー - dotfilesのシンボリックリンクを作成
     shell   シェル設定 (bash/zsh/fish 選択可能)
     git     Git設定(.gitconfig.work/private, .git-completion.bash等)
     vim     Vim設定(.vimrc)
-    claude  Claude設定 (claude/)
+    bin     CLIツール (git-new-feature等 → ~/.local/bin/)
+    claude  Claude Code設定 (claude/)
 
 例:
     ./install.sh              # 対話的にインストール
@@ -1305,6 +1287,7 @@ main() {
             UNINSTALL_SHELL=true
             UNINSTALL_GIT=true
             UNINSTALL_VIM=true
+            UNINSTALL_BIN=true
             UNINSTALL_CLAUDE=true
         fi
         uninstall_files
@@ -1319,6 +1302,7 @@ main() {
             SHELL_COMPONENTS="full"
             GIT_SELECTED=true
             VIM_SELECTED=true
+            BIN_SELECTED=true
             CLAUDE_SELECTED=true
 
             # プラットフォーム自動検出
