@@ -183,7 +183,7 @@ export PATH
 # 環境変数
 # ============================================================================
 
-# エディタ
+# エディタ (EDITOR / VISUAL)
 if command -v code >/dev/null 2>&1; then
     export EDITOR="code --wait"
 elif command -v vim >/dev/null 2>&1; then
@@ -191,6 +191,7 @@ elif command -v vim >/dev/null 2>&1; then
 elif command -v vi >/dev/null 2>&1; then
     export EDITOR="vi"
 fi
+export VISUAL="$EDITOR"
 
 # Bun
 export BUN_INSTALL="$HOME/.bun"
