@@ -51,7 +51,14 @@ else
     fish_add_path --path "$HOME/go/bin"
     
     # 環境変数
-    set -gx EDITOR "code --wait"
+    if type -q code
+        set -gx EDITOR "code --wait"
+    else if type -q vim
+        set -gx EDITOR "vim"
+    else if type -q vi
+        set -gx EDITOR "vi"
+    end
+    set -gx VISUAL "$EDITOR"
     set -gx LANG "ja_JP.UTF-8"
     set -gx PAGER "less"
     set -gx LESS "-R -F -X"
