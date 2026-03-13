@@ -82,6 +82,25 @@ done
 cleanup_repo
 
 echo ""
+echo "--- リモートなしブランチ作成 ---"
+
+REPO_DIR=$(mktemp -d)
+cd "$REPO_DIR" || exit 1
+git init > /dev/null 2>&1
+git commit --allow-empty -m "initial commit" > /dev/null 2>&1
+
+output=$(/workspace/bin/git-new-feature test-no-remote 2>&1)
+exit_code=$?
+branch=$(git branch --show-current)
+has_warning=$(echo "$output" | grep -c "リモート.*未設定" || true)
+assert_eq "リモートなしでブランチ作成: exit 0" "0" "$exit_code"
+assert_eq "リモートなしでブランチ作成: 正しいブランチ名" "feat/test-no-remote" "$branch"
+assert_eq "リモートなしでブランチ作成: 警告メッセージ表示" "1" "$has_warning"
+
+cd /workspace || exit 1
+rm -rf "$REPO_DIR"
+
+echo ""
 echo "=== git-cleanup-branch ==="
 echo ""
 echo "--- 通常マージ ---"
@@ -198,12 +217,19 @@ git checkout -b feat/no-remote > /dev/null 2>&1
 git commit --allow-empty -m "feat: no remote" > /dev/null 2>&1
 git checkout main > /dev/null 2>&1
 git merge feat/no-remote --no-edit > /dev/null 2>&1
+git checkout feat/no-remote > /dev/null 2>&1
 
-echo "y" | /workspace/bin/git-cleanup-branch feat/no-remote > /dev/null 2>&1
+output=$(echo "y" | /workspace/bin/git-cleanup-branch 2>&1)
 exit_code=$?
 branch_exists=$(git branch --list feat/no-remote)
+has_pull_warning=$(echo "$output" | grep -c "リモート.*未設定.*pull" || true)
+has_push_warning=$(echo "$output" | grep -c "リモート.*未設定.*リモートブランチ" || true)
+has_push_error=$(echo "$output" | grep -c "fatal.*remote" || true)
 assert_eq "リモートなしマージ後の削除: exit 0" "0" "$exit_code"
 assert_eq "リモートなしマージ後の削除: ブランチなし" "" "$branch_exists"
+assert_eq "リモートなしマージ後の削除: pull スキップ警告" "1" "$has_pull_warning"
+assert_eq "リモートなしマージ後の削除: push スキップ警告" "1" "$has_push_warning"
+assert_eq "リモートなしマージ後の削除: push エラーなし" "0" "$has_push_error"
 
 cd /workspace || exit 1
 rm -rf "$REPO_DIR"
