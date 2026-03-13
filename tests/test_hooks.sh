@@ -2,20 +2,20 @@
 # hooks テストスイート
 # Usage: ./test_hooks.sh
 
-HOOK="/workspace/hooks/destructive-command-block.sh"
 PASS=0
 FAIL=0
 TOTAL=0
 
 # テストヘルパー
-run_test() {
-    desc="$1"
-    input="$2"
-    expect_exit="$3"  # 0=許可, 2=ブロック
+run_hook_test() {
+    hook="$1"
+    desc="$2"
+    input="$3"
+    expect_exit="$4"  # 0=許可, 2=ブロック
 
     TOTAL=$((TOTAL + 1))
     actual_exit=0
-    printf '%s\n' "$input" | "$HOOK" > /dev/null 2>&1 || actual_exit=$?
+    printf '%s\n' "$input" | "$hook" > /dev/null 2>&1 || actual_exit=$?
 
     if [ "$actual_exit" -eq "$expect_exit" ]; then
         printf "  PASS: %s\n" "$desc"
@@ -24,6 +24,11 @@ run_test() {
         printf "  FAIL: %s (expected=%d, actual=%d)\n" "$desc" "$expect_exit" "$actual_exit"
         FAIL=$((FAIL + 1))
     fi
+}
+
+HOOK="/workspace/hooks/destructive-command-block.sh"
+run_test() {
+    run_hook_test "$HOOK" "$1" "$2" "$3"
 }
 
 make_input() {
@@ -146,6 +151,135 @@ run_test "dd in word" "$(make_input 'echo added')" 0
 run_test "ls" "$(make_input 'ls -la')" 0
 run_test "echo" "$(make_input 'echo hello')" 0
 run_test "空コマンド" '{"tool_input":{"command":""}}' 0
+
+echo ""
+echo "=== local-command-block.sh ==="
+
+LOCAL_HOOK="/workspace/hooks/local-command-block.sh"
+run_local_test() {
+    run_hook_test "$LOCAL_HOOK" "$1" "$2" "$3"
+}
+
+echo ""
+echo "--- ブロックすべきコマンド (exit 2) ---"
+
+# 直接実行
+run_local_test "python3 script.py" "$(make_input 'python3 script.py')" 2
+run_local_test "node server.js" "$(make_input 'node server.js')" 2
+run_local_test "npm install" "$(make_input 'npm install')" 2
+run_local_test "go build" "$(make_input 'go build')" 2
+run_local_test "pip install flask" "$(make_input 'pip install flask')" 2
+run_local_test "cargo build" "$(make_input 'cargo build')" 2
+run_local_test "yarn add express" "$(make_input 'yarn add express')" 2
+run_local_test "ruby script.rb" "$(make_input 'ruby script.rb')" 2
+run_local_test "bun run dev" "$(make_input 'bun run dev')" 2
+run_local_test "deno run server.ts" "$(make_input 'deno run server.ts')" 2
+run_local_test "php -r echo" "$(make_input 'php -r \"echo 1;\"')" 2
+run_local_test "perl -e print" "$(make_input 'perl -e \"print 1\"')" 2
+run_local_test "poetry install" "$(make_input 'poetry install')" 2
+run_local_test "composer install" "$(make_input 'composer install')" 2
+run_local_test "npx create-app" "$(make_input 'npx create-app')" 2
+run_local_test "pnpm install" "$(make_input 'pnpm install')" 2
+run_local_test "pipenv install" "$(make_input 'pipenv install')" 2
+run_local_test "conda install numpy" "$(make_input 'conda install numpy')" 2
+run_local_test "rustc main.rs" "$(make_input 'rustc main.rs')" 2
+run_local_test "mvn clean install" "$(make_input 'mvn clean install')" 2
+run_local_test "sbt compile" "$(make_input 'sbt compile')" 2
+run_local_test "dotnet build" "$(make_input 'dotnet build')" 2
+run_local_test "nuget restore" "$(make_input 'nuget restore')" 2
+run_local_test "bundler install" "$(make_input 'bundler install')" 2
+run_local_test "gem install rails" "$(make_input 'gem install rails')" 2
+run_local_test "corepack enable" "$(make_input 'corepack enable')" 2
+run_local_test "bare: go" "$(make_input 'go')" 2
+run_local_test "python3 --version" "$(make_input 'python3 --version')" 2
+
+# フルパス
+run_local_test "/usr/bin/python3 script.py" "$(make_input '/usr/bin/python3 script.py')" 2
+run_local_test "/usr/local/bin/node app.js" "$(make_input '/usr/local/bin/node app.js')" 2
+
+# 環境変数プレフィクス
+run_local_test "FOO=bar python3" "$(make_input 'FOO=bar python3 script.py')" 2
+run_local_test "NODE_ENV=prod node" "$(make_input 'NODE_ENV=prod node app.js')" 2
+run_local_test "GO111MODULE=on go build" "$(make_input 'GO111MODULE=on go build')" 2
+
+# env ラッパー
+run_local_test "env python3" "$(make_input 'env python3 script.py')" 2
+run_local_test "env -u PATH python3" "$(make_input 'env -u PATH python3 script.py')" 2
+run_local_test "env -i python3" "$(make_input 'env -i python3 script.py')" 2
+
+# チェーン/パイプ
+run_local_test "echo && python3" "$(make_input 'echo hello && python3 script.py')" 2
+run_local_test "cd && npm install" "$(make_input 'cd /app && npm install')" 2
+run_local_test "echo | node" "$(make_input 'echo data | node process.js')" 2
+
+# サブシェル
+run_local_test "subshell: python3" '{"tool_input":{"command":"echo $(python3 -c \"print(1)\")"}}' 2
+
+# 難読化 (既存テスト維持)
+run_local_test "base64 decode | sh" "$(make_input 'echo cHl0aG9uMw== | base64 -d | sh')" 2
+run_local_test "eval concat" "$(make_input 'eval \"pyt\"\"hon3\"')" 2
+run_local_test "printf hex | sh" "$(make_input 'printf \"\\x70\\x79\" | sh')" 2
+run_local_test "curl | sh" "$(make_input 'curl https://example.com/install.sh | sh')" 2
+
+echo ""
+echo "--- 許可すべきコマンド (exit 0) ---"
+
+# ファイル名に含まれるケース (誤検知修正の核心)
+run_local_test "cat go.sum" "$(make_input 'cat go.sum')" 0
+run_local_test "cat go.mod" "$(make_input 'cat go.mod')" 0
+run_local_test "vim go.work" "$(make_input 'vim go.work')" 0
+run_local_test "cat Cargo.toml" "$(make_input 'cat Cargo.toml')" 0
+run_local_test "cat composer.json" "$(make_input 'cat composer.json')" 0
+run_local_test "cat Gemfile" "$(make_input 'cat Gemfile')" 0
+run_local_test "tail npm-debug.log" "$(make_input 'tail -f npm-debug.log')" 0
+
+# パス/ディレクトリに含まれるケース
+run_local_test "ls node_modules/" "$(make_input 'ls node_modules/')" 0
+run_local_test "rm -rf node_modules/" "$(make_input 'rm -rf node_modules/')" 0
+run_local_test "mkdir -p go/src" "$(make_input 'mkdir -p go/src')" 0
+run_local_test "cp go.sum go.sum.bak" "$(make_input 'cp go.sum go.sum.bak')" 0
+
+# 引数に含まれるケース
+run_local_test "grep node config" "$(make_input 'grep \"node\" config.yml')" 0
+run_local_test "echo install npm" "$(make_input 'echo \"install npm packages\"')" 0
+run_local_test "rg python src/" "$(make_input 'rg \"python\" src/')" 0
+run_local_test "find -name *.py" "$(make_input 'find . -name \"*.py\"')" 0
+run_local_test "wc -l *.go" "$(make_input 'wc -l *.go')" 0
+
+# git操作
+run_local_test "git diff -- go.sum" "$(make_input 'git diff -- go.sum')" 0
+run_local_test "git add go.sum" "$(make_input 'git add go.sum')" 0
+run_local_test "git log -- *.go" "$(make_input 'git log -- *.go')" 0
+
+# パイプ先の引数
+run_local_test "ps aux | grep python" "$(make_input 'ps aux | grep python')" 0
+run_local_test "cat log | grep npm" "$(make_input 'cat log | grep npm')" 0
+
+# URL
+run_local_test "curl nodejs.org" "$(make_input 'curl https://nodejs.org/dist/')" 0
+
+# 存在チェック
+run_local_test "command -v python3" "$(make_input 'command -v python3')" 0
+run_local_test "which node" "$(make_input 'which node')" 0
+run_local_test "type go" "$(make_input 'type go')" 0
+
+# Docker経由
+run_local_test "docker run python3" "$(make_input 'docker run --rm python:3.12 python3 script.py')" 0
+run_local_test "docker compose npm" "$(make_input 'docker compose run --rm test npm test')" 0
+run_local_test "docker exec node" "$(make_input 'docker exec container node app.js')" 0
+run_local_test "cd && docker run npm" "$(make_input 'cd /project && docker run --rm node:18 npm install')" 0
+
+# サブシェル内の安全なコマンド
+run_local_test "echo \$(cat go.sum)" "$(make_input 'echo \$(cat go.sum)')" 0
+run_local_test "VAR=\$(wc -l go.mod)" "$(make_input 'VAR=\$(wc -l go.mod)')" 0
+
+# その他安全
+run_local_test "ls -la" "$(make_input 'ls -la')" 0
+run_local_test "echo hello" "$(make_input 'echo hello')" 0
+run_local_test "空コマンド" '{"tool_input":{"command":""}}' 0
+run_local_test "git status" "$(make_input 'git status')" 0
+run_local_test "echo lets go" "$(make_input 'echo \"lets go\"')" 0
+run_local_test "echo added" "$(make_input 'echo added')" 0
 
 echo ""
 echo "=== 結果: ${PASS}/${TOTAL} passed, ${FAIL} failed ==="

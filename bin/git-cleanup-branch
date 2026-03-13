@@ -20,6 +20,19 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# スカッシュマージ判定: ブランチの全変更が HEAD に含まれているか
+is_squash_merged() {
+    local branch="$1"
+    local merge_base
+    merge_base=$(git merge-base HEAD "$branch" 2>/dev/null) || return 1
+    # ブランチのツリーを merge_base の子として仮コミット化し、cherry で HEAD と比較
+    local squash_commit
+    squash_commit=$(git commit-tree "${branch}^{tree}" -p "$merge_base" -m "tmp" 2>/dev/null) || return 1
+    local unmerged
+    unmerged=$(git cherry HEAD "$squash_commit" "$merge_base" 2>/dev/null | grep '^\+' || true)
+    [[ -z "$unmerged" ]]
+}
+
 # メイン関数
 main() {
     local branch_to_delete="${1:-}"
@@ -76,13 +89,18 @@ main() {
 
     # ローカルブランチを削除
     echo -e "${BLUE}ローカルブランチを削除中...${NC}"
-    if git branch -d "$branch_to_delete" 2>/dev/null; then
-        echo -e "${GREEN}✓ ローカルブランチを削除しました${NC}"
+    if git merge-base --is-ancestor "$branch_to_delete" HEAD 2>/dev/null; then
+        # 通常マージ: ブランチが HEAD の祖先
+        git branch -D "$branch_to_delete"
+        echo -e "${GREEN}✓ ローカルブランチを削除しました (マージ済み)${NC}"
+    elif is_squash_merged "$branch_to_delete"; then
+        git branch -D "$branch_to_delete"
+        echo -e "${GREEN}✓ ローカルブランチを削除しました (スカッシュマージ済み)${NC}"
     else
-        echo -e "${YELLOW}! ローカルブランチが存在しないか、マージされていません${NC}"
+        echo -e "${YELLOW}! ブランチはまだマージされていません${NC}"
         read -rp "強制削除しますか? [y/N]: " force_confirm
         if [[ "$force_confirm" =~ ^[Yy]$ ]]; then
-            git branch -D "$branch_to_delete" 2>/dev/null || true
+            git branch -D "$branch_to_delete"
             echo -e "${GREEN}✓ ローカルブランチを強制削除しました${NC}"
         fi
     fi
