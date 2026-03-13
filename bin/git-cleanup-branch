@@ -49,7 +49,7 @@ main() {
     main_branch=$(git config --local --get claude.mainBranch 2>/dev/null || echo "")
     if [[ -z "$main_branch" ]]; then
         # デフォルトブランチを検出
-        main_branch=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}')
+        main_branch=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}' || true)
         if [[ -z "$main_branch" ]]; then
             main_branch="main"
         fi

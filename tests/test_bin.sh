@@ -187,6 +187,28 @@ assert_eq "未マージ拒否: ブランチ残存" "feat/unmerged" "$branch_exis
 cleanup_repo
 
 echo ""
+echo "--- リモートなしマージ ---"
+
+REPO_DIR=$(mktemp -d)
+cd "$REPO_DIR" || exit 1
+git init > /dev/null 2>&1
+git commit --allow-empty -m "initial commit" > /dev/null 2>&1
+# リモート未設定
+git checkout -b feat/no-remote > /dev/null 2>&1
+git commit --allow-empty -m "feat: no remote" > /dev/null 2>&1
+git checkout main > /dev/null 2>&1
+git merge feat/no-remote --no-edit > /dev/null 2>&1
+
+echo "y" | /workspace/bin/git-cleanup-branch feat/no-remote > /dev/null 2>&1
+exit_code=$?
+branch_exists=$(git branch --list feat/no-remote)
+assert_eq "リモートなしマージ後の削除: exit 0" "0" "$exit_code"
+assert_eq "リモートなしマージ後の削除: ブランチなし" "" "$branch_exists"
+
+cd /workspace || exit 1
+rm -rf "$REPO_DIR"
+
+echo ""
 echo "--- メインブランチ保護 ---"
 
 setup_repo
