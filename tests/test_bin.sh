@@ -109,8 +109,10 @@ echo "--- スカッシュマージ ---"
 setup_repo
 
 git checkout -b feat/squash-merge > /dev/null 2>&1
-git commit --allow-empty -m "feat: squash commit 1" > /dev/null 2>&1
-git commit --allow-empty -m "feat: squash commit 2" > /dev/null 2>&1
+echo "change1" > squash1.txt && git add squash1.txt > /dev/null 2>&1
+git commit -m "feat: squash commit 1" > /dev/null 2>&1
+echo "change2" > squash2.txt && git add squash2.txt > /dev/null 2>&1
+git commit -m "feat: squash commit 2" > /dev/null 2>&1
 git push -u origin feat/squash-merge > /dev/null 2>&1
 git checkout main > /dev/null 2>&1
 git merge --squash feat/squash-merge > /dev/null 2>&1
@@ -122,6 +124,65 @@ exit_code=$?
 branch_exists=$(git branch --list feat/squash-merge)
 assert_eq "スカッシュマージ後の削除: exit 0" "0" "$exit_code"
 assert_eq "スカッシュマージ後の削除: ブランチなし" "" "$branch_exists"
+
+cleanup_repo
+
+echo ""
+echo "--- ローカルのみマージ (push なし) ---"
+
+setup_repo
+
+git checkout -b feat/local-only > /dev/null 2>&1
+git commit --allow-empty -m "feat: local only" > /dev/null 2>&1
+# リモートに push しない
+git checkout main > /dev/null 2>&1
+git merge feat/local-only --no-edit > /dev/null 2>&1
+
+echo "y" | /workspace/bin/git-cleanup-branch feat/local-only > /dev/null 2>&1
+exit_code=$?
+branch_exists=$(git branch --list feat/local-only)
+assert_eq "ローカルマージ後の削除: exit 0" "0" "$exit_code"
+assert_eq "ローカルマージ後の削除: ブランチなし" "" "$branch_exists"
+
+cleanup_repo
+
+echo ""
+echo "--- ローカルスカッシュマージ (push なし) ---"
+
+setup_repo
+
+git checkout -b feat/local-squash > /dev/null 2>&1
+echo "local1" > local1.txt && git add local1.txt > /dev/null 2>&1
+git commit -m "feat: local squash 1" > /dev/null 2>&1
+echo "local2" > local2.txt && git add local2.txt > /dev/null 2>&1
+git commit -m "feat: local squash 2" > /dev/null 2>&1
+# リモートに push しない
+git checkout main > /dev/null 2>&1
+git merge --squash feat/local-squash > /dev/null 2>&1
+git commit -m "feat: local squash merge" > /dev/null 2>&1
+
+echo "y" | /workspace/bin/git-cleanup-branch feat/local-squash > /dev/null 2>&1
+exit_code=$?
+branch_exists=$(git branch --list feat/local-squash)
+assert_eq "ローカルスカッシュマージ後の削除: exit 0" "0" "$exit_code"
+assert_eq "ローカルスカッシュマージ後の削除: ブランチなし" "" "$branch_exists"
+
+cleanup_repo
+
+echo ""
+echo "--- 未マージブランチ (キャンセル) ---"
+
+setup_repo
+
+git checkout -b feat/unmerged > /dev/null 2>&1
+echo "unmerged" > unmerged.txt && git add unmerged.txt > /dev/null 2>&1
+git commit -m "feat: unmerged work" > /dev/null 2>&1
+git checkout main > /dev/null 2>&1
+
+echo "n" | /workspace/bin/git-cleanup-branch feat/unmerged > /dev/null 2>&1
+branch_exists=$(git branch --list feat/unmerged)
+branch_exists=$(echo "$branch_exists" | sed 's/^[* ]*//')
+assert_eq "未マージ拒否: ブランチ残存" "feat/unmerged" "$branch_exists"
 
 cleanup_repo
 

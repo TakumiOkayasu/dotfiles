@@ -57,16 +57,79 @@ _BLOCKED_RUNTIME='python[0-9.]*|node|bun|deno|php|ruby|go|perl'
 # パッケージマネージャ / ビルドツール
 _BLOCKED_PACKAGE='npm|npx|yarn|pnpm|corepack|pip3?|poetry|pipenv|conda|cargo|rustc|gem|bundler?|composer|mvn|gradlew?|sbt|dotnet|nuget'
 # 注: バージョン/環境マネージャ (uv,pyenv,nvm,fnm,asdf,mise,volta等) はブロック対象外
-BLOCKED_PATTERN="\b(${_BLOCKED_RUNTIME}|${_BLOCKED_PACKAGE})\b"
+BLOCKED_EXACT="^(${_BLOCKED_RUNTIME}|${_BLOCKED_PACKAGE})$"
+
+# --- Docker経由かチェックする関数 ---
+is_docker_command() {
+    printf '%s\n' "$1" | grep -qE '^\s*(cd\s+[^;&|]+\s*(&&|;)\s*)*(docker\s+(exec|run|compose)|docker-compose)\b'
+}
+
+# --- コマンドセグメントから実行コマンド名を抽出 ---
+get_first_command() {
+    printf '%s' "$1" | awk '{
+        for (i=1; i<=NF; i++) {
+            if ($i ~ /^[A-Za-z_][A-Za-z0-9_]*=/) continue
+            if ($i == "env") {
+                i++
+                while (i<=NF) {
+                    if ($i ~ /^-.*[uSC]$/) { i += 2; continue }
+                    if ($i ~ /^-/) { i++; continue }
+                    if ($i ~ /^[A-Za-z_][A-Za-z0-9_]*=/) { i++; continue }
+                    break
+                }
+                if (i>NF) exit
+            }
+            n = split($i, parts, "/")
+            print parts[n]
+            exit
+        }
+    }'
+}
+
+# --- 個別セグメントのブロックチェック関数 ---
+check_segment() {
+    _seg="$1"
+    [ -z "$_seg" ] && return 0
+    if is_docker_command "$_seg"; then
+        return 0
+    fi
+    _cmd=$(get_first_command "$_seg")
+    [ -z "$_cmd" ] && return 0
+    if printf '%s\n' "$_cmd" | grep -qE "$BLOCKED_EXACT"; then
+        debug_log "BLOCKED_SEGMENT: $_seg (cmd=$_cmd)"
+        return 1
+    fi
+    return 0
+}
+
+# --- jq不在/JSON解析失敗時のフォールバックチェック ---
+check_raw_input_fallback() {
+    _raw_cmd=$(printf '%s' "$INPUT" | sed -n 's/.*"command"\s*:\s*"\([^"]*\)".*/\1/p')
+    [ -z "$_raw_cmd" ] && return 0
+    _fallback_segs=$(printf '%s' "$_raw_cmd" | awk '{
+        gsub(/&&/, "\n"); gsub(/\|\|/, "\n"); gsub(/;/, "\n"); gsub(/\|/, "\n"); print
+    }')
+    _oldifs="$IFS"; IFS='
+'
+    for _fseg in $_fallback_segs; do
+        _fseg=$(printf '%s' "$_fseg" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+        _fcmd=$(get_first_command "$_fseg")
+        if [ -n "$_fcmd" ] && printf '%s\n' "$_fcmd" | grep -qE "$BLOCKED_EXACT" 2>/dev/null; then
+            IFS="$_oldifs"
+            return 1
+        fi
+    done
+    IFS="$_oldifs"
+    return 0
+}
 
 # jaq優先、jqフォールバック（見つからない場合は空文字）
 JQ=$(command -v jaq 2>/dev/null || command -v jq 2>/dev/null || echo "")
 
 if [ -z "$JQ" ]; then
     debug_log "JQ_NOT_FOUND: jq/jaqが見つからない"
-    # jqがない場合、入力全体をgrepで安全チェック
-    if printf '%s\n' "$INPUT" | grep -qE "$BLOCKED_PATTERN" 2>/dev/null; then
-        echo "[安全フォールバック] jq/jaqが見つかりません。ブロック対象パターンを検出。" >&2
+    if ! check_raw_input_fallback; then
+        echo "[安全フォールバック] jq/jaqが見つかりません。ブロック対象コマンドを検出。" >&2
         exit 2
     fi
     exit 0
@@ -77,35 +140,14 @@ debug_log "PARSED_COMMAND: $COMMAND"
 
 # --- jq解析失敗時の安全フォールバック ---
 if [ -z "$COMMAND" ]; then
-    if printf '%s\n' "$INPUT" | grep -qE "$BLOCKED_PATTERN"; then
-        debug_log "SAFE_FALLBACK: JSON解析失敗、入力にブロック対象パターン検出"
-        echo "[安全フォールバック] JSON解析失敗。入力にブロック対象パターンが含まれています。" >&2
+    if ! check_raw_input_fallback; then
+        debug_log "SAFE_FALLBACK: JSON解析失敗、ブロック対象コマンド検出"
+        echo "[安全フォールバック] JSON解析失敗。ブロック対象コマンドが含まれています。" >&2
         exit 2
     fi
     debug_log "EMPTY_COMMAND: 許可"
     exit 0
 fi
-
-# --- Docker経由かチェックする関数 ---
-is_docker_command() {
-    printf '%s\n' "$1" | grep -qE '^\s*(cd\s+[^;&|]+\s*(&&|;)\s*)*(docker\s+(exec|run|compose)|docker-compose)\b'
-}
-
-# --- 個別セグメントのブロックチェック関数 ---
-check_segment() {
-    _seg="$1"
-    # 空セグメントはスキップ
-    [ -z "$_seg" ] && return 0
-    # セグメントがDocker経由ならスキップ
-    if is_docker_command "$_seg"; then
-        return 0
-    fi
-    if printf '%s\n' "$_seg" | grep -qE "$BLOCKED_PATTERN"; then
-        debug_log "BLOCKED_SEGMENT: $_seg"
-        return 1
-    fi
-    return 0
-}
 
 # --- 層1a: メインコマンド + チェーン/パイプ/サブシェル分割チェック ---
 
