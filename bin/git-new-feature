@@ -95,7 +95,7 @@ main() {
     # メインブランチを取得
     main_branch=$(git config --local --get claude.mainBranch 2>/dev/null || echo "")
     if [[ -z "$main_branch" ]]; then
-        main_branch=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}')
+        main_branch=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}' || true)
         if [[ -z "$main_branch" ]]; then
             main_branch="main"
         fi
@@ -110,7 +110,11 @@ main() {
     # メインブランチに移動して最新化
     echo -e "${BLUE}${main_branch} を最新化中...${NC}"
     git checkout "$main_branch"
-    git pull --ff-only origin "$main_branch"
+    if git remote get-url origin &>/dev/null; then
+        git pull --ff-only origin "$main_branch"
+    else
+        echo -e "${YELLOW}! リモート (origin) が未設定のため pull をスキップしました${NC}"
+    fi
 
     # 新しいブランチを作成
     echo -e "${BLUE}ブランチを作成中...${NC}"

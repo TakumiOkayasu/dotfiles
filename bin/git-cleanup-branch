@@ -84,7 +84,13 @@ main() {
     if [[ "$current_branch" == "$branch_to_delete" ]]; then
         echo -e "${BLUE}${main_branch} に移動中...${NC}"
         git checkout "$main_branch"
-        git pull --ff-only origin "$main_branch" 2>/dev/null || true
+        if git remote get-url origin &>/dev/null; then
+            if ! git pull --ff-only origin "$main_branch"; then
+                echo -e "${YELLOW}! pull に失敗しました（ネットワーク等を確認してください）${NC}"
+            fi
+        else
+            echo -e "${YELLOW}! リモート (origin) が未設定のため pull をスキップしました${NC}"
+        fi
     fi
 
     # ローカルブランチを削除
@@ -107,7 +113,9 @@ main() {
 
     # リモートブランチを削除
     echo -e "${BLUE}リモートブランチを削除中...${NC}"
-    if git push origin --delete "$branch_to_delete" 2>/dev/null; then
+    if ! git remote get-url origin &>/dev/null; then
+        echo -e "${YELLOW}! リモート (origin) が未設定のためリモートブランチの削除をスキップしました${NC}"
+    elif git push origin --delete "$branch_to_delete" 2>/dev/null; then
         echo -e "${GREEN}✓ リモートブランチを削除しました${NC}"
     else
         echo -e "${YELLOW}! リモートブランチが存在しないか、削除に失敗しました${NC}"
