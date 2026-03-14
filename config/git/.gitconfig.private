@@ -6,6 +6,3 @@
 [user]
     name = TakumiOkayasu
     email = takumi_okys@icloud.com
-[core]
-	quotePath = false
-	sshCommand = ssh

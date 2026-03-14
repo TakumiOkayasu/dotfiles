@@ -314,7 +314,7 @@ install_gitignore() {
         return 0
     fi
 
-    target="${HOME}/.gitignore_global"
+    target="${HOME}/.gitignore"
     base="${DOTFILES_DIR}/config/git/.gitignore.common"
     variant="${DOTFILES_DIR}/config/git/.gitignore.${GITCONFIG_VARIANT}"
 
@@ -345,7 +345,7 @@ install_gitignore() {
 }
 
 uninstall_gitignore() {
-    target="${HOME}/.gitignore_global"
+    target="${HOME}/.gitignore"
 
     if [ -f "$target" ]; then
         rm "$target"
@@ -1101,7 +1101,7 @@ confirm_installation() {
         if [ -n "$GITCONFIG_VARIANT" ]; then
             printf "    + config/git/.gitconfig.common -> ~/.gitconfig.common\n"
             printf "    + config/git/.gitconfig.%s -> ~/.gitconfig\n" "$GITCONFIG_VARIANT"
-            printf "    + config/git/.gitignore.common + .gitignore.%s -> ~/.gitignore_global\n" "$GITCONFIG_VARIANT"
+            printf "    + config/git/.gitignore.common + .gitignore.%s -> ~/.gitignore\n" "$GITCONFIG_VARIANT"
         fi
         echo ""
     fi

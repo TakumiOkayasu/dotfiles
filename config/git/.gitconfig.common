@@ -18,7 +18,7 @@
 [core]
     editor = code --wait
     symlinks = true
-    excludesfile = ~/.gitignore_global
+    excludesfile = ~/.gitignore
     compression = 1
     sshCommand = ssh
 
