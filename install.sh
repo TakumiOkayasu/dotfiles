@@ -1092,6 +1092,12 @@ select_files_interactive() {
                 ;;
         esac
 
+        # 全カテゴリ選択済みなら自動で抜ける
+        if [ "$SHELL_SELECTED" = "true" ] && [ "$GIT_SELECTED" = "true" ] && [ "$VIM_SELECTED" = "true" ] && [ "$BIN_SELECTED" = "true" ] && [ "$CLAUDE_SELECTED" = "true" ]; then
+            print_success "全カテゴリが選択されました"
+            return
+        fi
+
         printf "\n選択を続けますか? [Y/n]: "
         read -r cont
         case "$cont" in
