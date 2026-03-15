@@ -452,3 +452,328 @@ class TestBinInstall:
         )
         assert result.returncode == 0
         assert ".local/bin" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# ヘルパー (vendor テスト用)
+# ---------------------------------------------------------------------------
+
+
+def _create_fake_vendor(home: Path) -> Path:
+    """疑似 vendor/agent-skills リポジトリを ~/.claude/vendor/ に作成"""
+    vendor_dir = home / ".claude" / "vendor" / "agent-skills"
+    skills_dir = vendor_dir / "skills"
+
+    for skill_name in ("composition-patterns", "react-best-practices", "web-design-guidelines"):
+        skill_dir = skills_dir / skill_name
+        skill_dir.mkdir(parents=True, exist_ok=True)
+        (skill_dir / "SKILL.md").write_text(f"# {skill_name}")
+
+    # git init して .git/ を作る (install.sh が .git の存在でクローン済み判定)
+    subprocess.run(
+        ["git", "init", str(vendor_dir)], check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "-C", str(vendor_dir), "add", "."], check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "-C", str(vendor_dir), "commit", "-m", "init"],
+        check=True, capture_output=True,
+    )
+    return vendor_dir
+
+
+# ---------------------------------------------------------------------------
+# テスト: vendor スキルのインストール
+# ---------------------------------------------------------------------------
+
+
+class TestVendorInstall:
+    """vendor スキルの clone + symlink 処理のテスト"""
+
+    VENDOR_SKILLS = ("composition-patterns", "react-best-practices", "web-design-guidelines")
+
+    def test_vendor_symlinks_created(self, tmp_path: Path) -> None:
+        """vendor clone 済みの状態で install すると skills にシンボリックリンクが作成される"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _create_fake_vendor(home)
+
+        _run_install_sh(REPO_ROOT, home)
+
+        for skill in self.VENDOR_SKILLS:
+            link = home / ".claude" / "skills" / skill
+            assert link.is_symlink(), f"vendor skill {skill} should be symlinked"
+            assert link.resolve().is_dir(), f"vendor skill {skill} link target should exist"
+
+    def test_vendor_idempotent(self, tmp_path: Path) -> None:
+        """2回 install しても vendor symlink が壊れない"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _create_fake_vendor(home)
+
+        _run_install_sh(REPO_ROOT, home)
+        result = _run_install_sh(REPO_ROOT, home)
+
+        assert result.returncode == 0
+        for skill in self.VENDOR_SKILLS:
+            link = home / ".claude" / "skills" / skill
+            assert link.is_symlink(), f"vendor skill {skill} should still be symlinked after 2nd install"
+
+    def test_vendor_no_skills_dir(self, tmp_path: Path) -> None:
+        """vendor clone はあるが skills/ がない場合にエラーにならない"""
+        home = tmp_path / "home"
+        home.mkdir()
+
+        # .git だけある空の vendor を作成
+        vendor_dir = home / ".claude" / "vendor" / "agent-skills"
+        vendor_dir.mkdir(parents=True)
+        subprocess.run(
+            ["git", "init", str(vendor_dir)], check=True, capture_output=True
+        )
+
+        result = _run_install_sh(REPO_ROOT, home)
+        assert result.returncode == 0
+
+    def test_vendor_dryrun_no_symlinks(self, tmp_path: Path) -> None:
+        """ドライランでは vendor symlink が実際に作成されない"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _create_fake_vendor(home)
+
+        env = os.environ.copy()
+        env["HOME"] = str(home)
+        result = subprocess.run(
+            ["sh", str(REPO_ROOT / "install.sh"), "-n", "-f"],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 0
+
+        # ドライランなので symlink は作られない (vendor はすでに存在するが skill リンクはまだ)
+        for skill in self.VENDOR_SKILLS:
+            link = home / ".claude" / "skills" / skill
+            # vendor dir 直下にファイルがあるだけで symlink ではないはず
+            assert not link.is_symlink(), f"dryrun should not create vendor symlink for {skill}"
+
+    def test_vendor_broken_symlink_at_dest(self, tmp_path: Path) -> None:
+        """destination に壊れた symlink がある場合でもクラッシュしない"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _create_fake_vendor(home)
+
+        # 壊れた symlink を destination に配置
+        skills_dir = home / ".claude" / "skills"
+        skills_dir.mkdir(parents=True, exist_ok=True)
+        broken = skills_dir / "composition-patterns"
+        broken.symlink_to("/nonexistent/path")
+        assert broken.is_symlink()
+        assert not broken.exists()  # dangling
+
+        result = _run_install_sh(REPO_ROOT, home)
+        assert result.returncode == 0
+
+        # 壊れた symlink が修復され、正しいリンクに置き換わっていること
+        link = skills_dir / "composition-patterns"
+        assert link.is_symlink(), "broken symlink should be replaced with valid one"
+        assert link.resolve().is_dir(), "repaired symlink should point to valid target"
+
+
+# ---------------------------------------------------------------------------
+# テスト: vendor スキルのアンインストール
+# ---------------------------------------------------------------------------
+
+
+class TestVendorUninstall:
+    """vendor スキルの symlink 削除 + vendor ディレクトリ削除のテスト"""
+
+    VENDOR_SKILLS = ("composition-patterns", "react-best-practices", "web-design-guidelines")
+
+    def test_uninstall_removes_vendor_symlinks(self, tmp_path: Path) -> None:
+        """uninstall で vendor skill の symlink が削除される"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _create_fake_vendor(home)
+        _run_install_sh(REPO_ROOT, home)
+
+        # install 後に symlink が存在することを確認
+        for skill in self.VENDOR_SKILLS:
+            assert (home / ".claude" / "skills" / skill).is_symlink()
+
+        _run_install_sh(REPO_ROOT, home, uninstall=True)
+
+        for skill in self.VENDOR_SKILLS:
+            link = home / ".claude" / "skills" / skill
+            assert not link.exists(), f"vendor skill {skill} should be removed on uninstall"
+
+    def test_uninstall_removes_vendor_dir(self, tmp_path: Path) -> None:
+        """uninstall で ~/.claude/vendor/ ディレクトリが削除される"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _create_fake_vendor(home)
+        _run_install_sh(REPO_ROOT, home)
+
+        vendor_dir = home / ".claude" / "vendor"
+        assert vendor_dir.is_dir()
+
+        _run_install_sh(REPO_ROOT, home, uninstall=True)
+        assert not vendor_dir.exists(), "vendor dir should be removed on uninstall"
+
+    def test_uninstall_dryrun_preserves_vendor(self, tmp_path: Path) -> None:
+        """ドライラン uninstall では vendor が実際に削除されない"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _create_fake_vendor(home)
+        _run_install_sh(REPO_ROOT, home)
+
+        env = os.environ.copy()
+        env["HOME"] = str(home)
+        result = subprocess.run(
+            ["sh", str(REPO_ROOT / "install.sh"), "-u", "-n", "-f"],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        # ドライランなので vendor は残る
+        for skill in self.VENDOR_SKILLS:
+            link = home / ".claude" / "skills" / skill
+            assert link.is_symlink(), f"dryrun uninstall should preserve vendor symlink for {skill}"
+        assert (home / ".claude" / "vendor").is_dir(), "dryrun uninstall should preserve vendor dir"
+
+    def test_uninstall_without_vendor(self, tmp_path: Path) -> None:
+        """vendor 未導入状態で uninstall してもエラーにならない"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _run_install_sh(REPO_ROOT, home)
+
+        result = _run_install_sh(REPO_ROOT, home, uninstall=True)
+        # vendor がなくてもクラッシュしない
+        assert "エラー" not in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# テスト: vendor-skills-update.sh hook
+# ---------------------------------------------------------------------------
+
+
+class TestVendorSkillsUpdateHook:
+    """vendor-skills-update.sh hook のテスト"""
+
+    HOOK = REPO_ROOT / "claude" / "hooks" / "vendor-skills-update.sh"
+
+    def _run_hook(self, home: Path) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        env["HOME"] = str(home)
+        return subprocess.run(
+            ["sh", str(self.HOOK)],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+    def test_exit_0_when_no_vendor(self, tmp_path: Path) -> None:
+        """vendor 未導入時に exit 0 で正常終了する"""
+        home = tmp_path / "home"
+        home.mkdir()
+        result = self._run_hook(home)
+        assert result.returncode == 0
+
+    def test_skip_when_stamp_recent(self, tmp_path: Path) -> None:
+        """スタンプファイルが新しい場合に pull をスキップする"""
+        home = tmp_path / "home"
+        home.mkdir()
+        vendor_dir = _create_fake_vendor(home)
+        stamp = vendor_dir / ".last-update"
+
+        # 現在時刻をスタンプに書き込み
+        import time
+        stamp.write_text(str(int(time.time())))
+
+        result = self._run_hook(home)
+        assert result.returncode == 0
+
+    def test_pull_when_stamp_old(self, tmp_path: Path) -> None:
+        """スタンプファイルが古い場合に pull を試行し、exit 0 で終了する"""
+        home = tmp_path / "home"
+        home.mkdir()
+        vendor_dir = _create_fake_vendor(home)
+        stamp = vendor_dir / ".last-update"
+
+        # 2日前のタイムスタンプ
+        import time
+        old_stamp = str(int(time.time()) - 200000)
+        stamp.write_text(old_stamp)
+
+        result = self._run_hook(home)
+        assert result.returncode == 0
+        # リモートがないので pull 自体は失敗するが、hook は exit 0 で終了する
+        # スタンプは更新されない (pull 失敗時はスタンプを書き込まない)
+
+    def test_pull_succeeds_with_remote(self, tmp_path: Path) -> None:
+        """リモートがある場合に pull 成功でスタンプが更新される"""
+        home = tmp_path / "home"
+        home.mkdir()
+
+        # 初期コミット付きのリポジトリを作成して bare に push
+        src = tmp_path / "src"
+        src.mkdir()
+        subprocess.run(["git", "init", str(src)], check=True, capture_output=True)
+        (src / "README.md").write_text("# test")
+        subprocess.run(["git", "-C", str(src), "add", "."], check=True, capture_output=True)
+        subprocess.run(
+            ["git", "-C", str(src), "commit", "-m", "init"],
+            check=True, capture_output=True,
+        )
+
+        bare = tmp_path / "remote.git"
+        subprocess.run(
+            ["git", "clone", "--bare", str(src), str(bare)],
+            check=True, capture_output=True,
+        )
+
+        # vendor を bare からクローン
+        vendor_dir = home / ".claude" / "vendor" / "agent-skills"
+        vendor_dir.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(
+            ["git", "clone", str(bare), str(vendor_dir)],
+            check=True, capture_output=True,
+        )
+
+        # スタンプを古い時刻で作成
+        import time
+        stamp = vendor_dir / ".last-update"
+        stamp.write_text(str(int(time.time()) - 200000))
+
+        result = self._run_hook(home)
+        assert result.returncode == 0
+
+        # pull 成功 → スタンプが更新される
+        new_stamp = int(stamp.read_text().strip())
+        assert new_stamp > int(time.time()) - 10, "stamp should be updated after successful pull"
+
+    def test_pull_when_no_stamp(self, tmp_path: Path) -> None:
+        """スタンプファイルがない場合に pull を試行する"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _create_fake_vendor(home)
+
+        result = self._run_hook(home)
+        assert result.returncode == 0
+
+    def test_corrupted_stamp_file(self, tmp_path: Path) -> None:
+        """スタンプファイルが破損していても exit 0 で終了する"""
+        home = tmp_path / "home"
+        home.mkdir()
+        vendor_dir = _create_fake_vendor(home)
+        stamp = vendor_dir / ".last-update"
+        stamp.write_text("not-a-number\n")
+
+        result = self._run_hook(home)
+        assert result.returncode == 0

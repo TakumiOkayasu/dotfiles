@@ -16,8 +16,11 @@ dotfile-work リポジトリの Claude Code 設定を `~/.claude` にシンボ�
 | `claude/skills/*/SKILL.md` | `~/.claude/skills/*/SKILL.md` | オンデマンドの作業手順 |
 | `claude/hooks/*.sh` | `~/.claude/hooks/*.sh` | 自動リマインドhooks |
 | `claude/commands/*.md` | `~/.claude/commands/*.md` | スラッシュコマンド |
+| (自動clone) | `~/.claude/vendor/agent-skills/` | vercel-labs/agent-skills |
+| (自動symlink) | `~/.claude/skills/{composition-patterns,react-best-practices,web-design-guidelines}` | vendor スキル |
 
 シンボリックリンクにより、リポジトリの更新が `~/.claude` に即座に反映されます。
+vendor スキルは `install.sh` 実行時に自動 clone され、SessionStart hook (`vendor-skills-update.sh`) で1日1回 `git pull` で更新されます。
 
 ---
 

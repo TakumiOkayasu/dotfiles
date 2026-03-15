@@ -67,7 +67,9 @@ claude code
 
 Rules はセッション開始時に自動で読み込まれる。配置先: `~/.claude/rules/`
 
-## 📋 Skills (オンデマンド, 4件)
+## 📋 Skills (オンデマンド)
+
+### 自作スキル
 
 | スキル | 用途 | 参照タイミング |
 | -------- | ------ | --------------- |
@@ -75,6 +77,16 @@ Rules はセッション開始時に自動で読み込まれる。配置先: `~/
 | test-driven-development | RED-GREEN-REFACTOR強制 | 機能実装・バグ修正時 |
 | consultation | 構造化された相談テンプレート | 判断が必要な時 |
 | failure-logging | 失敗DB記録・参照 | エラー・失敗時 |
+
+### Vendor スキル (vercel-labs/agent-skills)
+
+| スキル | 用途 |
+| -------- | ------ |
+| composition-patterns | React コンポジションパターン |
+| react-best-practices | React/Next.js パフォーマンス最適化 |
+| web-design-guidelines | Web UI デザインガイドライン |
+
+`install.sh` で自動 clone、SessionStart hook で1日1回自動更新。
 
 **使い方**: `view ~/.claude/skills/<skill-name>/SKILL.md`
 
