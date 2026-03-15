@@ -118,6 +118,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/project-environment-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/vendor-skills-update.sh"
           }
         ]
       }

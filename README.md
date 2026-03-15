@@ -50,6 +50,7 @@ source ~/.bashrc           # 設定反映
 | `rules/` | 常時適用ルール (hallucination-prevention, hierarchical-architecture) |
 | `skills/` | オンデマンド手順 (TDD, debugging, consultation, failure-logging) |
 | `templates/` | `/project-init` 用言語別テンプレート |
+| `vendor/` | 外部スキル (vercel-labs/agent-skills)。`install.sh` が自動 clone、SessionStart hook で1日1回更新 |
 
 新ファイル追加は `claude/` に配置して `git add` するだけ。`install.sh` が `git ls-files` で自動検出する。
 

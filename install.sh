@@ -55,6 +55,9 @@ UNINSTALL_VIM=false
 UNINSTALL_BIN=false
 UNINSTALL_CLAUDE=false
 
+# vendor スキル
+VENDOR_SKILLS="composition-patterns react-best-practices web-design-guidelines"
+
 # 追記モード用マーカー
 DOTWORK_MARKER_BEGIN="# === dotfile-work: BEGIN ==="
 DOTWORK_MARKER_END="# === dotfile-work: END ==="
@@ -859,6 +862,44 @@ install_claude_config() {
 
         rm -f "$_claude_filelist"
     fi
+
+    # --- vendor スキル ---
+    _vendor_dir="${HOME}/.claude/vendor"
+    _agent_skills_repo="https://github.com/vercel-labs/agent-skills.git"
+    _agent_skills_dir="${_vendor_dir}/agent-skills"
+    ensure_dir "$_vendor_dir"
+
+    if [ ! -d "$_agent_skills_dir/.git" ]; then
+        if [ "$MODE_DRY_RUN" = "true" ]; then
+            print_info "[ドライラン] vendor: agent-skills を取得"
+        else
+            if git clone --depth 1 --quiet "$_agent_skills_repo" "$_agent_skills_dir" 2>/dev/null; then
+                print_success "取得: vendor/agent-skills"
+            else
+                print_skip "vendor/agent-skills の取得に失敗（オフライン？）"
+            fi
+        fi
+    fi
+
+    if [ -d "$_agent_skills_dir/skills" ]; then
+        for _skill in $VENDOR_SKILLS; do
+            _src="${_agent_skills_dir}/skills/${_skill}"
+            _dest="${HOME}/.claude/skills/${_skill}"
+            # 壊れた symlink を除去
+            if [ -L "$_dest" ] && [ ! -e "$_dest" ]; then
+                rm "$_dest" 2>/dev/null
+            fi
+            if [ -e "$_src" ] && [ ! -e "$_dest" ]; then
+                if [ "$MODE_DRY_RUN" = "true" ]; then
+                    print_info "[ドライラン] リンク: ~/.claude/skills/${_skill}"
+                else
+                    ln -s "$_src" "$_dest" &&
+                        print_success "作成: ~/.claude/skills/${_skill}" ||
+                        print_error "リンク作成失敗: ${_skill}"
+                fi
+            fi
+        done
+    fi
 }
 
 uninstall_claude_config() {
@@ -895,6 +936,26 @@ uninstall_claude_config() {
         done < "$_claude_filelist"
 
         rm -f "$_claude_filelist"
+
+        # vendor スキルのシンボリックリンク削除
+        for _skill in $VENDOR_SKILLS; do
+            _dest="${HOME}/.claude/skills/${_skill}"
+            if [ -L "$_dest" ]; then
+                if [ "$MODE_DRY_RUN" = "true" ]; then
+                    print_info "[ドライラン] 削除: ~/.claude/skills/${_skill}"
+                else
+                    rm "$_dest" && print_success "削除: ~/.claude/skills/${_skill}"
+                fi
+            fi
+        done
+        if [ -d "${HOME}/.claude/vendor/agent-skills" ]; then
+            if [ "$MODE_DRY_RUN" = "true" ]; then
+                print_info "[ドライラン] 削除: ~/.claude/vendor/agent-skills"
+            else
+                rm -rf "${HOME}/.claude/vendor/agent-skills" && print_success "削除: ~/.claude/vendor/agent-skills"
+                rmdir "${HOME}/.claude/vendor" 2>/dev/null || true
+            fi
+        fi
 
         # dotfiles が作成した空ディレクトリを削除 (深い順、ネスト対応)
         # ~/.claude/ 自体は Claude Code のデータがあるため削除しない
