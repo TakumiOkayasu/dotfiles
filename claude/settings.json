@@ -89,6 +89,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/context-monitor.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/primary-source-check.sh"
           }
         ]
       }
@@ -122,6 +126,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/vendor-skills-update.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/primary-source-reminder.sh"
           }
         ]
       }
