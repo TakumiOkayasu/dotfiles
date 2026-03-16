@@ -157,5 +157,6 @@
       }
     }
   },
-  "language": "japanese"
+  "language": "japanese",
+  "fastMode": true
 }
