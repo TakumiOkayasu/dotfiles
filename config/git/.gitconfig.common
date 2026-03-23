@@ -20,7 +20,6 @@
     symlinks = true
     excludesfile = ~/.gitignore
     compression = 1
-    sshCommand = ssh
 
 [safe]
     directory = ~/prog
