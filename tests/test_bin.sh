@@ -58,6 +58,12 @@ assert_eq "不明なオプションでエラー" "1" "$?"
 (cd /tmp && /workspace/bin/git-new-feature test > /dev/null 2>&1)
 assert_eq "Git リポジトリ外でエラー" "1" "$?"
 
+/workspace/bin/git-new-feature "日本語ブランチ" > /dev/null 2>&1
+assert_eq "非ASCII文字でエラー" "1" "$?"
+
+/workspace/bin/git-new-feature "test with spaces" > /dev/null 2>&1
+assert_eq "スペース含みでエラー" "1" "$?"
+
 echo ""
 echo "--- ブランチ作成 ---"
 
