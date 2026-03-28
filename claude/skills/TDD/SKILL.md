@@ -1,5 +1,5 @@
 ---
-name: test-driven-development
+name: TDD
 description: >
   機能実装やバグ修正で「テストを書く・変更する」作業に使用。
   RED-GREEN-REFACTORサイクルとTesting Trophy手法を適用する。
