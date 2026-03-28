@@ -32,3 +32,48 @@
 - 略語は避ける。検索可能な名前を使う
 - ブール値は `is_`, `has_`, `can_` で始める
 - 対になる概念は対になる名前 (open/close, start/stop)
+
+## 使用例
+
+### 単一責任の適用
+
+```python
+# ❌ 複数責任
+class UserService:
+    def save_user(self, user): ...
+    def send_welcome_email(self, user): ...
+    def render_profile_html(self, user): ...
+
+# ✅ 責任を分離
+class UserRepository:
+    def save(self, user): ...
+
+class UserNotifier:
+    def send_welcome_email(self, user): ...
+
+class UserPresenter:
+    def render_profile_html(self, user): ...
+```
+
+### DRY の適用
+
+```python
+# ❌ 重複ロジック
+def calc_tax_jp(price): return price * 0.10
+def calc_tax_us(price): return price * 0.10  # 同一ロジック
+
+# ✅ 3回繰り返したら抽出
+def calc_tax(price, rate): return price * rate
+```
+
+### 依存性逆転の適用
+
+```python
+# ❌ 具象依存
+class OrderService:
+    def __init__(self): self.db = MySQLDatabase()
+
+# ✅ 抽象依存
+class OrderService:
+    def __init__(self, db: DatabaseInterface): self.db = db
+```
