@@ -5,22 +5,36 @@ description: 機能追加・クラス設計・interface設計・依存関係整�
 
 # Interface-First Design
 
+---
+name: interface-first-design
+description: 機能追加・クラス設計・interface設計・依存関係整理・責務分割時に使用。疑似コードから interface→クラス→TDD→実装の順で設計する。TDDスキルの前段。
+---
+
 **理想の処理フローを疑似コードで先に描け。そこからinterfaceが生まれる。実装は最後。**
 
-## 思考の順序
+## トリガー条件
 
-1. **理想の処理フローを疑似コードで描く** — 言語・フレームワーク非依存で「こうだと良い」を書く
-2. **疑似コードからinterfaceを逆算する** — このフローを実現するために必要な契約を抽出する
-3. **メソッドを設計する** — 1メソッド = 1責務。メソッド名が振る舞いを限定しないこと
-4. **interfaceだけで処理を完結させる** — 利用側はinterfaceに従うだけ
-5. **必要なinterfaceを実装したクラスが生まれる** — interfaceの集合体としてクラスができる
-6. **TDD → 実装**
+以下のいずれかに該当する場合、このスキルを発動する：
+
+- 新規クラス・モジュールの設計を開始するとき
+- 既存クラスの責務が肥大化し、分割を検討するとき
+- 依存関係の整理・リファクタリングを行うとき
+- 「何をinterfaceにすべきか」が不明なとき
+- TDDスキル実行前の設計フェーズ
+
+## 前提条件
+
+- 実装言語・フレームワークは問わない（言語非依存で適用可能）
+- 既存実装がある場合でも、必ず疑似コードから書き直す（Anti-pattern 4参照）
+- TDDスキルと組み合わせて使用する（本スキルはTDDの前段）
 
 ---
 
-## Step 1: 疑似コードテンプレート
+## 手順（ステップバイステップ）
 
-疑似コードを書く際は以下の形式に従う。言語構文ではなく「何が起きるか」を書く。
+### Step 1: 疑似コードで理想フローを描く
+
+**実装コードを一切書く前に**、以下テンプレートで「何が起きるか」を言語非依存で記述する。
 
 ```
 # [機能名] の理想フロー
@@ -40,7 +54,7 @@ when [例外ケース]
 then [どう扱うか]
 ```
 
-### 疑似コード例: 注文処理
+**疑似コード例: 注文処理**
 
 ```
 # 注文確定処理 の理想フロー
@@ -70,7 +84,7 @@ then 在庫を元に戻す → エラーを返す
 
 ---
 
-## Step 2: interfaceへの変換
+### Step 2: interfaceへの変換
 
 疑似コードの各「手順」をinterfaceのメソッドに1:1対応させる。
 
@@ -98,11 +112,10 @@ then 在庫を元に戻す → エラーを返す
 - フレームワーク固有の型 (Request / Response / Model 等) はinterfaceに含めない
 - 戻り値は Ok/Error の2値で成功/失敗を明示する
 - メソッドは原則1つ。2つ必要に感じたら責務混在を疑う
-- ここでは変換過程を示すため引数を記載している。最終的なinterfaceは責務名のみで定義する (→ Anti-pattern 3 参照)
 
 ---
 
-## Step 3: 上位層での組み立て
+### Step 3: 上位層での組み立て
 
 interfaceを組み合わせる処理は上位層の責務。
 
@@ -122,17 +135,37 @@ class OrderService
 
 ---
 
+### Step 4: TDDへ移行
+
+設計完了チェックリストを全てクリアしたら、TDDスキルを起動して実装フェーズへ移る。
+
+---
+
+## 禁止事項・制約
+
+| 禁止 | 理由 |
+|------|------|
+| 疑似コードを省略してinterfaceを作る | 実装都合がinterfaceに漏れる（Anti-pattern 4） |
+| 既存実装からそのままinterfaceを写す | ORM・フレームワーク依存が混入する |
+| 1つのinterfaceに複数メソッドを定義する | ISP違反・責務混在（Anti-pattern 3） |
+| フレームワーク固有の型をinterfaceに含める | 言語・FW変更時に全面改修が発生する |
+| 組み立て処理を下位層に書く | 上位層の責務を侵害する（hierarchical-architecture違反） |
+| 同レイヤー間でinterfaceを直接参照する | 横参照禁止（hierarchical-architecture参照） |
+| 「実装してから設計を後付け」する | 設計は必ず実装の前に行う |
+
+---
+
 ## アンチパターン集
 
 ### ❌ Anti-pattern 1: 実装都合がinterfaceに漏れる
 
 ```
-BAD: DBのテーブル名・クエリ構文がinterfaceに漏れている
+BAD:
   interface UserRepository
     findByEmailFromUsersTable(email) -> UserRow   # テーブル名が漏れている
     executeRawQuery(sql) -> unknown               # SQL言語が漏れている
 
-GOOD: 利用側の意図だけを表現する
+GOOD:
   interface UserRepository
     findByEmail(email) -> User | null
 ```
@@ -140,16 +173,15 @@ GOOD: 利用側の意図だけを表現する
 ### ❌ Anti-pattern 2: 1メソッドが複数責務を持つ
 
 ```
-BAD: 検索 + 変換 + 送信が1メソッドに混在 (メソッド名にandが入ったら要注意)
+BAD:
   interface ReportService
-    fetchAndFormatAndSend(userId) -> void
+    fetchAndFormatAndSend(userId) -> void   # andが入ったら要注意
 
-GOOD: 責務を分割し、組み立ては上位層で
+GOOD:
   interface Fetcher
   interface Formatter
   interface Sender
 
-  # レポートドメインでの実装例
   class ReportFetcher   implements Fetcher   -> fetch(userId) -> RawReport
   class ReportFormatter implements Formatter -> format(raw)   -> FormattedReport
   class ReportSender    implements Sender    -> send(report)  -> void
@@ -158,22 +190,21 @@ GOOD: 責務を分割し、組み立ては上位層で
 ### ❌ Anti-pattern 3: interfaceの肥大化 (ISP違反)
 
 ```
-BAD: 使う側が不要なメソッドを実装させられる
+BAD:
   interface UserService
-    find(id)                  -> User
-    save(user)                -> void
-    delete(id)                -> void
-    sendWelcomeEmail(user)    -> void   # 通知は別責務
-    exportToCsv(users)        -> string # エクスポートも別責務
+    find(id)               -> User
+    save(user)             -> void
+    delete(id)             -> void
+    sendWelcomeEmail(user) -> void    # 通知は別責務
+    exportToCsv(users)     -> string  # エクスポートも別責務
 
-GOOD: 用途別に分割する (1 interface = 1メソッド = 1責務)
+GOOD: (1 interface = 1メソッド = 1責務)
   interface Reader
   interface Writer
   interface Deleter
   interface Notifier
   interface Exporter
 
-  # Userドメインでの実装例
   class UserReader   implements Reader   -> read(id) -> User
   class UserWriter   implements Writer   -> write(user) -> void
   class UserNotifier implements Notifier -> notify(userId, message) -> void
@@ -182,17 +213,15 @@ GOOD: 用途別に分割する (1 interface = 1メソッド = 1責務)
 ### ❌ Anti-pattern 4: 疑似コードを書かずにinterfaceを作る
 
 ```
-BAD: 既存実装からそのままinterfaceを写す (実装都合が全部漏れる)
+BAD:
   interface ArticleInterface
-    get(id) -> array      # "array" はORM都合の型
-    paginateAll() -> Paginator  # ORMのPaginatorが漏れている
+    get(id) -> array           # "array" はORM都合の型
+    paginateAll() -> Paginator # ORMのPaginatorが漏れている
 
 GOOD: 疑似コードから「記事一覧表示」フローを先に描く
-     → 利用側が必要な意図だけが残る
   interface Reader
   interface Lister
 
-  # 記事ドメインでの実装例
   class ArticleReader implements Reader -> read(id)     -> Article | null
   class ArticleLister implements Lister -> list(filter) -> Article[]
 ```
@@ -210,16 +239,43 @@ GOOD: 疑似コードから「記事一覧表示」フローを先に描く
 
 ---
 
+## 出力形式（設計ドキュメント）
+
+設計結果は以下の形式で出力する：
+
+```
+## [機能名] 設計
+
+### 疑似コード
+[Step 1の内容]
+
+### Interface一覧
+| Interface名 | メソッド | 引数 | 戻り値 |
+|------------|---------|------|--------|
+| FooReader  | read()  | id   | Foo \| null |
+
+### クラス一覧
+| クラス名    | 実装Interface | 責務 |
+|------------|--------------|------|
+| FooReader  | Reader       | DBからFooを取得 |
+
+### 上位層の組み立て
+[Step 3の内容]
+```
+
+---
+
 ## 設計完了チェックリスト
 
 ```
-[ ] 疑似コードを書いたか (Step 1を省略していないか)
-[ ] 各interfaceのメソッドは1つか (複数なら分割候補)
+[ ] 疑似コードを書いたか（Step 1を省略していないか）
+[ ] 各interfaceのメソッドは1つか（複数なら分割候補）
 [ ] interfaceにフレームワーク固有の型が含まれていないか
 [ ] 実装を差し替えても利用側が変わらないか
 [ ] 組み立て処理は上位層に集約されているか
 [ ] エラーケースがinterfaceの戻り値型に反映されているか
-[ ] interfaceにメソッドを追加しても既存実装が壊れないか (壊れるなら責務混在)
+[ ] interfaceにメソッドを追加しても既存実装が壊れないか（壊れるなら責務混在）
 [ ] 1メソッドが2つ以上の理由で変更されないか
+[ ] 禁止事項をすべて確認したか
+[ ] TDDスキルへの移行準備ができているか
 ```
-
