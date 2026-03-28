@@ -346,8 +346,8 @@ $ARGUMENTS にレビュー対象を指定（省略時は直近の変更）
 
 ## レビュー後の対応
 
-**基本方針: 全指摘を修正する。**
-
-- レビュー結果の報告後、ユーザーから特に指示がなければ全指摘を修正する
+- 修正前に、指摘カテゴリに対応するスキルを読み込む:
+  - カテゴリ 5 (パフォーマンス) → `view ~/.claude/skills/performance-optimization/SKILL.md`
+  - カテゴリ 3 (設計原則) → `view ~/.claude/skills/refactoring/SKILL.md`
+- ユーザーに確認を取り、許可が降りれば全指摘を修正
 - 修正の優先順: Critical → Warning → Suggestion
-- 修正についてユーザーの確認を取る必要はない（指摘した時点で修正案は提示済み）
