@@ -6,27 +6,35 @@
 
 ## Testing
 
-フレームワーク: RSpec (または Minitest)
+フレームワーク: vitest または jest (React: Testing Library)
 
 ### テストファイル配置
 ```
-spec/
-├── spec_helper.rb
-├── models/
-│   └── user_spec.rb
-├── services/
-│   └── user_service_spec.rb
-└── integration/
-    └── api_spec.rb
+src/
+├── components/
+│   ├── Button.tsx
+│   └── Button.test.tsx   # コロケーション
+tests/
+└── integration/          # 結合テスト
 ```
 
 ### テスト実行
 ```bash
-bundle exec rspec             # 全テスト
-bundle exec rspec spec/models/user_spec.rb  # 特定ファイル
-bundle exec rspec --format doc  # 詳細出力
-bundle exec rspec --profile   # 遅いテスト表示
+npm test              # 全テスト
+npm test -- Button    # 特定ファイル
+npm run test:watch    # ウォッチモード
+npm run test:coverage # カバレッジ
 ```
+
+### テスト手順
+1. テスト対象のファイル・機能を特定する
+2. コロケーション配置 (`*.test.tsx`) または `tests/integration/` に配置する
+3. `npm test` で全テストを実行し、グリーンであることを確認する
+4. カバレッジが必要な場合は `npm run test:coverage` を実行する
+5. 結果を報告する
+
+**入力**: テスト対象のファイル名または機能名
+**出力**: テスト結果（パス数・失敗数・カバレッジ率）
 
 ## Available Commands
 - `/commit` - コミットメッセージ生成
@@ -37,4 +45,14 @@ bundle exec rspec --profile   # 遅いテスト表示
 - 大きな変更は一度に行わない、段階的に進める
 - 不明点があれば実装前に確認する
 - 既存のコードスタイルを尊重する
-- Ruby の最新安定版を前提とする
+- Node.js LTS バージョンを前提とする
+
+## 使用例
+
+```
+# 特定コンポーネントのテスト実行
+npm test -- Button
+
+# カバレッジ確認
+npm run test:coverage
+```

@@ -1,27 +1,47 @@
-# コードスタイル (C++)
+# テスト規約 (C++)
+
+## 入力
+
+- C++テストファイル (`tests/**/*`, `**/test_*.cpp`)
+
+## 出力
+
+- Google Test または Catch2 形式のテストコード
+
+## 処理手順
+
+1. テストフレームワークを確認する（Google Test または Catch2）
+2. Arrange-Act-Assert パターンで構造化する
+   - **Arrange**: テスト対象の初期化・前提条件セット
+   - **Act**: テスト対象の操作・実行
+   - **Assert**: 期待値との比較・検証
+3. テスト名を `何を_どの条件で_どうなるか` の形式で命名する
+4. モックは必要最小限に留める
 
 ## 命名規則
 
-- 変数・関数: `snake_case`
-- クラス・構造体: `PascalCase`
-- 定数・マクロ: `UPPER_SNAKE_CASE`
-- メンバ変数: `snake_case_` (末尾アンダースコア)
-- 名前空間: `lowercase`
+```
+TEST(対象クラス名, 何を_どの条件で_どうなるか)
+```
 
-## C++バージョン
+## 使用例
 
-- C++17 以上を推奨
-- モダンC++機能を活用
+```cpp
+// Google Test
+TEST(Calculator, Add_PositiveNumbers_ReturnsSum) {
+    // Arrange
+    Calculator calc;
 
-## メモリ管理
+    // Act
+    int result = calc.add(2, 3);
 
-- RAII パターンを遵守
-- スマートポインタを使用 (`unique_ptr`, `shared_ptr`)
-- 生ポインタは観測用途のみ
-- `new`/`delete` の直接使用禁止 (`make_unique`/`make_shared` を使用)
+    // Assert
+    EXPECT_EQ(result, 5);
+}
+```
 
-## 安全性
+## 禁止事項
 
-- 未定義動作を避ける (ダングリングポインタ, バッファオーバーフロー)
-- const correctness を徹底 (変更しないものは `const`)
-- `nullptr` を使用 (`NULL`/`0` 禁止)
+- テスト名に曖昧な表現 (`test1`, `checkIt` 等) を使用しない
+- 複数の責務を1テストに詰め込まない
+- 不要なモックを追加しない

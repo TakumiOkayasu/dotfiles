@@ -1,20 +1,52 @@
-# コードスタイル (C)
+# テスト規約 (C)
 
-## 命名規則
+## 概要
 
-- 変数・関数: `snake_case`
-- 型 (typedef): `snake_case_t` または `PascalCase`
-- 定数・マクロ: `UPPER_SNAKE_CASE`
-- ヘッダーガード: `PROJECT_MODULE_H`
+Cプロジェクトのテストファイル作成・レビュー時に適用するテスト規約。
 
-## フォーマッタ
+## 対象
 
-- clang-format を使用
+- `tests/**/*`
+- `test/**/*`
+- `**/test_*.c`
 
-## C固有の慣習
+## テストフレームワーク
 
-- ヘッダーにはインクルードガード必須
-- malloc の戻り値は必ず NULL チェック
-- malloc/free は対で管理 (リーク防止)
-- バッファサイズは定数で定義 (マジックナンバー禁止)
-- 配列境界チェックを必ず行う
+使用するフレームワーク（いずれか）:
+
+- Unity Test
+- CUnit
+- 自作マクロ
+
+## 処理手順
+
+1. **テスト名の決定**: 「何を」「どの条件で」「どうなるか」を明示する命名とする
+   - 例: `test_parse_integer_returns_zero_when_input_is_empty`
+2. **テスト構造**: Arrange-Act-Assert (AAA) パターンで記述する
+   - `// Arrange` — 前提条件・データ準備
+   - `// Act` — テスト対象の実行
+   - `// Assert` — 結果検証
+3. **境界値テスト**: 最小値・最大値・ゼロ・負数・オーバーフロー値を必ず含める
+4. **メモリリークテスト**: `valgrind` 等のツールで動的メモリの解放漏れを検証するテストを含める
+
+## 入出力
+
+| 項目 | 内容 |
+|------|------|
+| 入力 | テスト対象の `.c` / `.h` ファイル |
+| 出力 | AAA構造・命名規約に準拠したテストファイル |
+
+## 使用例
+
+```c
+void test_add_returns_sum_when_both_positive(void) {
+    // Arrange
+    int a = 3, b = 5;
+
+    // Act
+    int result = add(a, b);
+
+    // Assert
+    TEST_ASSERT_EQUAL_INT(8, result);
+}
+```

@@ -46,11 +46,35 @@ Raw Input → Calibrated Input → Intent。アプリケーションコードは
 
 ## 命名規則
 
-| 役割 | サフィックス例 |
-|------|---------------|
-| 管理 | *Context, *Manager |
-| 提供 | *Provider, *Registry |
-| 操作 | *Accessor, *Client |
+| 役割 | サフィックス例 | 具体例 |
+|------|---------------|--------|
+| 管理 | *Context, *Manager | `ConnectionManager`, `AppContext` |
+| 提供 | *Provider, *Registry | `ConfigProvider`, `HandlerRegistry` |
+| 操作 | *Accessor, *Client | `DatabaseAccessor`, `HttpClient` |
+
+## 使用例
+
+### ✅ 正しい依存方向
+
+```
+Controller (管理層)
+  └─ UserProvider (提供層)
+       └─ UserAccessor (操作層)
+            └─ PostgresClient (Platform)
+```
+
+### ❌ 禁止パターン
+
+```
+# 横参照
+UserAccessor → OrderAccessor  # NG: 同レイヤー直接参照
+
+# 段階飛ばし
+Controller → PostgresClient   # NG: 管理層がPlatform直接参照
+
+# 下位→上位
+UserAccessor → Controller     # NG: 逆依存
+```
 
 ## 禁止事項
 
