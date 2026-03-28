@@ -47,8 +47,8 @@ source ~/.bashrc           # 設定反映
 | --- | --- |
 | `commands/` | スラッシュコマンド (`/project-init`, `/feat`, `/fix` 等) |
 | `hooks/` | 自動処理 (破壊的操作ブロック、セッション管理、コンテキスト監視) |
-| `rules/` | 常時適用ルール (hallucination-prevention, hierarchical-architecture) |
-| `skills/` | オンデマンド手順 (TDD, debugging, consultation, failure-logging) |
+| `rules/` | 常時適用ルール |
+| `skills/` | オンデマンド手順 |
 | `templates/` | `/project-init` 用言語別テンプレート |
 | `vendor/` | 外部スキル (vercel-labs/agent-skills)。`install.sh` が自動 clone、SessionStart hook で1日1回更新 |
 

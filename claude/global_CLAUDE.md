@@ -39,7 +39,7 @@
 ```text
 git branch --show-current
 [main の場合] git-new-feature <機能名>
-view ~/.claude/skills/test-driven-development/SKILL.md
+view ~/.claude/skills/TDD/SKILL.md
 ```
 
 ---
@@ -87,33 +87,18 @@ hookを迂回するための難読化・間接実行は**絶対禁止**。
 
 ## ⚠️ 静的解析 (必須)
 
-- **ruff, mypy, Pylance のすべてをパスすること**
-
-| ツール | 確認タイミング |
-| -------- | --------------- |
-| ruff | コード変更後 |
-| mypy | コード変更後 |
-| Pylance | 修正完了報告前 |
-
-**報告前に必ず全ツールでエラーゼロを確認。未確認での完了報告は禁止。**
+プロジェクトの CLAUDE.md に記載されたリンター・型チェッカーを全てパスすること。
+未確認での完了報告は禁止。
 
 ---
 
-## 📋 ルール (常時適用, 2件)
+## 📋 ルール
 
-| ルール | 用途 |
-| -------- | ------ |
-| hallucination-prevention | AI出力検証・API/パッケージ存在確認 |
-| hierarchical-architecture | ピラミッド依存・レイヤー設計制約 |
+`~/.claude/rules/` 内のルールが常時適用される。
 
-## 📋 スキル (オンデマンド, 4件)
+## 📋 スキル
 
-| スキル | 用途 |
-| -------- | ------ |
-| systematic-debugging | 4フェーズ根本原因分析 |
-| test-driven-development | RED-GREEN-REFACTOR強制 |
-| consultation | 構造化された相談テンプレート |
-| failure-logging | 失敗DB記録・参照 |
+`~/.claude/skills/` 内のスキルを必要に応じて活用すること。
 
 ---
 
