@@ -184,7 +184,7 @@ $ARGUMENTS にレビュー対象を指定（省略時は直近の変更）
 | 略語の乱用 | 検索不能な短縮名 (`mgr`, `tmp`, `val` 等) | Suggestion |
 | ブール値の命名 | `is_`, `has_`, `can_` プレフィックスの欠如 | Suggestion |
 | 対概念の不一致 | open/close, start/stop 等の対が揃っていない | Suggestion |
-| アーキテクチャ命名規則違反 | 該当ルールが存在する場合: `hierarchical-architecture` の命名規則 (*Manager, *Provider, *Accessor) に反する | Warning |
+| アーキテクチャ命名規則違反 | 該当ルールが存在する場合: `hierarchical-architecture` の命名規則 ( `*Manager`, `*Provider`, `*Accessor` ) に反する | Warning |
 | 過度に長い関数 | 1関数が画面1枚を超える。分割の必要性 | Warning |
 | ネスト過深 | if/for のネストが3段以上。早期リターンで平坦化すべき | Warning |
 
