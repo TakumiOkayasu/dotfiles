@@ -161,6 +161,7 @@ test.describe('<機能名>', () => {
 - 明示的待機: `waitForResponse` / `waitForSelector`
 - `page.waitForTimeout()` 禁止
 - `afterAll` で `destroyDb()` 必須
+- DB操作は Knex クエリビルダまたは提供ヘルパー(`dbAssert`, `seed`, `cleanup`)を使用。生SQL(`knex.raw()` 等)は原則禁止
 
 **dbAssert API:**
 - `dbAssert.exists(table, where, message?)` - レコード存在検証
@@ -234,3 +235,4 @@ rm -rf "$E2E_WORK"
 - `workers > 1` でのDB操作テスト
 - ホストへの Node/Bun/npm 直接インストール
 - プロジェクトディレクトリへのファイル配置
+- 生SQL文字列の直接記述（Knex クエリビルダ / 提供ヘルパー API を使用すること）
