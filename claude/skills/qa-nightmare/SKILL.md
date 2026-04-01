@@ -26,7 +26,9 @@ QAベテランが「これを見落とすと本番障害になる」と考える
 | 境界値の闇 | boundary-hell.md | 11 | 型の限界・仕様の隙間 |
 | 権限の抜け穴 | auth-bypass.md | 10 | 認証認可の隙間 |
 | タイミング地獄 | timing-chaos.md | 10 | 競合・二重実行・非同期 |
-| ドメイン固有 | domain-specific.md | 10 | 製造業特有のロジック |
+| データ入出力 | data-io.md | 10 | CSV/Excelインポート・エクスポート |
+| 障害復旧 | error-recovery.md | 10 | 障害発生後の復帰・リカバリ |
+| ドメイン固有 | domain-specific.md | 10 | 業務ドメイン特有のロジック(汎用) |
 | UI表示破壊 | ui-destruction.md | 10 | レイアウト崩壊・表示異常 |
 | UI操作系 | ui-operation.md | 10 | 操作パターンの穴 |
 | UI状態管理 | ui-state.md | 10 | 画面状態の不整合 |
