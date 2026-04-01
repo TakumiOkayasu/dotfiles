@@ -5,11 +5,6 @@ description: 機能追加・クラス設計・interface設計・依存関係整�
 
 # Interface-First Design
 
----
-name: interface-first-design
-description: 機能追加・クラス設計・interface設計・依存関係整理・責務分割時に使用。疑似コードから interface→クラス→TDD→実装の順で設計する。TDDスキルの前段。
----
-
 **理想の処理フローを疑似コードで先に描け。そこからinterfaceが生まれる。実装は最後。**
 
 ## トリガー条件
