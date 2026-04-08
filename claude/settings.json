@@ -173,5 +173,7 @@
     }
   },
   "language": "japanese",
-  "fastMode": true
+  "fastMode": true,
+  "effortLevel": "high",
+  "showThinkingSummaries": true
 }
