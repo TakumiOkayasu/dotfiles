@@ -44,7 +44,7 @@ dotfile-work/
 │   ├── settings.json    # hooks/skills/lang設定
 │   ├── commands/        # スラッシュコマンド
 │   ├── hooks/           # 自動処理 (セキュリティ, セッション管理)
-│   ├── rules/           # 常時適用ルール (hallucination-prevention, hierarchical-architecture, coding-conventions)
+│   ├── rules/           # 常時適用ルール (hallucination-prevention, hierarchical-architecture, coding-conventions, implementation-policy)
 │   └── skills/          # オンデマンド手順 (TDD, debugging, consultation, failure-logging)
 ├── bin/                 # CLI ツール → ~/bin/
 ├── tests/               # Docker テスト
