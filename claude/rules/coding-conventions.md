@@ -192,6 +192,24 @@ db.flush()
 - ブール値は `is_`, `has_`, `can_` で始める
 - 対になる概念は対になる名前 (open/close, start/stop)
 
+### 曖昧な接頭辞・名前の禁止
+
+意味を持たない汎用的な接頭辞・名前は**何をする関数/変数か読み取れない**ため禁止。具体的な動詞・名詞に置き換える。
+
+| ❌ 曖昧 | 理由 | ✅ 具体化 |
+|--------|------|----------|
+| `handle*` | 何を「処理」するのか不明 | `validateOrder`, `submitForm`, `retryRequest` |
+| `process*` | 同上 | `parsePayload`, `normalizeInput` |
+| `do*` / 単独の `execute` | 目的語がなく動作が不明 | `sendEmail`, `rebuildIndex` |
+| `manage*` | 責務不明 (`*Manager`サフィックスとは別) | `allocateConnection`, `scheduleJob` |
+| `*Helper` / `*Util` | 責務なしの雑多置き場になる | 役割別に分割 (`DateFormatter`, `PathResolver`) |
+| `data`, `info`, `item`, `obj`, `temp` | 型・内容が不明 | `userRecord`, `invoiceRow`, `parsedConfig` |
+
+**例外**:
+- フレームワーク規約 (例: React の `handleClick` イベントハンドラ慣例) は従う。ビジネスロジック側では具体名を用いる。
+- ループ変数や極小スコープ (2-3行) の一時変数での `item` / `temp` は許容。スコープが広がる場合は具体名に。
+- 目的語が付く `execute*` (`executeQuery`, `executeTransaction` 等) は意味が明確なため許容。
+
 > レイヤー役割のサフィックス命名 (`*Manager`, `*Provider` 等) は `hierarchical-architecture.md` を参照。
 
 ## SOLID
