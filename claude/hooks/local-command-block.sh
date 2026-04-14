@@ -48,6 +48,16 @@ if [ -t 0 ]; then
     exit 1
 fi
 
+# --- コンテナ内判定: 早期exit ---
+# 既にコンテナ内で作業中ならDocker経由強制は不要
+# CLAUDE_HOOK_TEST_MODE=1 はテストハーネス専用（本hookがDocker内テストで常時スキップされるのを防ぐ）
+if [ "${CLAUDE_HOOK_TEST_MODE:-0}" != "1" ]; then
+    if [ -f /.dockerenv ] || [ -n "${REMOTE_CONTAINERS:-}" ]; then
+        debug_log "CONTAINER_DETECTED: 早期許可"
+        exit 0
+    fi
+fi
+
 INPUT=$(cat)
 debug_log "RAW_INPUT: $INPUT"
 
