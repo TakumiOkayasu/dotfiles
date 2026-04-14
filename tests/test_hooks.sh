@@ -156,6 +156,8 @@ echo ""
 echo "=== local-command-block.sh ==="
 
 LOCAL_HOOK="/workspace/hooks/local-command-block.sh"
+# テストはDocker内で実行されるため、コンテナ検出による早期exitをバイパス
+export CLAUDE_HOOK_TEST_MODE=1
 run_local_test() {
     run_hook_test "$LOCAL_HOOK" "$1" "$2" "$3"
 }
@@ -280,6 +282,25 @@ run_local_test "空コマンド" '{"tool_input":{"command":""}}' 0
 run_local_test "git status" "$(make_input 'git status')" 0
 run_local_test "echo lets go" "$(make_input 'echo \"lets go\"')" 0
 run_local_test "echo added" "$(make_input 'echo added')" 0
+
+echo ""
+echo "--- コンテナ内判定 (Issue #245): 早期exit 0 ---"
+
+# TEST_MODE を解除してコンテナ検出を有効化
+unset CLAUDE_HOOK_TEST_MODE
+
+# Docker内テストでは /.dockerenv が存在するため、ブロック対象コマンドでも exit 0
+run_local_test "/.dockerenv: python3 許可" "$(make_input 'python3 script.py')" 0
+run_local_test "/.dockerenv: npm install 許可" "$(make_input 'npm install')" 0
+run_local_test "/.dockerenv: go build 許可" "$(make_input 'go build')" 0
+
+# REMOTE_CONTAINERS 環境変数による検出 (devcontainer)
+export REMOTE_CONTAINERS=true
+run_local_test "REMOTE_CONTAINERS: node 許可" "$(make_input 'node app.js')" 0
+unset REMOTE_CONTAINERS
+
+# TEST_MODE を再設定して以降のテストに影響させない
+export CLAUDE_HOOK_TEST_MODE=1
 
 echo ""
 echo "=== 結果: ${PASS}/${TOTAL} passed, ${FAIL} failed ==="
