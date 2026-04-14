@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-個人用dotfilesリポジトリ。Shell/Git/Vim設定とClaude Code設定（skills, hooks, commands, rules, templates）を管理し、`install.sh` でシンボリックリンクを配置する。
+個人用dotfilesリポジトリ。Shell/Git/Vim設定とClaude Code設定（skills, hooks, commands, rules）を管理し、`install.sh` でシンボリックリンクを配置する。
 
 ## Commands
 
@@ -26,7 +26,6 @@ git-cleanup-branch        # マージ済みブランチ削除
 gh-setup-repo             # GitHub リポジトリ設定
 
 # Slash Commands (claude/commands/)
-/project-init [lang]      # プロジェクト初期化 (14言語対応)
 /feat [description]       # 機能実装ガイド (TDD)
 /fix [description]        # バグ修正ガイド
 ```
@@ -45,9 +44,8 @@ dotfile-work/
 │   ├── settings.json    # hooks/skills/lang設定
 │   ├── commands/        # スラッシュコマンド
 │   ├── hooks/           # 自動処理 (セキュリティ, セッション管理)
-│   ├── rules/           # 常時適用ルール (hallucination-prevention, hierarchical-architecture)
-│   ├── skills/          # オンデマンド手順 (TDD, debugging, consultation, failure-logging)
-│   └── templates/       # /project-init 用テンプレート (lang/, rules/)
+│   ├── rules/           # 常時適用ルール (hallucination-prevention, hierarchical-architecture, coding-conventions)
+│   └── skills/          # オンデマンド手順 (TDD, debugging, consultation, failure-logging)
 ├── bin/                 # CLI ツール → ~/bin/
 ├── tests/               # Docker テスト
 └── docs/                # ドキュメント

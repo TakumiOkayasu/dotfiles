@@ -45,11 +45,10 @@ source ~/.bashrc           # 設定反映
 
 | ディレクトリ | 内容 |
 | --- | --- |
-| `commands/` | スラッシュコマンド (`/project-init`, `/feat`, `/fix` 等) |
+| `commands/` | スラッシュコマンド (`/feat`, `/fix`, `/commit`, `/code-review`) |
 | `hooks/` | 自動処理 (破壊的操作ブロック、セッション管理、コンテキスト監視) |
 | `rules/` | 常時適用ルール |
 | `skills/` | オンデマンド手順 |
-| `templates/` | `/project-init` 用言語別テンプレート |
 | `vendor/` | 外部スキル (vercel-labs/agent-skills)。`install.sh` が自動 clone、SessionStart hook で1日1回更新 |
 
 新ファイル追加は `claude/` に配置して `git add` するだけ。`install.sh` が `git ls-files` で自動検出する。

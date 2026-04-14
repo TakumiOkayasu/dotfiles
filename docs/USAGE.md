@@ -100,7 +100,6 @@ Rules はセッション開始時に自動で読み込まれる。配置先: `~/
 | `/code-review` | 構造化レビュー (Critical/Warning/Suggestion) 修正コード付き |
 | `/feat` | 機能実装ガイド (要件整理→RED→GREEN→REFACTOR→報告) |
 | `/fix` | バグ修正ガイド (再現→根本原因→失敗テスト→修正→リグレッション確認) |
-| `/project-init` | プロジェクト初期化 (CLAUDE.md + rules 生成) |
 
 ---
 
