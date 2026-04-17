@@ -38,12 +38,14 @@
 
 **手順**:
 
-1. 現在のブランチを確認する: `git branch --show-current`
-2. mainブランチの場合、必ず新規ブランチを作成する: `git-new-feature <機能名>`
-3. 関連スキルファイルを読む: `view ~/.claude/skills/TDD/SKILL.md`
-4. スキルの手順に従って作業を開始する
+1. `.claude/progress.md` を確認する (未完了タスクがあればそこから再開)
+2. 現在のブランチを確認する: `git branch --show-current`
+3. mainブランチの場合、必ず新規ブランチを作成する: `git-new-feature <機能名>`
+4. 関連スキルファイルを読む: `view ~/.claude/skills/TDD/SKILL.md`
+5. スキルの手順に従って作業を開始する
 
 ```text
+view .claude/progress.md
 git branch --show-current
 [main の場合] git-new-feature <機能名>
 view ~/.claude/skills/TDD/SKILL.md
@@ -168,6 +170,7 @@ git-cleanup-branch           # マージ済みブランチ削除
 - **1ブランチ = 1機能 = 1PR** (「ついでに」修正禁止)
 - **ロックファイル**: `package-lock.json`, `poetry.lock` 等は必ずコミット
 - **1コミット = 1つの論理的変更**
+- **マージ済みローカルブランチは削除** — PRマージ確認後は `git-cleanup-branch` で削除 (放置禁止)
 
 ---
 
@@ -211,6 +214,38 @@ ls ~/.claude/rules/
 ls ~/.claude/skills/
 ls ~/.claude/commands/
 ```
+
+---
+
+## 📋 PROGRESS.md (セッション継続)
+
+**ファイル**: `.claude/progress.md`  
+**目的**: セッションをまたいだ作業継続と判断履歴の保持。
+
+| タイミング | 操作 |
+| ------ | ------ |
+| タスク着手時 | 「現在のタスク」を更新 |
+| 設計判断時 | 「判断ログ」にWhy追記 |
+| Plan確定時 | 実装前に書き出し |
+| タスク完了時 | 完了マーク + 次タスク記載 |
+| コンテキスト ⚠️70% / 🚨85% | 即更新 |
+
+**フォーマット**:
+
+```markdown
+# PROGRESS
+
+## 現在のタスク
+- [ ] タスク名 — 目的: xxx
+
+## 判断ログ
+- YYYY-MM-DD: 判断内容。理由: ...
+
+## 完了
+- [x] 完了したタスク
+```
+
+**セッション開始時**: `.claude/progress.md` を読み、未完了タスクがあればそこから再開する。
 
 ---
 
