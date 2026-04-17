@@ -99,11 +99,11 @@ hookを迂回するための難読化・間接実行は**絶対禁止**。
 
 **手順**:
 
-1. プロジェクトの `CLAUDE.md` を開き、指定されたリンター・型チェッカーを確認する
-2. 全てのチェッカーをDockerコンテナ内で実行する
+1. プロジェクトの `CLAUDE.md` で指定されたリンター・型チェッカー・実行環境を確認する
+2. バージョン固定された実行環境 (Docker / Runnerサブコマンド / バージョンマネージャ) でチェッカーを実行する
 3. 全てパスしたことを確認してから完了報告する
 
-未確認での完了報告は禁止。
+まず**確認**。**未確認での完了報告は禁止**。実行方法の指定がない場合はユーザーに確認する。
 
 ---
 
@@ -187,8 +187,27 @@ git-cleanup-branch           # マージ済みブランチ削除
 
 **hookで自動警告**: ビルド・テスト系は `run_in_background=true` 推奨
 
-- ローカルコマンド直接実行は禁止（hookで検知）
-- Dockerコンテナ内で実行すること: `docker run --rm` または `docker compose run --rm`
+### 実行環境の原則
+
+素のランタイム (`python3`, `node`, `bun`, `deno`, `php`, `ruby`, `go`, `perl`, `rustc`) の直接実行は**禁止** (hookで検知)。  
+理由: ローカル環境の版ズレで再現性が失われるため。
+
+**許可される実行方法**:
+
+| 方式 | 例 |
+| ------ | ------ |
+| コンテナ | `docker run --rm`, `docker compose run --rm`, `docker exec` |
+| Runnerサブコマンド | `npm run <script>`, `npm test`, `yarn build`, `pnpm run <script>`, `poetry run <cmd>`, `poetry shell`, `pipenv run <cmd>`, `cargo (run\|build\|test\|check)`, `gradle tasks`, `./gradlew build`, `sbt test`, `mvn test`, `dotnet (run\|build\|test)` |
+| バージョンマネージャ | `uv run`, `pyenv exec`, `asdf exec`, `mise exec`, `fnm exec`, `volta run` |
+
+**禁止される実行方法** (hookでブロック):
+
+| パターン | 例 |
+| ------ | ------ |
+| 素のランタイム/コンパイラ | `python3 x.py`, `node x.js`, `bun run x.ts`, `deno run x.ts`, `rustc main.rs` |
+| インストール/追加系 | `npm install`, `pip install`, `poetry add`, `cargo install`, `gem install`, `composer install` |
+
+プロジェクト `CLAUDE.md` で特定の方式が指定されている場合はそれに従う。
 
 ---
 

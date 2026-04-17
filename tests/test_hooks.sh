@@ -165,35 +165,37 @@ run_local_test() {
 echo ""
 echo "--- ブロックすべきコマンド (exit 2) ---"
 
-# 直接実行
+# 直接実行 (ランタイム / 直接コンパイラ)
 run_local_test "python3 script.py" "$(make_input 'python3 script.py')" 2
 run_local_test "node server.js" "$(make_input 'node server.js')" 2
-run_local_test "npm install" "$(make_input 'npm install')" 2
 run_local_test "go build" "$(make_input 'go build')" 2
-run_local_test "pip install flask" "$(make_input 'pip install flask')" 2
-run_local_test "cargo build" "$(make_input 'cargo build')" 2
-run_local_test "yarn add express" "$(make_input 'yarn add express')" 2
 run_local_test "ruby script.rb" "$(make_input 'ruby script.rb')" 2
 run_local_test "bun run dev" "$(make_input 'bun run dev')" 2
 run_local_test "deno run server.ts" "$(make_input 'deno run server.ts')" 2
 run_local_test "php -r echo" "$(make_input 'php -r \"echo 1;\"')" 2
 run_local_test "perl -e print" "$(make_input 'perl -e \"print 1\"')" 2
+run_local_test "rustc main.rs" "$(make_input 'rustc main.rs')" 2
+run_local_test "bare: go" "$(make_input 'go')" 2
+run_local_test "python3 --version" "$(make_input 'python3 --version')" 2
+
+# インストール/パッケージ追加系 (プロジェクト外汚染リスクあるため継続ブロック)
+run_local_test "npm install" "$(make_input 'npm install')" 2
+run_local_test "pip install flask" "$(make_input 'pip install flask')" 2
+run_local_test "yarn add express" "$(make_input 'yarn add express')" 2
 run_local_test "poetry install" "$(make_input 'poetry install')" 2
+run_local_test "poetry add numpy" "$(make_input 'poetry add numpy')" 2
+run_local_test "cargo install ripgrep" "$(make_input 'cargo install ripgrep')" 2
 run_local_test "composer install" "$(make_input 'composer install')" 2
 run_local_test "npx create-app" "$(make_input 'npx create-app')" 2
 run_local_test "pnpm install" "$(make_input 'pnpm install')" 2
 run_local_test "pipenv install" "$(make_input 'pipenv install')" 2
 run_local_test "conda install numpy" "$(make_input 'conda install numpy')" 2
-run_local_test "rustc main.rs" "$(make_input 'rustc main.rs')" 2
 run_local_test "mvn clean install" "$(make_input 'mvn clean install')" 2
 run_local_test "sbt compile" "$(make_input 'sbt compile')" 2
-run_local_test "dotnet build" "$(make_input 'dotnet build')" 2
 run_local_test "nuget restore" "$(make_input 'nuget restore')" 2
 run_local_test "bundler install" "$(make_input 'bundler install')" 2
 run_local_test "gem install rails" "$(make_input 'gem install rails')" 2
 run_local_test "corepack enable" "$(make_input 'corepack enable')" 2
-run_local_test "bare: go" "$(make_input 'go')" 2
-run_local_test "python3 --version" "$(make_input 'python3 --version')" 2
 
 # フルパス
 run_local_test "/usr/bin/python3 script.py" "$(make_input '/usr/bin/python3 script.py')" 2
@@ -270,6 +272,31 @@ run_local_test "docker run python3" "$(make_input 'docker run --rm python:3.12 p
 run_local_test "docker compose npm" "$(make_input 'docker compose run --rm test npm test')" 0
 run_local_test "docker exec node" "$(make_input 'docker exec container node app.js')" 0
 run_local_test "cd && docker run npm" "$(make_input 'cd /project && docker run --rm node:18 npm install')" 0
+
+# Runnerサブコマンド経由 (プロジェクト紐付きビルド/実行)
+run_local_test "npm run dev" "$(make_input 'npm run dev')" 0
+run_local_test "npm test" "$(make_input 'npm test')" 0
+run_local_test "npm start" "$(make_input 'npm start')" 0
+run_local_test "yarn test" "$(make_input 'yarn test')" 0
+run_local_test "pnpm run build" "$(make_input 'pnpm run build')" 0
+run_local_test "poetry run python" "$(make_input 'poetry run python script.py')" 0
+run_local_test "poetry shell" "$(make_input 'poetry shell')" 0
+run_local_test "pipenv run flask" "$(make_input 'pipenv run flask run')" 0
+run_local_test "cargo run" "$(make_input 'cargo run')" 0
+run_local_test "cargo build" "$(make_input 'cargo build')" 0
+run_local_test "cargo test" "$(make_input 'cargo test')" 0
+run_local_test "cargo check" "$(make_input 'cargo check')" 0
+run_local_test "gradle tasks" "$(make_input 'gradle tasks')" 0
+run_local_test "gradlew build" "$(make_input './gradlew build')" 0
+run_local_test "sbt test" "$(make_input 'sbt test')" 0
+run_local_test "mvn test" "$(make_input 'mvn test')" 0
+run_local_test "dotnet run" "$(make_input 'dotnet run')" 0
+run_local_test "dotnet build" "$(make_input 'dotnet build')" 0
+run_local_test "dotnet test" "$(make_input 'dotnet test')" 0
+run_local_test "cd && npm run dev" "$(make_input 'cd /app && npm run dev')" 0
+run_local_test "./gradlew build" "$(make_input './gradlew build')" 0
+run_local_test "/usr/bin/npm run" "$(make_input '/usr/bin/npm run dev')" 0
+run_local_test "FOO=bar npm test" "$(make_input 'FOO=bar npm test')" 0
 
 # サブシェル内の安全なコマンド
 run_local_test "echo \$(cat go.sum)" "$(make_input 'echo \$(cat go.sum)')" 0

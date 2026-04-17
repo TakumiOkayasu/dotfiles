@@ -31,6 +31,7 @@ local-command-block.sh - ローカル環境のコマンド実行をブロック
   Python, Node.js, PHP, Ruby, Go などのコマンドを
   Docker外で直接実行しようとした場合にブロックします。
   docker exec/run/compose 経由の実行は許可されます。
+  Runnerサブコマンド (npm run, poetry run, cargo build 等) も許可されます。
   難読化によるバイパス (base64, eval, hex, curl|sh 等) も検知します。
   チェーンコマンド (&&, ||, ;) やサブシェル $() 内のコマンドも検知します。
 
@@ -67,11 +68,38 @@ _BLOCKED_RUNTIME='python[0-9.]*|node|bun|deno|php|ruby|go|perl'
 # パッケージマネージャ / ビルドツール
 _BLOCKED_PACKAGE='npm|npx|yarn|pnpm|corepack|pip3?|poetry|pipenv|conda|cargo|rustc|gem|bundler?|composer|mvn|gradlew?|sbt|dotnet|nuget'
 # 注: バージョン/環境マネージャ (uv,pyenv,nvm,fnm,asdf,mise,volta等) はブロック対象外
+# 注: 上記でも is_runner_command にマッチする場合 (npm run, poetry run 等) は許可
 BLOCKED_EXACT="^(${_BLOCKED_RUNTIME}|${_BLOCKED_PACKAGE})$"
 
 # --- Docker経由かチェックする関数 ---
 is_docker_command() {
     printf '%s\n' "$1" | grep -qE '^\s*(cd\s+[^;&|]+\s*(&&|;)\s*)*(docker\s+(exec|run|compose)|docker-compose)\b'
+}
+
+# --- Runner系サブコマンドかチェックする関数 ---
+# プロジェクト紐付きのビルド/実行系 (npm run, poetry run, cargo build 等) を許可
+# インストール系 (npm install, poetry add, cargo install 等) は許可しない
+# パス付き (/usr/bin/npm, ./gradlew) / env prefix (FOO=bar npm) も get_first_command で吸収
+is_runner_command() {
+    _ir_cmd=$(get_first_command "$1")
+    case "$_ir_cmd" in
+        npm|yarn|pnpm|poetry|pipenv|cargo|gradle|gradlew|sbt|dotnet|mvn) ;;
+        *) return 1 ;;
+    esac
+    # コマンド名直後のトークン (サブコマンド) を抽出
+    _ir_sub=$(printf '%s' "$1" | awk -v cmd="$_ir_cmd" '
+        BEGIN { found = 0 }
+        {
+            for (i=1; i<=NF; i++) {
+                if (found) { print $i; exit }
+                n = split($i, parts, "/")
+                if (parts[n] == cmd) { found = 1 }
+            }
+        }')
+    case "$_ir_sub" in
+        run|exec|test|build|start|check|tasks|shell) return 0 ;;
+        *) return 1 ;;
+    esac
 }
 
 # --- コマンドセグメントから実行コマンド名を抽出 ---
@@ -101,6 +129,10 @@ check_segment() {
     _seg="$1"
     [ -z "$_seg" ] && return 0
     if is_docker_command "$_seg"; then
+        return 0
+    fi
+    if is_runner_command "$_seg"; then
+        debug_log "RUNNER_COMMAND: 許可 $_seg"
         return 0
     fi
     _cmd=$(get_first_command "$_seg")
