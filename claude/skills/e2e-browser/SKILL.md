@@ -137,6 +137,33 @@ http://localhost:6080/vnc.html をブラウザで開いてください。
 
 `$E2E_WORK/fixtures/<feature>/<scenario>.json`
 
+形式 (一次ソース: `helpers/db-seed.ts`) — **テーブル名キーではなく配列**:
+
+```json
+[
+  {
+    "table": "users",
+    "rows": [
+      { "id": 1, "email": "alice@example.com", "is_active": true }
+    ],
+    "truncate": true
+  },
+  {
+    "table": "posts",
+    "rows": [
+      { "id": 100, "title": "既存記事", "author_id": 1 }
+    ]
+  }
+]
+```
+
+- 配列順に 1 要素ずつ **空化 (`del()` = DELETE 発行) → rows を insert** が実行される (一次ソース: `db-seed.ts`)
+- `truncate` はフラグ名であり、実装は `TRUNCATE` ではなく Knex `del()` による `DELETE`。**CASCADE は効かない**
+- 列挙順: **外部キー親 → 子の順**。前提として `afterEach(cleanup)` で事前に空化されていること (DB が空なら DELETE 時の FK 違反は発生しない)
+- `truncate` 省略時のデフォルトは `true` (= DELETE 発行)。既存データ残存時は FK 違反に注意
+- `rows` が空配列ならテーブルだけ truncate される
+- datetime/uuid 等 JSON ネイティブ非対応型は ISO8601 文字列で記述
+
 ### 2-3. テストコード
 
 `$E2E_WORK/tests/<feature>/<scenario>.spec.ts`
@@ -189,18 +216,64 @@ test.describe('<機能名>', () => {
 ```
 
 **必須ルール:**
-- 全操作を `captureStep` で囲む
-- 検証ポイントで `captureState`
-- `beginCapture` をテスト冒頭で必ず呼ぶ
+- `beginCapture` をテスト冒頭で必ず呼ぶ (ステップ番号リセット)
+- **captureStep**: `action` の**前後で helpers が自動的に 2 枚撮影** (`_before_` / `_after_`)。能動操作 (goto/fill/click) で使う。**自分で before/after を二重に呼ばない**
+- **captureState**: 単発の状態撮影 (1枚)。遷移完了後や検証直前の静的状態に使う
 - 1テスト1シナリオ、他テストに依存しない
-- セレクタ優先: `data-testid` > `role` > `label` > CSS selector
+- セレクタ優先: `data-testid` > `role` > `label` > CSS selector。**具体的な testid 値はアプリ実装を確認してから記述** (推測禁止)
 - `page.waitForTimeout()` 禁止
 - `afterAll` で `destroyDb()` 必須
 
 **helpers API:**
 - `beginCapture(testName)` / `captureStep(page, label, action)` / `captureState(page, label)`
 - `dbAssert.exists / notExists / count / columnEquals / dump`
-- `seed(fixturePath)` / `cleanup(tables)`
+- `seed(fixturePath)` / `cleanup(tables)` — cleanup は PG で `TRUNCATE CASCADE`、その他 DB は `DELETE`。**MySQL/SQL Server では子 → 親の順で列挙**
+- `getDb()` / `destroyDb()` from `helpers/db-client` — dbAssert で不可能な検証に直接使う (下記)
+
+**dbAssert 使用例** (where は Knex.js 記法 `Record<string, unknown>`):
+
+```typescript
+// 行が存在することを検証
+await dbAssert.exists('users', { email: 'alice@example.com' });
+
+// 行が存在しないことを検証 (第3引数: カスタムメッセージ)
+await dbAssert.notExists('sessions', { user_id: 1 }, 'ログアウト後sessionが残存');
+
+// 件数を検証
+await dbAssert.count('orders', { user_id: 1, status: 'paid' }, 3);
+
+// 特定列の値を検証
+await dbAssert.columnEquals('users', { id: 1 }, 'is_active', true);
+
+// デバッグ用: 最大10行ダンプ (where 省略可、limit デフォルト10)
+await dbAssert.dump('orders', { user_id: 1 });
+
+// limit 明示 + 戻り値 (Record<string, unknown>[]) を後続検証に利用
+const rows = await dbAssert.dump('orders', { user_id: 1 }, 50);
+expect(rows.length).toBeGreaterThan(0);
+```
+
+**dbAssert で不可能な検証は `getDb()` を直接使う:**
+
+`dbAssert` は上記 5 メソッドのみ。生成行の ID 取得・`IS NOT NULL` 比較・集計などは Knex を直叩きする。
+
+```typescript
+import { getDb } from '../../helpers/db-client';
+import { expect } from '@playwright/test';
+
+// 自動採番された ID を取得して後続検証に使う
+const order = await getDb()('orders').where({ user_id: 1 }).first();
+expect(order).toBeTruthy();
+const orderId = order!.id as number;
+await dbAssert.count('order_items', { order_id: orderId }, 2);
+
+// IS NOT NULL 検証 (last_login_at が更新されたこと)
+const updated = await getDb()('users')
+  .where({ email: 'alice@example.com' })
+  .whereNotNull('last_login_at')
+  .first();
+expect(updated, 'last_login_at が NULL のまま').toBeTruthy();
+```
 
 ---
 
