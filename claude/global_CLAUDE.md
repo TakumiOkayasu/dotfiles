@@ -41,14 +41,14 @@
 1. `.claude/progress.md` を確認する (未完了タスクがあればそこから再開)
 2. 現在のブランチを確認する: `git branch --show-current`
 3. mainブランチの場合、必ず新規ブランチを作成する: `git-new-feature <機能名>`
-4. 関連スキルファイルを読む: `view ~/.claude/skills/TDD/SKILL.md`
+4. 関連スキルファイルを読む: `view ~/.claude/skills/tdd/SKILL.md`
 5. スキルの手順に従って作業を開始する
 
 ```text
 view .claude/progress.md
 git branch --show-current
 [main の場合] git-new-feature <機能名>
-view ~/.claude/skills/TDD/SKILL.md
+view ~/.claude/skills/tdd/SKILL.md
 ```
 
 ---
@@ -103,7 +103,7 @@ hookを迂回するための難読化・間接実行は**絶対禁止**。
 2. バージョン固定された実行環境 (Docker / Runnerサブコマンド / バージョンマネージャ) でチェッカーを実行する
 3. 全てパスしたことを確認してから完了報告する
 
-まず**確認**。**未確認での完了報告は禁止**。実行方法の指定がない場合はユーザーに確認する。
+まず**確認**。**未確認での完了報告は禁止**。実行方法の指定 (プロジェクト `CLAUDE.md` / `package.json` scripts / `pyproject.toml` / Dockerfile 等) がない場合はユーザーに確認する。**この原則はリンター/型チェッカー実行に限らず、スクリプト実行全般に適用する**。
 
 ---
 
@@ -130,7 +130,7 @@ ls ~/.claude/rules/
 # スキル一覧を確認する
 ls ~/.claude/skills/
 # 該当スキルを読む例
-view ~/.claude/skills/TDD/SKILL.md
+view ~/.claude/skills/tdd/SKILL.md
 ```
 
 ---
@@ -208,6 +208,8 @@ git-cleanup-branch           # マージ済みブランチ削除
 | インストール/追加系 | `npm install`, `pip install`, `poetry add`, `cargo install`, `gem install`, `composer install` |
 
 プロジェクト `CLAUDE.md` で特定の方式が指定されている場合はそれに従う。
+
+**依存セットアップが未済の場合** (`node_modules` / `.venv` / lockfile 不在等) は install 系コマンド (禁止) を勝手に実行せず、**ユーザーに依存インストールを依頼する**。
 
 ---
 
