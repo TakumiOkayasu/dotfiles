@@ -20,6 +20,7 @@
     symlinks = true
     excludesfile = ~/.gitignore
     compression = 1
+    pager = delta
 
 [safe]
     directory = ~/prog
@@ -54,3 +55,22 @@
 
 [include]
     path = ~/.gitconfig.local
+
+[interactive]
+    diffFilter = delta --color-only
+
+[delta]
+    # use n and N to move between diff sections
+    navigate = true
+    word-diff-regex = "[a-zA-Z0-9_]+|\\p{Hiragana}+|[\\p{Katakana}ー]+|[\\p{Han}〆]+|."
+    line-numbers = true
+    side-by-side = true
+    wrap-max-lines = unlimited
+    minus-non-emph-style = syntax
+    plus-non-emph-style = syntax
+
+[merge]
+    conflictStyle = zdiff3
+
+[diff]
+    colorMoved = default
