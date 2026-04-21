@@ -1,4 +1,8 @@
 {
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": false
+  },
   "env": {
     "EDITOR": "code --wait",
     "VISUAL": "code --wait"
@@ -11,10 +15,14 @@
       "WebFetch"
     ],
     "deny": [
-      "Read(.env)",
-      "Edit(.env)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Read(**/*.env)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Edit(**/*.env)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(rm -rf *)",
+      "Bash(rm -f *)"
     ],
     "defaultMode": "plan"
   },
@@ -175,5 +183,6 @@
   "language": "japanese",
   "effortLevel": "high",
   "fastMode": true,
-  "showThinkingSummaries": true
+  "showThinkingSummaries": true,
+  "skipAutoPermissionPrompt": true
 }
