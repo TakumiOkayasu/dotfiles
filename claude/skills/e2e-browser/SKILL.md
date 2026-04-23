@@ -30,6 +30,18 @@ argument-hint: <対象機能> <シナリオ概要>
 | テスト対象アプリ | 起動済みでアクセス可能であること |
 | DB接続情報 | ユーザーが提供できること |
 
+## 関連スキル・境界
+
+本スキルが **扱う範囲** と **委譲すべき範囲** を明示する（混用回避）。
+
+| 依頼の性質 | 発動スキル | 理由 |
+|-----------|-----------|------|
+| ブラウザ UI 操作 + DB 検証の E2E テストを作る・実行する | **e2e-browser（本スキル）** | Docker 内 Playwright + Bun + Knex.js の構成を提供 |
+| 純粋関数のユニットテスト（UI/DB 不要） | → `tdd` | RED-GREEN-REFACTOR 単位での実装は tdd の主幹 |
+| QA が嫌がる悪夢ケース（異常系網羅）の列挙 | → `qa-nightmare` | 11カテゴリ109パターンのチェックリストは qa-nightmare が保有。本スキルは「qa-nightmare で抽出したケースを実行する基盤」として併用 |
+| 既存 E2E テスト失敗の**原因分析**（アプリ実装の論理欠陥、データ不整合の仮説立て） | → `systematic-debugging` | Phase 1-4 の「なぜ?」反復は systematic-debugging の主幹。本スキル Phase 4 は**再現と修正提案**までを担い、アプリ側根因は systematic-debugging へ委譲 |
+| 既存 E2E テストの信頼性検証（偽陽性検出） | → `test-coverage-guard` | テスト作成後の検証は本スキル範囲外 |
+
 ## 概要
 
 Docker コンテナ内で Playwright + Bun によるブラウザE2Eテスト(UI操作 + DB検証 + 全ステップスクリーンショット)を生成・実行・レポートする。
@@ -163,6 +175,13 @@ http://localhost:6080/vnc.html をブラウザで開いてください。
 - `truncate` 省略時のデフォルトは `true` (= DELETE 発行)。既存データ残存時は FK 違反に注意
 - `rows` が空配列ならテーブルだけ truncate される
 - datetime/uuid 等 JSON ネイティブ非対応型は ISO8601 文字列で記述
+
+**fixture (seed) と cleanup の列挙順対比** (方向が逆になる点に注意):
+
+| 操作 | 列挙順 | 理由 |
+|------|--------|------|
+| seed (fixture 配列) | **親 → 子** | insert 時に FK 子側が親を参照できる。DB が空（初回 or `afterEach(cleanup)` 後）なら親側の DELETE でも FK 違反は起きない |
+| cleanup | **子 → 親** | DELETE 時に子を先に消さないと親が消せない (MySQL/SQL Server では明示必須、PG は `TRUNCATE CASCADE` のため省略可) |
 
 ### 2-3. テストコード
 
