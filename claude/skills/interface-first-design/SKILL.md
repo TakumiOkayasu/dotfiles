@@ -31,6 +31,8 @@ description: 機能追加・クラス設計・interface設計・依存関係整�
 
 **実装コードを一切書く前に**、以下テンプレートで「何が起きるか」を言語非依存で記述する。
 
+**要件に不明点がある場合**: 疑似コードの該当箇所を `[要確認: <不明点の具体>]` 記法で仮置きしてから先へ進み、レポート末尾に確認事項を集約する（`hallucination-prevention` rule 準拠）。推測で埋めない。
+
 ```
 # [機能名] の理想フロー
 
@@ -105,7 +107,7 @@ then 在庫を元に戻す → エラーを返す
 - 動詞ひとつ = メソッドひとつ
 - 名詞 = interfaceが扱うデータ型
 - フレームワーク固有の型 (Request / Response / Model 等) はinterfaceに含めない
-- 戻り値は Ok/Error の2値で成功/失敗を明示する
+- 戻り値は用途で書き分け: 読取系（`find` / `read` 等、副作用なし）は `T | null` で not-found を明示、副作用系（`write` / `charge` / `delete` 等）は `Ok | Error` で成功/失敗を明示する
 - メソッドは原則1つ。2つ必要に感じたら責務混在を疑う
 
 ---
@@ -127,6 +129,13 @@ class OrderService
 ```
 
 **ポイント:** `OrderService` は「何を使うか」を知っているが「どう実装されているか」は知らない。依存はすべてinterfaceを通じて注入する。
+
+**上位層の粒度の目安:**
+
+- 用途単位の薄い組み立て → UseCase（提供層）
+- 複数 UseCase を束ねる配線点 → 管理層（Controller / Orchestrator 等）
+- 命名は `hierarchical-architecture` の役割サフィックス規則（Manager / Provider / Accessor 等）に従う
+- 単一 UseCase で済むなら UseCase 自体が上位層（Controller を無理に作らない）
 
 ---
 
