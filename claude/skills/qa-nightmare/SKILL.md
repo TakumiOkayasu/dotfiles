@@ -34,6 +34,21 @@ argument-hint: <対象機能> <画面URL or 概要>
 | 対象情報 | 対象機能名・画面URL または機能概要が提供されていること |
 | 権限 | Docker が実行可能であること（e2e 実行時） |
 
+## 関連スキル・境界
+
+| 状況 | 委譲先スキル | 本スキルとの境界 |
+|------|------------|----------------|
+| 関数単位・純粋関数のユニットテスト（DB/UI なし） | tdd | tdd=RED-GREEN-REFACTOR、本 skill は機能単位（画面/API）のみ対象 |
+| 既存テストの信頼性検証（偽陽性検出） | test-coverage-guard | test-coverage-guard=GREEN後の検証、本 skill=悪夢ケース**生成** |
+| 生成後の実行基盤（Docker 内 Playwright + DB） | e2e-browser | Phase 5 で e2e-browser を利用。逆方向（既存 E2E 失敗調査）は e2e-browser のみ |
+| バグ発生後の原因分析（4フェーズ根本分析） | systematic-debugging | sd=発生後の診断、本 skill=発生**前**の予防的列挙 |
+| 技術選定・設計相談 | consultation | consultation=判断、本 skill=列挙 |
+
+**本スキルが担当する範囲**:
+- 対象: 画面 / API など機能単位で「QA ベテランが嫌がる edge ケース」を網羅
+- 前提: 対象機能名 + 画面 URL or API パス（前提条件の「対象情報」）
+- 境界: 上記非該当（純粋関数 / 既存テスト検証 / テスト失敗再現 等）は発動しない
+
 ## 禁止事項・制約
 
 | 禁止 | 理由 |
