@@ -146,7 +146,7 @@ function isUser(v: unknown): v is User {
 |--------|------|
 | async/await優先 | Promise chain (`.then`) は避ける |
 | 並列実行明示 | 独立処理は `Promise.all` で並列化 |
-| エラー伝播 | `try/catch` で捕捉するか、呼出側に任せる (握り潰し禁止) |
+| エラー伝播 | `try/catch` で捕捉するか、呼出側に任せる (握り潰し禁止)。**判定**: 関数が意味のある回復・文脈付与・ログ出力を行えるなら捕捉、できないなら上位へ伝播 |
 | 非同期関数命名 | 動詞で意図を示す (`fetchUser`, `loadConfig`) |
 
 ```javascript
@@ -206,7 +206,7 @@ db.flush()
 | `data`, `info`, `item`, `obj`, `temp` | 型・内容が不明 | `userRecord`, `invoiceRow`, `parsedConfig` |
 
 **例外**:
-- フレームワーク規約 (例: React の `handleClick` イベントハンドラ慣例) は従う。ビジネスロジック側では具体名を用いる。
+- フレームワーク規約 (例: React の `handleClick` イベントハンドラ慣例) は従う。ビジネスロジック側では具体名を用いる。**判定**: フレームワーク規約適用は「イベント (DOM/フォーム/コンポーネント props 経由) を直接受信する関数」に限る。受信内から呼ぶ業務関数は具体名 (例: `handleDeleteUser` は `deleteUser` を内部で呼ぶ形に分離)。
 - ループ変数や極小スコープ (2-3行) の一時変数での `item` / `temp` は許容。スコープが広がる場合は具体名に。
 - 目的語が付く `execute*` (`executeQuery`, `executeTransaction` 等) は意味が明確なため許容。
 
