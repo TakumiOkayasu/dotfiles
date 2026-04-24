@@ -1,8 +1,4 @@
 {
-  "sandbox": {
-    "enabled": true,
-    "allowUnsandboxedCommands": false
-  },
   "env": {
     "EDITOR": "code --wait",
     "VISUAL": "code --wait"
@@ -181,8 +177,12 @@
     }
   },
   "language": "japanese",
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": false
+  },
   "effortLevel": "high",
   "fastMode": true,
   "showThinkingSummaries": true,
-  "skipAutoPermissionPrompt": true
+  "theme": "dark-daltonized"
 }
