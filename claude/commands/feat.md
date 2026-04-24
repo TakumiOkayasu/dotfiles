@@ -24,7 +24,7 @@ $ARGUMENTS に実装する機能の説明が渡されます。
 
 ### Phase 0: スキル読み込み
 
-- `~/.claude/skills/TDD/SKILL.md` を読み込み、必要に応じて活用すること
+- `~/.claude/skills/tdd/SKILL.md` を読み込み、必要に応じて活用すること
 
 ### Phase 1: 要件整理
 
