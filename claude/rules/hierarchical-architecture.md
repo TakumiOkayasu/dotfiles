@@ -10,7 +10,7 @@
 | 2 | 管理層 | 下位の生成・破棄・ライフサイクル | `*Manager`, `*Context` |
 | 3 | 提供層 | 同種能力のグルーピング | `*Provider`, `*Registry` |
 | 4 | 操作層 | 特定リソースへのアクセス | `*Accessor`, `*Client` |
-| 5 | サブコンポーネント (任意) | ドメイン固有オブジェクト | — |
+| 5 | サブコンポーネント (任意) | ドメイン固有オブジェクト | `*Record`, `*Entity`, `*Value` |
 | 6 | Platform | プラットフォーム固有実装 | — |
 
 ## 設計手順
@@ -114,6 +114,7 @@ Raw Input → Calibrated Input → Intent
 | 管理 | `*Context`, `*Manager` | 下位コンポーネントのライフサイクルを持つか |
 | 提供 | `*Provider`, `*Registry` | 同種能力を束ねてグルーピングするか |
 | 操作 | `*Accessor`, `*Client` | 特定リソース (DB/FS/API) に直接アクセスするか |
+| ドメイン語 | `*Service`, `*Repository`, `*Notifier`, `*Handler` 等 | 上表に未登録でも、責務が管理/提供/操作のいずれかに一致すれば許容。PR レビューで責務と照合する |
 
 ## 禁止事項
 
