@@ -20,6 +20,7 @@ $ARGUMENTS にバグの現象・状況が渡されます。
 - 以下のスキルを読み込み、必要に応じて活用すること
   - `~/.claude/skills/tdd/SKILL.md`
   - `~/.claude/skills/systematic-debugging/SKILL.md`
+  - `~/.claude/skills/optimize/SKILL.md`
 
 ### Phase 1: 現象確認
 
