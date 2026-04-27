@@ -13,18 +13,14 @@ $ARGUMENTS に実装する機能の説明が渡されます。
 | 入力 | `$ARGUMENTS`: 実装する機能の説明（例: "ユーザー検索機能"） |
 | 出力 | 実装済みコード・テスト・実装サマリーレポート |
 
-## 使用例
-
-```
-/feat ユーザーをメールアドレスで検索する機能
-/feat CSVエクスポート機能（フィルタ条件対応）
-```
-
 ## 実行手順
 
 ### Phase 0: スキル読み込み
 
-- `~/.claude/skills/tdd/SKILL.md` を読み込み、必要に応じて活用すること
+- 以下のスキルを読み込み、必要に応じて活用すること
+  - `~/.claude/skills/tdd/SKILL.md`
+  - `~/.claude/skills/systematic-debugging/SKILL.md`
+  - `~/.claude/skills/optimize/SKILL.md`
 
 ### Phase 1: 要件整理
 
