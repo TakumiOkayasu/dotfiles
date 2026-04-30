@@ -20,7 +20,7 @@
 | `rules/coding-conventions.md` | L211 付近 | バリデーションの位置づけ (システム境界) — IP L29 と接続 |
 | `rules/hallucination-prevention.md` | 全体 | 実在確認の推測禁止 — IP「既存優先」の前提条件 |
 | `rules/hierarchical-architecture.md` | — | 技術選定と階層構造は直交 (重複なし) |
-| `skills/TDD/SKILL.md` | — | 実装順序の話で直交 (重複なし) |
+| `skills/tdd/SKILL.md` | — | 実装順序の話で直交 (重複なし) |
 
 ## 懸念点 (iter 1 で検証する候補)
 
