@@ -4,7 +4,7 @@ iter 2 で採用した A-2 修正の波及として新出した A-2'（即 PASS 
 
 ## 変更点（前回差分）
 
-`claude/skills/TDD/SKILL.md` ステップ3「RED」の例外節末尾に1行追加:
+`claude/skills/tdd/SKILL.md` ステップ3「RED」の例外節末尾に1行追加:
 
 ```
 **連続してガード化が発生する場合の報告**: 3件以上が連続して即PASSするなら、

@@ -40,7 +40,7 @@
 **特筆**:
 - SKILL.md 疑似コード例 (L72「決済失敗 → 在庫を戻す」) と向き合い、**StockChecker 単一 IF では補償できない** と判断し `StockReserver/StockReleaser` へ 3 分割（ISP 遵守）
 - `Result<T, E>` discriminated union を TypeScript 慣習に合わせて補完
-- TDD 移行を「`~/.claude/skills/TDD/SKILL.md` を起動」と具体パスで指示
+- TDD 移行を「`~/.claude/skills/tdd/SKILL.md` を起動」と具体パスで指示
 
 ### シナリオB（UserService 責務分割）
 

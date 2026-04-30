@@ -8,7 +8,7 @@
 | `implementation-policy` (L28 print 禁止 / ロギングライブラリ経由) | coding-conventions L266 が print 禁止を肯定しつつ「詳細は implementation-policy」で委譲。ログ設計の SSOT は implementation-policy |
 | `hallucination-prevention` (L24-25 型・引数の実在確認) | HP=実在確認 (外部 API)、CC=型注釈の設計原則 (any 禁止 / unknown 活用)。干渉なし |
 | `oop-composition-over-inheritance` (合成 > 継承) | CC L215-221 SOLID は原則宣言、OOP は適用ガイド。役割分担あり |
-| `skills/TDD/SKILL.md` | CC L279-298 は「テスト規約の抜粋 (AAA / 命名)」、TDD スキルは「サイクル運用」。CC L288 で委譲済 |
+| `skills/tdd/SKILL.md` | CC L279-298 は「テスト規約の抜粋 (AAA / 命名)」、TDD スキルは「サイクル運用」。CC L288 で委譲済 |
 
 ## baseline シナリオ (3 本、中央値 1 + edge 2)
 

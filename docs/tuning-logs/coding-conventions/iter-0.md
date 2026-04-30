@@ -21,7 +21,7 @@ skills 版 iter 0 (description ↔ body 整合) は rules に直接適用不可 
 | `implementation-policy.md` | L266 「print 直接禁止... 詳細は `implementation-policy.md`」 | L28 ロギングライブラリ経由 (本番コード scope 注記済) | **順方向参照あり**、scope 整合 |
 | `hallucination-prevention.md` | 明示参照なし | L24-25 型・引数・戻り値の型確認 | 用途別 (HP=実在確認、CC=設計原則)、干渉なし |
 | `oop-composition-over-inheritance.md` | L221 依存性逆転 (SOLID) | 全般 (合成 > 継承) | **重複なし** (SOLID 原則の宣言 vs 具体適用ガイド) |
-| `skills/TDD/SKILL.md` | L288 「詳細は `~/.claude/skills/TDD/SKILL.md` 参照」 | RED-GREEN-REFACTOR 全般 | **順方向参照あり**、AAA/命名の書き出しのみ重複 |
+| `skills/tdd/SKILL.md` | L288 「詳細は `~/.claude/skills/tdd/SKILL.md` 参照」 | RED-GREEN-REFACTOR 全般 | **順方向参照あり**、AAA/命名の書き出しのみ重複 |
 
 **結論**: 隣接 rule / skill への **明示参照は揃っており、逆参照もなし**。rule 間の矛盾は検出できない。
 
