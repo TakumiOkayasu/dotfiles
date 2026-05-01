@@ -121,7 +121,7 @@ check_requirements() {
 # ディレクトリ作成
 ensure_dir() {
     dir="$1"
-    
+
     # シンボリックリンクの場合は削除(壊れたリンクも含む)
     if [ -L "$dir" ]; then
         if [ "$MODE_DRY_RUN" = "true" ]; then
@@ -305,14 +305,14 @@ install_git_files() {
     create_link "config/git/.git-prompt.sh" "${HOME}/.config/git/.git-prompt.sh"
 
     # グローバル gitattributes (改行コード LF 固定)
-    create_link "config/git/.attributes" "${HOME}/.config/git/.attributes"
+    create_link "config/git/.gitattributes" "${HOME}/.config/git/.gitattributes"
 }
 
 uninstall_git_files() {
     remove_link "config/git/.git-completion.bash" "${HOME}/.git-completion.bash"
     remove_link "config/git/.git-prompt.sh" "${HOME}/.git-prompt.sh"
     remove_link "config/git/.git-prompt.sh" "${HOME}/.config/git/.git-prompt.sh"
-    remove_link "config/git/.attributes" "${HOME}/.config/git/.attributes"
+    remove_link "config/git/.gitattributes" "${HOME}/.config/git/.gitattributes"
 }
 
 # Gitignore設定 (base + work/privateを結合)
@@ -1169,7 +1169,7 @@ confirm_installation() {
         printf "  ${COLOR_CYAN}Git設定:${COLOR_RESET}\n"
         printf "    + config/git/.git-completion.bash -> ~/.git-completion.bash\n"
         printf "    + config/git/.git-prompt.sh -> ~/.git-prompt.sh\n"
-        printf "    + config/git/.attributes -> ~/.config/git/.attributes\n"
+        printf "    + config/git/.gitattributes -> ~/.config/git/.gitattributes\n"
         if [ -n "$GITCONFIG_VARIANT" ]; then
             printf "    + config/git/.gitconfig.common -> ~/.gitconfig.common\n"
             printf "    + config/git/.gitconfig.%s -> ~/.gitconfig\n" "$GITCONFIG_VARIANT"
