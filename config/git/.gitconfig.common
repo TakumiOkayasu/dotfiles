@@ -1,6 +1,9 @@
 # Git共通設定
 # work/privateの.gitconfigから include で読み込む
 
+[user]
+    name = TakumiOkayasu
+
 [init]
     defaultBranch = main
 
