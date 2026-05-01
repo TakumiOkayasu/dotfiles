@@ -17,10 +17,39 @@ $ARGUMENTS に実装する機能の説明が渡されます。
 
 ### Phase 0: スキル読み込み
 
-- 以下のスキルを読み込み、必要に応じて活用すること
+- **方針検証スキル (戦略 → 戦術の順)**:
+  - `~/.claude/skills/premise-questioning/SKILL.md` ← 戦略 (方針自体)
+  - `~/.claude/skills/feature-pruning/SKILL.md` ← 戦術 (個別機能)
+- **実装スキル**:
   - `~/.claude/skills/tdd/SKILL.md`
   - `~/.claude/skills/systematic-debugging/SKILL.md`
   - `~/.claude/skills/optimize/SKILL.md`
+
+### Phase 0.5: 方針検証 (Phase 1 前に必須)
+
+`global_CLAUDE.md` 「着手前の方針検証 (2 段階)」と整合する。
+
+#### 1. premise-questioning (戦略レベル)
+
+以下のいずれかに該当する場合は **premise-questioning skill のワークフロー全体を実行**し、✅ 採用判定が出るまで Phase 1 へ進まない:
+
+- 100 行以上の変更見込み
+- 外部依存 (ライブラリ / API / SDK) の追加・削除
+- DB スキーマ / 公開 API I/F 変更
+- 「設計レビューして」「方針確認して」と要求された
+
+該当しない場合は `premise-questioning: skipped (理由: ...)` を 1 行明示してスキップ。
+
+#### 2. feature-pruning (戦術レベル)
+
+premise-questioning で ✅ 採用後、または以下のいずれかに該当する場合は **feature-pruning skill のワークフローを実行**:
+
+- UI 機能リスト 5 個以上
+- API エンドポイント複数新設
+- DB テーブル 5 列以上新設
+- 既存画面 / API の削減レビュー
+
+該当しない場合は `feature-pruning: skipped (理由: ...)` を 1 行明示してスキップ。
 
 ### Phase 1: 要件整理
 

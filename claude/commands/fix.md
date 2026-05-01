@@ -17,10 +17,11 @@ $ARGUMENTS にバグの現象・状況が渡されます。
 
 ### Phase 0: スキル読み込み
 
-- 以下のスキルを読み込み、必要に応じて活用すること
+- **実装スキル** (Phase 1 以降で活用):
   - `~/.claude/skills/tdd/SKILL.md`
   - `~/.claude/skills/systematic-debugging/SKILL.md`
   - `~/.claude/skills/optimize/SKILL.md`
+- **方針検証スキル**: Phase 2.5 で発動条件に該当した場合に `~/.claude/skills/premise-questioning/SKILL.md` を読み込む (利用直前に読む)
 
 ### Phase 1: 現象確認
 
@@ -41,6 +42,20 @@ $ARGUMENTS にバグの現象・状況が渡されます。
 - **推測での修正禁止。根本原因と修正方針をユーザーに報告し、承認を得てから Phase 3 へ**
   - 承認の定義: ユーザーから明示的な OK（「承認」「このまま進めて」等の文言）が返るまで Phase 3 に進まない。**自己承認・暗黙の承認は禁止**
   - 情報不足時は `## 承認要求` 節に **確認項目を箇条書きで列挙** して提示する (推測で埋めない)
+
+### Phase 2.5: 方針検証 (Phase 3 前に判定)
+
+`global_CLAUDE.md` 「着手前の方針検証 (2 段階)」と整合する。Phase 2 で確定した修正方針が以下のいずれかに該当する場合は **premise-questioning skill のワークフロー全体を実行**し、✅ 採用判定が出るまで Phase 3 へ進まない:
+
+- 根本原因の修正がアーキテクチャ変更を伴う
+- 公開 API I/F 変更を伴う
+- DB スキーマ変更を伴う
+- 100 行以上の変更見込み
+- 外部依存 (ライブラリ / API / SDK) の追加・削除を伴う
+
+該当しない局所修正 (null チェック追加 / 境界値修正 / typo 等) の場合は `premise-questioning: skipped (理由: 局所修正)` を 1 行明示してスキップ。
+
+feature-pruning は通常不要 (機能追加でないため)。既存機能の削減を伴う場合のみ起動。
 
 ### Phase 3: 失敗テスト作成 (RED)
 

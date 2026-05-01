@@ -81,6 +81,38 @@
 - プロジェクトの skills/ に定義された手順を活用しているか
 - test-driven-development スキルがあるなら RED-GREEN-REFACTOR を守っているか
 - systematic-debugging スキルがあるなら推測修正をしていないか
+- premise-questioning スキルがあるなら大規模変更で方針検証を経たか
+- feature-pruning スキルがあるなら機能粒度の要否検証を経たか
+```
+
+**方針検証観点 (戦略 → 戦術) の追加検査**:
+
+レビュー対象差分が以下に該当する場合、`premise-questioning` / `feature-pruning` の **発動跡**を確認する:
+
+| 検査対象 | 発動必須条件 | スキル参照先 |
+|----------|-------------|-------------|
+| 戦略 (方針自体) | 100 行以上の変更 / 外部依存追加・削除 / DB スキーマ・公開 API I/F 変更 / バグ修正で根本原因に手を入れる | `~/.claude/skills/premise-questioning/SKILL.md` |
+| 戦術 (機能粒度) | UI 機能リスト 5 個以上 / API エンドポイント複数新設 / DB テーブル 5 列以上新設 / 既存機能の削減 | `~/.claude/skills/feature-pruning/SKILL.md` |
+
+**発動跡の判定基準** (いずれか 1 つ以上を満たせば「発動跡あり」と判定):
+
+| 確認対象 | 発動跡と認める記述 |
+|----------|------------------|
+| PR 本文 | `premise-questioning` / `feature-pruning` / `方針検証` / `✅ 採用` / `skipped (理由: ...)` のいずれかを含む |
+| コミットメッセージ | 同上 |
+| `.claude/progress.md` の判断ログ | 当該方針の検証結果 (採用 / 撤回 / 修正必要 / skipped) が記録されている |
+| 差分中のコメント | 該当箇所に `// premise-questioning: ...` / `# feature-pruning: ...` 等の明示的タグがある |
+
+上記いずれの跡も見当たらない場合、または発動跡があっても結論ラベル (✅ / 🟡 / 🔴 / skipped) が読み取れない場合は **Critical** として指摘する。
+
+該当条件に当てはまるが発動跡が見当たらない場合の指摘テンプレ:
+
+```text
+[Critical] 方針検証スキップ
+- 該当条件: <100 行以上の変更 / 外部依存追加 / 等>
+- 必要 skill: premise-questioning (戦略) / feature-pruning (戦術)
+- 確認対象: PR 本文 / コミットメッセージ / .claude/progress.md / 差分内コメント
+- 対応: マージ前に該当 skill のワークフローを実施し、結果 (✅ 採用 / skipped 等) を PR 本文に追記
 ```
 
 ### Step 4: カテゴリ別検査
@@ -368,5 +400,6 @@ N. ファイル:行 — 問題の要約
 1. 指摘カテゴリに対応するスキルを読み込む:
    - カテゴリ 5（パフォーマンス）→ `view ~/.claude/skills/performance-optimization/SKILL.md`
    - カテゴリ 3（設計原則）→ `view ~/.claude/skills/refactoring/SKILL.md`
+   - 「方針検証スキップ」指摘 → `view ~/.claude/skills/premise-questioning/SKILL.md` / `view ~/.claude/skills/feature-pruning/SKILL.md`
 2. ユーザーに確認を取り、許可が降りれば全指摘を修正する
 3. 修正の優先順: Critical → Warning → Suggestion

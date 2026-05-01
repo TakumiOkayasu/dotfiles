@@ -101,6 +101,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/primary-source-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/methodology-skill-reminder.sh"
           }
         ]
       }
