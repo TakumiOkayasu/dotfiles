@@ -17,6 +17,8 @@
     adu = add -u
     cmt = commit -m
     undo = "!f() { git reset --hard $(git rev-parse --abbrev-ref HEAD)@{${1-1}} && git checkout $(git rev-parse --abbrev-ref HEAD); }; f"
+    reword = commit --amend
+    rebase-i = "!f() { git rebase -i HEAD~${1-3}; }; f"
 
 [core]
     editor = code --wait
