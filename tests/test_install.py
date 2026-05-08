@@ -78,6 +78,8 @@ class TestIntegrationInstallUninstall:
         codex_dir = home / ".codex"
         assert codex_dir.is_dir()
 
+        assert (codex_dir / "AGENTS.md").is_symlink()
+        assert (codex_dir / "AGENTS.md").resolve() == REPO_ROOT / "codex" / "global_AGENTS.md"
         assert (codex_dir / "hooks.json").is_symlink()
         assert (codex_dir / "hooks").is_dir()
         assert (codex_dir / "hooks" / "destructive-command-block.sh").is_symlink()

@@ -60,11 +60,14 @@ source ~/.bashrc           # 設定反映
 
 | ディレクトリ / ファイル | 内容 |
 | --- | --- |
-| `hooks.json` | Codex hook 定義 (`PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `SessionStart`) |
+| `global_AGENTS.md` | `~/.codex/AGENTS.md` にリネームして配置される Codex 常時指示 |
+| `hooks.json` | Codex hook 定義 (`PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `PreCompact`, `SessionStart`) |
 | `hooks/` | hook 実体スクリプト |
 | `skills/` | Codex skill |
 | `rules/` | 参照ルール |
 | `prompts/commands/` | Claude slash command の代替プロンプト |
+
+Codex設定の使い方は `codex/README.md` を参照。初回起動時に hook レビュー警告が出た場合は、Codex 上で `/hooks` を開いて許可する。
 
 ## プラットフォーム
 

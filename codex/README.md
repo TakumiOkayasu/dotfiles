@@ -64,6 +64,32 @@ Codex には Claude Code の slash command と同じプロジェクトローカ�
 - `commit.md`: コミットメッセージ案作成
 - `code-review.md`: 差分レビュー
 
+インストール後は `~/.codex/prompts/commands/` から参照できる。
+
+既存の Codex セッションで使う場合は、該当ファイルの内容を入力欄に貼り付け、続けて依頼内容を書く。
+
+```text
+<~/.codex/prompts/commands/fix.md の内容>
+
+対象: ログイン時に500になる問題を修正して
+```
+
+新しい Codex セッションをコマンドラインから開始する場合は、プロンプトファイルを初期入力として渡す。
+
+```bash
+codex "$(cat ~/.codex/prompts/commands/feat.md)"
+codex "$(cat ~/.codex/prompts/commands/fix.md)"
+codex "$(cat ~/.codex/prompts/commands/code-review.md)"
+```
+
+非対話で実行する場合は `codex exec` に渡す。
+
+```bash
+codex exec "$(cat ~/.codex/prompts/commands/code-review.md)"
+```
+
+Claude Code の `/feat` や `/fix` のように名前だけで自動展開されるわけではない。Codex では、プロンプト本文を貼るか、`cat` で初期入力に流し込む。
+
 ## hooks
 
 Codex は `~/.codex/hooks.json` から hook を読み込む。`install.sh` は `codex/hooks.json` と `codex/hooks/` を `~/.codex/` にシンボリックリンク配置する。

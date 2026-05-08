@@ -1028,6 +1028,11 @@ install_codex_config() {
             [ -z "$file" ] && continue
 
             relative="${file#codex/}"
+            case "$relative" in
+                global_AGENTS.md)
+                    relative="AGENTS.md"
+                    ;;
+            esac
             dest="${HOME}/.codex/${relative}"
 
             dest_dir=$(dirname "$dest")
@@ -1062,6 +1067,11 @@ uninstall_codex_config() {
             [ -z "$file" ] && continue
 
             relative="${file#codex/}"
+            case "$relative" in
+                global_AGENTS.md)
+                    relative="AGENTS.md"
+                    ;;
+            esac
             dest="${HOME}/.codex/${relative}"
             remove_link "$file" "$dest"
         done < "$_codex_filelist"
