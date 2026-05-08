@@ -46,6 +46,7 @@ SHELL_TYPE=""  # bash, zsh, fish, all
 SHELL_COMPONENTS=""  # full, append
 BIN_SELECTED=false
 CLAUDE_SELECTED=false
+CODEX_SELECTED=false
 GITCONFIG_VARIANT=""
 
 # アンインストール対象
@@ -54,6 +55,7 @@ UNINSTALL_GIT=false
 UNINSTALL_VIM=false
 UNINSTALL_BIN=false
 UNINSTALL_CLAUDE=false
+UNINSTALL_CODEX=false
 
 # vendor スキル
 VENDOR_SKILLS="composition-patterns react-best-practices web-design-guidelines"
@@ -813,6 +815,33 @@ cleanup_stale_claude_links() {
     done
 }
 
+# ~/.codex/ 配下の孤立シンボリックリンクをクリーンアップ
+cleanup_stale_codex_links() {
+    _csl_dotfiles=$(canonicalize_path "$DOTFILES_DIR")
+    for _dir in bin hooks prompts rules skills; do
+        _target_dir="${HOME}/.codex/${_dir}"
+        [ ! -d "$_target_dir" ] && continue
+        for _entry in "$_target_dir"/*; do
+            if [ -L "$_entry" ]; then
+                _is_stale_link "$_entry" || continue
+                _name=$(basename "$_entry")
+                _remove_stale "$_entry" "古いCodex ${_dir}: $_name"
+            elif [ -d "$_entry" ]; then
+                _name=$(basename "$_entry")
+                _has_entries=false
+                _all_stale=true
+                for _f in "$_entry"/*; do
+                    [ ! -L "$_f" ] && [ ! -e "$_f" ] && continue
+                    _has_entries=true
+                    _is_stale_link "$_f" || { _all_stale=false; break; }
+                done
+                [ "$_has_entries" = "true" ] && [ "$_all_stale" = "true" ] || continue
+                _remove_stale "$_entry" "古いCodex ${_dir}: $_name" rf
+            fi
+        done
+    done
+}
+
 install_claude_config() {
     if [ "$CLAUDE_SELECTED" != "true" ]; then
         return 0
@@ -970,6 +999,82 @@ uninstall_claude_config() {
     fi
 }
 
+# ============================================================================
+# Codex設定
+# ============================================================================
+
+install_codex_config() {
+    if [ "$CODEX_SELECTED" != "true" ]; then
+        return 0
+    fi
+
+    print_header "Codex設定をインストール"
+
+    ensure_dir "${HOME}/.codex"
+    ensure_dir "${HOME}/.codex/bin"
+    ensure_dir "${HOME}/.codex/hooks"
+    ensure_dir "${HOME}/.codex/prompts"
+    ensure_dir "${HOME}/.codex/rules"
+    ensure_dir "${HOME}/.codex/skills"
+
+    cleanup_stale_codex_links
+
+    if [ -d "${DOTFILES_DIR}/codex" ]; then
+        _codex_filelist=$(mktemp)
+        _TMPFILES="$_TMPFILES $_codex_filelist"
+        (cd "$DOTFILES_DIR" && { git ls-files codex/ 2>/dev/null; git ls-files --others --exclude-standard codex/ 2>/dev/null; } | sort -u) > "$_codex_filelist"
+
+        while IFS= read -r file; do
+            [ -z "$file" ] && continue
+
+            relative="${file#codex/}"
+            dest="${HOME}/.codex/${relative}"
+
+            dest_dir=$(dirname "$dest")
+            ensure_dir "$dest_dir"
+
+            create_link "$file" "$dest"
+        done < "$_codex_filelist"
+
+        rm -f "$_codex_filelist"
+    fi
+
+    if command -v codex >/dev/null 2>&1; then
+        if codex features list 2>/dev/null | grep -q '^hooks[[:space:]]'; then
+            print_success "Codex hooks feature: 利用可能"
+        elif codex features list 2>/dev/null | grep -q '^codex_hooks[[:space:]]'; then
+            print_info "Codex hooks feature: codex_hooks を有効化してください (codex features enable codex_hooks)"
+        fi
+    fi
+}
+
+uninstall_codex_config() {
+    print_header "Codex設定をアンインストール"
+
+    cleanup_stale_codex_links
+
+    if [ -d "${DOTFILES_DIR}/codex" ]; then
+        _codex_filelist=$(mktemp)
+        _TMPFILES="$_TMPFILES $_codex_filelist"
+        (cd "$DOTFILES_DIR" && { git ls-files codex/ 2>/dev/null; git ls-files --others --exclude-standard codex/ 2>/dev/null; } | sort -u) > "$_codex_filelist"
+
+        while IFS= read -r file; do
+            [ -z "$file" ] && continue
+
+            relative="${file#codex/}"
+            dest="${HOME}/.codex/${relative}"
+            remove_link "$file" "$dest"
+        done < "$_codex_filelist"
+
+        rm -f "$_codex_filelist"
+
+        _empty_count=$(find "${HOME}/.codex" -mindepth 1 -depth -type d 2>/dev/null \
+            | while IFS= read -r _dir; do rmdir "$_dir" 2>/dev/null && echo x; done \
+            | wc -l)
+        [ "$_empty_count" -gt 0 ] && print_success "空ディレクトリ削除: .codex/ 配下 ${_empty_count} 件"
+    fi
+}
+
 
 # ============================================================================
 # 対話的選択
@@ -983,6 +1088,7 @@ select_uninstall_components() {
     printf "  ${COLOR_BOLD}3)${COLOR_RESET} Vim設定\n"
     printf "  ${COLOR_BOLD}4)${COLOR_RESET} CLIツール\n"
     printf "  ${COLOR_BOLD}5)${COLOR_RESET} Claude Code設定\n"
+    printf "  ${COLOR_BOLD}6)${COLOR_RESET} Codex設定\n"
     printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべて\n"
     echo ""
     printf "選択 (例: 1 3 / a) [a]: "
@@ -995,6 +1101,7 @@ select_uninstall_components() {
             UNINSTALL_VIM=true
             UNINSTALL_BIN=true
             UNINSTALL_CLAUDE=true
+            UNINSTALL_CODEX=true
             ;;
         *)
             for c in $choices; do
@@ -1004,6 +1111,7 @@ select_uninstall_components() {
                     3) UNINSTALL_VIM=true ;;
                     4) UNINSTALL_BIN=true ;;
                     5) UNINSTALL_CLAUDE=true ;;
+                    6) UNINSTALL_CODEX=true ;;
                     *) print_error "無効な選択をスキップ: $c" ;;
                 esac
             done
@@ -1017,6 +1125,7 @@ select_uninstall_components() {
     [ "$UNINSTALL_VIM" = "true" ] && selected="${selected}Vim "
     [ "$UNINSTALL_BIN" = "true" ] && selected="${selected}CLIツール "
     [ "$UNINSTALL_CLAUDE" = "true" ] && selected="${selected}Claude "
+    [ "$UNINSTALL_CODEX" = "true" ] && selected="${selected}Codex "
 
     if [ -z "$selected" ]; then
         die "カテゴリが選択されていません"
@@ -1038,6 +1147,8 @@ show_category_menu() {
     printf "     git-new-feature 等を ~/.local/bin/ に配置\n"
     printf "  ${COLOR_BOLD}5)${COLOR_RESET} Claude Code設定\n"
     printf "     hooks, skills, rules, commands を ~/.claude/ に配置\n"
+    printf "  ${COLOR_BOLD}6)${COLOR_RESET} Codex設定\n"
+    printf "     hooks, skills, rules, prompts を ~/.codex/ に配置\n"
     echo ""
     printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべて  ${COLOR_BOLD}q)${COLOR_RESET} 終了\n"
     echo ""
@@ -1050,7 +1161,7 @@ select_files_interactive() {
 
     while true; do
         show_category_menu
-        printf "カテゴリを選択 (1-5/a/q): "
+        printf "カテゴリを選択 (1-6/a/q): "
         read -r choice
 
         case "$choice" in
@@ -1067,6 +1178,7 @@ select_files_interactive() {
                 VIM_SELECTED=true
                 BIN_SELECTED=true
                 CLAUDE_SELECTED=true
+                CODEX_SELECTED=true
                 return
                 ;;
             1)
@@ -1090,6 +1202,10 @@ select_files_interactive() {
                 CLAUDE_SELECTED=true
                 print_success "Claude Code設定を追加しました"
                 ;;
+            6)
+                CODEX_SELECTED=true
+                print_success "Codex設定を追加しました"
+                ;;
             *)
                 print_error "無効な選択です"
                 continue
@@ -1097,7 +1213,7 @@ select_files_interactive() {
         esac
 
         # 全カテゴリ選択済みなら自動で抜ける
-        if [ "$SHELL_SELECTED" = "true" ] && [ "$GIT_SELECTED" = "true" ] && [ "$VIM_SELECTED" = "true" ] && [ "$BIN_SELECTED" = "true" ] && [ "$CLAUDE_SELECTED" = "true" ]; then
+        if [ "$SHELL_SELECTED" = "true" ] && [ "$GIT_SELECTED" = "true" ] && [ "$VIM_SELECTED" = "true" ] && [ "$BIN_SELECTED" = "true" ] && [ "$CLAUDE_SELECTED" = "true" ] && [ "$CODEX_SELECTED" = "true" ]; then
             print_success "全カテゴリが選択されました"
             return
         fi
@@ -1111,7 +1227,7 @@ select_files_interactive() {
 }
 
 confirm_installation() {
-    if [ "$SHELL_SELECTED" != "true" ] && [ "$GIT_SELECTED" != "true" ] && [ "$VIM_SELECTED" != "true" ] && [ "$BIN_SELECTED" != "true" ] && [ "$CLAUDE_SELECTED" != "true" ]; then
+    if [ "$SHELL_SELECTED" != "true" ] && [ "$GIT_SELECTED" != "true" ] && [ "$VIM_SELECTED" != "true" ] && [ "$BIN_SELECTED" != "true" ] && [ "$CLAUDE_SELECTED" != "true" ] && [ "$CODEX_SELECTED" != "true" ]; then
         die "ファイルが選択されていません"
     fi
 
@@ -1196,6 +1312,13 @@ confirm_installation() {
         echo ""
     fi
 
+    if [ "$CODEX_SELECTED" = "true" ]; then
+        printf "  ${COLOR_CYAN}Codex設定:${COLOR_RESET}\n"
+        printf "    + codex/* -> ~/.codex/*\n"
+        printf "    + codex/hooks.json -> ~/.codex/hooks.json\n"
+        echo ""
+    fi
+
     printf "インストールを実行しますか? [Y/n]: "
     read -r confirm
     case "$confirm" in
@@ -1227,6 +1350,7 @@ install_files() {
 
     install_bin_files
     install_claude_config
+    install_codex_config
 }
 
 uninstall_files() {
@@ -1248,6 +1372,9 @@ uninstall_files() {
     fi
     if [ "$UNINSTALL_CLAUDE" = "true" ]; then
         uninstall_claude_config
+    fi
+    if [ "$UNINSTALL_CODEX" = "true" ]; then
+        uninstall_codex_config
     fi
 }
 
@@ -1289,6 +1416,7 @@ dotfiles インストーラー - dotfilesのシンボリックリンクを作成
     vim     Vim設定(.vimrc)
     bin     CLIツール (git-new-feature等 → ~/.local/bin/)
     claude  Claude Code設定 (claude/)
+    codex   Codex設定 (codex/)
 
 例:
     ./install.sh              # 対話的にインストール
@@ -1361,6 +1489,7 @@ main() {
             UNINSTALL_VIM=true
             UNINSTALL_BIN=true
             UNINSTALL_CLAUDE=true
+            UNINSTALL_CODEX=true
         fi
         uninstall_files
     else
@@ -1376,6 +1505,7 @@ main() {
             VIM_SELECTED=true
             BIN_SELECTED=true
             CLAUDE_SELECTED=true
+            CODEX_SELECTED=true
 
             # プラットフォーム自動検出
             platform=$(detect_platform)

@@ -1,6 +1,6 @@
 # dotfiles
 
-個人用dotfilesリポジトリ。Shell/Git/Vim設定とClaude Code設定を `install.sh` でシンボリックリンク配置する。
+個人用dotfilesリポジトリ。Shell/Git/Vim設定とClaude Code/Codex設定を `install.sh` でシンボリックリンク配置する。
 
 ## クイックスタート
 
@@ -29,6 +29,7 @@ source ~/.bashrc           # 設定反映
 | `config/git/` | `~/` | .gitconfig (work/private)、.gitignore、補完 |
 | `config/vim/` | `~/` | .vimrc |
 | `claude/` | `~/.claude/` | Claude Code設定一式 (後述) |
+| `codex/` | `~/.codex/` | Codex設定一式 (hooks.json, hooks, skills, rules) |
 | `bin/` | `~/bin/` | CLIツール (後述) |
 
 ### CLIツール (bin/)
@@ -52,6 +53,18 @@ source ~/.bashrc           # 設定反映
 | `vendor/` | 外部スキル (vercel-labs/agent-skills)。`install.sh` が自動 clone、SessionStart hook で1日1回更新 |
 
 新ファイル追加は `claude/` に配置して `git add` するだけ。`install.sh` が `git ls-files` で自動検出する。
+
+### Codex設定 (codex/)
+
+`install.sh` で `~/.codex/` にリンクされる。Codex の自動 hook は `~/.codex/hooks.json` が読み込まれる。
+
+| ディレクトリ / ファイル | 内容 |
+| --- | --- |
+| `hooks.json` | Codex hook 定義 (`PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `SessionStart`) |
+| `hooks/` | hook 実体スクリプト |
+| `skills/` | Codex skill |
+| `rules/` | 参照ルール |
+| `prompts/commands/` | Claude slash command の代替プロンプト |
 
 ## プラットフォーム
 
