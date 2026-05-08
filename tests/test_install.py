@@ -68,6 +68,24 @@ class TestIntegrationInstallUninstall:
         assert (claude_dir / "settings.json").is_symlink()
         assert (claude_dir / "CLAUDE.md").is_symlink()
 
+    def test_install_creates_codex_symlinks(self, tmp_path: Path) -> None:
+        """install 後に ~/.codex/ 配下にCodex設定リンクが作られる"""
+        home = tmp_path / "home"
+        home.mkdir()
+        result = _run_install_sh(REPO_ROOT, home)
+        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+
+        codex_dir = home / ".codex"
+        assert codex_dir.is_dir()
+
+        assert (codex_dir / "AGENTS.md").is_symlink()
+        assert (codex_dir / "AGENTS.md").resolve() == REPO_ROOT / "codex" / "global_AGENTS.md"
+        assert (codex_dir / "hooks.json").is_symlink()
+        assert (codex_dir / "hooks").is_dir()
+        assert (codex_dir / "hooks" / "destructive-command-block.sh").is_symlink()
+        assert (codex_dir / "skills" / "tdd" / "SKILL.md").is_symlink()
+        assert (codex_dir / "rules" / "coding-conventions.md").is_symlink()
+
     def test_uninstall_removes_claude_symlinks(self, tmp_path: Path) -> None:
         """uninstall 後に dotfiles 由来のシンボリックリンクが削除される"""
         home = tmp_path / "home"
@@ -80,8 +98,21 @@ class TestIntegrationInstallUninstall:
         _run_install_sh(REPO_ROOT, home, uninstall=True)
         assert not (home / ".claude" / "settings.json").exists()
 
+    def test_uninstall_removes_codex_symlinks(self, tmp_path: Path) -> None:
+        """uninstall 後に dotfiles 由来のCodexリンクが削除される"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _run_install_sh(REPO_ROOT, home)
+
+        assert (home / ".codex" / "hooks.json").is_symlink()
+        assert (home / ".codex" / "hooks" / "destructive-command-block.sh").is_symlink()
+
+        _run_install_sh(REPO_ROOT, home, uninstall=True)
+        assert not (home / ".codex" / "hooks.json").exists()
+        assert not (home / ".codex" / "hooks" / "destructive-command-block.sh").exists()
+
     def test_uninstall_empty_dir_summary(self, tmp_path: Path) -> None:
-        """uninstall の空ディレクトリ削除メッセージが1行サマリー形式"""
+        """uninstall の空ディレクトリ削除メッセージがカテゴリごとの1行サマリー形式"""
         home = tmp_path / "home"
         home.mkdir()
         _run_install_sh(REPO_ROOT, home)
@@ -90,8 +121,10 @@ class TestIntegrationInstallUninstall:
         summary_lines = [
             l for l in result.stdout.splitlines() if "空ディレクトリ削除" in l
         ]
-        assert len(summary_lines) == 1, f"サマリーは1行であるべき: {summary_lines}"
-        assert ".claude/ 配下" in summary_lines[0]
+        claude_lines = [l for l in summary_lines if ".claude/ 配下" in l]
+        codex_lines = [l for l in summary_lines if ".codex/ 配下" in l]
+        assert len(claude_lines) == 1, f"Claudeサマリーは1行であるべき: {summary_lines}"
+        assert len(codex_lines) == 1, f"Codexサマリーは1行であるべき: {summary_lines}"
 
     def test_uninstall_without_prior_install(self, tmp_path: Path) -> None:
         """install していない状態で uninstall してもクラッシュしない
