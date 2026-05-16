@@ -1,259 +1,118 @@
 # Claude Code 運用ルール
 
-## ⚡ 出力制限 (最優先)
+## 出力
 
-- **レートリミット対策: 全応答に適用**
-
-| ルール | 内容 |
-| -------- | ------ |
-| 上限 | 10000トークン/応答 |
-| 前置き | 禁止 (了解/ありがとう等) |
-| 締め | 禁止 (以上です/何かあれば等) |
-| 形式 | テーブル > 箇条書き > 文章 |
-| 状態 | 記号で表示 (✅❌⚠️) |
-
-**違反時**: 即座に短縮して再出力
-
-### スタック防止 (Claude側ルール)
-
-| ルール | 内容 |
-| ------ | ------ |
-| 即時出力 | 思考完了を待たず、まず1行出力する |
-| 分割出力 | 長い応答は段階的に出力（溜め込まない） |
-| 処理報告 | 重い処理前に「確認中...」等を出力 |
-| ツール前宣言 | ツール実行前に何をするか1行書く |
-
-**禁止**: 長時間の無言思考、大量出力の一括送信
-
-### 応答スタック時 (ユーザー側対応)
-
-| 状態 | 対応 |
-| ------ | ------ |
-| `0 tokens` が30秒継続 | Escで中断→再送 |
-| 中断後も `0 tokens` | 短文で生存確認（例: "続けて"） |
-
----
+応答は簡潔に。前置き・締めの定型文 (了解 / ありがとう / 以上です 等) は省く。
+形式はテーブル・箇条書きを優先し、状態は記号で示す (✅ 完了 / ❌ 失敗 / ⚠️ 注意)。
+1 応答あたり 1 万トークン以内を目安とする。
 
 ## 🎯 作業フロー
 
-**手順**:
+1. `.claude/progress.md` を読む。未完了タスクがあればそこから再開する
+2. `git branch --show-current` でブランチを確認する。main の場合は新規ブランチを作成する (→ Git ワークフロー)
+3. タスクに対応するスキルを `~/.claude/skills/` から探して読む
+4. スキルの手順に従って着手する
 
-1. `.claude/progress.md` を確認する (未完了タスクがあればそこから再開)
-2. 現在のブランチを確認する: `git branch --show-current`
-3. mainブランチの場合、必ず新規ブランチを作成する: `git-new-feature <機能名>`
-4. 関連スキルファイルを読む: `view ~/.claude/skills/tdd/SKILL.md`
-5. スキルの手順に従って作業を開始する
+## 制約
 
-```text
-view .claude/progress.md
-git branch --show-current
-[main の場合] git-new-feature <機能名>
-view ~/.claude/skills/tdd/SKILL.md
-```
+以下は常時適用される。多くは hook が機械的に enforce する。
 
----
+| 操作 | 判定 |
+| --- | --- |
+| git commit / push | 不可 (hook) |
+| main ブランチの編集 | 不可 (hook) |
+| 素のランタイム直接実行 | 不可 (hook) |
+| コマンドの難読化・間接実行 | 不可 (hook) |
+| 管理者権限 (sudo 等) | 不可 (hook) |
+| 秘密情報のハードコード | 不可 (hook) |
+| 単一案での実装 | 不可。最低 2-3 案を提示する |
+| スキル未読での実装 | 不可。先に該当スキルを読む |
+| 読んでいないファイルの変更 | 不可。先に view する |
 
-## 🚨 禁止事項
+加えて、おべっかや根拠のない称賛はしない。反論すべき点は率直に指摘する。
 
-| 操作 | 条件 | 判定 |
-| ------ | ------ | ------ |
-| git commit/push | 常に | 🚫 (hook) |
-| mainブランチ編集 | 常に | 🚫 (hook) |
-| ローカルコマンド直接実行 | 常に | 🚫 (hook) |
-| コマンド難読化・間接実行 | 常に | 🚫 (hook) |
-| 管理者権限 (sudo等) | 常に | 🚫 (hook) |
-| 単一案で実装 | 常に | 🚫 |
-| スキル未読で実装 | 常に | 🚫 |
-| おべっか・根拠なき称賛 | 常に | 🚫 |
-| 反論すべき点の黙認 | 常に | 🚫 |
-| 秘密情報のハードコード | 常に | 🚫 (hook) |
-| 読んでいないファイルの変更 | 常に | 🚫 |
+### 秘密情報
 
-### 🔑 秘密情報の取り扱い
+パスワード・API キー・トークンをコマンド文字列に平文展開しない。`.env` に記載し環境変数経由で参照する。
 
-パスワード・APIキー・トークン等をコマンド文字列に**絶対に平文展開しない**。
-
-| ❌ 禁止 | ✅ 正しい方法 |
-| --------- | ------------- |
+| 避ける | 使う |
+| --- | --- |
 | `curl -u user:password123` | `source .env && curl -u "$USER:$PASS"` |
-| `PASS='secret' command` | `.env` に記載 → `$PASS` で参照 |
-| 許可リストに認証情報混入 | 環境変数経由で渡す |
+| `PASS='secret' command` | `.env` に記載し `$PASS` で参照 |
 
-### 🔒 コマンド難読化の禁止
+### コマンド難読化
 
-hookを迂回するための難読化・間接実行は**絶対禁止**。
+hook を迂回するための難読化・間接実行 (文字列分割 / 変数構築 / base64・hex デコード実行 / curl・wget パイプ / Write+実行 等) は行わない。検知とブロックは hook が担う。
 
-| 手法 | 例 | 判定 |
-| ------ | --- | ------ |
-| 文字列分割 | `eval "pyt""hon3"` | 🚫 |
-| 変数構築 | `P=pytho; "${P}n3"` | 🚫 |
-| base64デコード実行 | `echo ... \| base64 -d \| sh` | 🚫 |
-| hex/octalエスケープ | `$'\x70\x79...'` | 🚫 |
-| Write+Execute | Write→bash実行 | 🚫 |
-| curl/wgetパイプ | `curl ... \| sh` | 🚫 |
-| printf実行 | `printf '\x70...' \| sh` | 🚫 |
+## 実行と検証
 
----
+素のランタイム (`python3`, `node`, `bun`, `deno`, `php`, `ruby`, `go`, `rustc` 等) の直接実行は、ローカル環境の版ズレで再現性が失われるため行わない。バージョン固定された環境を使う。
 
-## ⚠️ 静的解析 (必須)
+| 方式 | 例 |
+| --- | --- |
+| コンテナ | `docker run --rm`, `docker compose run --rm`, `docker exec` |
+| Runner サブコマンド | `npm run <script>`, `npm test`, `poetry run <cmd>`, `cargo (run\|build\|test)`, `./gradlew build`, `mvn test`, `dotnet (run\|build\|test)` |
+| バージョンマネージャ | `mise exec`, `uv run`, `pyenv exec`, `asdf exec` |
 
-**手順**:
+リンター・型チェッカー・テスト・スクリプトはいずれも上記の方式で実行する。実行方法はプロジェクトの `CLAUDE.md` / `package.json` scripts / `pyproject.toml` / Dockerfile から確認し、指定がなければユーザーに確認する。すべてパスしたことを確認してから完了報告する (未確認での完了報告はしない)。
 
-1. プロジェクトの `CLAUDE.md` で指定されたリンター・型チェッカー・実行環境を確認する
-2. バージョン固定された実行環境 (Docker / Runnerサブコマンド / バージョンマネージャ) でチェッカーを実行する
-3. 全てパスしたことを確認してから完了報告する
+依存セットアップが未済 (`node_modules` / `.venv` / lockfile 不在 等) の場合は install 系コマンドを実行せず、ユーザーに依存インストールを依頼する。ビルド・テスト系は `run_in_background=true` を推奨。
 
-まず**確認**。**未確認での完了報告は禁止**。実行方法の指定 (プロジェクト `CLAUDE.md` / `package.json` scripts / `pyproject.toml` / Dockerfile 等) がない場合はユーザーに確認する。**この原則はリンター/型チェッカー実行に限らず、スクリプト実行全般に適用する**。
+## 🔧 リソース
 
----
+`~/.claude/` 配下のリソースを活用し、既存で実現できる処理を自前実装しない。
 
-## 📋 ルール
+常時適用の規約は以下を import する (毎セッション自動ロードされる)。
 
-**入力**: なし  
-**出力**: 常時適用される制約・規約
+@~/.claude/rules/coding-conventions.md
+@~/.claude/rules/implementation-policy.md
+@~/.claude/rules/hierarchical-architecture.md
+@~/.claude/rules/hallucination-prevention.md
 
-`~/.claude/rules/` 内のルールが常時適用される。
+| リソース | 場所 | 用途 |
+| --- | --- | --- |
+| skills | `~/.claude/skills/` | オンデマンドの作業手順。タスクに応じて読む |
+| commands | `~/.claude/commands/` | トリガーワード対応 |
+| hooks | `~/.claude/hooks/` | 自動処理 (機械的 enforce) |
 
-```bash
-# ルール一覧を確認する
-ls ~/.claude/rules/
-```
-
-## 📋 スキル
-
-**入力**: タスクの種類  
-**出力**: 該当スキルの手順
-
-`~/.claude/skills/` 内のスキルを必要に応じて活用すること。
-
-```bash
-# スキル一覧を確認する
-ls ~/.claude/skills/
-# 該当スキルを読む例
-view ~/.claude/skills/tdd/SKILL.md
-```
-
----
+skills はタスク着手前に該当するものを確認して読む。
 
 ## 🔀 Git ワークフロー
 
-### ブランチ操作
+main の場合は新規ブランチを作成してから着手する。
 
-**手順**:
+| コマンド | 用途 |
+| --- | --- |
+| `git-new-feature <名前>` | feat/ |
+| `git-new-feature -f <名前>` | fix/ |
+| `git-new-feature -d <名前>` | docs/ |
+| `git-new-feature -r <名前>` | refactor/ |
+| `git-new-feature -c <名前>` | chore/ |
+| `git-cleanup-branch` | マージ済みブランチ削除 |
 
-1. `git branch --show-current` で現在のブランチを確認する
-2. mainの場合は以下のコマンドで新規ブランチを作成する
-3. 作業完了後、ユーザーにコミット・プッシュを依頼する（Claude自身は実行禁止）
+コミットは Conventional Commits に従う (feat / fix / docs / refactor / test / chore)。例: `feat: ログイン機能を追加`。
 
-```bash
-git-new-feature 機能名        # feat/機能名
-git-new-feature -f バグ名     # fix/バグ名
-git-new-feature -d 内容       # docs/内容
-git-new-feature -r 対象       # refactor/対象
-git-new-feature -c 内容       # chore/内容
-git-cleanup-branch           # マージ済みブランチ削除
-```
-
-### Conventional Commits
-
-| タイプ | 用途 | 例 |
-| -------- | ------ | --- |
-| feat | 新機能 | `feat: ログイン機能を追加` |
-| fix | バグ修正 | `fix: NullPointerException を修正` |
-| docs | ドキュメント | `docs: README を更新` |
-| refactor | リファクタリング | `refactor: UserService を分割` |
-| test | テスト | `test: UserService のユニットテストを追加` |
-| chore | 雑務 | `chore: 依存パッケージを更新` |
-
-### ルール
-
-- **1ブランチ = 1機能 = 1PR** (「ついでに」修正禁止)
-- **ロックファイル**: `package-lock.json`, `poetry.lock` 等は必ずコミット
-- **1コミット = 1つの論理的変更**
-- **マージ済みローカルブランチは削除** — PRマージ確認後は `git-cleanup-branch` で削除 (放置禁止)
-
----
-
-## ⚙️ 環境
-
-```text
-文字: UTF-8, 半角記号
-権限: $(whoami):$(whoami)
-```
-
----
-
-## 🔄 Bash実行ルール
-
-**hookで自動警告**: ビルド・テスト系は `run_in_background=true` 推奨
-
-### 実行環境の原則
-
-素のランタイム (`python3`, `node`, `bun`, `deno`, `php`, `ruby`, `go`, `perl`, `rustc`) の直接実行は**禁止** (hookで検知)。  
-理由: ローカル環境の版ズレで再現性が失われるため。
-
-**許可される実行方法**:
-
-| 方式 | 例 |
-| ------ | ------ |
-| コンテナ | `docker run --rm`, `docker compose run --rm`, `docker exec` |
-| Runnerサブコマンド | `npm run <script>`, `npm test`, `yarn build`, `pnpm run <script>`, `poetry run <cmd>`, `poetry shell`, `pipenv run <cmd>`, `cargo (run\|build\|test\|check)`, `gradle tasks`, `./gradlew build`, `sbt test`, `mvn test`, `dotnet (run\|build\|test)` |
-| バージョンマネージャ | `uv run`, `pyenv exec`, `asdf exec`, `mise exec`, `fnm exec`, `volta run` |
-
-**禁止される実行方法** (hookでブロック):
-
-| パターン | 例 |
-| ------ | ------ |
-| 素のランタイム/コンパイラ | `python3 x.py`, `node x.js`, `bun run x.ts`, `deno run x.ts`, `rustc main.rs` |
-| インストール/追加系 | `npm install`, `pip install`, `poetry add`, `cargo install`, `gem install`, `composer install` |
-
-プロジェクト `CLAUDE.md` で特定の方式が指定されている場合はそれに従う。
-
-**依存セットアップが未済の場合** (`node_modules` / `.venv` / lockfile 不在等) は install 系コマンド (禁止) を勝手に実行せず、**ユーザーに依存インストールを依頼する**。
-
----
-
-## 🔧 リソース活用 (必須)
-
-**rules/skills/commands/hooksを最大限活用すること。自前実装禁止。**
-
-**手順**:
-
-1. タスク開始前に以下のコマンドで利用可能なリソースを確認する
-2. 該当するスキル・ルールを読んでから実装を開始する
-3. 既存のコマンド・hookで実現できる処理は自前実装しない
-
-| リソース | 場所 | 用途 |
-| ---------- | ------ | ------ |
-| rules | `~/.claude/rules/` | 常時適用の制約・規約 |
-| skills | `~/.claude/skills/` | オンデマンドの作業手順 |
-| commands | `~/.claude/commands/` | トリガーワード対応 |
-| hooks | `~/.claude/hooks/` | 自動処理 |
-
-```bash
-ls ~/.claude/rules/
-ls ~/.claude/skills/
-ls ~/.claude/commands/
-```
-
----
+- 1 ブランチ = 1 機能 = 1 PR。「ついでに」の修正を混ぜない
+- 1 コミット = 1 つの論理的変更
+- ロックファイル (`package-lock.json`, `poetry.lock` 等) はコミットする
+- commit / push は Claude では実行せず、作業完了後にユーザーへ依頼する
+- PR マージ確認後は `git-cleanup-branch` でローカルブランチを削除する
 
 ## 📋 PROGRESS.md (セッション継続)
 
-**ファイル**: `.claude/progress.md`  
-**目的**: セッションをまたいだ作業継続と判断履歴の保持。
+`.claude/progress.md` でセッションをまたいだ作業継続と判断履歴を保持する。
 
 | タイミング | 操作 |
-| ------ | ------ |
+| --- | --- |
 | タスク着手時 | 「現在のタスク」を更新 |
-| 設計判断時 | 「判断ログ」にWhy追記 |
-| Plan確定時 | 実装前に書き出し |
-| タスク完了時 | 完了マーク + 次タスク記載 |
-| コンテキスト ⚠️70% / 🚨85% | 即更新 |
+| 設計判断時 | 「判断ログ」に Why を追記 |
+| Plan 確定時 | 実装前に書き出す |
+| タスク完了時 | 完了マーク + 次タスクを記載 |
+| コンテキスト 70% / 85% | 即更新 |
 
-**フォーマット**:
+フォーマット:
 
-```markdown
+```
 # PROGRESS
 
 ## 現在のタスク
@@ -266,38 +125,39 @@ ls ~/.claude/commands/
 - [x] 完了したタスク
 ```
 
-**セッション開始時**: `.claude/progress.md` を読み、未完了タスクがあればそこから再開する。
-
----
-
-## 💡 原則
-
-**最小出力。本質のみ。リソース活用。**  
-**言語のバージョンは最新版のLTSを使用。**  
-**推測で実装しない。いわれたことだけを一次ソースとして実装する。**
-
----
+セッション開始時に読み、未完了タスクがあればそこから再開する。
 
 ## 着手前の方針検証 (2 段階)
 
-戦略 → 戦術の順。逆順は無意味。簡易モード / skipped 時は明示報告。
+戦略 → 戦術の順で行う。簡易モードや skip 時はその旨を明示報告する。
 
 ### 1. premise-questioning (戦略: 方針自体)
 
-発動条件:
+次のいずれかで発動する。
 
 - 100 行以上の変更
-- 外部依存の追加 / 削除
-- DB スキーマ / 公開 API I/F 変更
+- 外部依存の追加・削除
+- DB スキーマ / 公開 API I/F の変更
 - バグ修正で根本原因に手を入れる
 - 「設計レビューして」「方針確認して」と要求された
 
 ### 2. feature-pruning (戦術: 個別機能)
 
-premise-questioning で ✅ 採用後、または:
+premise-questioning で採用後、または次のいずれかで発動する。
 
 - UI 機能リスト 5 個以上
-- API エンドポイント複数新設
-- DB テーブル 5 列以上新設
+- API エンドポイントの複数新設
+- DB テーブルに 5 列以上の新設
 - 既存画面 / API の削減レビュー
 - 「機能多すぎないか」「これ要るか」と要求された
+
+## ⚙️ 環境
+
+- 文字: UTF-8、半角記号
+- 権限: `$(whoami):$(whoami)`
+
+## 💡 原則
+
+- 最小出力、本質のみ
+- 推測で実装せず、指示された内容を一次ソースとして実装する
+- 言語バージョンは最新の LTS を使う
