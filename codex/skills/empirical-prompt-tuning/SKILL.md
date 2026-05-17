@@ -112,18 +112,19 @@ description: agent 向けテキスト指示（skill / slash command / task プ�
 - 再試行: 同じ判断をやり直した回数とその理由
 ```
 
-呼び出し側はレポートから自己申告部分を抽出し、`tool_uses` / `duration_ms` を Agent tool の usage メタから取得して評価軸表を埋める。
+呼び出し側はレポートから自己申告部分を抽出し、`tool_uses` / `duration_ms` を dispatch tool の usage メタから取得できる場合は評価軸表に記録する。取得できない場合は `usage metadata unavailable` と明記する。
 
 **構造審査モード時の差し替え**: 上記テンプレの「タスク」を「対象プロンプトを読んで記述矛盾・曖昧を列挙」に、「レポート構造」の「成果物」を「審査レポート本体」に読み替える。退化する評価軸の詳細は「環境制約」節の構造審査モード記述を参照。
 
 ## 環境制約
 
-新規 subagent を dispatch できない環境（既に subagent として動作している、spawn_agent が無効化されている等）では、本 skill は **適用しない**。
-- 代替案 1: 親セッションのユーザーに別 Codex セッションを起動して依頼してもらう
-- 代替案 2: 評価を諦め、ユーザーに「empirical evaluation skipped: dispatch unavailable」と明示報告する
-- **NG**: 自己再読で代替する（バイアスが入るので評価結果を信じてはいけない）
+新規 subagent を dispatch できない環境（既に subagent として動作している、spawn_agent が無効化されている等）では、通常の empirical 評価は **適用しない**。
+- 代替案 1: 構造審査モードに切り替え、親セッション内で矛盾・曖昧さだけを列挙する
+- 代替案 2: 親セッションのユーザーに別 Codex セッションを起動して依頼してもらう
+- 代替案 3: 評価を諦め、ユーザーに「empirical evaluation skipped: dispatch unavailable」と明示報告する
+- **NG**: 自己再読を empirical 評価として扱う（バイアスが入るので評価結果を信じてはいけない）
 
-**構造審査モード**: empirical 評価ではなく、skill / プロンプトの **記述の整合性・明瞭性だけ** をチェックしたい場合は、構造審査モードとして明示的に切り分ける。subagent への依頼プロンプトに「今回は構造審査モード: 実行ではなくテキスト整合性チェック」と明記する。これにより subagent は環境制約節の skip 動作に引っかからず、静的レビューを返せる。構造審査は empirical の代替ではなく補助（連続クリア判定には使えない）。
+**構造審査モード**: empirical 評価ではなく、skill / プロンプトの **記述の整合性・明瞭性だけ** をチェックしたい場合は、構造審査モードとして明示的に切り分ける。subagent が使える場合は依頼プロンプトに「今回は構造審査モード: 実行ではなくテキスト整合性チェック」と明記する。subagent が使えない場合は親セッション内で同じ観点を分けてレビューし、冒頭に `subagent fallback: structure review only` と書く。構造審査は empirical の代替ではなく補助（連続クリア判定には使えない）。
 
 構造審査モードでは `tool_uses` / `duration_ms` / 精度 % は dispatch 成果物がないため取得不能。「評価軸」表と「提示フォーマット」節のテーブル形式はスキップし、代わりに **矛盾・曖昧のテーマ一覧** を行番号付き箇条書きで返す。iter 0 (description/body 整合チェック) との違い: iter 0 は empirical 本流 iter の前段で dispatch 前に行う静的チェックでその後の iter と連続する (結果は後続 iter に反映)、構造審査モードは empirical 全体をスキップして静的レビューのみを目的とする (後続 iter なし)。
 

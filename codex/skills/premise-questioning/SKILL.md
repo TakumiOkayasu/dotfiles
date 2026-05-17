@@ -194,13 +194,14 @@ description: 設計判断・新規実装・バグ修正に着手する直前に�
 
 ## 環境制約
 
-新規 subagent を dispatch できない環境では本 skill は **適用しない**。**dispatch 主体は親セッション (ユーザー直結の Codex セッション) に限定**。subagent が更に subagent を呼ぶ nested dispatch は本 skill では要求しない (Codex 標準 harness で 1 段制限あり)。
+新規 subagent を dispatch できない環境では通常モードは **適用しない**。**dispatch 主体は親セッション (ユーザー直結の Codex セッション) に限定**。subagent が更に subagent を呼ぶ nested dispatch は本 skill では要求しない (Codex 標準 harness で 1 段制限あり)。
 
-判定方法: 親セッションの利用可能 tool に `Task` / `Agent` tool (新規 LLM コンテキストを起動する dispatch tool) が含まれるかを確認。`TaskCreate` / `TaskList` (session 内 todo 管理) や `RemoteTrigger` / `CronCreate` (非同期スケジュール) は dispatch tool ではないため適用不可判定の対象。
+判定方法: 親セッションの利用可能 tool に `spawn_agent` または新規 LLM コンテキストを起動する同等の dispatch tool が含まれるかを確認。`TaskCreate` / `TaskList` (session 内 todo 管理) や `RemoteTrigger` / `CronCreate` (非同期スケジュール) は dispatch tool ではないため適用不可判定の対象。
 
-- 代替案 1: 親セッションのユーザーに別 Codex セッションでの確認を依頼
-- 代替案 2: スキップを明示報告 (「premise-questioning skipped: dispatch unavailable」)
-- **NG**: 自分で 3 手法を順に当てて自己評価する (バイアス排除の構造が崩れるので結果を信じてはいけない)
+- 代替案 1: 簡易モードに切り替え、親セッション内で 1 手法のみ実施し `subagent fallback: simplified premise-questioning` と明記する
+- 代替案 2: 親セッションのユーザーに別 Codex セッションでの確認を依頼
+- 代替案 3: スキップを明示報告 (「premise-questioning skipped: dispatch unavailable」)
+- **NG**: 親セッションの自己評価を通常モードの 3 ラウンド結果として扱う
 
 **簡易モード**: 重要度が低い意思決定で軽く回したい場合は、**1 ラウンド (第一原理のみ) + 自己採点** に縮退。ただし「3 ラウンドで採点した」とは言わない (混同回避)。
 

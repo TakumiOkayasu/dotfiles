@@ -13,6 +13,27 @@
 3. タスクに対応するスキルを `~/.codex/skills/` から探して読む
 4. スキルの手順に従って着手する
 
+## 🤖 subagent 活用
+
+この repo では、品質や速度が上がる場面で subagent を積極的に使う。
+
+| 使う場面 | 例 |
+| --- | --- |
+| 観点を独立分割できるレビュー | security / performance / maintainability |
+| 複数候補の妥当性検証 | premise-questioning / feature-pruning |
+| 指示・skill の客観評価 | empirical-prompt-tuning |
+| 影響範囲調査を並列化できる | frontend / backend / tests / docs の分担調査 |
+| 実装を衝突なく分割できる | worker ごとに担当ファイル・責務を明示 |
+| 検証を本体作業と並行できる | 既存テスト・ログ・設定差分の確認 |
+
+運用ルール:
+
+- 直近の判断をブロックする作業は親セッションで行い、待ち時間が増えるだけの dispatch はしない
+- 同じ問いを親と subagent で重複調査しない
+- worker には担当範囲、編集可能ファイル、他者の変更を戻さないことを明示する
+- subagent の結論は親セッションが統合し、根拠・差分・テストで検証してから採用する
+- 新規 subagent を dispatch できない環境では、親セッション内で同じ観点分解を行う
+
 ## 制約
 
 以下は常時適用される。多くは hook が機械的に enforce する。

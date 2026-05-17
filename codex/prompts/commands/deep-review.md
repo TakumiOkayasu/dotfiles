@@ -52,6 +52,7 @@
 ### Step 4: 3 並列 subagent dispatch
 
 Codex の `spawn_agent` で 3 つの explorer subagent を 1 メッセージ内で並列起動する (逐次起動は禁止、並列性が失われる)。
+新規 subagent を dispatch できない環境では、親セッション内で「セキュリティ」「パフォーマンス」「保守性」の 3 観点を明示的に分けて同じ順序でレビューし、出力冒頭に `subagent fallback: parent-session review` と書く。
 
 共通入力: Step 1 の差分全量 + Step 2 のサマリー + Step 3 で振り分けた担当観点のルール。
 
@@ -136,4 +137,4 @@ N. file:line — 要約
 
 ## レビュー後
 
-指摘カテゴリに対応するスキルを読んで対応する: パフォーマンス → `performance-optimization` / `optimize`、設計・保守性 → `refactoring`、方針検証スキップ → `premise-questioning` / `feature-pruning`、テスト不足 → `tdd` または `test-writer` subagent。ユーザーの許可を得てから Critical → Warning → Suggestion の順で修正する。
+指摘カテゴリに対応するスキルを読んで対応する: パフォーマンス → `performance-optimization` / `optimize`、設計・保守性 → `refactoring`、方針検証スキップ → `premise-questioning` / `feature-pruning`、テスト不足 → `tdd` / `test-coverage-guard`。ユーザーの許可を得てから Critical → Warning → Suggestion の順で修正する。
