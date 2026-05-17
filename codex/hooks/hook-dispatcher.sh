@@ -9,7 +9,11 @@
 
 EVENT="${1:-}"
 
-SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P || dirname "$0")
+if SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P); then
+    :
+else
+    SCRIPT_DIR=$(dirname "$0")
+fi
 
 if [ -t 0 ]; then
     INPUT=""

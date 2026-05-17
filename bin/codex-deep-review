@@ -1,0 +1,3 @@
+#!/bin/sh
+SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P) || exit 1
+CODEX_CMD_NAME=deep-review exec "$SCRIPT_DIR/codex-cmd" "$@"

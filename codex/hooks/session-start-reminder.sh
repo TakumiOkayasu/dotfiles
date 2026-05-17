@@ -12,7 +12,11 @@
 
 # set -e を使わない（exit 1 = hookエラー = 許可扱いリスク）
 
-SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P || dirname "$0")
+if SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P); then
+    :
+else
+    SCRIPT_DIR=$(dirname "$0")
+fi
 CODEX_DIR=$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || echo "${HOME}/.codex")
 
 # codex-config-info.sh を検索

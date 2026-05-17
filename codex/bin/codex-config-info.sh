@@ -26,7 +26,11 @@ set -eu
 # 設定
 # ============================================================================
 
-SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P || dirname "$0")
+if SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P); then
+    :
+else
+    SCRIPT_DIR=$(dirname "$0")
+fi
 CODEX_DIR=$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || echo "${HOME}/.codex")
 
 GLOBAL_SETTINGS="${CODEX_DIR}/hooks.json"
@@ -87,6 +91,12 @@ parse_args() {
         esac
         shift
     done
+
+    if [ "$SHOW_HOOKS$SHOW_SKILLS$SHOW_FAILURES" = "falsefalsefalse" ]; then
+        SHOW_HOOKS=true
+        SHOW_SKILLS=true
+        SHOW_FAILURES=true
+    fi
 }
 
 show_help() {
@@ -177,8 +187,8 @@ print_hooks_text() {
             current_file="$file"
             case "$file" in
                 "$GLOBAL_SETTINGS") label="Global: ${CODEX_DIR}/hooks.json" ;;
-                "$PROJECT_SETTINGS") label="Project: codex/settings.json" ;;
-                "$PROJECT_LOCAL_SETTINGS") label="Local: codex/settings.local.json" ;;
+                "$PROJECT_SETTINGS") label="Project: .codex/hooks.json" ;;
+                "$PROJECT_LOCAL_SETTINGS") label="Local: .codex/hooks.local.json" ;;
                 *) label="$file" ;;
             esac
             echo "  [$label]"
@@ -241,7 +251,7 @@ print_skills_text() {
     echo "  ${count} skill(s) in codex/skills/"
 
     # 最大10個まで表示
-    echo -n "  "
+    printf "%s" "  "
     echo "$skills" | head -10 | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g'
     echo ""
 
@@ -327,14 +337,14 @@ main() {
 
         if [ "$SHOW_SKILLS" = "true" ]; then
             [ "$first" = "false" ] && echo ","
-            echo -n '  "skills": '
+            printf "%s" '  "skills": '
             print_skills_json
             first=false
         fi
 
         if [ "$SHOW_FAILURES" = "true" ]; then
             [ "$first" = "false" ] && echo ","
-            echo -n '  "failures": '
+            printf "%s" '  "failures": '
             print_failures_json
             echo ""
         fi

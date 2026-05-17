@@ -18,10 +18,10 @@ $ARGUMENTS にバグの現象・状況が渡されます。
 ### Phase 0: スキル読み込み
 
 - **実装スキル** (Phase 1 以降で活用):
-  - `codex/skills/tdd/SKILL.md`
-  - `codex/skills/systematic-debugging/SKILL.md`
-  - `codex/skills/optimize/SKILL.md`
-- **方針検証スキル**: Phase 2.5 で発動条件に該当した場合に `codex/skills/premise-questioning/SKILL.md` を読み込む (利用直前に読む)
+  - `~/.codex/skills/tdd/SKILL.md`
+  - `~/.codex/skills/systematic-debugging/SKILL.md`
+  - `~/.codex/skills/optimize/SKILL.md`
+- **方針検証スキル**: Phase 2.5 で発動条件に該当した場合に `~/.codex/skills/premise-questioning/SKILL.md` を読み込む (利用直前に読む)
 
 ### Phase 1: 現象確認
 
@@ -78,6 +78,6 @@ feature-pruning は通常不要 (機能追加でないため)。既存機能の�
 ## 使用例
 
 ```
-/fix ログイン時に特定ユーザーのみ500エラーが返る
-/fix テスト実行時に test_foo が NullPointerException で落ちる
+codex-fix "ログイン時に特定ユーザーのみ500エラーが返る"
+codex-fix "テスト実行時に test_foo が NullPointerException で落ちる"
 ```

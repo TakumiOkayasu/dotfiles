@@ -42,7 +42,7 @@ description: 個別機能 / UI 要素 / API エンドポイント / データ列
    - Round 1: **YAGNI Probe** (機能要否プローブ) - 各機能の使用確率を時系列で見積もり、低確率機能を炙り出す
    - Round 2: **Convention Audit** (慣習監査) - 慣習で入れているだけの機能を炙り出す
    - Round 3: **Existing Substitute** (既存代替検証) - 標準機能 / 既存ツールで代替可能な機能を炙り出す
-   - **毎回新規 subagent を Task tool で dispatch** する (前回の出力を学習させない)。並列実行して構わない
+   - **毎回新規 subagent を spawn_agent で dispatch** する (前回の出力を学習させない)。並列実行して構わない
    - dispatch 不能環境の扱いは「環境制約」節
 2. **機能ごとの 3 軸スコアリング** (各軸 0-5、判定文言は「スコア軸」節で一元定義)
 

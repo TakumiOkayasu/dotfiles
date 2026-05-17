@@ -867,6 +867,7 @@ install_claude_config() {
 
         while IFS= read -r file; do
             [ -z "$file" ] && continue
+            [ -e "${DOTFILES_DIR}/${file}" ] || [ -L "${DOTFILES_DIR}/${file}" ] || continue
 
             relative="${file#claude/}"
 
@@ -1026,6 +1027,7 @@ install_codex_config() {
 
         while IFS= read -r file; do
             [ -z "$file" ] && continue
+            [ -e "${DOTFILES_DIR}/${file}" ] || [ -L "${DOTFILES_DIR}/${file}" ] || continue
 
             relative="${file#codex/}"
             case "$relative" in
