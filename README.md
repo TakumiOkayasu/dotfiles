@@ -30,7 +30,7 @@ source ~/.bashrc           # 設定反映
 | `config/vim/` | `~/` | .vimrc |
 | `claude/` | `~/.claude/` | Claude Code設定一式 (後述) |
 | `codex/` | `~/.codex/` | Codex設定一式 (hooks.json, hooks, skills, rules) |
-| `bin/` | `~/bin/` | CLIツール (後述) |
+| `bin/` | `~/.local/bin/` | CLIツール (後述) |
 
 ### CLIツール (bin/)
 
@@ -39,6 +39,8 @@ source ~/.bashrc           # 設定反映
 | `git-new-feature <name>` | ブランチ作成 (`-f` fix / `-d` docs / `-r` refactor / `-c` chore) |
 | `git-cleanup-branch` | マージ済みブランチ削除 (ローカル+リモート) |
 | `gh-setup-repo` | GitHubリポジトリ設定 (ブランチ保護、PR後自動削除) |
+| `codex-cmd <name> [args]` | Codex 用プロンプトコマンド起動 (`feat`, `fix`, `deep-review`, `commit`) |
+| `codex-feat` / `codex-fix` / `codex-deep-review` / `codex-commit` | Claude Code の slash command に近い Codex 起動ショートカット |
 
 ### Claude Code設定 (claude/)
 
@@ -65,7 +67,7 @@ source ~/.bashrc           # 設定反映
 | `hooks/` | hook 実体スクリプト |
 | `skills/` | Codex skill |
 | `rules/` | 参照ルール |
-| `prompts/commands/` | Claude slash command の代替プロンプト |
+| `prompts/commands/` | Claude slash command の代替プロンプト (`codex-cmd` / `codex-feat` から利用) |
 
 Codex設定の使い方は `codex/README.md` を参照。初回起動時に hook レビュー警告が出た場合は、Codex 上で `/hooks` を開いて許可する。
 

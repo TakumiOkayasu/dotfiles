@@ -62,9 +62,23 @@ Codex には Claude Code の slash command と同じプロジェクトローカ�
 - `feat.md`: 新機能実装
 - `fix.md`: バグ修正
 - `commit.md`: コミットメッセージ案作成
-- `code-review.md`: 差分レビュー
+- `deep-review.md`: 並列観点の差分レビュー
 
 インストール後は `~/.codex/prompts/commands/` から参照できる。
+
+Claude Code の `/feat` や `/fix` に近い操作感で起動する場合は、`bin/` もインストールして `~/.local/bin` を PATH に入れる。
+
+```bash
+codex-feat "ユーザー検索機能を追加"
+codex-fix "ログイン時に500になる問題を修正"
+codex-deep-review HEAD
+codex-commit
+
+# 汎用形式
+codex-cmd feat "ユーザー検索機能を追加"
+codex-cmd --exec deep-review HEAD
+codex-cmd --print fix "再現手順だけ確認したい"
+```
 
 既存の Codex セッションで使う場合は、該当ファイルの内容を入力欄に貼り付け、続けて依頼内容を書く。
 
@@ -79,16 +93,16 @@ Codex には Claude Code の slash command と同じプロジェクトローカ�
 ```bash
 codex "$(cat ~/.codex/prompts/commands/feat.md)"
 codex "$(cat ~/.codex/prompts/commands/fix.md)"
-codex "$(cat ~/.codex/prompts/commands/code-review.md)"
+codex "$(cat ~/.codex/prompts/commands/deep-review.md)"
 ```
 
 非対話で実行する場合は `codex exec` に渡す。
 
 ```bash
-codex exec "$(cat ~/.codex/prompts/commands/code-review.md)"
+codex exec "$(cat ~/.codex/prompts/commands/deep-review.md)"
 ```
 
-Claude Code の `/feat` や `/fix` のように名前だけで自動展開されるわけではない。Codex では、プロンプト本文を貼るか、`cat` で初期入力に流し込む。
+Codex 本体が `/feat` や `/fix` をプロジェクトローカル command として自動展開するわけではない。対話起動は `codex-feat` などの補助コマンド、既存セッションではプロンプト本文の貼り付けで代替する。
 
 ## hooks
 

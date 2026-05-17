@@ -42,7 +42,7 @@ description: 個別機能 / UI 要素 / API エンドポイント / データ列
    - Round 1: **YAGNI Probe** (機能要否プローブ) - 各機能の使用確率を時系列で見積もり、低確率機能を炙り出す
    - Round 2: **Convention Audit** (慣習監査) - 慣習で入れているだけの機能を炙り出す
    - Round 3: **Existing Substitute** (既存代替検証) - 標準機能 / 既存ツールで代替可能な機能を炙り出す
-   - **毎回新規 subagent を Task tool で dispatch** する (前回の出力を学習させない)。並列実行して構わない
+   - **毎回新規 subagent を spawn_agent で dispatch** する (前回の出力を学習させない)。並列実行して構わない
    - dispatch 不能環境の扱いは「環境制約」節
 2. **機能ごとの 3 軸スコアリング** (各軸 0-5、判定文言は「スコア軸」節で一元定義)
 
@@ -247,11 +247,12 @@ description: 個別機能 / UI 要素 / API エンドポイント / データ列
 
 ## 環境制約
 
-新規 subagent を dispatch できない環境では本 skill は **適用しない**。
+新規 subagent を dispatch できない環境では通常モードは **適用しない**。
 
-- 代替案 1: 親セッションのユーザーに別 Codex セッションでの確認を依頼
-- 代替案 2: スキップを明示報告 (「feature-pruning skipped: dispatch unavailable」)
-- **NG**: 自分で 3 手法を順に当てて自己評価する (バイアス排除の構造が崩れる)
+- 代替案 1: 簡易モードに切り替え、親セッション内で YAGNI Probe のみ実施し `subagent fallback: simplified feature-pruning` と明記する
+- 代替案 2: 親セッションのユーザーに別 Codex セッションでの確認を依頼
+- 代替案 3: スキップを明示報告 (「feature-pruning skipped: dispatch unavailable」)
+- **NG**: 親セッションの自己評価を通常モードの 3 ラウンド結果として扱う
 
 **簡易モード**: 機能数が少ない (5 個未満) / 重要度が低いとき、**1 ラウンド (YAGNI Probe のみ) + 自己採点** に縮退。ただし「3 ラウンドで採点した」とは言わない (混同回避)。
 

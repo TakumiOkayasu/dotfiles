@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Overview
 
-個人用dotfilesリポジトリ。Shell/Git/Vim設定とCodex設定（skills, hooks, commands, rules）を管理し、`install.sh` でシンボリックリンクを配置する。
+個人用dotfilesリポジトリ。Shell/Git/Vim設定とCodex設定（skills, hooks, prompts, rules）を管理し、`install.sh` でシンボリックリンクを配置する。
 
 ## Commands
 
@@ -20,14 +20,14 @@ docker compose -f tests/compose.yml run --rm hooks-test    # hook テスト
 docker compose -f tests/compose.yml run --rm bin-test      # bin/ テスト
 docker compose -f tests/compose.yml run --rm install-test  # install.sh テスト
 
-# CLI (bin/ → ~/bin/)
+# CLI (bin/ → ~/.local/bin/)
 git-new-feature <name>    # ブランチ作成 (-f fix/ -d docs/ -r refactor/ -c chore/)
 git-cleanup-branch        # マージ済みブランチ削除
 gh-setup-repo             # GitHub リポジトリ設定
-
-# Slash Commands (Codex/commands/)
-/feat [description]       # 機能実装ガイド (TDD)
-/fix [description]        # バグ修正ガイド
+codex-cmd list            # Codex prompt command 一覧
+codex-feat <description>  # 機能実装ガイド (TDD)
+codex-fix <description>   # バグ修正ガイド
+codex-deep-review [target] # 並列観点レビュー
 ```
 
 ## Architecture
@@ -39,32 +39,42 @@ dotfile-work/
 │   ├── shell/           # bash/zsh/fish + common.sh, aliases.sh
 │   ├── git/             # .gitconfig.{common,work,private}, .gitignore.*
 │   └── vim/             # .vimrc
-├── Codex/              # Codex設定 → ~/.Codex/ にリンク
-│   ├── global_CLAUDE.md # → ~/.Codex/AGENTS.md (リネームしてリンク)
-│   ├── settings.json    # hooks/skills/lang設定
-│   ├── commands/        # スラッシュコマンド
+├── codex/              # Codex設定 → ~/.codex/ にリンク
+│   ├── global_AGENTS.md # → ~/.codex/AGENTS.md (リネームしてリンク)
+│   ├── hooks.json      # Codex hook定義
+│   ├── settings.json   # 参照用設定
+│   ├── prompts/        # prompt command 断片
 │   ├── hooks/           # 自動処理 (セキュリティ, セッション管理)
 │   ├── rules/           # 常時適用ルール (hallucination-prevention, hierarchical-architecture, coding-conventions, implementation-policy)
 │   └── skills/          # オンデマンド手順 (TDD, debugging, consultation, failure-logging)
-├── bin/                 # CLI ツール → ~/bin/
+├── bin/                 # CLI ツール → ~/.local/bin/
 ├── tests/               # Docker テスト
 └── docs/                # ドキュメント
 ```
 
-`~/.Codex/vendor/agent-skills/` は `install.sh` が自動 clone し、SessionStart hook で1日1回自動更新する。
+Codex vendor skill は自動 clone しない。`codex/vendor/` がある場合のみ SessionStart hook が更新を試みる。
 
 ## Install Flow
 
-1. `git ls-files` で `config/` と `Codex/` のファイルを列挙
-2. `config/` → `$HOME` に、`Codex/` → `~/.Codex/` にシンボリックリンク作成
-3. `global_CLAUDE.md` は `AGENTS.md` にリネームしてリンク
+1. `git ls-files` で `config/` と `codex/` のファイルを列挙
+2. `config/` → `$HOME` に、`codex/` → `~/.codex/` にシンボリックリンク作成
+3. `global_AGENTS.md` は `AGENTS.md` にリネームしてリンク
 4. プラットフォーム自動検出: macOS → `.gitconfig.private` / Linux・WSL → `.gitconfig.work`
-5. vendor スキル (vercel-labs/agent-skills) を `~/.Codex/vendor/` に clone し、選択スキルを `~/.Codex/skills/` にシンボリックリンク
+5. `bin/` は `~/.local/bin/` にリンクし、Codex 用ショートカット (`codex-feat` など) も配置する
 
 ## Development Notes
 
 - シェルスクリプトは原則 POSIX sh。bash依存スクリプトは `#!/bin/sh` + bash再実行パターン
 - ドキュメントに具体的な数値（件数・行数）を書かない（ドリフト防止）
+
+## Subagents
+
+Codex では、品質や速度が上がる場面で subagent を積極利用する。
+
+- 多角レビュー、複数案の妥当性検証、影響範囲調査、客観評価、並列検証は subagent 候補
+- 親セッションの直近判断をブロックする作業は親が行う
+- worker には担当範囲・編集可能ファイル・他者の変更を戻さないことを明示する
+- subagent の結果は親が統合し、根拠・差分・テストで検証してから採用する
 
 ## [自動] セッション継続プロトコル
 
@@ -72,7 +82,7 @@ dotfile-work/
 
 ### PROGRESS.md 自動更新
 
-ファイル: `.Codex/progress.md`
+ファイル: `.codex/progress.md`
 
 更新タイミング:
 
@@ -88,7 +98,7 @@ dotfile-work/
 
 ### セッション開始時
 
-`.Codex/progress.md` の内容を確認し、未完了タスクがあればそこから再開。
+`.codex/progress.md` の内容を確認し、未完了タスクがあればそこから再開。
 
 ### PROGRESS.md フォーマット
 

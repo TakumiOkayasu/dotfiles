@@ -1,0 +1,172 @@
+#!/bin/sh
+# codex-cmd - Run Codex with a named prompt command.
+
+set -eu
+
+MODE="interactive"
+COMMAND="${CODEX_CMD_NAME:-}"
+ARGUMENTS=""
+CODEX_BIN="${CODEX_BIN:-codex}"
+CODEX_HOME="${CODEX_HOME:-${HOME}/.codex}"
+PROMPT_DIR="${CODEX_PROMPT_DIR:-${CODEX_HOME}/prompts/commands}"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  codex-cmd [--print|--exec] <command> [arguments...]
+  codex-feat [--print|--exec] [arguments...]
+  codex-fix [--print|--exec] [arguments...]
+  codex-deep-review [--print|--exec] [target...]
+  codex-commit [--print|--exec]
+
+Commands:
+  feat          New feature workflow prompt
+  fix           Bug fix workflow prompt
+  deep-review   Multi-perspective review prompt
+  commit        Commit preparation prompt
+  list          List installed prompt commands
+  show <name>   Print raw prompt command file
+
+Options:
+  -p, --print   Print the expanded prompt instead of starting Codex
+  -e, --exec    Use `codex exec` instead of interactive `codex`
+  -h, --help    Show this help
+EOF
+}
+
+append_argument() {
+    if [ -z "$ARGUMENTS" ]; then
+        ARGUMENTS="$1"
+    else
+        ARGUMENTS="${ARGUMENTS} $1"
+    fi
+}
+
+list_commands() {
+    if [ ! -d "$PROMPT_DIR" ]; then
+        echo "codex-cmd: prompt directory not found: $PROMPT_DIR" >&2
+        exit 1
+    fi
+
+    found=false
+    for path in "$PROMPT_DIR"/*.md; do
+        [ -e "$path" ] || continue
+        found=true
+        name=$(basename "$path" .md)
+        printf '%s\n' "$name"
+    done
+
+    if [ "$found" = "false" ]; then
+        echo "codex-cmd: no prompt commands found in $PROMPT_DIR" >&2
+        exit 1
+    fi
+}
+
+prompt_path_for() {
+    case "$1" in
+        feat|fix|commit|deep-review)
+            printf '%s/%s.md\n' "$PROMPT_DIR" "$1"
+            ;;
+        review|code-review)
+            printf '%s/deep-review.md\n' "$PROMPT_DIR"
+            ;;
+        *)
+            echo "codex-cmd: unknown command: $1" >&2
+            echo "Run: codex-cmd list" >&2
+            exit 1
+            ;;
+    esac
+}
+
+show_prompt() {
+    prompt_file=$(prompt_path_for "$1")
+    if [ ! -r "$prompt_file" ]; then
+        echo "codex-cmd: prompt file not readable: $prompt_file" >&2
+        exit 1
+    fi
+    cat "$prompt_file"
+}
+
+build_prompt() {
+    prompt_file=$(prompt_path_for "$COMMAND")
+    if [ ! -r "$prompt_file" ]; then
+        echo "codex-cmd: prompt file not readable: $prompt_file" >&2
+        exit 1
+    fi
+
+    cat "$prompt_file"
+    printf '\n\n## %s\n\n' '$ARGUMENTS'
+    if [ -n "$ARGUMENTS" ]; then
+        printf '%s\n' "$ARGUMENTS"
+    else
+        printf '(none)\n'
+    fi
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -p|--print)
+            MODE="print"
+            ;;
+        -e|--exec)
+            MODE="exec"
+            ;;
+        list|--list)
+            list_commands
+            exit 0
+            ;;
+        show|--show)
+            shift
+            if [ $# -eq 0 ]; then
+                echo "codex-cmd: show requires a command name" >&2
+                exit 1
+            fi
+            show_prompt "$1"
+            exit 0
+            ;;
+        --)
+            shift
+            while [ $# -gt 0 ]; do
+                append_argument "$1"
+                shift
+            done
+            break
+            ;;
+        -*)
+            echo "codex-cmd: unknown option: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+        *)
+            if [ -z "$COMMAND" ]; then
+                COMMAND="$1"
+            else
+                append_argument "$1"
+            fi
+            ;;
+    esac
+    shift
+done
+
+if [ -z "$COMMAND" ]; then
+    usage >&2
+    exit 1
+fi
+
+PROMPT=$(build_prompt)
+
+case "$MODE" in
+    print)
+        printf '%s\n' "$PROMPT"
+        ;;
+    exec)
+        exec "$CODEX_BIN" exec "$PROMPT"
+        ;;
+    interactive)
+        exec "$CODEX_BIN" "$PROMPT"
+        ;;
+esac

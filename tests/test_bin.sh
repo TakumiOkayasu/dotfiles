@@ -41,6 +41,35 @@ cleanup_repo() {
 
 echo "=== git-new-feature ==="
 echo ""
+
+echo "=== codex-cmd ==="
+echo ""
+
+PROMPT_DIR=$(mktemp -d)
+printf '%s\n' "# feat prompt" > "$PROMPT_DIR/feat.md"
+printf '%s\n' "# fix prompt" > "$PROMPT_DIR/fix.md"
+printf '%s\n' "# deep prompt" > "$PROMPT_DIR/deep-review.md"
+printf '%s\n' "# commit prompt" > "$PROMPT_DIR/commit.md"
+
+output=$(CODEX_PROMPT_DIR="$PROMPT_DIR" /workspace/bin/codex-cmd list 2>/dev/null)
+has_feat=$(printf '%s\n' "$output" | grep -c '^feat$' || true)
+assert_eq "codex-cmd list: feat を表示" "1" "$has_feat"
+
+output=$(CODEX_PROMPT_DIR="$PROMPT_DIR" /workspace/bin/codex-feat --print "add-login" 2>/dev/null)
+has_prompt=$(printf '%s\n' "$output" | grep -c '# feat prompt' || true)
+has_args=$(printf '%s\n' "$output" | grep -c 'add-login' || true)
+assert_eq "codex-feat --print: prompt を展開" "1" "$has_prompt"
+assert_eq "codex-feat --print: 引数を追加" "1" "$has_args"
+
+output=$(CODEX_PROMPT_DIR="$PROMPT_DIR" /workspace/bin/codex-cmd --print code-review HEAD 2>/dev/null)
+has_review=$(printf '%s\n' "$output" | grep -c '# deep prompt' || true)
+has_target=$(printf '%s\n' "$output" | grep -c 'HEAD' || true)
+assert_eq "codex-cmd code-review: deep-review に alias" "1" "$has_review"
+assert_eq "codex-cmd code-review: 対象を追加" "1" "$has_target"
+
+rm -rf "$PROMPT_DIR"
+
+echo ""
 echo "--- 引数解析 ---"
 
 /workspace/bin/git-new-feature -h > /dev/null 2>&1
