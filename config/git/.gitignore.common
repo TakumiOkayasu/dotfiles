@@ -60,6 +60,10 @@ $RECYCLE.BIN/
 *.code-workspace
 .nb-gradle/
 
+# === Git ===
+.gitconfig
+.gitmodules
+
 # === Language: C/C++ ===
 *.o
 *.obj
@@ -225,6 +229,7 @@ core
 # === AI / Tool ===
 .claude/
 claude_tmp/
+*.mcp.*
 
 # === Secrets ===
 secrets/
@@ -232,3 +237,13 @@ secrets/
 
 # === VCS ===
 .svn/
+
+# === shells ===
+.bash_profile
+.bashrc
+.zprofile
+.zshrc
+.profile
+# === Others ===
+.ripgreprc
+
