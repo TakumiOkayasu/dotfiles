@@ -184,7 +184,13 @@
   "language": "japanese",
   "sandbox": {
     "enabled": true,
-    "allowUnsandboxedCommands": false
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "allowWrite": [
+        "/home/okayasu/.claude/plugins/data",
+        "/home/okayasu/.codex"
+      ]
+    }
   },
   "effortLevel": "xhigh",
   "fastMode": true,
