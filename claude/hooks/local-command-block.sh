@@ -76,6 +76,13 @@ is_docker_command() {
     printf '%s\n' "$1" | grep -qE '^\s*(cd\s+[^;&|]+\s*(&&|;)\s*)*(docker\s+(exec|run|compose)|docker-compose)\b'
 }
 
+# --- Codex companion 起動かチェックする関数 ---
+# node/bun で ~/.claude/plugins/cache/openai-codex/codex/<version>/scripts/codex-companion.mjs を
+# 起動する場合は許可 (codex:rescue / codex:setup から内部呼び出しされるため)
+is_codex_companion_command() {
+    printf '%s\n' "$1" | grep -qE '^[[:space:]]*(node|bun)[[:space:]]+"?[^"[:space:]]*\.claude/plugins/cache/openai-codex/codex/[^/"[:space:]]+/scripts/codex-companion\.mjs"?'
+}
+
 # --- Runner系サブコマンドかチェックする関数 ---
 # プロジェクト紐付きのビルド/実行系 (npm run, poetry run, cargo build 等) を許可
 # インストール系 (npm install, poetry add, cargo install 等) は許可しない
@@ -129,6 +136,10 @@ check_segment() {
     _seg="$1"
     [ -z "$_seg" ] && return 0
     if is_docker_command "$_seg"; then
+        return 0
+    fi
+    if is_codex_companion_command "$_seg"; then
+        debug_log "CODEX_COMPANION: 許可 $_seg"
         return 0
     fi
     if is_runner_command "$_seg"; then
