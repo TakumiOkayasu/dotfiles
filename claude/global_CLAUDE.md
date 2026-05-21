@@ -74,8 +74,30 @@ hook を迂回するための難読化・間接実行 (文字列分割 / 変数�
 | skills | `~/.claude/skills/` | オンデマンドの作業手順。タスクに応じて読む |
 | commands | `~/.claude/commands/` | トリガーワード対応 |
 | hooks | `~/.claude/hooks/` | 自動処理 (機械的 enforce) |
+| agents | `~/.claude/agents/` | サブエージェント定義 |
 
 skills はタスク着手前に該当するものを確認して読む。
+
+## 🤖 サブエージェント
+
+main context を消費する調査・検証を別 context に逃がす (公式 best-practices 推奨)。
+
+### 起動する用途
+
+- 3 ファイル以上のコード探索 → `Explore`
+- 横断調査 / オープンな問い → `general-purpose`
+- 実装計画の立案 → `Plan`
+- 実装後の verify → `general-purpose`
+- 悪夢テスト網羅 → `qa-nightmare`
+- テストコード作成 → `test-writer`
+
+プラグイン提供エージェント (`feature-dev:*` 等) は導入環境のみ利用可。
+
+**起動しない**: 既知パスの Read / 単発 grep / 1-2 回で済む確認。
+
+### 並列起動
+
+**IMPORTANT**: 独立タスクは同一メッセージ内に複数の Agent 呼び出しを並べる (逐次は並列性を失う)。研究と検証を別エージェントに分ければ Writer/Reviewer パターンが組める。
 
 ## 🔀 Git ワークフロー
 
@@ -161,4 +183,3 @@ premise-questioning で採用後、または次のいずれかで発動する。
 - 最小出力、本質のみ
 - 推測で実装せず、指示された内容を一次ソースとして実装する
 - 言語バージョンは最新の LTS を使う
-- sub-agentは必要なら**積極的に使用する**
