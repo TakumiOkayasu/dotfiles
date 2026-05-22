@@ -82,6 +82,8 @@ description: agent 向けテキスト指示（skill / slash command / task プ�
 
 ## subagent 起動契約
 
+共通 mechanics (並列起動の作法 / 集約 / nested 禁止 / 環境制約 / 再 dispatch 条件) は `~/.claude/SUBAGENTS.md` を参照。本節では本 skill 固有契約 (実行者プロンプト構造・両面評価入力) のみ書く。
+
 実行者に渡すプロンプトは次の構造を取る。これが「両面評価」の入力契約。
 
 ```

@@ -97,7 +97,7 @@ main context を消費する調査・検証を別 context に逃がす (公式 b
 
 ### 並列起動
 
-**IMPORTANT**: 独立タスクは同一メッセージ内に複数の Agent 呼び出しを並べる (逐次は並列性を失う)。研究と検証を別エージェントに分ければ Writer/Reviewer パターンが組める。
+**IMPORTANT**: 独立タスクは同一メッセージ内に複数の Agent 呼び出しを並べる (逐次は並列性を失う)。研究と検証を別エージェントに分ければ Writer/Reviewer パターンが組める。dispatch 形式・集約方法・nested 禁止・再 dispatch 条件等の mechanics は `~/.claude/SUBAGENTS.md` を参照。
 
 ## 🔀 Git ワークフロー
 
