@@ -114,6 +114,8 @@ description: 個別機能 / UI 要素 / API エンドポイント / データ列
 
 ## subagent 起動契約
 
+共通 mechanics (並列起動の作法 / 集約 / nested 禁止 / 環境制約 / 再 dispatch 条件) は `~/.claude/SUBAGENTS.md` を参照。本節では本 skill 固有契約 (手法名・採点軸・プロンプト構造) のみ書く。
+
 各 Round で渡すプロンプトの構造。empirical-prompt-tuning と同形式で揃える。
 
 ```
