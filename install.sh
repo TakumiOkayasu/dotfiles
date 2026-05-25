@@ -842,6 +842,93 @@ cleanup_stale_codex_links() {
     done
 }
 
+is_dotfiles_link() {
+    [ ! -L "$1" ] && return 1
+    _idl_target=$(readlink "$1" 2>/dev/null) || return 1
+    _idl_target=$(canonicalize_path "$_idl_target")
+    case "$_idl_target" in "${DOTFILES_DIR}"/*) return 0 ;; *) return 1 ;; esac
+}
+
+remove_dotfiles_link() {
+    _rdl_dest="$1"
+    _rdl_label="$2"
+    if is_dotfiles_link "$_rdl_dest"; then
+        _remove_stale "$_rdl_dest" "$_rdl_label"
+    fi
+}
+
+cleanup_removed_codex_links() {
+    remove_dotfiles_link "${HOME}/.codex/README.md" "除外済みCodex README"
+    remove_dotfiles_link "${HOME}/.codex/settings.json" "除外済みCodex settings.json"
+    remove_dotfiles_link "${HOME}/.codex/reference/claude-settings.reference.json" "除外済みCodex reference"
+    _skills_dir="${HOME}/.codex/skills"
+    [ -d "$_skills_dir" ] || return 0
+    for _entry in "$_skills_dir"/*; do
+        [ -e "$_entry" ] || [ -L "$_entry" ] || continue
+        if is_dotfiles_link "$_entry"; then
+            _remove_stale "$_entry" "移行済みCodex skill: $(basename "$_entry")"
+        elif [ -d "$_entry" ]; then
+            _has_entries=false
+            _all_dotfiles_links=true
+            for _f in "$_entry"/*; do
+                [ -e "$_f" ] || [ -L "$_f" ] || continue
+                _has_entries=true
+                is_dotfiles_link "$_f" || { _all_dotfiles_links=false; break; }
+            done
+            [ "$_has_entries" = "true" ] && [ "$_all_dotfiles_links" = "true" ] || continue
+            _remove_stale "$_entry" "移行済みCodex skill: $(basename "$_entry")" rf
+        fi
+    done
+}
+
+cleanup_stale_agent_skill_links() {
+    _csl_dotfiles=$(canonicalize_path "$DOTFILES_DIR")
+    _target_dir="${HOME}/.agents/skills"
+    [ ! -d "$_target_dir" ] && return 0
+    for _entry in "$_target_dir"/*; do
+        [ -e "$_entry" ] || [ -L "$_entry" ] || continue
+        if [ -L "$_entry" ]; then
+            _is_stale_link "$_entry" || continue
+            _name=$(basename "$_entry")
+            _remove_stale "$_entry" "古いCodex skill: $_name"
+        elif [ -d "$_entry" ]; then
+            _name=$(basename "$_entry")
+            _has_entries=false
+            _all_stale=true
+            for _f in "$_entry"/*; do
+                [ ! -L "$_f" ] && [ ! -e "$_f" ] && continue
+                _has_entries=true
+                _is_stale_link "$_f" || { _all_stale=false; break; }
+            done
+            [ "$_has_entries" = "true" ] && [ "$_all_stale" = "true" ] || continue
+            _remove_stale "$_entry" "古いCodex skill: $_name" rf
+        fi
+    done
+}
+
+codex_dest_for_relative() {
+    _cdf_relative="$1"
+    case "$_cdf_relative" in
+        global_AGENTS.md)
+            printf '%s/.codex/AGENTS.md\n' "$HOME"
+            ;;
+        SUBAGENTS.md|hooks.json)
+            printf '%s/.codex/%s\n' "$HOME" "$_cdf_relative"
+            ;;
+        bin/*.sh|hooks/*.sh|prompts/commands/*.md|rules/*.md)
+            printf '%s/.codex/%s\n' "$HOME" "$_cdf_relative"
+            ;;
+        skills/*/SKILL.md)
+            _skill_name=${_cdf_relative#skills/}
+            _skill_name=${_skill_name%%/*}
+            printf '%s/.agents/skills/%s/SKILL.md\n' "$HOME" "$_skill_name"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 install_claude_config() {
     if [ "$CLAUDE_SELECTED" != "true" ]; then
         return 0
@@ -1016,26 +1103,23 @@ install_codex_config() {
     ensure_dir "${HOME}/.codex/hooks"
     ensure_dir "${HOME}/.codex/prompts"
     ensure_dir "${HOME}/.codex/rules"
-    ensure_dir "${HOME}/.codex/skills"
+    ensure_dir "${HOME}/.agents/skills"
 
     cleanup_stale_codex_links
+    cleanup_removed_codex_links
+    cleanup_stale_agent_skill_links
 
     if [ -d "${DOTFILES_DIR}/codex" ]; then
         _codex_filelist=$(mktemp)
         _TMPFILES="$_TMPFILES $_codex_filelist"
-        (cd "$DOTFILES_DIR" && { git ls-files codex/ 2>/dev/null; git ls-files --others --exclude-standard codex/ 2>/dev/null; } | sort -u) > "$_codex_filelist"
+        (cd "$DOTFILES_DIR" && git ls-files codex/ 2>/dev/null) > "$_codex_filelist"
 
         while IFS= read -r file; do
             [ -z "$file" ] && continue
             [ -e "${DOTFILES_DIR}/${file}" ] || [ -L "${DOTFILES_DIR}/${file}" ] || continue
 
             relative="${file#codex/}"
-            case "$relative" in
-                global_AGENTS.md)
-                    relative="AGENTS.md"
-                    ;;
-            esac
-            dest="${HOME}/.codex/${relative}"
+            dest=$(codex_dest_for_relative "$relative") || continue
 
             dest_dir=$(dirname "$dest")
             ensure_dir "$dest_dir"
@@ -1059,22 +1143,19 @@ uninstall_codex_config() {
     print_header "Codex設定をアンインストール"
 
     cleanup_stale_codex_links
+    cleanup_removed_codex_links
+    cleanup_stale_agent_skill_links
 
     if [ -d "${DOTFILES_DIR}/codex" ]; then
         _codex_filelist=$(mktemp)
         _TMPFILES="$_TMPFILES $_codex_filelist"
-        (cd "$DOTFILES_DIR" && { git ls-files codex/ 2>/dev/null; git ls-files --others --exclude-standard codex/ 2>/dev/null; } | sort -u) > "$_codex_filelist"
+        (cd "$DOTFILES_DIR" && git ls-files codex/ 2>/dev/null) > "$_codex_filelist"
 
         while IFS= read -r file; do
             [ -z "$file" ] && continue
 
             relative="${file#codex/}"
-            case "$relative" in
-                global_AGENTS.md)
-                    relative="AGENTS.md"
-                    ;;
-            esac
-            dest="${HOME}/.codex/${relative}"
+            dest=$(codex_dest_for_relative "$relative") || continue
             remove_link "$file" "$dest"
         done < "$_codex_filelist"
 
@@ -1160,7 +1241,7 @@ show_category_menu() {
     printf "  ${COLOR_BOLD}5)${COLOR_RESET} Claude Code設定\n"
     printf "     hooks, skills, rules, commands を ~/.claude/ に配置\n"
     printf "  ${COLOR_BOLD}6)${COLOR_RESET} Codex設定\n"
-    printf "     hooks, skills, rules, prompts を ~/.codex/ に配置\n"
+    printf "     hooks, rules, prompts を ~/.codex/ に、skills を ~/.agents/skills/ に配置\n"
     echo ""
     printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべて  ${COLOR_BOLD}q)${COLOR_RESET} 終了\n"
     echo ""
@@ -1326,7 +1407,8 @@ confirm_installation() {
 
     if [ "$CODEX_SELECTED" = "true" ]; then
         printf "  ${COLOR_CYAN}Codex設定:${COLOR_RESET}\n"
-        printf "    + codex/* -> ~/.codex/*\n"
+        printf "    + codex/AGENTS, hooks, rules, prompts -> ~/.codex/*\n"
+        printf "    + codex/skills/* -> ~/.agents/skills/*\n"
         printf "    + codex/hooks.json -> ~/.codex/hooks.json\n"
         echo ""
     fi

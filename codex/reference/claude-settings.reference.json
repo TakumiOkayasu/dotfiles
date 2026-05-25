@@ -1,4 +1,27 @@
 {
+  "env": {
+    "EDITOR": "code --wait",
+    "VISUAL": "code --wait"
+  },
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "WebFetch"
+    ],
+    "deny": [
+      "Read(**/*.env)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Edit(**/*.env)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(rm -rf *)",
+      "Bash(rm -f *)"
+    ],
+    "defaultMode": "plan"
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -6,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.codex/hooks/hook-dispatcher.sh pre-tool-use",
+            "command": "codex/hooks/hook-dispatcher.sh pre-tool-use",
             "timeout": 30,
             "statusMessage": "Checking tool safety"
           }
@@ -19,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.codex/hooks/hook-dispatcher.sh post-tool-use",
+            "command": "codex/hooks/hook-dispatcher.sh post-tool-use",
             "timeout": 30,
             "statusMessage": "Recording session context"
           }
@@ -31,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.codex/hooks/hook-dispatcher.sh user-prompt-submit",
+            "command": "codex/hooks/hook-dispatcher.sh user-prompt-submit",
             "timeout": 30,
             "statusMessage": "Checking prompt context"
           }
@@ -43,7 +66,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.codex/hooks/hook-dispatcher.sh pre-compact",
+            "command": "codex/hooks/hook-dispatcher.sh pre-compact",
             "timeout": 30,
             "statusMessage": "Saving compact checkpoint"
           }
@@ -55,12 +78,26 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.codex/hooks/hook-dispatcher.sh session-start",
+            "command": "codex/hooks/hook-dispatcher.sh session-start",
             "timeout": 30,
             "statusMessage": "Loading session guidance"
           }
         ]
       }
     ]
-  }
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "codex/bin/statusline-command.sh"
+  },
+  "language": "japanese",
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": false
+  },
+  "effortLevel": "high",
+  "fastMode": true,
+  "showThinkingSummaries": true,
+  "theme": "dark-daltonized",
+  "skipAutoPermissionPrompt": true
 }

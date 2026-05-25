@@ -61,11 +61,23 @@ has_args=$(printf '%s\n' "$output" | grep -c 'add-login' || true)
 assert_eq "codex-feat --print: prompt を展開" "1" "$has_prompt"
 assert_eq "codex-feat --print: 引数を追加" "1" "$has_args"
 
+output=$(CODEX_PROMPT_DIR="$PROMPT_DIR" /workspace/bin/codex-feat --print "first arg" "second arg" 2>/dev/null)
+has_first=$(printf '%s\n' "$output" | grep -c '^first arg$' || true)
+has_second=$(printf '%s\n' "$output" | grep -c '^second arg$' || true)
+assert_eq "codex-feat --print: 空白含み引数を保持" "1" "$has_first"
+assert_eq "codex-feat --print: 複数引数を行で保持" "1" "$has_second"
+
 output=$(CODEX_PROMPT_DIR="$PROMPT_DIR" /workspace/bin/codex-cmd --print code-review HEAD 2>/dev/null)
 has_review=$(printf '%s\n' "$output" | grep -c '# deep prompt' || true)
 has_target=$(printf '%s\n' "$output" | grep -c 'HEAD' || true)
 assert_eq "codex-cmd code-review: deep-review に alias" "1" "$has_review"
 assert_eq "codex-cmd code-review: 対象を追加" "1" "$has_target"
+
+output=$(CODEX_PROMPT_DIR="$PROMPT_DIR" /workspace/bin/codex-code-review --print HEAD 2>/dev/null)
+has_alias_prompt=$(printf '%s\n' "$output" | grep -c '# deep prompt' || true)
+has_alias_target=$(printf '%s\n' "$output" | grep -c 'HEAD' || true)
+assert_eq "codex-code-review: deep-review に alias" "1" "$has_alias_prompt"
+assert_eq "codex-code-review: 対象を追加" "1" "$has_alias_target"
 
 rm -rf "$PROMPT_DIR"
 

@@ -18,10 +18,10 @@ $ARGUMENTS にバグの現象・状況が渡されます。
 ### Phase 0: スキル読み込み
 
 - **実装スキル** (Phase 1 以降で活用):
-  - `~/.codex/skills/tdd/SKILL.md`
-  - `~/.codex/skills/systematic-debugging/SKILL.md`
-  - `~/.codex/skills/optimize/SKILL.md`
-- **方針検証スキル**: Phase 2.5 で発動条件に該当した場合に `~/.codex/skills/premise-questioning/SKILL.md` を読み込む (利用直前に読む)
+  - `~/.agents/skills/tdd/SKILL.md`
+  - `~/.agents/skills/systematic-debugging/SKILL.md`
+  - `~/.agents/skills/optimize/SKILL.md`
+- **方針検証スキル**: Phase 2.5 で発動条件に該当した場合に `~/.agents/skills/premise-questioning/SKILL.md` を読み込む (利用直前に読む)
 
 ### Phase 1: 現象確認
 

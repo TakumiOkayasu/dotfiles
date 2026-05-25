@@ -4,6 +4,9 @@ claude_tmp/
 # Claude Code session files (per-project)
 .claude/
 
+# Codex session files (per-project)
+.codex/
+
 # Local settings (user-specific, not tracked)
 **/.claude/settings.local.json
 

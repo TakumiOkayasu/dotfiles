@@ -36,7 +36,8 @@ CODEX_DIR=$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || echo "${HOME}/.codex")
 GLOBAL_SETTINGS="${CODEX_DIR}/hooks.json"
 PROJECT_SETTINGS="${PWD}/.codex/hooks.json"
 PROJECT_LOCAL_SETTINGS="${PWD}/.codex/hooks.local.json"
-SKILLS_DIR="${CODEX_DIR}/skills"
+CODEX_SKILLS_DIR="${CODEX_DIR}/skills"
+USER_SKILLS_DIR="${HOME}/.agents/skills"
 FAILURE_LOG="codex_tmp/failure_log.md"
 
 # オプション
@@ -228,14 +229,12 @@ print_hooks_json() {
 # ============================================================================
 
 collect_skills() {
-    if [ ! -d "$SKILLS_DIR" ]; then
-        return 0
-    fi
-
-    # macOS互換: -printf がないので別の方法
-    find "$SKILLS_DIR" -maxdepth 2 -name "SKILL.md" 2>/dev/null | while read -r skill_file; do
-        dirname "$skill_file" | xargs basename
-    done | sort
+    for dir in "$USER_SKILLS_DIR" "$CODEX_SKILLS_DIR"; do
+        [ -d "$dir" ] || continue
+        find "$dir" -maxdepth 2 -name "SKILL.md" 2>/dev/null | while read -r skill_file; do
+            dirname "$skill_file" | xargs basename
+        done
+    done | sort -u
 }
 
 print_skills_text() {
@@ -244,11 +243,11 @@ print_skills_text() {
     count=$((count + 0))
 
     if [ "$count" -eq 0 ] || [ -z "$skills" ]; then
-        echo "  No skills found in codex/skills/"
+        echo "  No skills found in ~/.agents/skills or ~/.codex/skills"
         return
     fi
 
-    echo "  ${count} skill(s) in codex/skills/"
+    echo "  ${count} skill(s) in ~/.agents/skills / ~/.codex/skills"
 
     # 最大10個まで表示
     printf "%s" "  "
@@ -354,7 +353,7 @@ main() {
         if [ "$SHOW_HOOKS" = "true" ]; then
             [ "$QUIET" = "false" ] && echo "🔗 ACTIVE HOOKS:"
             if ! command -v jq >/dev/null 2>&1; then
-                echo "  (jq not installed - cannot parse settings.json)"
+                echo "  (jq not installed - cannot parse hooks.json)"
             else
                 collect_all_hooks | print_hooks_text
             fi

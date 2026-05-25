@@ -49,21 +49,46 @@ if [ -z "$JQ" ]; then
     exit 0
 fi
 
-# Extract file path from tool_input
-FILE_PATH=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.file_path // ""' 2>/dev/null) || FILE_PATH=""
+TOOL_NAME=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_name // ""' 2>/dev/null) || TOOL_NAME=""
 
-# ファイルパスがない場合はスキップ
-[ -z "$FILE_PATH" ] && exit 0
+is_doc_or_config_path() {
+    printf '%s\n' "$1" | grep -qiE '\.(md|markdown|rst|txt|json|yaml|yml|toml|ini|conf|config)$'
+}
 
-# ドキュメントファイルはスキップ (AGENTS.md編集などは許可)
-if printf '%s\n' "$FILE_PATH" | grep -qiE '\.(md|markdown|rst|txt)$'; then
-    exit 0
-fi
+extract_paths_from_patch() {
+    printf '%s\n' "$1" | sed -n \
+        -e 's/^\*\*\* Add File: //p' \
+        -e 's/^\*\*\* Update File: //p' \
+        -e 's/^\*\*\* Delete File: //p' \
+        -e 's/^\*\*\* Move to: //p'
+}
 
-# 設定ファイルもスキップ (settings.json など)
-if printf '%s\n' "$FILE_PATH" | grep -qiE '\.(json|yaml|yml|toml|ini|conf|config)$'; then
-    exit 0
-fi
+targets_code_path() {
+    while IFS= read -r _path; do
+        [ -z "$_path" ] && continue
+        is_doc_or_config_path "$_path" && continue
+        return 0
+    done
+    return 1
+}
+
+case "$TOOL_NAME" in
+    apply_patch|ApplyPatch)
+        PATCH_TEXT=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.command // .tool_input.patch // ""' 2>/dev/null) || PATCH_TEXT=""
+        [ -z "$PATCH_TEXT" ] && exit 0
+        TARGET_PATHS=$(extract_paths_from_patch "$PATCH_TEXT")
+        ;;
+    Edit|Write|MultiEdit)
+        FILE_PATH=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null) || FILE_PATH=""
+        [ -z "$FILE_PATH" ] && exit 0
+        TARGET_PATHS="$FILE_PATH"
+        ;;
+    *)
+        exit 0
+        ;;
+esac
+
+printf '%s\n' "$TARGET_PATHS" | targets_code_path || exit 0
 
 # Gitリポジトリ内かチェック
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -75,14 +100,9 @@ CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
 
 # mainまたはmasterブランチの場合に警告
 if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
-    cat <<EOF
-{
-  "hookSpecificOutput": {
-    "hookEventName": "PreToolUse",
-    "additionalContext": "[警告] 現在 ${CURRENT_BRANCH} ブランチです。コードファイルを変更しようとしています。\n- git-new-feature でブランチを作成してから作業してください\n- 例: git-new-feature 機能名"
-  }
-}
-EOF
+    echo "[mainブランチ保護] 現在 ${CURRENT_BRANCH} ブランチです。コードファイルの変更は作業ブランチで行ってください。" >&2
+    echo "例: git-new-feature 機能名" >&2
+    exit 2
 fi
 
 exit 0

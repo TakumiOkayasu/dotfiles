@@ -8,11 +8,10 @@
 # 配置先: codex/hooks/primary-source-reminder.sh
 
 echo ""
-echo "🔍 PRIMARY SOURCE CHECK REMINDER:"
+echo "🔍 一次ソース確認リマインダー:"
 echo "  **必ず一次ソースを確認すること**"
 echo "  **確認後一次ソースの確認先を出力すること**"
 echo "  ❌**推測禁止**"
 echo ""
 
 exit 0
-

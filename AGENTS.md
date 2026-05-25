@@ -27,6 +27,7 @@ gh-setup-repo             # GitHub リポジトリ設定
 codex-cmd list            # Codex prompt command 一覧
 codex-feat <description>  # 機能実装ガイド (TDD)
 codex-fix <description>   # バグ修正ガイド
+codex-code-review [target] # /code-review 互換の差分レビュー
 codex-deep-review [target] # 並列観点レビュー
 ```
 
@@ -41,26 +42,29 @@ dotfile-work/
 │   └── vim/             # .vimrc
 ├── codex/              # Codex設定 → ~/.codex/ にリンク
 │   ├── global_AGENTS.md # → ~/.codex/AGENTS.md (リネームしてリンク)
+│   ├── SUBAGENTS.md    # → ~/.codex/SUBAGENTS.md (subagent mechanics)
 │   ├── hooks.json      # Codex hook定義
-│   ├── settings.json   # 参照用設定
+│   ├── reference/      # install対象外の参照資料
 │   ├── prompts/        # prompt command 断片
-│   ├── hooks/           # 自動処理 (セキュリティ, セッション管理)
-│   ├── rules/           # 常時適用ルール (hallucination-prevention, hierarchical-architecture, coding-conventions, implementation-policy)
-│   └── skills/          # オンデマンド手順 (TDD, debugging, consultation, failure-logging)
+│   ├── hooks/           # 補助ガード (セキュリティ, セッション管理)
+│   ├── rules/           # 参照ルール (hallucination-prevention, hierarchical-architecture, coding-conventions, implementation-policy)
+│   └── skills/          # source。install時は ~/.agents/skills/ に配置
 ├── bin/                 # CLI ツール → ~/.local/bin/
 ├── tests/               # Docker テスト
 └── docs/                # ドキュメント
 ```
 
-Codex vendor skill は自動 clone しない。`codex/vendor/` がある場合のみ SessionStart hook が更新を試みる。
+Codex vendor skill は自動 clone / 自動更新しない。必要な場合のみ手動スクリプトで更新する。
 
 ## Install Flow
 
-1. `git ls-files` で `config/` と `codex/` のファイルを列挙
-2. `config/` → `$HOME` に、`codex/` → `~/.codex/` にシンボリックリンク作成
+1. `git ls-files` で `config/` と `codex/` の tracked file を列挙
+2. `config/` → `$HOME` に、`codex/` の allowlist 対象 → `~/.codex/` にシンボリックリンク作成
 3. `global_AGENTS.md` は `AGENTS.md` にリネームしてリンク
-4. プラットフォーム自動検出: macOS → `.gitconfig.private` / Linux・WSL → `.gitconfig.work`
-5. `bin/` は `~/.local/bin/` にリンクし、Codex 用ショートカット (`codex-feat` など) も配置する
+4. `codex/skills/*` は `~/.agents/skills/*` にリンク
+5. `codex/README.md` と `codex/reference/` は install 対象外
+6. プラットフォーム自動検出: macOS → `.gitconfig.private` / Linux・WSL → `.gitconfig.work`
+7. `bin/` は `~/.local/bin/` にリンクし、Codex 用ショートカット (`codex-feat` など) も配置する
 
 ## Development Notes
 
@@ -70,11 +74,13 @@ Codex vendor skill は自動 clone しない。`codex/vendor/` がある場合�
 ## Subagents
 
 Codex では、品質や速度が上がる場面で subagent を積極利用する。
+dispatch mechanics は `codex/SUBAGENTS.md` を参照する。
 
 - 多角レビュー、複数案の妥当性検証、影響範囲調査、客観評価、並列検証は subagent 候補
 - 親セッションの直近判断をブロックする作業は親が行う
 - worker には担当範囲・編集可能ファイル・他者の変更を戻さないことを明示する
 - subagent の結果は親が統合し、根拠・差分・テストで検証してから採用する
+- Codex の tool contract で明示要求時のみ起動可とされる場合は、その制約を優先する
 
 ## [自動] セッション継続プロトコル
 

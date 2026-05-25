@@ -6,6 +6,14 @@ services:
     volumes:
       - ../claude/hooks:/workspace/hooks:ro
       - ./test_hooks.sh:/workspace/test_hooks.sh:ro
+  codex-hooks-test:
+    build:
+      context: ..
+      dockerfile: tests/Dockerfile
+    entrypoint: ["sh", "/workspace/test_codex_hooks.sh"]
+    volumes:
+      - ../codex/hooks:/workspace/hooks:ro
+      - ./test_codex_hooks.sh:/workspace/test_codex_hooks.sh:ro
   bin-test:
     build:
       context: ..

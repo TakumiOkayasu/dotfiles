@@ -127,7 +127,7 @@ if [ "$PREMISE_HIT" -eq 1 ]; then
     - [ ] DB スキーマ / 公開 API I/F 変更
     - [ ] バグ修正で根本原因に手を入れる
     - [ ] 「設計レビューして」「方針確認して」と要求された
-    → いずれかに該当する場合は codex/skills/premise-questioning/SKILL.md を起動
+    → いずれかに該当する場合は ~/.agents/skills/premise-questioning/SKILL.md を起動
 PREMISE
 fi
 
@@ -140,7 +140,7 @@ if [ "$PRUNING_HIT" -eq 1 ]; then
     - [ ] DB テーブル 5 列以上新設
     - [ ] 既存画面 / API の削減レビュー
     - [ ] 「機能多すぎないか」「これ要るか」と要求された
-    → いずれかに該当する場合は codex/skills/feature-pruning/SKILL.md を起動
+    → いずれかに該当する場合は ~/.agents/skills/feature-pruning/SKILL.md を起動
 PRUNING
 fi
 

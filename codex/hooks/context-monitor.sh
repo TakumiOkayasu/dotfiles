@@ -85,7 +85,7 @@ if [ "$USAGE_PCT" -lt "$WARN_THRESHOLD" ]; then
 fi
 
 # PROGRESS.md のパス
-PROGRESS_FILE="${CWD}/codex/progress.md"
+PROGRESS_FILE="${CWD}/.codex/progress.md"
 
 # メッセージ生成
 if [ "$USAGE_PCT" -ge "$CRITICAL_THRESHOLD" ]; then

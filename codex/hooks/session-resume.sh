@@ -27,8 +27,8 @@ fi
 SOURCE=$(printf '%s\n' "$INPUT" | "$JQ" -r '.source // "startup"' 2>/dev/null) || SOURCE="startup"
 CWD=$(printf '%s\n' "$INPUT" | "$JQ" -r '.cwd // ""' 2>/dev/null) || CWD=""
 
-PROGRESS_FILE="${CWD}/codex/progress.md"
-CHECKPOINT_FILE="${CWD}/codex/checkpoints/latest.md"
+PROGRESS_FILE="${CWD}/.codex/progress.md"
+CHECKPOINT_FILE="${CWD}/.codex/checkpoints/latest.md"
 
 # clear 後は復帰不要(意図的なリセット)
 if [ "$SOURCE" = "clear" ]; then

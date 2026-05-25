@@ -108,12 +108,13 @@ if [ -d ".git" ]; then
 fi
 
 # ═══════════════════════════════════════════════════════════════
-# hookルール出力（常に表示）
+# hookルール出力（補助ガード）
 # ═══════════════════════════════════════════════════════════════
 
-echo "🚫 BLOCKED ACTIONS (hooks enforced):"
-echo "  • python/node/php直接実行 → docker run --rm 使用"
-echo "  • git commit/push → ユーザーが実行"
-echo "  • sudo/admin権限 → 常に禁止"
-echo "  • mainブランチ編集 → feature branch作成"
+echo "🚫 補助ガード:"
+echo "  • hook は完全な安全境界ではなく補助機構"
+echo "  • 素のランタイム直接実行は project runner / container を優先"
+echo "  • git commit/push はユーザーが実行"
+echo "  • sudo/admin権限は使わない"
+echo "  • mainブランチ編集は作業ブランチを作成"
 echo ""
