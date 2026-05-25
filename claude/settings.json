@@ -87,6 +87,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/gh-repo-auto-setup.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/failure-log.sh"
           }
         ]
       }
@@ -193,7 +197,7 @@
     }
   },
   "effortLevel": "xhigh",
-  "fastMode": true,
+  "fastMode": false,
   "showThinkingSummaries": true,
   "theme": "dark-daltonized",
   "skipAutoPermissionPrompt": true
