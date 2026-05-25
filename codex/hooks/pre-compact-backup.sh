@@ -4,7 +4,7 @@
 # 責務:
 #   - PROGRESS.md の内容を含むサマリーを latest.md に保存
 #   - transcript から直近のユーザーリクエスト・変更ファイルを抽出
-#   - codex/checkpoints/latest.md に集約
+#   - .codex/checkpoints/latest.md に集約
 #
 # 発動: PreCompact (auto|manual)
 # 依存: jaq or jq, perl
@@ -27,8 +27,8 @@ TRANSCRIPT_PATH=$(printf '%s\n' "$INPUT" | "$JQ" -r '.transcript_path // ""' 2>/
 CWD=$(printf '%s\n' "$INPUT" | "$JQ" -r '.cwd // ""' 2>/dev/null) || CWD=""
 TRIGGER=$(printf '%s\n' "$INPUT" | "$JQ" -r '.trigger // "unknown"' 2>/dev/null) || TRIGGER="unknown"
 
-CHECKPOINT_DIR="${CWD}/codex/checkpoints"
-PROGRESS_FILE="${CWD}/codex/progress.md"
+CHECKPOINT_DIR="${CWD}/.codex/checkpoints"
+PROGRESS_FILE="${CWD}/.codex/progress.md"
 
 mkdir -p "$CHECKPOINT_DIR"
 

@@ -227,6 +227,7 @@ if [ -n "$SUBSHELL_CMDS" ]; then
 '
     for subcmd in $SUBSHELL_CMDS; do
         # $( と ) を除去
+        # shellcheck disable=SC2016
         inner=$(printf '%s\n' "$subcmd" | sed 's/^\$([[:space:]]*//; s/[[:space:]]*)$//')
         if ! check_segment "$inner"; then
             echo "[ローカルコマンド禁止] サブシェル内のコマンドはDockerコンテナ内で実行してください。" >&2
@@ -239,12 +240,14 @@ if [ -n "$SUBSHELL_CMDS" ]; then
 fi
 
 # バッククォート展開: `...` 内のコマンドを抽出してチェック
+# shellcheck disable=SC2016
 BACKTICK_CMDS=$(printf '%s\n' "$COMMAND" | grep -oE '`[^`]+`' 2>/dev/null || true)
 if [ -n "$BACKTICK_CMDS" ]; then
     OLDIFS="$IFS"
     IFS='
 '
     for btcmd in $BACKTICK_CMDS; do
+        # shellcheck disable=SC2016
         inner=$(printf '%s\n' "$btcmd" | sed 's/^`//; s/`$//')
         if ! check_segment "$inner"; then
             echo "[ローカルコマンド禁止] バッククォート内のコマンドはDockerコンテナ内で実行してください。" >&2

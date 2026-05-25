@@ -7,7 +7,7 @@
 ## トリガー語
 
 - 「多角的なコードレビュー」「並列レビュー」「deep review」「3 視点でレビュー」
-- `codex-deep-review` / `codex-cmd deep-review` 直接起動
+- `codex-code-review` / `codex-deep-review` / `codex-cmd code-review` / `codex-cmd deep-review` 直接起動
 
 ## 入出力
 

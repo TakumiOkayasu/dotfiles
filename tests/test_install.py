@@ -80,11 +80,34 @@ class TestIntegrationInstallUninstall:
 
         assert (codex_dir / "AGENTS.md").is_symlink()
         assert (codex_dir / "AGENTS.md").resolve() == REPO_ROOT / "codex" / "global_AGENTS.md"
+        assert (codex_dir / "SUBAGENTS.md").is_symlink()
+        assert (codex_dir / "SUBAGENTS.md").resolve() == REPO_ROOT / "codex" / "SUBAGENTS.md"
         assert (codex_dir / "hooks.json").is_symlink()
         assert (codex_dir / "hooks").is_dir()
         assert (codex_dir / "hooks" / "destructive-command-block.sh").is_symlink()
-        assert (codex_dir / "skills" / "tdd" / "SKILL.md").is_symlink()
+        assert not (codex_dir / "README.md").exists()
+        assert not (codex_dir / "settings.json").exists()
+        assert not (codex_dir / "skills" / "tdd" / "SKILL.md").exists()
+        assert (home / ".agents" / "skills" / "tdd" / "SKILL.md").is_symlink()
         assert (codex_dir / "rules" / "coding-conventions.md").is_symlink()
+
+    def test_codex_install_excludes_untracked_files(self, tmp_path: Path) -> None:
+        """codex/ 配下の untracked file はallowlist形状でも配置されない"""
+        home = tmp_path / "home"
+        home.mkdir()
+        scratch = REPO_ROOT / "codex" / "scratch.tmp"
+        scratch_hook = REPO_ROOT / "codex" / "hooks" / "scratch-hook.sh"
+        scratch.write_text("temporary", encoding="utf-8")
+        scratch_hook.write_text("#!/bin/sh\n", encoding="utf-8")
+        try:
+            result = _run_install_sh(REPO_ROOT, home)
+        finally:
+            scratch.unlink(missing_ok=True)
+            scratch_hook.unlink(missing_ok=True)
+
+        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+        assert not (home / ".codex" / "scratch.tmp").exists()
+        assert not (home / ".codex" / "hooks" / "scratch-hook.sh").exists()
 
     def test_uninstall_removes_claude_symlinks(self, tmp_path: Path) -> None:
         """uninstall 後に dotfiles 由来のシンボリックリンクが削除される"""
@@ -106,10 +129,12 @@ class TestIntegrationInstallUninstall:
 
         assert (home / ".codex" / "hooks.json").is_symlink()
         assert (home / ".codex" / "hooks" / "destructive-command-block.sh").is_symlink()
+        assert (home / ".agents" / "skills" / "tdd" / "SKILL.md").is_symlink()
 
         _run_install_sh(REPO_ROOT, home, uninstall=True)
         assert not (home / ".codex" / "hooks.json").exists()
         assert not (home / ".codex" / "hooks" / "destructive-command-block.sh").exists()
+        assert not (home / ".agents" / "skills" / "tdd" / "SKILL.md").exists()
 
     def test_uninstall_empty_dir_summary(self, tmp_path: Path) -> None:
         """uninstall の空ディレクトリ削除メッセージがカテゴリごとの1行サマリー形式"""

@@ -1,12 +1,12 @@
 #!/bin/sh
 # shellcheck shell=bash
-# skills-update.sh - Vendor skills auto-updater with 2-layer security
+# vendor-skills-update-manual.sh - Manual vendor skills updater with 2-layer security
 #
 # Layer 1: Docker isolation (git fetch/pull in container)
 # Layer 2: Pattern scan (prompt injection, command exec, credential theft)
 #
 # Usage:
-#   skills-update.sh [options]
+#   vendor-skills-update-manual.sh [options]
 #
 # Options:
 #   --force    Bypass 24h throttle
@@ -27,9 +27,11 @@ fi
 set -euo pipefail
 
 # ── Constants ──
-VENDOR_DIR="codex/vendor"
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+CODEX_DIR=$(cd "${SCRIPT_DIR}/.." && pwd -P)
+VENDOR_DIR="${CODEX_VENDOR_DIR:-${CODEX_DIR}/vendor}"
 DOCKER_IMAGE="alpine/git:2.47.2"
-STAMP_FILE="${TMPDIR:-/tmp}/skills-update-stamp-$(id -u)"
+STAMP_FILE="${TMPDIR:-/tmp}/vendor-skills-update-manual-stamp-$(id -u)"
 THROTTLE_SECONDS=86400  # 24h
 
 # ── Options ──

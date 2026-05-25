@@ -1,7 +1,7 @@
 #!/bin/sh
 # PreToolUse hook - .envファイルの読み取り/編集をブロック
 # .envファイルの秘匿情報を保護するため、読み取り・編集操作をブロックする
-# 書き込み(Write)は許可し、.env.example等のテンプレートファイルも許可する
+# .env.example等のテンプレートファイルは許可する
 #
 # 使い方 (手動実行):
 #   echo '{"tool_name":"Bash","tool_input":{"command":"cat .env"}}' | ./env-file-protect.sh
@@ -21,7 +21,6 @@ env-file-protect.sh - .envファイルの読み取り/編集をブロック
   .envファイル(.env, .env.local, .env.production 等)の読み取り・編集を
   ブロックします。以下は許可されます:
     - .env.example, .env.sample, .env.template, .env.dist (テンプレート)
-    - .envファイルへの新規書き込み(Write)
     - .envファイルの存在確認(test -f, ls)
 
 依存関係:
@@ -111,8 +110,8 @@ case "$TOOL_NAME" in
         fi
         ;;
 
-    Edit)
-        FILE_PATH=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.file_path // ""' 2>/dev/null) || FILE_PATH=""
+    Edit|Write)
+        FILE_PATH=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null) || FILE_PATH=""
 
         if [ -z "$FILE_PATH" ]; then
             exit 0
@@ -124,7 +123,26 @@ case "$TOOL_NAME" in
             exit 2
         fi
         ;;
+
+    apply_patch|ApplyPatch)
+        PATCH_TEXT=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.command // .tool_input.patch // ""' 2>/dev/null) || PATCH_TEXT=""
+
+        if [ -z "$PATCH_TEXT" ]; then
+            exit 0
+        fi
+
+        PATCH_PATHS=$(printf '%s\n' "$PATCH_TEXT" | sed -n \
+            -e 's/^\*\*\* Add File: //p' \
+            -e 's/^\*\*\* Update File: //p' \
+            -e 's/^\*\*\* Delete File: //p' \
+            -e 's/^\*\*\* Move to: //p')
+
+        if check_env_access "$PATCH_PATHS"; then
+            echo "[.env保護] apply_patch 経由の .env 編集はブロックされました。" >&2
+            echo "値の変更が必要な場合はユーザー自身が行ってください。" >&2
+            exit 2
+        fi
+        ;;
 esac
 
 exit 0
-

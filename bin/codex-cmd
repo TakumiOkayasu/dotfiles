@@ -17,12 +17,14 @@ Usage:
   codex-feat [--print|--exec] [arguments...]
   codex-fix [--print|--exec] [arguments...]
   codex-deep-review [--print|--exec] [target...]
+  codex-code-review [--print|--exec] [target...]
   codex-commit [--print|--exec]
 
 Commands:
   feat          New feature workflow prompt
   fix           Bug fix workflow prompt
   deep-review   Multi-perspective review prompt
+  code-review   Alias for deep-review
   commit        Commit preparation prompt
   list          List installed prompt commands
   show <name>   Print raw prompt command file
@@ -38,7 +40,8 @@ append_argument() {
     if [ -z "$ARGUMENTS" ]; then
         ARGUMENTS="$1"
     else
-        ARGUMENTS="${ARGUMENTS} $1"
+        ARGUMENTS="${ARGUMENTS}
+$1"
     fi
 }
 
@@ -95,7 +98,7 @@ build_prompt() {
     fi
 
     cat "$prompt_file"
-    printf '\n\n## %s\n\n' '$ARGUMENTS'
+    printf '\n\n## Arguments\n\n'
     if [ -n "$ARGUMENTS" ]; then
         printf '%s\n' "$ARGUMENTS"
     else

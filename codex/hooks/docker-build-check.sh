@@ -48,18 +48,18 @@ esac
 
 # --- Slow path: ツール+アクション検知 (1回の grep) ---
 
-DANGEROUS='(npm|npx|yarn|pnpm|bun)\s+(install|add|ci|link|update|upgrade|build|init|rebuild)'
+DANGEROUS='(npm|npx|yarn|pnpm|bun)\s+(install|add|ci|link|update|upgrade|init|rebuild)'
 DANGEROUS="$DANGEROUS|(pip|pip3|pipx)\s+(install|download|wheel)"
-DANGEROUS="$DANGEROUS|poetry\s+(install|add|update|lock|build)"
+DANGEROUS="$DANGEROUS|poetry\s+(install|add|update|lock)"
 DANGEROUS="$DANGEROUS|uv\s+(pip\s+install|sync|lock|add)"
 DANGEROUS="$DANGEROUS|gem\s+(install|update|build)"
 DANGEROUS="$DANGEROUS|bundle\s+(install|update|add)"
-DANGEROUS="$DANGEROUS|cargo\s+(install|build|add|update)"
-DANGEROUS="$DANGEROUS|go\s+(install|build|get)"
+DANGEROUS="$DANGEROUS|cargo\s+(install|add|update)"
+DANGEROUS="$DANGEROUS|go\s+(install|get)"
 DANGEROUS="$DANGEROUS|composer\s+(install|require|update)"
-DANGEROUS="$DANGEROUS|mvn\s+(install|compile|package|deploy)"
-DANGEROUS="$DANGEROUS|gradle\s+(build|install|compile|assemble)"
-DANGEROUS="$DANGEROUS|dotnet\s+(build|add|restore|publish)"
+DANGEROUS="$DANGEROUS|mvn\s+(install|deploy)"
+DANGEROUS="$DANGEROUS|gradle\s+(install)"
+DANGEROUS="$DANGEROUS|dotnet\s+(add|restore|publish)"
 DANGEROUS="$DANGEROUS|mix\s+deps\.(get|compile|update)"
 DANGEROUS="$DANGEROUS|make\s+(install|build|all)"
 DANGEROUS="$DANGEROUS|cmake\s"

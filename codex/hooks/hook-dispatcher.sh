@@ -21,6 +21,13 @@ else
     INPUT=$(cat)
 fi
 
+JQ=$(command -v jaq 2>/dev/null || command -v jq 2>/dev/null || echo "")
+if [ -n "$INPUT" ] && [ -n "$JQ" ]; then
+    TOOL_NAME=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_name // ""' 2>/dev/null) || TOOL_NAME=""
+else
+    TOOL_NAME=""
+fi
+
 run_hook() {
     _hook="$1"
     [ -x "${SCRIPT_DIR}/${_hook}" ] || return 0
@@ -34,24 +41,29 @@ run_hook() {
 
     # exit 2 は Codex/Claude hook の明示ブロックとして扱う。
     [ "$_status" -eq 2 ] && exit 2
+    if [ "$_status" -ne 0 ]; then
+        echo "hook-dispatcher.sh: ${_hook} exited with ${_status}; continuing" >&2
+    fi
     return 0
 }
 
 case "$EVENT" in
     pre-tool-use)
-        run_hook destructive-command-block.sh
-        run_hook docker-build-check.sh
-        run_hook language-version-check.sh
-        run_hook local-command-block.sh
-        run_hook admin-command-block.sh
-        run_hook secret-leak-check.sh
         run_hook env-file-protect.sh
         run_hook main-branch-code-warning.sh
+        case "$TOOL_NAME" in
+            Bash|"")
+                run_hook destructive-command-block.sh
+                run_hook docker-build-check.sh
+                run_hook language-version-check.sh
+                run_hook local-command-block.sh
+                run_hook admin-command-block.sh
+                run_hook secret-leak-check.sh
+                ;;
+        esac
         ;;
     post-tool-use)
-        run_hook commit-checkpoint.sh
         run_hook context-monitor.sh
-        run_hook gh-repo-auto-setup.sh
         ;;
     user-prompt-submit)
         run_hook context-monitor.sh
@@ -65,7 +77,6 @@ case "$EVENT" in
         run_hook session-start-reminder.sh
         run_hook session-resume.sh
         run_hook project-environment-check.sh
-        run_hook vendor-skills-update.sh
         run_hook primary-source-reminder.sh
         ;;
     *)
