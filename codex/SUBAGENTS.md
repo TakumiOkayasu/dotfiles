@@ -22,7 +22,8 @@ subagent 前提は Codex 側で変わり得るため、必要に応じて作業�
 
 - subagent は候補にするが、Codex の tool contract が最優先。
 - `spawn_agent` が「ユーザーの明示要求時のみ」と定義されている環境では、明示要求なしに起動しない。
-- dispatch できない場合は、親セッション内で同じ観点分解を行い、必要なら `subagent skipped: <理由>` と報告する。
+- `AGENTS.md` の「必ず使う場面」またはコマンド / skill が subagent 必須と定める場合は、dispatch できなければ親セッション内で代替しない。`subagent dispatch unavailable` と報告し、そのタスクを BLOCK 扱いにする。
+- 任意利用の場面で dispatch できない場合は、親セッション内で同じ観点分解を行い、必要なら `subagent skipped: <理由>` と報告する。
 - 直近の判断をブロックする調査は親セッションで行う。
 - 同じ問いを親と subagent で重複調査しない。
 
