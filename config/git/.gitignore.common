@@ -230,6 +230,8 @@ core
 .claude/
 claude_tmp/
 *.mcp.*
+.codex/
+codex_tmp/
 
 # === Secrets ===
 secrets/
