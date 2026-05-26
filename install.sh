@@ -912,6 +912,9 @@ codex_dest_for_relative() {
         global_AGENTS.md)
             printf '%s/.codex/AGENTS.md\n' "$HOME"
             ;;
+        config.toml)
+            printf '%s/.codex/config.toml' "$HOME"
+            ;;
         SUBAGENTS.md|hooks.json)
             printf '%s/.codex/%s\n' "$HOME" "$_cdf_relative"
             ;;
@@ -1407,7 +1410,7 @@ confirm_installation() {
 
     if [ "$CODEX_SELECTED" = "true" ]; then
         printf "  ${COLOR_CYAN}Codex設定:${COLOR_RESET}\n"
-        printf "    + codex/AGENTS, hooks, rules, prompts -> ~/.codex/*\n"
+        printf "    + codex/AGENTS, config.toml, hooks, rules, prompts -> ~/.codex/*\n"
         printf "    + codex/skills/* -> ~/.agents/skills/*\n"
         printf "    + codex/hooks.json -> ~/.codex/hooks.json\n"
         echo ""

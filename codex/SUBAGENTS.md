@@ -1,7 +1,6 @@
 # SUBAGENTS.md
 
-Codex で subagent を使うときの mechanics を集約する。起動用途は `AGENTS.md`
-の「subagent 活用」を参照し、このファイルでは dispatch 形式、制約、集約方法だけを扱う。
+Codex で subagent を使うときの mechanics を集約する。起動用途は `AGENTS.md` の「subagent 活用」を参照し、このファイルでは dispatch 形式、制約、集約方法だけを扱う。
 
 ## 一次ソース確認
 
@@ -15,8 +14,7 @@ subagent 前提は Codex 側で変わり得るため、必要に応じて作業�
 | prompt に入る指示 | `codex debug prompt-input ping` |
 
 `child_agents_md` などの child-agent 定義自動読込は、有効であると仮定しない。
-このファイルは `~/.codex/SUBAGENTS.md` にリンクされる運用文書であり、agent 定義の
-自動登録ファイルではない。
+このファイルは `~/.codex/SUBAGENTS.md` にリンクされる運用文書であり、agent 定義の自動登録ファイルではない。
 
 ## 起動判断
 
