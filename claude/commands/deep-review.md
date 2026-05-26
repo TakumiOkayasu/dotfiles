@@ -26,6 +26,7 @@
 ## 鉄則
 
 - 全指摘に修正コードを添える。修正案なき指摘は指摘ではない
+- subagent は必ず3つ起動する。起動不可なら親セッション単独レビューで代替せず BLOCK とする
 - 3 並列 subagent の結果を統合し、1 つの優先度順リストに集約する
 - 推測で指摘しない。実コードで確認できるもののみ扱う
 
@@ -52,6 +53,8 @@
 ### Step 4: 3 並列 subagent dispatch
 
 `general-purpose` subagent を 1 メッセージ内で 3 並列起動する (逐次起動は禁止、並列性が失われる)。
+起動ツールが未ロードなら、利用可能な tool discovery で subagent / multi-agent tool を確認してから dispatch する。
+tool contract 上どうしても起動できない場合は、レビューを実施せず `## 判定: BLOCK` とし、理由を `subagent dispatch unavailable` と明示する。
 
 共通入力: Step 1 の差分全量 + Step 2 のサマリー + Step 3 で振り分けた担当観点のルール。
 

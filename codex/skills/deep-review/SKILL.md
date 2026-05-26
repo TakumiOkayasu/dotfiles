@@ -1,6 +1,6 @@
 ---
 name: deep-review
-description: 差分を security / performance / maintainability の3観点で統合レビューする。subagent が使える場合は並列 dispatch、使えない場合は親セッション内 fallback。
+description: 差分を security / performance / maintainability の3観点で統合レビューする。3 subagent を必ず並列 dispatch し、使えない場合は親セッション内 fallback せず BLOCK とする。
 ---
 
 # Deep Review
@@ -26,8 +26,9 @@ description: 差分を security / performance / maintainability の3観点で統
    - performance
    - maintainability
 5. subagent dispatch:
-   - 可能なら3観点を並列 dispatch。
-   - 不可能なら `subagent fallback: parent-session review` と明示して親セッションで同じ観点分解を行う。
+   - security / performance / maintainability の3観点をそれぞれ別 subagent に必ず並列 dispatch。
+   - subagent 起動ツールが未ロードなら `tool_search` で multi-agent / subagent / spawn_agent を検索してから dispatch。
+   - tool contract 上どうしても不可能なら、レビューを実施せず `## 判定: BLOCK` とし、理由を `subagent dispatch unavailable` と明示する。親セッション単独レビューで代替しない。
 6. synthesis:
    - 同一 file:line を統合。
    - 重要度は最高位を採用。

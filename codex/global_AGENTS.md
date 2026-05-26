@@ -102,21 +102,24 @@
 
 ## 9. Subagents
 
-subagent は品質または速度が上がる場合だけ使う。dispatch mechanics は `~/.codex/SUBAGENTS.md` を参照する。
+subagent は下記「必ず使う場面」に該当する場合は必ず使う。dispatch mechanics は `~/.codex/SUBAGENTS.md` を参照する。
+該当しない場合でも、品質または速度が上がるなら使ってよい。
 
-使う場面:
+必ず使う場面:
 
 - 独立した観点のレビュー: security / performance / maintainability
 - 影響範囲調査の並列化
 - 大きな調査対象の分割
 - 設計案の妥当性検証
 
+特に `deep-review` / 多角レビュー / 並列レビュー / 3 視点レビューの依頼では、security / performance / maintainability の 3 subagent を必ず起動する。
+
 使わない場面:
 
 - 親セッションで即判断すべき作業
 - 同じ問いの重複調査
 - 小規模修正
-- subagent の結果待ちで全体が遅くなる場合
+- subagent の結果待ちで全体が遅くなる場合。ただし「必ず使う場面」に該当する場合は除く
 
 使う場合のルール:
 
@@ -124,7 +127,8 @@ subagent は品質または速度が上がる場合だけ使う。dispatch mecha
 - 担当範囲、編集可否、対象ファイル、禁止事項を明示する。
 - 他者またはユーザーの変更を戻させない。
 - subagent の結論は親セッションで統合し、根拠、差分、テストで検証してから採用する。
-- subagent を使えない環境では、同じ観点分解を親セッション内で行う。
+- 必須場面で subagent を使えない環境では、親セッション単独で代替せず、`subagent dispatch unavailable` と明示してブロックする。
+- 任意場面で subagent を使えない環境では、同じ観点分解を親セッション内で行う。
 
 ## 10. 進捗管理
 
@@ -358,4 +362,3 @@ subagent は品質または速度が上がる場合だけ使う。dispatch mecha
 - 複雑な集計 (CTE / window 関数): ORM で表現困難なことを示す
 - DB 固有機能: 移植性を捨てる判断を明示する
 - 読み取り専用レポート: ビュー定義または生 SQL、レビュー必須
-
