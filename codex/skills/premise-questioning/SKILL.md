@@ -13,7 +13,7 @@ description: 設計判断・新規実装・バグ修正に着手する直前に�
 - This file was ported from `claude/skills/premise-questioning/SKILL.md`.
 - Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
 - Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Claude slash-command references should be invoked through `prompt:<name>` or `codex/prompts/commands/<name>.md`.
 - Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 着手直前の方針は、書いた本人には筋が良く見える。だが「そもそも解くべき問題か」「そもそもその実装は要るか」を一段引いて問い直すと、実装後にひっくり返ることがしょっちゅうある。**バイアスを排した実行者に違う角度から問いを立ててもらい、3 軸でスコア化して比較する**のが本 skill の核。最低 3 ラウンド、結論が割れている間は止めない。

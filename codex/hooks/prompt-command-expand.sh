@@ -1,11 +1,16 @@
 #!/bin/sh
-# prompt-command-expand.sh - `/prompt:<name>` を prompts/commands/<name>.md に展開する
+# prompt-command-expand.sh - prompt command を prompts/commands/<name>.md に展開する
 #
-# UserPromptSubmit hook で使用する。Codex 公式の built-in slash command ではなく、
-# hook context injection による repo-local prompt command 互換レイヤー。
+# 重要:
+#   Codex CLI は先頭 `/` を built-in slash command として先に解釈する。
+#   未登録の `/prompt:*` は UserPromptSubmit hook に届く前に拒否されるため、
+#   interactive CLI では `prompt:<name>` または `prompt <name>` を使う。
 #
-# 手動テスト:
-#   echo '{"prompt":"/prompt:feat ユーザー検索"}' | ./prompt-command-expand.sh
+# 対応形式:
+#   prompt:feat ユーザー検索
+#   prompt feat ユーザー検索
+#   /prompt:feat ユーザー検索   # 非interactive/将来互換用。CLI TUIでは通常届かない。
+#   /prompt feat ユーザー検索    # 非interactive/将来互換用。CLI TUIでは通常届かない。
 
 # set -e を使わない（hookエラーで通常入力を壊さない）
 
@@ -24,22 +29,32 @@ fi
 
 [ -z "$PROMPT" ] && exit 0
 
-case "$PROMPT" in
-    /prompt:*|/prompt\ *) ;;
-    *) exit 0 ;;
-esac
-
 FIRST=$(printf '%s\n' "$PROMPT" | awk 'NR==1 { print $1 }')
-case "$FIRST" in
-    /prompt:*) NAME=$(printf '%s' "$FIRST" | sed 's#^/prompt:##') ;;
-    /prompt) NAME=$(printf '%s\n' "$PROMPT" | awk 'NR==1 { print $2 }') ;;
-    *) exit 0 ;;
-esac
 
-# args: 1行目の command token を取り除いた残り + 2行目以降
 case "$FIRST" in
-    /prompt:*) ARGS=$(printf '%s\n' "$PROMPT" | sed "1s#^/prompt:${NAME}[[:space:]]*##") ;;
-    /prompt) ARGS=$(printf '%s\n' "$PROMPT" | sed "1s#^/prompt[[:space:]]\+${NAME}[[:space:]]*##") ;;
+    prompt:*)
+        NAME=$(printf '%s' "$FIRST" | sed 's#^prompt:##')
+        ARGS=$(printf '%s\n' "$PROMPT" | sed "1s#^prompt:${NAME}[[:space:]]*##")
+        DISPLAY="prompt:${NAME}"
+        ;;
+    prompt)
+        NAME=$(printf '%s\n' "$PROMPT" | awk 'NR==1 { print $2 }')
+        ARGS=$(printf '%s\n' "$PROMPT" | sed "1s#^prompt[[:space:]]\+${NAME}[[:space:]]*##")
+        DISPLAY="prompt ${NAME}"
+        ;;
+    /prompt:*)
+        NAME=$(printf '%s' "$FIRST" | sed 's#^/prompt:##')
+        ARGS=$(printf '%s\n' "$PROMPT" | sed "1s#^/prompt:${NAME}[[:space:]]*##")
+        DISPLAY="/prompt:${NAME}"
+        ;;
+    /prompt)
+        NAME=$(printf '%s\n' "$PROMPT" | awk 'NR==1 { print $2 }')
+        ARGS=$(printf '%s\n' "$PROMPT" | sed "1s#^/prompt[[:space:]]\+${NAME}[[:space:]]*##")
+        DISPLAY="/prompt ${NAME}"
+        ;;
+    *)
+        exit 0
+        ;;
 esac
 
 if [ -z "$NAME" ]; then
@@ -77,16 +92,20 @@ list_commands() {
 
 if [ "$NAME" = "list" ] || [ "$NAME" = "help" ]; then
     COMMANDS=$(list_commands | tr '\n' ' ' | sed 's/[[:space:]]*$//')
-    cat <<EOF
+    cat <<HELP
 📚 [prompt-command] 使用可能なカスタムプロンプト
 
 ${COMMANDS}
 
 使用例:
-- /prompt:feat ユーザー検索機能を追加
-- /prompt:fix 特定入力で500になる
-- /prompt:deep-review HEADとの差分
-EOF
+- prompt:feat ユーザー検索機能を追加
+- prompt:fix 特定入力で500になる
+- prompt:deep-review HEADとの差分
+
+注意:
+- Codex CLI TUI では /prompt:* は未登録 slash command として拒否されます。
+- 先頭スラッシュなしの prompt:* を使ってください。
+HELP
     exit 0
 fi
 
@@ -97,21 +116,20 @@ list_dirs | while IFS= read -r dir; do
 done | {
     read -r PROMPT_FILE
     if [ -z "$PROMPT_FILE" ]; then
-        echo "⚠️ [prompt-command] 未定義のカスタムプロンプト: /prompt:${NAME}"
-        echo "利用可能一覧は /prompt:list を入力してください。"
+        echo "⚠️ [prompt-command] 未定義のカスタムプロンプト: prompt:${NAME}"
+        echo "利用可能一覧は prompt:list を入力してください。"
         exit 0
     fi
 
     BODY=$(cat "$PROMPT_FILE")
-    # $ARGUMENTS を安全に置換する。awk で全文置換。
     EXPANDED=$(printf '%s\n' "$BODY" | awk -v args="$ARGS" '{ gsub(/\$ARGUMENTS/, args); print }')
 
-    cat <<EOF
-📌 [prompt-command expanded: /prompt:${NAME}]
+    cat <<OUT
+📌 [prompt-command expanded: prompt:${NAME}]
 
-ユーザーは repo-local custom prompt command "/prompt:${NAME}" を実行しました。
+ユーザーは repo-local custom prompt command "${DISPLAY}" を実行しました。
 下記の展開済みプロンプトを、このターンの主指示として扱ってください。
-元の "/prompt:${NAME}" 文字列は実行対象ではなく、展開トリガーです。
+元の "${DISPLAY}" 文字列は実行対象ではなく、展開トリガーです。
 
 ## Arguments
 
@@ -120,7 +138,7 @@ ${ARGS}
 ## Expanded prompt
 
 ${EXPANDED}
-EOF
+OUT
 }
 
 exit 0

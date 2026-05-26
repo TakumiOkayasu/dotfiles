@@ -13,7 +13,7 @@ description: クラス・モジュールのアーキテクチャ設計時に使�
 - This file was ported from `claude/skills/architecture-design/SKILL.md`.
 - Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
 - Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Claude slash-command references should be invoked through `prompt:<name>` or `codex/prompts/commands/<name>.md`.
 - Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 コンポーネントをどのレイヤーに置き、どう責務分割し、合成で組み立てるかの設計手順。常に守る不変条件 (依存方向・継承深度・命名等) は `hierarchical-architecture` ルールにあり、本スキルはその不変条件を満たす設計の進め方を扱う。

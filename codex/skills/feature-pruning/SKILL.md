@@ -13,7 +13,7 @@ description: 個別機能 / UI 要素 / API エンドポイント / データ列
 - This file was ported from `claude/skills/feature-pruning/SKILL.md`.
 - Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
 - Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Claude slash-command references should be invoked through `prompt:<name>` or `codex/prompts/commands/<name>.md`.
 - Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 設計が固まり、実装する機能リストが揃った段階で、**個別機能の 1 つ 1 つを名指しで「これ本当に要る?」と問い直す**のが本 skill の核。「ページネーション (件数 30 件で 1 ページに収まる)」「確認ダイアログ (取り消し可能操作で警告不要)」「印刷ボタン (ブラウザ標準で代替可能)」レベルの具体指摘を、バイアスを排した実行者から取り出す。最低 3 ラウンド、機能名で語ることを強制する。

@@ -10,4 +10,4 @@ skills:
 
 $ARGUMENTS
 
-`/prompt:deep-review` と同じ扱いにする。対象差分を security / performance / maintainability の3観点でレビューする。
+`prompt:deep-review` と同じ扱いにする。対象差分を security / performance / maintainability の3観点でレビューする。

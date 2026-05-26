@@ -19,7 +19,7 @@ Codex 側では skills は `codex/skills/*/SKILL.md` から `~/.agents/skills/*/
 - `codex/hooks/rules-guard.sh`
   - rules 未注入 / checksum 不一致時に mutating tools を block
 - `codex/hooks/prompt-command-expand.sh`
-  - `/prompt:*` command を `codex/prompts/commands/*.md` へ展開
+  - `prompt:*` command を `codex/prompts/commands/*.md` へ展開
 - `codex/skills/rules-required/SKILL.md`
   - rules 読了・遵守の運用 skill
 
