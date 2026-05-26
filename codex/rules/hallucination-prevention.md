@@ -1,5 +1,15 @@
 # Hallucination Prevention
 
+<!-- codex-port: managed; source=claude/rules/hallucination-prevention.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/rules/hallucination-prevention.md`.
+- Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
+- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
+
 「たぶん正しい」で出力しない。不確実なものは不確実と明示する。
 
 ## 基本
@@ -24,3 +34,8 @@
 - 確実に存在する代替案を提示する
 - ユーザーが自分で確認できる手順を案内する
 - 間違いに気づいたら影響範囲を説明し、即訂正する
+
+
+## Codex rule loading
+
+This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `~/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.

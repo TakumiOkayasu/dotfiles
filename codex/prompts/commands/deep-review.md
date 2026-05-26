@@ -1,140 +1,61 @@
+---
+name: deep-review
+summary: 差分を security / performance / maintainability の3観点で統合レビューする
+profile: review
+skills:
+  - deep-review
+  - security-review
+  - performance-optimization
+  - refactoring
+  - test-coverage-guard
+---
+
 # deep-review
 
-直近の変更を多角的にレビューする。セキュリティ・パフォーマンス・保守性の 3 観点を並列の subagent で検査し、優先度順に統合する。公式 `code-review` プラグインとは別物で、3 並列 dispatch + synthesis が特徴。
+$ARGUMENTS
 
-`$ARGUMENTS` にレビュー対象を指定する (省略時は直近の変更)。
+## Purpose
 
-## トリガー語
+対象差分を多角的にレビューし、BLOCK / WARN / PASS を返す。
 
-- 「多角的なコードレビュー」「並列レビュー」「deep review」「3 視点でレビュー」
-- `codex-code-review` / `codex-deep-review` / `codex-cmd code-review` / `codex-cmd deep-review` 直接起動
+## Scope resolution
 
-## 入出力
+- `$ARGUMENTS` がある場合はその指定を優先する。
+- 指定がない場合は `git diff HEAD` を対象にする。
+- working tree が空なら `git diff HEAD~1..HEAD` を確認する。
 
-| 入力 | 内容 |
-| --- | --- |
-| `$ARGUMENTS` | ブランチ名・コミットハッシュ・ファイルパス (省略可) |
-| `git diff` | ステージ済み + 未ステージの差分 |
-| ロード済み rules | `~/.codex/rules/*` は Codex が自動 import しないため、必要に応じて明示的に読む |
+## Required routing
 
-| 出力 | 内容 |
-| --- | --- |
-| 判定ヘッダー | `BLOCK` / `WARN` / `PASS` |
-| サマリー表 | Critical / Warning / Suggestion 件数と観点内訳 |
-| 統合済み指摘リスト | 重要度順、file:line + 観点タグ + 修正案 |
+1. 変更目的・変更ファイル・依存関係を把握する。
+2. 適用される `AGENTS.md` と `.codex/rules` を必要範囲だけ読む。
+3. subagent が使える場合は security / performance / maintainability を並列 dispatch する。
+4. subagent が使えない場合は `subagent fallback: parent-session review` と明示し、同じ3観点で親セッション内レビューを行う。
+5. `deep-review` skill で findings を統合する。
 
-## 鉄則
+## Severity
 
-- 全指摘に修正コードを添える。修正案なき指摘は指摘ではない
-- 3 並列 subagent の結果を統合し、1 つの優先度順リストに集約する
-- 推測で指摘しない。実コードで確認できるもののみ扱う
+- Critical: 本番障害、データ損失、脆弱性、破壊的 API 変更、規約の明示的禁止違反、方針検証スキップ。
+- Warning: マージ前に対処推奨の設計・性能・テスト・保守性問題。
+- Suggestion: 任意改善。
 
-## 手順
-
-### Step 1: 差分取得
-
-`$ARGUMENTS` 指定時はそれを使う。省略時は `git diff HEAD` → `git diff HEAD~1` の順に試行する。
-
-### Step 2: 全体把握
-
-変更の目的・スコープ・影響範囲を理解し、変更ファイルの import / 依存グラフを確認する。
-
-### Step 3: 適用ルールの特定
-
-`~/.codex/rules/*` は Codex が自動 import しない。必要な rule を明示的に読み、今回の差分で違反しうる具体パターンを観点別に列挙する。
-
-- アーキ・設計・命名・テスト系 → 保守性 subagent へ
-- 性能系 → パフォーマンス subagent へ
-- 秘密情報・暗号・入力検証系 → セキュリティ subagent へ
-
-プロジェクト固有の `AGENTS.md` / `.codex/rules/` があれば追加で読み、同様に振り分ける。
-
-### Step 4: 3 並列 subagent dispatch
-
-Codex の `spawn_agent` で 3 つの explorer subagent を 1 メッセージ内で並列起動する (逐次起動は禁止、並列性が失われる)。
-新規 subagent を dispatch できない環境では、親セッション内で「セキュリティ」「パフォーマンス」「保守性」の 3 観点を明示的に分けて同じ順序でレビューし、出力冒頭に `subagent fallback: parent-session review` と書く。
-
-共通入力: Step 1 の差分全量 + Step 2 のサマリー + Step 3 で振り分けた担当観点のルール。
-
-共通出力フォーマット:
+## Output
 
 ```text
-### [Critical|Warning|Suggestion] <カテゴリ>
-- file:line — <1 行要約>
-- ❌ 現状: <該当コード>
-- ✅ 修正案: <修正後コード>
-- 理由: <1 文>
-```
+## 判定: BLOCK|WARN|PASS
 
-担当割り (各 subagent は担当外観点に踏み込まない):
+| 重要度 | 件数 | 観点内訳 |
+| --- | ---: | --- |
 
-- **Subagent 1 セキュリティ**: インジェクション (SQL / コマンド / XSS / パストラバーサル / SSRF)、認証認可漏れ、機密情報露出、入力検証、動的コード実行、CORS / CSRF、TOCTOU。判定基準は「本番障害・データ漏洩を引き起こしうるか」
-- **Subagent 2 パフォーマンス**: N+1、不要な再計算、メモリリーク、非効率なデータ構造、race condition / await 漏れ、計算量。判定根拠は「実行頻度 × データ量 × 計算量」の最悪ケース。実行頻度が不明なら Warning 以下に留め計測を推奨する
-- **Subagent 3 保守性**: ロード済み rules (アーキ依存方向・SOLID・エラーハンドリング・命名・テスト品質) への違反、破壊的変更、スコープ逸脱。加えて方針検証発動跡 (後述) を確認する
-
-### Step 5: synthesis
-
-3 subagent の findings を 1 リストに統合する。
-
-1. 同一 file:line の指摘を集約し、観点タグを併記する
-2. 重複指摘の重要度は最高位を採用する (Critical > Warning > Suggestion)
-3. Critical → Warning → Suggestion の順、各内は file:line 昇順でソートする
-4. 全件が単一観点に偏る場合は当該 subagent の出力品質を疑う
-
-### Step 6: 自己検証
-
-出力前に確認する: 推測指摘がないか / 修正案の構文が正しいか / 既存テストを壊さないか / 存在しない API を使っていないか (`hallucination-prevention`) / 重要度が基準表に準拠か / スコープが目的に対し過不足ないか。
-
-### Step 7: 出力
-
-下記「出力形式」で、マージ判定とともに統合済みリストを報告する。
-
-## 方針検証発動跡の確認 (保守性 subagent)
-
-差分が `~/.codex/AGENTS.md` の「着手前の方針検証」発動条件 (100 行以上の変更 / 外部依存の増減 / DB スキーマ・公開 API 変更 / 根本原因への修正 / UI 機能 5 個以上 等) に該当する場合、premise-questioning / feature-pruning の発動跡を確認する。
-
-発動跡と認める記述 (いずれか 1 つ以上): PR 本文・コミットメッセージ・`.codex/progress.md` の判断ログ・差分内コメントに、検証結果 (✅ 採用 / skipped 等) が読み取れること。跡がない、または結論ラベルが読めない場合は Critical として指摘する。
-
-## 重要度基準
-
-- **Critical** — マージ不可。本番障害・データ損失・脆弱性を引き起こす/うる。セキュリティ脆弱性、データ破壊、未捕捉の致命的例外、競合状態、アーキテクチャ依存違反、破壊的 API 変更、規約の明示的禁止事項違反、方針検証スキップ
-- **Warning** — マージ前に対処推奨。設計原則違反、エラー握り潰し、パフォーマンス懸念、テスト不足、命名・可読性、スコープ逸脱、非推奨 API
-- **Suggestion** — 任意。許容範囲内のアルゴリズム改善、命名の微改善、テスト可読性
-
-迷ったら上位の重要度を適用する。
-
-## マージ判定
-
-| 判定 | 条件 |
-| --- | --- |
-| BLOCK | Critical 1 件以上 |
-| WARN | Critical 0 件 かつ Warning 3 件以上 |
-| PASS | Critical 0 件 かつ Warning 2 件以下 |
-
-## 出力形式
-
-判定ヘッダー `## 判定: [BLOCK|WARN|PASS]` を先頭に置く。続けてサマリー表 (重要度 × 件数 × 観点内訳: セキュリティ / パフォーマンス / 保守性) を出し、各指摘を優先度順に列挙する。
-
-```text
 ### [重要度] [観点タグ] カテゴリ
 N. file:line — 要約
-❌ 現状: <コード>
-✅ 修正案: <コード>
-理由: <1 文>
+❌ 現状: <該当コード>
+✅ 修正案: <修正コード>
+理由: <根拠>
 ```
 
-## 禁止事項
+## Prohibitions
 
-| 禁止 | 理由 |
-| --- | --- |
-| 修正コードなしの指摘 | actionable でない |
-| 推測に基づく指摘 | 誤検知 |
-| 「良い点」セクション | 問題発見に集中する |
-| スタイルのみの指摘 | linter / formatter に委任 |
-| 担当外観点への侵食 | 統合時の重複コストが増える |
-| 3 並列 subagent の逐次起動 | 並列性が失われる |
-| 指摘ゼロでの打ち切り | 担当観点を最後まで走査する |
-
-## レビュー後
-
-指摘カテゴリに対応するスキルを読んで対応する: パフォーマンス → `performance-optimization` / `optimize`、設計・保守性 → `refactoring`、方針検証スキップ → `premise-questioning` / `feature-pruning`、テスト不足 → `tdd` / `test-coverage-guard`。ユーザーの許可を得てから Critical → Warning → Suggestion の順で修正する。
+- 修正案なしの指摘を出さない。
+- 推測指摘を出さない。
+- 良い点セクションを作らない。
+- style-only 指摘は linter / formatter に委譲する。

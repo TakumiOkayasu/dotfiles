@@ -1,9 +1,20 @@
 ---
+codex_port_source: claude/skills/failure-logging/SKILL.md
 name: failure-logging
 description: アプローチ失敗時・同じ問題で繰り返しつまずいた時に使用。失敗の履歴を構築し同じ失敗を繰り返さない。コマンドの実行エラーは failure-log フックが自動記録するため、本スキルは判断を要する記録・分析・参照を担当する。
 ---
 
 # Failure Logging
+
+<!-- codex-port: managed; source=claude/skills/failure-logging/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/skills/failure-logging/SKILL.md`.
+- Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
+- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 同じ失敗を繰り返さないための履歴管理。
 
@@ -14,7 +25,7 @@ description: アプローチ失敗時・同じ問題で繰り返しつまずい�
 - 試したアプローチがうまくいかなかった時 (コマンドエラーに限らない設計・方針レベルの失敗)
 - 同じ問題で 2 回以上つまずいた時
 - 新しいアプローチを試みる直前
-- `/compact` 後の再開時
+- `/prompt:compact` 後の再開時
 
 ## 失敗の記録 (判断を要する分)
 

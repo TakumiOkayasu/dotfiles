@@ -1,5 +1,15 @@
 # Architecture Invariants
 
+<!-- codex-port: managed; source=claude/rules/hierarchical-architecture.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/rules/hierarchical-architecture.md`.
+- Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
+- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
+
 アーキテクチャ上、常に守る不変条件。設計の手順・判断は `architecture-design` スキルを参照する。
 
 ## 依存方向
@@ -35,3 +45,8 @@
 ## 入力の境界
 
 アプリケーションコードは `Intent` (意図レベルのデータ) のみに依存し、`Raw Input` (引数・パス文字列等の生データ) を直接扱わない。
+
+
+## Codex rule loading
+
+This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `~/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.

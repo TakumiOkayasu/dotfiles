@@ -1,9 +1,20 @@
 ---
+codex_port_source: claude/skills/architecture-design/SKILL.md
 name: architecture-design
 description: クラス・モジュールのアーキテクチャ設計時に使用。レイヤー構造の決定、コンポーネントの配置、責務分割、合成と継承の判断、依存関係の整理をカバー。新規コンポーネント追加や既存設計のリファクタリング時に発動。常に守る不変条件は hierarchical-architecture ルール、疑似コードからのインターフェース起こしは interface-first-design スキルを参照。
 ---
 
 # Architecture Design
+
+<!-- codex-port: managed; source=claude/skills/architecture-design/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/skills/architecture-design/SKILL.md`.
+- Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
+- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 コンポーネントをどのレイヤーに置き、どう責務分割し、合成で組み立てるかの設計手順。常に守る不変条件 (依存方向・継承深度・命名等) は `hierarchical-architecture` ルールにあり、本スキルはその不変条件を満たす設計の進め方を扱う。
 
@@ -56,3 +67,59 @@ description: クラス・モジュールのアーキテクチャ設計時に使�
 ## リソースのライフサイクル
 
 生成と利用を分離する。確保と解放はワンセットにし、管理層が自律的に確保・解放する。
+
+## ユーザー実例
+
+### Context パターン (階層化)
+
+責務スコープを段階的に絞る Context の階層構造。pre-omusubi (C++17 組み込み) と ISLe で実証済み。
+
+```
+SystemContext       # システム全体のライフサイクル管理
+  └─ CategoryContext   # 機能カテゴリ単位 (通信 / 描画 / 入力 等)
+       └─ DeviceContext    # 個別デバイス・リソース単位
+```
+
+親 Context が子の生成・破棄・ライフサイクルを所有する。子は親の API を知らない (依存は上位→下位のみ)。新しいカテゴリやデバイスを追加するときは対応する Context を 1 つ作り、親に登録するだけで済む。
+
+### *able 単一責任インターフェース
+
+能力ごとに最小単位のインターフェースを切り、命名は `動詞 + able` にする。インターフェース分離原則 (ISP) の徹底適用。
+
+| インターフェース | メソッド | 責務 |
+| --- | --- | --- |
+| `Readable` | `read()` | 読み取り |
+| `Writable` | `write()` | 書き込み |
+| `Drawable` | `draw()` | 描画 |
+| `Resettable` | `reset()` | リセット |
+
+複数能力が必要なクラスは複数の `*able` を実装する (Mixin 的合成、継承ではない)。インターフェース 1 つ = メソッド 1 つを原則とし、メソッドが増えそうなら別インターフェースに分割する。
+
+## 複数設計案の並列出し (明示要求時のみ)
+
+dispatch 形式・並列起動の作法は `~/.codex/SUBAGENTS.md` を参照。
+
+### 起動条件
+
+以下のいずれかに該当する場合、**3 並列 subagent で異なる設計案を出させて比較する**:
+
+- ユーザーから「複数案を出して」「設計の選択肢を比較したい」と明示要求された
+- レイヤー構造に複数の妥当な切り方があり、選択基準が定まらない
+- 既存コードが歴史的経緯で破綻しており、再設計の方向性が定まらない
+
+### dispatch 内容
+
+各 subagent に対象機能の要件 + `hierarchical-architecture` 不変条件を渡し、**互いに異なるレイヤー切り分け案**を 1 つ出させる (例: 案 A = 管理層厚め / 案 B = 提供層分割 / 案 C = Platform 層に逃がす)。subagent 種別は `general-purpose` (`Plan` は単一計画立案用途のため、3 並列で互いに異なる案を出す本節と不整合)。
+
+### 評価軸 (親が事後集約)
+
+| 軸 | 確認内容 |
+| --- | --- |
+| 単一責任の充足度 | 各クラス・モジュールが 1 責務に収まっているか |
+| 依存方向の単純さ | 上位→下位の純度、横参照・段階飛ばしの有無 |
+| 機能追加時の影響範囲 | 新クラス追加で済むか / 既存変更が必要か |
+| インターフェース数 | 薄さ (必要最小限のメソッドのみか) |
+
+### 起動しないケース
+
+既存パターン (DI + 単一 Manager + 複数 Provider 等) でほぼ自明な設計 / 1 クラス追加レベルの局所変更 / `premise-questioning` が必要な「方針自体の妥当性」検証段階。本 skill は方針確定後の**設計形状の比較**専用。

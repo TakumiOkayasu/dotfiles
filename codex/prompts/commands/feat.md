@@ -1,94 +1,43 @@
-# 機能実装ガイド
+---
+name: feat
+summary: 新機能を risk-based TDD で実装する
+profile: safe-write
+skills:
+  - implementation-router
+  - premise-questioning
+  - feature-pruning
+  - interface-first-design
+  - tdd
+  - test-coverage-guard
+---
 
-新機能を実装する(TDD + 要件整理)
+# feat
 
-## 引数
+$ARGUMENTS
 
-$ARGUMENTS に実装する機能の説明が渡されます。
+## Purpose
 
-## 入出力
+新機能を実装する。詳細手順をこの prompt に閉じ込めず、risk 判定で必要な skill を選ぶ。
 
-| 項目 | 内容 |
-|------|------|
-| 入力 | `$ARGUMENTS`: 実装する機能の説明（例: "ユーザー検索機能"） |
-| 出力 | 実装済みコード・テスト・実装サマリーレポート |
+## Required routing
 
-## 実行手順
+1. まず `implementation-router` skill の risk gate を適用する。
+2. high-risk の場合は実装前に計画と承認を得る。
+3. 新規 class / module / interface を伴う場合は `interface-first-design` を使う。
+4. 仕様が確定している実装は `tdd` を使う。
+5. UI / API / DB column など機能粒度の過剰設計が疑われる場合は `feature-pruning` を使う。
+6. 100行超、外部依存、DB schema、公開 API、認証認可、課金、secrets に触れる場合は `premise-questioning` を使う。
 
-### Phase 0: スキル読み込み
+## Constraints
 
-- **方針検証スキル (戦略 → 戦術の順)**:
-  - `~/.agents/skills/premise-questioning/SKILL.md` ← 戦略 (方針自体)
-  - `~/.agents/skills/feature-pruning/SKILL.md` ← 戦術 (個別機能)
-- **実装スキル**:
-  - `~/.agents/skills/tdd/SKILL.md`
-  - `~/.agents/skills/systematic-debugging/SKILL.md`
-  - `~/.agents/skills/optimize/SKILL.md`
+- 未読ファイルを編集しない。
+- 既存テスト・命名・層構造を先に確認する。
+- 依存追加、DB schema、公開 API、破壊的変更は確認なしに進めない。
+- 仕様が曖昧な場合は `[要確認: ...]` を出す。推測で仕様を作らない。
+- low-risk で仕様が明確なら、過剰な承認待ちは避けて最小実装まで進める。
 
-### Phase 0.5: 方針検証 (Phase 1 前に必須)
+## Done when
 
-`~/.codex/AGENTS.md` 「着手前の方針検証 (2 段階)」と整合する。
-
-#### 1. premise-questioning (戦略レベル)
-
-以下のいずれかに該当する場合は **premise-questioning skill のワークフロー全体を実行**し、✅ 採用判定が出るまで Phase 1 へ進まない:
-
-- 100 行以上の変更見込み
-- 外部依存 (ライブラリ / API / SDK) の追加・削除
-- DB スキーマ / 公開 API I/F 変更
-- 「設計レビューして」「方針確認して」と要求された
-
-該当しない場合は `premise-questioning: skipped (理由: ...)` を 1 行明示してスキップ。
-
-#### 2. feature-pruning (戦術レベル)
-
-premise-questioning で ✅ 採用後、または以下のいずれかに該当する場合は **feature-pruning skill のワークフローを実行**:
-
-- UI 機能リスト 5 個以上
-- API エンドポイント複数新設
-- DB テーブル 5 列以上新設
-- 既存画面 / API の削減レビュー
-
-該当しない場合は `feature-pruning: skipped (理由: ...)` を 1 行明示してスキップ。
-
-### Phase 1: 要件整理
-
-- 機能の目的・ゴールを明確化
-- 入出力の仕様を箇条書きで整理
-- 影響範囲の特定: 下記観点のうち該当項目を列挙する
-  - コード (変更ファイル・新規ファイル)
-  - 既存テスト (回帰対象)
-  - DB スキーマ (テーブル・カラム変更有無)
-  - 設定ファイル (環境変数・フレームワーク設定)
-  - 依存ライブラリ (追加/更新)
-  - API 契約 (エンドポイント・リクエスト/レスポンス)
-- 不明点があればユーザーに確認(**推測で実装しない**)
-
-### Phase 2: テスト設計 (RED)
-
-- **読み込んだスキルを活用**
-- 期待する振る舞いをテストで表現
-- 正常系 + 異常系 + 境界値を網羅
-- 境界値の観点: null / 空文字 / 0 / 負値 / 最大値 / 型違い / エンコード境界 のうち**対象機能に該当するものを最低 2 件**含める
-- テストが失敗することを確認 (実プロジェクトで RED 確認できない場合は想定 FAIL 理由を明示)
-- **テスト設計をユーザーに提示し、承認を得てから次へ**
-  - 承認の定義: ユーザーから明示的な OK（「承認」「このまま進めて」等の文言）が返るまで Phase 3 に進まない。**自己承認・暗黙の承認は禁止**
-  - 情報不足時は `## 承認要求` 節に **確認項目を箇条書きで列挙** して提示する (推測で埋めない)
-
-### Phase 3: 実装 (GREEN)
-
-- テストを通す最小限の実装
-- シンプルさを優先(過度な抽象化禁止)
-- 全テストが通ることを確認
-
-### Phase 4: リファクタリング (REFACTOR)
-
-- テストが通ったまま改善
-- 重複排除、命名改善、構造整理
-- hierarchical-architecture ルールに準拠しているか確認
-
-### Phase 5: 報告
-
-- 実装サマリー(変更内容・変更ファイル)
-- テスト結果
-- 次のステップ提案(あれば)
+- 変更ファイルが目的に対して最小。
+- テスト / lint / typecheck / build のうちプロジェクトで定義された検証を実行、または未実行理由を明示。
+- 完了報告に変更・検証・未検証・注意を含める。

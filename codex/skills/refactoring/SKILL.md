@@ -1,9 +1,20 @@
 ---
+codex_port_source: claude/skills/refactoring/SKILL.md
 name: refactoring
 description: 振る舞いを変えずにコード構造を改善する際に使用。
 ---
 
 # Refactoring
+
+<!-- codex-port: managed; source=claude/skills/refactoring/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/skills/refactoring/SKILL.md`.
+- Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
+- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## トリガー条件
 

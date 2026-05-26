@@ -1,9 +1,20 @@
 ---
+codex_port_source: claude/skills/empirical-prompt-tuning/SKILL.md
 name: empirical-prompt-tuning
 description: agent 向けテキスト指示（skill / slash command / task プロンプト / AGENTS.md 節 / コード生成プロンプト）を、バイアスを排した実行者に動かしてもらい、両面（実行者の自己申告 + 指示側メトリクス）で評価して反復改善する手法。改善が頭打ちになるまで回す。プロンプトや skill を新規作成・大幅改訂した直後、またはエージェントの挙動が期待通りにならない原因を指示側の曖昧さに求めたいときに使う。
 ---
 
 # Empirical Prompt Tuning
+
+<!-- codex-port: managed; source=claude/skills/empirical-prompt-tuning/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/skills/empirical-prompt-tuning/SKILL.md`.
+- Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
+- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 プロンプトの品質は書いた本人には分からない。書き手が「明瞭だ」と思うものほど、別エージェントが読むと詰まる。**バイアスを排した実行者に実際に動かしてもらい、両面で評価して反復する** のが本 skill の核。改善が頭打ちになるまで止めない。
 
@@ -29,15 +40,15 @@ description: agent 向けテキスト指示（skill / slash command / task プ�
 1. **ベースライン準備**: 対象プロンプトを確定し、次の 2 つを用意する。
    - **評価シナリオ** 2 〜 3 種（中央値 1 + edge 1 〜 2）。現実に起こりうるタスクで、対象プロンプトを実際に適用する場面を想定する。加えて **hold-out シナリオ 1 本を別立て** で用意する（収束判定時の過適合チェック用、詳細は「反復の打ち切り基準」節）。
    - **要件チェックリスト**（精度算出のため）。シナリオごとに「成果物が満たすべき要件」を 3 〜 7 項目で列挙する。精度 % = 満たした項目数 / 全項目数。事前に固定すること（後から動かさない）。
-2. **バイアス排除読み**: 指示を「白紙」の実行者に読ませる。spawn_agent で **新規 subagent を dispatch** する。自己再読で済ませない（直前に書いた文章を客観視することは構造的に不可能）。並列で複数シナリオを同時実行する場合は単一メッセージ内で複数 Agent 呼び出しを並べる。dispatch 不能環境の扱いは「環境制約」節を参照。
+2. **バイアス排除読み**: 指示を「白紙」の実行者に読ませる。Task tool で **新規 subagent を dispatch** する。自己再読で済ませない（直前に書いた文章を客観視することは構造的に不可能）。並列で複数シナリオを同時実行する場合は単一メッセージ内で複数 Agent 呼び出しを並べる。dispatch 不能環境の扱いは「環境制約」節を参照。
 3. **実行**: 後述の **subagent 起動契約** に従ったプロンプトを subagent に渡し、シナリオを実行させる。実行者は実装や出力を生成し、最後に自己申告レポートを返す。
 4. **両面評価**: 戻ってきた結果から次を記録する。
    - **実行者の自己申告**（subagent のレポート本文から抽出）: 不明瞭点 / 裁量補完 / テンプレ適用で詰まった箇所
    - **指示側の計測**（判定規則は本節で一元定義、他箇所は本節を参照する）:
      - 成功/失敗: `[critical]` タグの付いた要件が **全て ○** のときのみ成功（○）。うち 1 つでも × または部分的なら失敗（×）。ラベルは ○ / × の 2 値のみ。
      - 精度（要件チェックリストの達成率 %。○ = 満点、× = 0、部分的 = 0.5 で合算、全項目数で割る）
-     - ステップ数（spawn_agent の戻り値に付く usage メタの `tool_uses` をそのまま使う。Read / Grep も含める、除外しない）
-     - 所要時間（spawn_agent の usage メタの `duration_ms`）
+     - ステップ数（Task tool の戻り値に付く usage メタの `tool_uses` をそのまま使う。Read / Grep も含める、除外しない）
+     - 所要時間（Task tool の usage メタの `duration_ms`）
      - 再試行回数（subagent が同じ判断をやり直した回数。subagent の自己申告レポートから抽出、指示側では測れない）
      - **失敗時は「どの [critical] 項目が落ちたか」を提示フォーマットの "不明瞭点" 節に 1 行添える**（原因追跡のため）
    - 要件チェックリストには `[critical]` タグ付き項目を **最低 1 つ** 含めること（0 件だと成功判定が vacuous になる）。事後に [critical] の付け外しをしない。
@@ -82,6 +93,8 @@ description: agent 向けテキスト指示（skill / slash command / task プ�
 
 ## subagent 起動契約
 
+共通 mechanics (並列起動の作法 / 集約 / nested 禁止 / 環境制約 / 再 dispatch 条件) は `~/.codex/SUBAGENTS.md` を参照。本節では本 skill 固有契約 (実行者プロンプト構造・両面評価入力) のみ書く。
+
 実行者に渡すプロンプトは次の構造を取る。これが「両面評価」の入力契約。
 
 ```
@@ -112,19 +125,18 @@ description: agent 向けテキスト指示（skill / slash command / task プ�
 - 再試行: 同じ判断をやり直した回数とその理由
 ```
 
-呼び出し側はレポートから自己申告部分を抽出し、`tool_uses` / `duration_ms` を dispatch tool の usage メタから取得できる場合は評価軸表に記録する。取得できない場合は `usage metadata unavailable` と明記する。
+呼び出し側はレポートから自己申告部分を抽出し、`tool_uses` / `duration_ms` を Agent tool の usage メタから取得して評価軸表を埋める。
 
 **構造審査モード時の差し替え**: 上記テンプレの「タスク」を「対象プロンプトを読んで記述矛盾・曖昧を列挙」に、「レポート構造」の「成果物」を「審査レポート本体」に読み替える。退化する評価軸の詳細は「環境制約」節の構造審査モード記述を参照。
 
 ## 環境制約
 
-新規 subagent を dispatch できない環境（既に subagent として動作している、spawn_agent が無効化されている等）では、通常の empirical 評価は **適用しない**。
-- 代替案 1: 構造審査モードに切り替え、親セッション内で矛盾・曖昧さだけを列挙する
-- 代替案 2: 親セッションのユーザーに別 Codex セッションを起動して依頼してもらう
-- 代替案 3: 評価を諦め、ユーザーに「empirical evaluation skipped: dispatch unavailable」と明示報告する
-- **NG**: 自己再読を empirical 評価として扱う（バイアスが入るので評価結果を信じてはいけない）
+新規 subagent を dispatch できない環境（既に subagent として動作している、Task tool が無効化されている等）では、本 skill は **適用しない**。
+- 代替案 1: 親セッションのユーザーに別 Codex セッションを起動して依頼してもらう
+- 代替案 2: 評価を諦め、ユーザーに「empirical evaluation skipped: dispatch unavailable」と明示報告する
+- **NG**: 自己再読で代替する（バイアスが入るので評価結果を信じてはいけない）
 
-**構造審査モード**: empirical 評価ではなく、skill / プロンプトの **記述の整合性・明瞭性だけ** をチェックしたい場合は、構造審査モードとして明示的に切り分ける。subagent が使える場合は依頼プロンプトに「今回は構造審査モード: 実行ではなくテキスト整合性チェック」と明記する。subagent が使えない場合は親セッション内で同じ観点を分けてレビューし、冒頭に `subagent fallback: structure review only` と書く。構造審査は empirical の代替ではなく補助（連続クリア判定には使えない）。
+**構造審査モード**: empirical 評価ではなく、skill / プロンプトの **記述の整合性・明瞭性だけ** をチェックしたい場合は、構造審査モードとして明示的に切り分ける。subagent への依頼プロンプトに「今回は構造審査モード: 実行ではなくテキスト整合性チェック」と明記する。これにより subagent は環境制約節の skip 動作に引っかからず、静的レビューを返せる。構造審査は empirical の代替ではなく補助（連続クリア判定には使えない）。
 
 構造審査モードでは `tool_uses` / `duration_ms` / 精度 % は dispatch 成果物がないため取得不能。「評価軸」表と「提示フォーマット」節のテーブル形式はスキップし、代わりに **矛盾・曖昧のテーマ一覧** を行番号付き箇条書きで返す。iter 0 (description/body 整合チェック) との違い: iter 0 は empirical 本流 iter の前段で dispatch 前に行う静的チェックでその後の iter と連続する (結果は後続 iter に反映)、構造審査モードは empirical 全体をスキップして静的レビューのみを目的とする (後続 iter なし)。
 

@@ -1,9 +1,20 @@
 ---
+codex_port_source: claude/skills/consultation/SKILL.md
 name: consultation
 description: 実装中に判断が必要になった時、技術選定・設計相談が必要な時に使用。相談テンプレートで構造化された問題提示を強制。
 ---
 
 # Consultation
+
+<!-- codex-port: managed; source=claude/skills/consultation/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/skills/consultation/SKILL.md`.
+- Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
+- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## トリガー条件
 
@@ -97,7 +108,7 @@ description: 実装中に判断が必要になった時、技術選定・設計�
 
 ## 役割分担
 
-| Codex (ここ) | スマホ・PCクライアント |
+| CodexCode (ここ) | スマホ・PCクライアント |
 |-------------------|----------------------|
 | コーディング・ファイル操作 | 問題の整理・分析 |
 | テスト実行・デバッグ | 解決方針・アーキテクチャ設計 |
