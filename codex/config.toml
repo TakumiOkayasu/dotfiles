@@ -1,0 +1,37 @@
+model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
+
+[projects."/home/okayasu/prog/mms.local"]
+trust_level = "trusted"
+
+[projects."/home/okayasu/prog/dotfile-work"]
+trust_level = "trusted"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+
+[hooks.state]
+
+[hooks.state."/home/okayasu/.codex/hooks.json:post_tool_use:0:0"]
+trusted_hash = "sha256:4478b87bb9e84a35d0288b542ffa505dd6717d9f1470814cb1d74bfb4afbfced"
+
+[hooks.state."/home/okayasu/.codex/hooks.json:pre_compact:0:0"]
+trusted_hash = "sha256:afcf998ffa61741976c93d1c09831cd69d6ca39267211478b66a8eb51362872e"
+
+[hooks.state."/home/okayasu/.codex/hooks.json:pre_tool_use:0:0"]
+enabled = true
+trusted_hash = "sha256:e865201dfc430017473abc69a1b57b3fb637bb1f2dfe5d4f1fdbbffeaf5031a9"
+
+[hooks.state."/home/okayasu/.codex/hooks.json:session_start:0:0"]
+enabled = true
+trusted_hash = "sha256:aed27c2ca63acfacd99bece5e58dcb3fe51dfb15acffd6e4398f49bb0194fc3c"
+
+[hooks.state."/home/okayasu/.codex/hooks.json:user_prompt_submit:0:0"]
+trusted_hash = "sha256:33b22da3ad1094fccd39f19c8b429c34cec149ebd68150438e2c88d3767176f0"
+
+[features]
+terminal_resize_reflow = true
+memories = true
+goals = true
+prevent_idle_sleep = true
+external_migration = true
