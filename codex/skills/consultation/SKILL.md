@@ -13,7 +13,7 @@ description: 実装中に判断が必要になった時、技術選定・設計�
 - This file was ported from `claude/skills/consultation/SKILL.md`.
 - Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
 - Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Claude slash-command references should be invoked through `prompt:<name>` or `codex/prompts/commands/<name>.md`.
 - Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## トリガー条件

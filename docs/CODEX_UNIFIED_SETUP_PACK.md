@@ -21,6 +21,6 @@
 ## smoke test
 
 ```sh
-echo '{"prompt":"/prompt:list","cwd":"'"$(pwd)"'"}' | codex/hooks/prompt-command-expand.sh
+echo '{"prompt":"prompt:list","cwd":"'"$(pwd)"'"}' | codex/hooks/prompt-command-expand.sh
 echo '{"hook_event_name":"UserPromptSubmit","prompt":"test","cwd":"'"$(pwd)"'"}' | codex/hooks/rules-inject.sh
 ```

@@ -10,7 +10,7 @@ Codex 性能を最大化するには、prompt command は薄い router、skill �
 
 | Skill | 目的 |
 | --- | --- |
-| `prompt-command-router` | `/prompt:*` 入力を prompt file に解決する |
+| `prompt-command-router` | `prompt:*` 入力を prompt file に解決する |
 | `implementation-router` | feat/fix/test/refactor の risk gate と skill chain 選定 |
 | `deep-review` | security / performance / maintainability の統合レビュー |
 | `consultation` | 2-3案比較と Codex 引き継ぎ作成 |
@@ -121,7 +121,7 @@ Codex 性能を最大化するには、prompt command は薄い router、skill �
 
 | 優先 | 作業 |
 | --- | --- |
-| P0 | `/prompt:*` hook + `prompt-command-router` を導入 |
+| P0 | `prompt:*` hook + `prompt-command-router` を導入 |
 | P0 | `feat.md` / `fix.md` / `deep-review.md` を薄い router に置換 |
 | P1 | `implementation-router` を導入し risk gate を一元化 |
 | P1 | `deep-review` を prompt から skill に分離 |

@@ -13,7 +13,7 @@ description: アプローチ失敗時・同じ問題で繰り返しつまずい�
 - This file was ported from `claude/skills/failure-logging/SKILL.md`.
 - Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
 - Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Claude slash-command references should be invoked through `prompt:<name>` or `codex/prompts/commands/<name>.md`.
 - Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 同じ失敗を繰り返さないための履歴管理。
@@ -25,7 +25,7 @@ description: アプローチ失敗時・同じ問題で繰り返しつまずい�
 - 試したアプローチがうまくいかなかった時 (コマンドエラーに限らない設計・方針レベルの失敗)
 - 同じ問題で 2 回以上つまずいた時
 - 新しいアプローチを試みる直前
-- `/prompt:compact` 後の再開時
+- `prompt:compact` 後の再開時
 
 ## 失敗の記録 (判断を要する分)
 

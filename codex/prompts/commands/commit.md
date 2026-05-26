@@ -10,4 +10,4 @@ skills:
 
 $ARGUMENTS
 
-`/prompt:commit-msg` と同じ扱いにする。ステージ済み差分から commit message 案だけを作る。`git commit` は実行しない。
+`prompt:commit-msg` と同じ扱いにする。ステージ済み差分から commit message 案だけを作る。`git commit` は実行しない。

@@ -14,7 +14,7 @@ Codex が rules を「存在するだけ」で守るとは仮定しない。作�
 以下のいずれかに該当する場合は必須:
 
 - 実装 / 修正 / リファクタ / テスト追加 / レビュー / 設計
-- `/prompt:*` command を使う作業
+- `prompt:*` command を使う作業
 - `Bash`, `Edit`, `Write`, `MultiEdit`, `apply_patch` を使う可能性がある作業
 - rules や AGENTS.md の変更
 

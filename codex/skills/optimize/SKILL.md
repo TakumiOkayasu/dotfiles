@@ -13,7 +13,7 @@ description: 実行時パフォーマンス最適化の思考プロトコル。�
 - This file was ported from `claude/skills/optimize/SKILL.md`.
 - Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
 - Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Claude slash-command references should be invoked through `prompt:<name>` or `codex/prompts/commands/<name>.md`.
 - Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 実行時パフォーマンスを「測定なき推測」で改善しないための思考の指針。相手が設定した「速くしたい場所」をそのまま受け入れず、ボトルネックを再特定し、層を横断して選択肢を棚卸しし、計測根拠と漸近性で評価し、最も軽くて効く案を推奨する。

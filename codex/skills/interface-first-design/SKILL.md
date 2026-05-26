@@ -13,7 +13,7 @@ description: 機能追加・クラス設計・interface設計・依存関係整�
 - This file was ported from `claude/skills/interface-first-design/SKILL.md`.
 - Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
 - Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Claude slash-command references should be invoked through `prompt:<name>` or `codex/prompts/commands/<name>.md`.
 - Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 **理想の処理フローを疑似コードで先に描け。そこからinterfaceが生まれる。実装は最後。**

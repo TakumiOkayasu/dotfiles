@@ -13,7 +13,7 @@ description: agent 向けテキスト指示（skill / slash command / task プ�
 - This file was ported from `claude/skills/empirical-prompt-tuning/SKILL.md`.
 - Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
 - Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Claude slash-command references should be invoked through `prompt:<name>` or `codex/prompts/commands/<name>.md`.
 - Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 プロンプトの品質は書いた本人には分からない。書き手が「明瞭だ」と思うものほど、別エージェントが読むと詰まる。**バイアスを排した実行者に実際に動かしてもらい、両面で評価して反復する** のが本 skill の核。改善が頭打ちになるまで止めない。
