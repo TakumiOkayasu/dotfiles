@@ -1,9 +1,20 @@
 ---
+codex_port_source: claude/skills/feature-pruning/SKILL.md
 name: feature-pruning
 description: 個別機能 / UI 要素 / API エンドポイント / データ列の要否を機能名レベルで検証する skill。「このページネーション要らない」「この保存ボタン要らない」「この確認ダイアログ要らない」「この検索ボックスはブラウザ Cmd+F で済む」級の具体指摘を出す。3 手法 (YAGNI Probe / Convention Audit / Existing Substitute) を独立 subagent に投げて 3 ラウンド以上検証し、機能ごとに採点して過剰機能 / 代替可能機能リストを出す。premise-questioning が方針自体の妥当性を扱うのに対し、本 skill は **方針が採用された後の機能粒度の棚卸し専用**。empirical-prompt-tuning のバイアス排除手法を踏襲。
 ---
 
 # Feature Pruning (機能粒度の棚卸し - 戦術レベル)
+
+<!-- codex-port: managed; source=claude/skills/feature-pruning/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/skills/feature-pruning/SKILL.md`.
+- Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
+- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 設計が固まり、実装する機能リストが揃った段階で、**個別機能の 1 つ 1 つを名指しで「これ本当に要る?」と問い直す**のが本 skill の核。「ページネーション (件数 30 件で 1 ページに収まる)」「確認ダイアログ (取り消し可能操作で警告不要)」「印刷ボタン (ブラウザ標準で代替可能)」レベルの具体指摘を、バイアスを排した実行者から取り出す。最低 3 ラウンド、機能名で語ることを強制する。
 
@@ -42,7 +53,7 @@ description: 個別機能 / UI 要素 / API エンドポイント / データ列
    - Round 1: **YAGNI Probe** (機能要否プローブ) - 各機能の使用確率を時系列で見積もり、低確率機能を炙り出す
    - Round 2: **Convention Audit** (慣習監査) - 慣習で入れているだけの機能を炙り出す
    - Round 3: **Existing Substitute** (既存代替検証) - 標準機能 / 既存ツールで代替可能な機能を炙り出す
-   - **毎回新規 subagent を spawn_agent で dispatch** する (前回の出力を学習させない)。並列実行して構わない
+   - **毎回新規 subagent を Task tool で dispatch** する (前回の出力を学習させない)。並列実行して構わない
    - dispatch 不能環境の扱いは「環境制約」節
 2. **機能ごとの 3 軸スコアリング** (各軸 0-5、判定文言は「スコア軸」節で一元定義)
 
@@ -113,6 +124,8 @@ description: 個別機能 / UI 要素 / API エンドポイント / データ列
 - **競合手法再投入** - YAGNI Probe / Convention Audit / Existing Substitute から、初回と異なる切り口で再 dispatch (例: 初回は使用確率ベース、2 回目はデータ量ベース)
 
 ## subagent 起動契約
+
+共通 mechanics (並列起動の作法 / 集約 / nested 禁止 / 環境制約 / 再 dispatch 条件) は `~/.codex/SUBAGENTS.md` を参照。本節では本 skill 固有契約 (手法名・採点軸・プロンプト構造) のみ書く。
 
 各 Round で渡すプロンプトの構造。empirical-prompt-tuning と同形式で揃える。
 
@@ -247,12 +260,11 @@ description: 個別機能 / UI 要素 / API エンドポイント / データ列
 
 ## 環境制約
 
-新規 subagent を dispatch できない環境では通常モードは **適用しない**。
+新規 subagent を dispatch できない環境では本 skill は **適用しない**。
 
-- 代替案 1: 簡易モードに切り替え、親セッション内で YAGNI Probe のみ実施し `subagent fallback: simplified feature-pruning` と明記する
-- 代替案 2: 親セッションのユーザーに別 Codex セッションでの確認を依頼
-- 代替案 3: スキップを明示報告 (「feature-pruning skipped: dispatch unavailable」)
-- **NG**: 親セッションの自己評価を通常モードの 3 ラウンド結果として扱う
+- 代替案 1: 親セッションのユーザーに別 Codex セッションでの確認を依頼
+- 代替案 2: スキップを明示報告 (「feature-pruning skipped: dispatch unavailable」)
+- **NG**: 自分で 3 手法を順に当てて自己評価する (バイアス排除の構造が崩れる)
 
 **簡易モード**: 機能数が少ない (5 個未満) / 重要度が低いとき、**1 ラウンド (YAGNI Probe のみ) + 自己採点** に縮退。ただし「3 ラウンドで採点した」とは言わない (混同回避)。
 

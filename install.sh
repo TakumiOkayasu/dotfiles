@@ -915,7 +915,7 @@ codex_dest_for_relative() {
         SUBAGENTS.md|hooks.json)
             printf '%s/.codex/%s\n' "$HOME" "$_cdf_relative"
             ;;
-        bin/*.sh|hooks/*.sh|prompts/commands/*.md|rules/*.md)
+        bin/*|hooks/*.sh|prompts/*.md|prompts/commands/*.md|prompts/fragments/*.md|prompts/templates/*.md|prompts/evals/*.md|rules/*.md)
             printf '%s/.codex/%s\n' "$HOME" "$_cdf_relative"
             ;;
         skills/*/SKILL.md)

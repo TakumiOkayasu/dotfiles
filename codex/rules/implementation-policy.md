@@ -1,5 +1,15 @@
 # Implementation Policy
 
+<!-- codex-port: managed; source=claude/rules/implementation-policy.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/rules/implementation-policy.md`.
+- Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
+- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
+
 車輪の再発明をしない。技術選定・ライブラリ利用・データアクセスの方針。
 
 ## 基本
@@ -7,7 +17,7 @@
 - 標準ライブラリ / 定評 OSS / 採用済みフレームワークで解決できるなら自前実装しない
 - 自前実装するなら「なぜ既存で不可か」を明示して承認を得る
 - 汎用ユーティリティ (配列・オブジェクト操作, 日時, UUID, 乱数, エンコード, 正規表現) は再発明しない
-- 実行時計算量は最悪でも線形 / 線形対数で終わらせる
+- 実行時計算量は**最悪でも** `線形 / 線形対数`で終わらせる
 
 ## 依存管理
 
@@ -36,3 +46,8 @@
 - 複雑な集計 (CTE / window 関数): ORM で表現困難なことを示す
 - DB 固有機能: 移植性を捨てる判断を明示する
 - 読み取り専用レポート: ビュー定義または生 SQL、レビュー必須
+
+
+## Codex rule loading
+
+This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `~/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.

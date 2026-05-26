@@ -1,9 +1,20 @@
 ---
+codex_port_source: claude/skills/premise-questioning/SKILL.md
 name: premise-questioning
 description: 設計判断・新規実装・バグ修正に着手する直前に、その方針そのものを「そもそも論」で問い直す skill。「本当に解くべき問題か」「その実装は本当に要るか」「隠れた前提が崩れたら何が起きるか」を、毎回違う手法 (第一原理 / Inversion / 5 Whys) を独立 subagent に投げて 3 ラウンド以上検証し、3 軸スコアで採用可否を判定する。**戦略レベルの方針妥当性専用**。個別機能 / UI 要素 / API の要否検証は feature-pruning skill を使う。empirical-prompt-tuning のバイアス排除手法を踏襲。
 ---
 
 # Premise Questioning (そもそも論 - 戦略レベル)
+
+<!-- codex-port: managed; source=claude/skills/premise-questioning/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/skills/premise-questioning/SKILL.md`.
+- Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
+- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 着手直前の方針は、書いた本人には筋が良く見える。だが「そもそも解くべき問題か」「そもそもその実装は要るか」を一段引いて問い直すと、実装後にひっくり返ることがしょっちゅうある。**バイアスを排した実行者に違う角度から問いを立ててもらい、3 軸でスコア化して比較する**のが本 skill の核。最低 3 ラウンド、結論が割れている間は止めない。
 
@@ -36,7 +47,7 @@ description: 設計判断・新規実装・バグ修正に着手する直前に�
    - Round 1: **第一原理** (First Principles) - 最小単位まで分解し、再構築すると同じ方針になるか検証
    - Round 2: **Inversion** (逆思考) - 「この方針で失敗するとしたら何が原因か」を先に列挙し、致命的なものが現状方針で防げるか検証
    - Round 3: **5 Whys** - 解こうとしている問題に対し「なぜそれを解くのか」を 5 回連鎖させ、根本目的に対し本方針が最短経路か検証
-   - **毎回新規 subagent を spawn_agent で dispatch** する (前回の出力を学習させない)。並列実行して構わない
+   - **毎回新規 subagent を Task / Agent tool で dispatch** する (前回の出力を学習させない)。並列実行して構わない
    - dispatch 不能環境の扱いは「環境制約」節
 2. **3 軸スコアリング** (各軸 0-5、判定文言は「スコア軸」節で一元定義)
 
@@ -111,6 +122,8 @@ description: 設計判断・新規実装・バグ修正に着手する直前に�
 - **問題再定義** - 「問題文を書き直すならどう書くか。現状の問題文は症状か、原因か、目的か」
 
 ## subagent 起動契約
+
+共通 mechanics (並列起動の作法 / 集約 / nested 禁止 / 環境制約 / 再 dispatch 条件) は `~/.codex/SUBAGENTS.md` を参照。本節では本 skill 固有契約 (手法名・採点軸・プロンプト構造) のみ書く。
 
 各 Round で渡すプロンプトの構造。empirical-prompt-tuning と同形式で揃える。
 
@@ -194,14 +207,13 @@ description: 設計判断・新規実装・バグ修正に着手する直前に�
 
 ## 環境制約
 
-新規 subagent を dispatch できない環境では通常モードは **適用しない**。**dispatch 主体は親セッション (ユーザー直結の Codex セッション) に限定**。subagent が更に subagent を呼ぶ nested dispatch は本 skill では要求しない (Codex 標準 harness で 1 段制限あり)。
+新規 subagent を dispatch できない環境では本 skill は **適用しない**。**dispatch 主体は親セッション (ユーザー直結の Codex セッション) に限定**。subagent が更に subagent を呼ぶ nested dispatch は本 skill では要求しない (Codex 標準 harness で 1 段制限あり)。
 
-判定方法: 親セッションの利用可能 tool に `spawn_agent` または新規 LLM コンテキストを起動する同等の dispatch tool が含まれるかを確認。`TaskCreate` / `TaskList` (session 内 todo 管理) や `RemoteTrigger` / `CronCreate` (非同期スケジュール) は dispatch tool ではないため適用不可判定の対象。
+判定方法: 親セッションの利用可能 tool に `Task` / `Agent` tool (新規 LLM コンテキストを起動する dispatch tool) が含まれるかを確認。`TaskCreate` / `TaskList` (session 内 todo 管理) や `RemoteTrigger` / `CronCreate` (非同期スケジュール) は dispatch tool ではないため適用不可判定の対象。
 
-- 代替案 1: 簡易モードに切り替え、親セッション内で 1 手法のみ実施し `subagent fallback: simplified premise-questioning` と明記する
-- 代替案 2: 親セッションのユーザーに別 Codex セッションでの確認を依頼
-- 代替案 3: スキップを明示報告 (「premise-questioning skipped: dispatch unavailable」)
-- **NG**: 親セッションの自己評価を通常モードの 3 ラウンド結果として扱う
+- 代替案 1: 親セッションのユーザーに別 Codex セッションでの確認を依頼
+- 代替案 2: スキップを明示報告 (「premise-questioning skipped: dispatch unavailable」)
+- **NG**: 自分で 3 手法を順に当てて自己評価する (バイアス排除の構造が崩れるので結果を信じてはいけない)
 
 **簡易モード**: 重要度が低い意思決定で軽く回したい場合は、**1 ラウンド (第一原理のみ) + 自己採点** に縮退。ただし「3 ラウンドで採点した」とは言わない (混同回避)。
 

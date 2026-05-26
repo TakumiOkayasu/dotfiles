@@ -49,6 +49,7 @@ run_hook() {
 
 case "$EVENT" in
     pre-tool-use)
+        run_hook rules-guard.sh
         run_hook env-file-protect.sh
         run_hook main-branch-code-warning.sh
         case "$TOOL_NAME" in
@@ -66,6 +67,9 @@ case "$EVENT" in
         run_hook context-monitor.sh
         ;;
     user-prompt-submit)
+        # `/prompt:<name>` を prompt file に展開する。最初に走らせる。
+        run_hook prompt-command-expand.sh
+        run_hook rules-inject.sh
         run_hook context-monitor.sh
         run_hook primary-source-check.sh
         run_hook methodology-skill-reminder.sh

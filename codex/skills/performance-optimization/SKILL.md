@@ -1,9 +1,20 @@
 ---
+codex_port_source: claude/skills/performance-optimization/SKILL.md
 name: performance-optimization
 description: パフォーマンス最適化やプロファイリング時に使用。計測手法、ボトルネック特定、負荷テスト、レポート出力をカバー。
 ---
 
 # Performance Optimization
+
+<!-- codex-port: managed; source=claude/skills/performance-optimization/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/skills/performance-optimization/SKILL.md`.
+- Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
+- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## トリガー条件
 

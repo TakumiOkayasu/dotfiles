@@ -1,9 +1,20 @@
 ---
+codex_port_source: claude/skills/tdd/SKILL.md
 name: tdd
 description: 機能実装やバグ修正でテストを書く・変更する作業に使用。RED-GREEN-REFACTORサイクルを適用する。
 ---
 
 # Test-Driven Development
+
+<!-- codex-port: managed; source=claude/skills/tdd/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/skills/tdd/SKILL.md`.
+- Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
+- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## トリガー条件
 
@@ -23,6 +34,35 @@ description: 機能実装やバグ修正でテストを書く・変更する作�
 | CIのyaml編集のみ | テストコード変更なし |
 | E2Eテストの新規作成 | 本スキル対象外 |
 | typo修正のみ | 実装変更なし |
+
+---
+
+## Phase 0: スコープ判定と qa-nightmare 連携
+
+着手前に対象スコープを判定する。
+
+| スコープ | 例 | qa-nightmare の利用 |
+| --- | --- | --- |
+| ユニット (関数・純粋ロジック) | 値オブジェクト、ユーティリティ関数、純粋な計算 | 利用しない。次フェーズへ進む |
+| 機能単位 (画面 / API / エンドポイント / ジョブ) | ユーザー登録画面、決済 API、夜間バッチ | qa-nightmare subagent を起動する |
+
+機能単位と判定したら、テストリスト作成に進む前に qa-nightmare subagent を起動して悪夢テストケースを先に列挙する。
+
+### qa-nightmare 起動
+
+Task tool で `subagent_type: qa-nightmare` を起動する。プロンプトには対象機能名と画面 URL / API パスを渡す。
+
+```
+対象機能: <機能名>
+URL / パス: <画面 URL or API パス>
+悪夢テストケースを生成してランク付き一覧で返してください。
+```
+
+### 結果の扱い
+
+subagent から返ってきたランク付き一覧 (NM-001, NM-002, ...) をユーザーに提示し、実装対象範囲 (S のみ / S+A / 全部) を確認する。
+
+合意した範囲の各ケースに対して以降の TDD サイクル (RED → GREEN → REFACTOR) を 1 つずつ回す。実装順は S ランク → A → B → C。
 
 ---
 

@@ -87,6 +87,19 @@
 - skill の場所を `~/.codex/skills/` だけに決め打ちしない。Codex が認識している skill、`$HOME/.agents/skills`、repo 内 `.agents/skills`、admin/system skill を確認する。
 - `~/.codex/rules/` は参照資料であり、自動的に常時ロードされる前提にしない。必要な内容は `AGENTS.md` に集約する。
 
+
+<!-- codex-rules-required: begin -->
+
+### Rules required loading
+
+- 作業開始時、`~/.codex/rules/*.md`、repo-local `codex/rules/*.md`、project-local `.codex/rules/*.md` のうち存在するものを読む。
+- `rules-inject.sh` が full content を context に注入した場合、その注入内容を読了済み rules として扱う。
+- 実装 / 修正 / リファクタ / テスト追加 / レビュー / 設計では、最低限 `coding-conventions.md`, `implementation-policy.md`, `hallucination-prevention.md`, `hierarchical-architecture.md` を適用する。
+- rules 未読または checksum 不一致のまま mutating tool を使わない。`rules-guard.sh` が block した場合は、先に rules を再読する。
+- 競合時は project-local rule を優先し、競合内容を完了報告に明示する。
+
+<!-- codex-rules-required: end -->
+
 ## 9. Subagents
 
 subagent は品質または速度が上がる場合だけ使う。dispatch mechanics は `~/.codex/SUBAGENTS.md` を参照する。

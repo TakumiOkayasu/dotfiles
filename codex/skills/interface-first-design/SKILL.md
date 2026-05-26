@@ -1,9 +1,20 @@
 ---
+codex_port_source: claude/skills/interface-first-design/SKILL.md
 name: interface-first-design
 description: 機能追加・クラス設計・interface設計・依存関係整理・責務分割時に使用。疑似コードから interface→クラス→TDD→実装の順で設計する。TDDスキルの前段。
 ---
 
 # Interface-First Design
+
+<!-- codex-port: managed; source=claude/skills/interface-first-design/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/skills/interface-first-design/SKILL.md`.
+- Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.
+- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.
+- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 **理想の処理フローを疑似コードで先に描け。そこからinterfaceが生まれる。実装は最後。**
 

@@ -1,0 +1,56 @@
+#!/bin/sh
+# codex-rules - inspect and bundle Codex rules.
+
+set -eu
+
+COMMAND="${1:-list}"
+CWD=$(pwd)
+
+collect_dirs() {
+    [ -d "$HOME/.codex/rules" ] && printf '%s\n' "$HOME/.codex/rules"
+    [ -d "$CWD/.codex/rules" ] && printf '%s\n' "$CWD/.codex/rules"
+    [ -d "$CWD/codex/rules" ] && printf '%s\n' "$CWD/codex/rules"
+    if command -v git >/dev/null 2>&1; then
+        root=$(git rev-parse --show-toplevel 2>/dev/null || true)
+        [ -n "$root" ] && [ -d "$root/codex/rules" ] && printf '%s\n' "$root/codex/rules"
+        [ -n "$root" ] && [ -d "$root/.codex/rules" ] && printf '%s\n' "$root/.codex/rules"
+    fi
+}
+
+collect_files() {
+    collect_dirs | sort -u | while IFS= read -r dir; do
+        find -L "$dir" -maxdepth 1 -type f -name '*.md' \
+            ! -name 'RULES_BUNDLE.md' ! -name 'RULES_INDEX.md' 2>/dev/null
+    done | sort -u
+}
+
+case "$COMMAND" in
+    list)
+        collect_files
+        ;;
+    bundle|read)
+        echo "# Codex Rules Bundle"
+        collect_files | while IFS= read -r f; do
+            echo ""
+            echo "---"
+            echo ""
+            echo "## RULE FILE: $f"
+            echo ""
+            cat "$f"
+            echo ""
+        done
+        ;;
+    check)
+        files=$(collect_files | wc -l | tr -d ' ')
+        if [ "$files" = "0" ]; then
+            echo "no rules found"
+            exit 1
+        fi
+        echo "rules found: $files"
+        collect_files
+        ;;
+    *)
+        echo "usage: codex-rules [list|bundle|read|check]" >&2
+        exit 2
+        ;;
+esac
