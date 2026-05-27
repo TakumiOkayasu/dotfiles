@@ -1,74 +1,73 @@
 #!/bin/sh
-# codex-rules - inspect dotfile-work Codex markdown rules.
+# codex-rules - helper for quiet Codex rules workflow
 set -eu
 
-CMD="${1:-status}"
+CMD="${1:-list}"
+shift || true
+
 CWD=$(pwd)
 
-find_rule_dirs() {
-    [ -d "${PLUGIN_ROOT:-}/rules" ] && printf '%s\n' "${PLUGIN_ROOT}/rules"
-    [ -d "$HOME/.codex/rules" ] && printf '%s\n' "$HOME/.codex/rules"
-    [ -d "$CWD/.codex/rules" ] && printf '%s\n' "$CWD/.codex/rules"
-    [ -d "$CWD/codex/rules" ] && printf '%s\n' "$CWD/codex/rules"
-    if command -v git >/dev/null 2>&1; then
-        ROOT=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || true)
-        [ -n "$ROOT" ] && [ -d "$ROOT/codex/rules" ] && printf '%s\n' "$ROOT/codex/rules"
-        [ -n "$ROOT" ] && [ -d "$ROOT/.codex/rules" ] && printf '%s\n' "$ROOT/.codex/rules"
-    fi
+find_git_root() {
+  if command -v git >/dev/null 2>&1; then
+    git rev-parse --show-toplevel 2>/dev/null && return 0
+  fi
+  return 1
 }
 
-rule_files() {
-    find_rule_dirs | while IFS= read -r d; do
-        find -L "$d" -maxdepth 1 -type f -name '*.md' 2>/dev/null
-    done | sort -u
+GIT_ROOT=$(find_git_root || echo "")
+SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P || dirname "$0")
+CODEX_ROOT=$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || echo "${HOME}/.codex")
+
+append_rule_dir() {
+  _dir="$1"
+  [ -d "$_dir" ] || return 0
+  for _file in "$_dir"/*.md; do
+    [ -f "$_file" ] || continue
+    case "$(basename "$_file")" in
+      RULES_BUNDLE.md|RULES_INDEX.md) continue ;;
+    esac
+    printf '%s\n' "$_file"
+  done
 }
 
-first_named() {
-    name="$1"
-    find_rule_dirs | while IFS= read -r d; do
-        [ -f "$d/$name" ] && { printf '%s\n' "$d/$name"; exit 0; }
-    done | sed -n '1p'
+rules_list() {
+  append_rule_dir "${HOME}/.codex/rules"
+  append_rule_dir "${CODEX_ROOT}/rules"
+  append_rule_dir "${CWD}/.codex/rules"
+  append_rule_dir "${CWD}/codex/rules"
+  [ -n "$GIT_ROOT" ] && append_rule_dir "${GIT_ROOT}/.codex/rules"
+  [ -n "$GIT_ROOT" ] && append_rule_dir "${GIT_ROOT}/codex/rules"
+  2>/dev/null | awk '!seen[$0]++' | sort
 }
 
 case "$CMD" in
-    list)
-        rule_files
-        ;;
-    core)
-        f=$(first_named RULES_CORE.md || true)
-        [ -n "$f" ] && cat "$f" || { echo "RULES_CORE.md not found" >&2; exit 1; }
-        ;;
-    index)
-        f=$(first_named RULES_INDEX.md || true)
-        [ -n "$f" ] && cat "$f" || { echo "RULES_INDEX.md not found" >&2; exit 1; }
-        ;;
-    bundle|read|full)
-        f=$(first_named RULES_BUNDLE.md || true)
-        if [ -n "$f" ]; then
-            cat "$f"
-        else
-            rule_files | while IFS= read -r f; do printf '\n---\n# %s\n\n' "$f"; cat "$f"; done
-        fi
-        ;;
-    status|check)
-        echo "Rule dirs:"
-        find_rule_dirs | sed 's/^/- /'
-        echo ""
-        echo "Rule files:"
-        rule_files | sed 's/^/- /'
-        echo ""
-        marker="$CWD/codex_tmp/.codex_rules_loaded"
-        if [ -f "$marker" ]; then
-            echo "Marker: $marker"
-            cat "$marker"
-        else
-            echo "Marker: not found"
-        fi
-        ;;
-    *)
-        cat <<EOF
-usage: codex-rules [status|list|core|index|bundle|read|full|check]
-EOF
-        exit 2
-        ;;
+  list)
+    rules_list
+    ;;
+  names)
+    rules_list | while IFS= read -r f; do basename "$f"; done
+    ;;
+  marker)
+    cat "${CWD}/codex_tmp/.codex_rules_loaded"
+    ;;
+  refresh)
+    if [ -x "${CODEX_ROOT}/hooks/rules-inject.sh" ]; then
+      printf '{"cwd":"%s","hook_event_name":"Manual"}' "$CWD" | "${CODEX_ROOT}/hooks/rules-inject.sh" --check
+    else
+      echo "rules-inject.sh not found" >&2
+      exit 1
+    fi
+    ;;
+  read|bundle)
+    rules_list | while IFS= read -r f; do
+      echo "---"
+      echo "## RULE FILE: $(basename "$f")"
+      cat "$f"
+      echo
+    done
+    ;;
+  *)
+    echo "usage: codex-rules [list|names|marker|refresh|read|bundle]" >&2
+    exit 1
+    ;;
 esac

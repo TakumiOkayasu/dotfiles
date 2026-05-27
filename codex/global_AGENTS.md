@@ -48,3 +48,11 @@ Skill routing:
 - 競合時は project-local rule を優先し、競合内容を完了報告に明示する。
 
 <!-- codex-rules-required: end -->
+
+## Deterministic Rules Enforcement
+
+- Treat all active `codex/rules/*.md` and plugin `rules/*.md` as mandatory.
+- `rules-inject.sh` activates the current rules checksum and injects a compact rules contract.
+- `rules-guard.sh` blocks mutating tools when rules are inactive or changed.
+- `rules-enforce.sh` scans changed code after edits and at turn stop; if it reports `BLOCK`, fix the violations before final output.
+- For semantic rules that cannot be fully scanned, use `$rules-compliance-review`; for large/high-risk diffs, dispatch one rules-only review subagent and then parent session makes the final decision.

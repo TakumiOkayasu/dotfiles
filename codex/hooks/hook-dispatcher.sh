@@ -64,6 +64,7 @@ case "$EVENT" in
         esac
         ;;
     post-tool-use)
+        run_hook rules-enforce.sh
         run_hook context-monitor.sh
         ;;
     user-prompt-submit)
@@ -74,6 +75,9 @@ case "$EVENT" in
         ;;
     pre-compact)
         run_hook pre-compact-backup.sh
+        ;;
+    stop)
+        run_hook rules-enforce.sh
         ;;
     session-start)
         run_hook rules-inject.sh
