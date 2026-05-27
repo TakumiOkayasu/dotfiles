@@ -91,6 +91,11 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/failure-log.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/post-cleanup-notes-archive.sh",
+            "timeout": 10
           }
         ]
       }
@@ -146,6 +151,16 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/primary-source-reminder.sh"
+          },
+          {
+            "matcher": "startup|resume",
+            "hooks": [
+                {
+                "type": "command",
+                "command": "~/.claude/hooks/session-start-notes-loader.sh",
+                "timeout": 5
+                }
+            ]
           }
         ]
       }

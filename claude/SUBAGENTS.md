@@ -20,6 +20,7 @@
 | 入力データ | 検証対象のコード / 仮説 / 機能リスト (固定: subagent が勝手に分割・集約しない) |
 | 出力フォーマット | 親が機械的に集約できる形式 (3 軸スコア / リスト / マトリクス等) |
 | 環境制約 | dispatch 不能環境では skip し理由報告 |
+| thinking_budget | `default` / `high` / `xhigh` / `max` のいずれか。タスク性質に基づき `opus-47-policy.md`「Thinking Budget Policy」を参照。未指定時は呼び出し元スキルの推奨レベル |
 
 ## dispatch 出力契約
 
@@ -34,6 +35,7 @@ subagent は以下を返す:
 - subagent 個別レポートを**親が事後集約**する。subagent 側ではラウンド間集約・拡張モード発動判定は行わない
 - **nested dispatch (subagent から subagent を呼ぶ) は Claude Code 標準 harness で許可されない**。1 段 dispatch で完結する設計にする
 - 同じ subagent を再利用しない (前回の出力を学習している)。毎回新規 dispatch する
+- subagent 出力は親側で `.claude/notes/{task-id}.md` へ追記する (構造は `phase-gate-framework.md`「subagent 出力の永続化」参照)。これにより複数 subagent 結果が単一ファイルに集約され、後続セッション / 他 skill から参照可能になる
 
 ## 再 dispatch 条件
 

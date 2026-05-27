@@ -1,0 +1,195 @@
+#!/bin/bash
+#
+# claude-init-project - .claude/ ディレクトリ構造を idempotent に展開
+#
+# opus-47-policy.md「File-System Memory」規約に基づく構造を展開する。
+# 既存プロジェクト・既に init 済みの場合も安全に実行可能 (冪等)。
+#
+# 使い方:
+#   claude-init-project              # 不足分のみ展開
+#   claude-init-project --dry-run    # 何が起きるか表示のみ
+#   claude-init-project --force      # 既存ファイルも上書き
+
+set -euo pipefail
+
+# 色定義
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+GRAY='\033[0;90m'
+NC='\033[0m'
+
+DRY_RUN=false
+FORCE=false
+
+# オプション解析
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -n|--dry-run) DRY_RUN=true; shift ;;
+        -f|--force)   FORCE=true;   shift ;;
+        -h|--help)
+            cat <<EOF
+Usage: claude-init-project [OPTIONS]
+
+.claude/ ディレクトリ構造を idempotent に展開する。
+opus-47-policy.md「File-System Memory」規約に基づく。
+既存プロジェクト・既に init 済みの場合も安全に実行可能。
+
+OPTIONS:
+  -n, --dry-run    実際の変更を行わず、何をするかだけ表示
+  -f, --force      既存ファイルも上書き (テンプレート再展開)
+  -h, --help       このヘルプを表示
+
+ENVIRONMENT:
+  CLAUDE_TEMPLATE_ROOT
+        テンプレートディレクトリのパス
+        (default: ~/.claude/templates/project-init)
+EOF
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# 状態表示
+report_skip()      { echo -e "${GRAY}- skip: $1${NC}"; }
+report_create()    { echo -e "${GREEN}+ create: $1${NC}"; }
+report_dry()       { echo -e "${YELLOW}? would create: $1${NC}"; }
+report_overwrite() { echo -e "${YELLOW}~ overwrite: $1${NC}"; }
+
+# ディレクトリ作成 (冪等)
+ensure_dir() {
+    local dir="$1"
+    if [[ -d "$dir" ]]; then
+        report_skip "$dir/"
+    elif [[ "$DRY_RUN" == "true" ]]; then
+        report_dry "$dir/"
+    else
+        mkdir -p "$dir"
+        report_create "$dir/"
+    fi
+}
+
+# ファイル展開 (冪等)
+deploy_file() {
+    local src="$1"
+    local dst="$2"
+
+    if [[ ! -f "$src" ]]; then
+        echo -e "${RED}エラー: テンプレートが見つかりません: $src${NC}" >&2
+        return 1
+    fi
+
+    if [[ -e "$dst" ]] && [[ "$FORCE" != "true" ]]; then
+        report_skip "$dst (既存)"
+        return 0
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        if [[ -e "$dst" ]]; then
+            report_dry "$dst (would overwrite)"
+        else
+            report_dry "$dst"
+        fi
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$dst")"
+    if [[ -e "$dst" ]]; then
+        cp "$src" "$dst"
+        report_overwrite "$dst"
+    else
+        cp "$src" "$dst"
+        report_create "$dst"
+    fi
+}
+
+# .gitkeep 作成 (冪等)
+ensure_gitkeep() {
+    local file="$1"
+    if [[ -f "$file" ]]; then
+        report_skip "$file"
+    elif [[ "$DRY_RUN" == "true" ]]; then
+        report_dry "$file"
+    else
+        mkdir -p "$(dirname "$file")"
+        touch "$file"
+        report_create "$file"
+    fi
+}
+
+# .gitignore へエントリ追記 (重複チェック)
+ensure_gitignore_entry() {
+    local entry="$1"
+    local comment="${2:-}"
+
+    if [[ -f .gitignore ]] && grep -qxF "$entry" .gitignore; then
+        report_skip ".gitignore (entry: $entry)"
+        return 0
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        report_dry ".gitignore (append: $entry)"
+        return 0
+    fi
+
+    {
+        # 末尾改行がなければ追加
+        if [[ -f .gitignore ]] && [[ -s .gitignore ]] && [[ -n "$(tail -c1 .gitignore 2>/dev/null)" ]]; then
+            echo ""
+        fi
+        [[ -n "$comment" ]] && echo "# $comment"
+        echo "$entry"
+    } >> .gitignore
+    report_create ".gitignore (appended: $entry)"
+}
+
+# Git リポジトリ確認
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo -e "${RED}エラー: Git リポジトリ内で実行してください${NC}" >&2
+    exit 1
+fi
+
+# テンプレートルート
+TEMPLATE_ROOT="${CLAUDE_TEMPLATE_ROOT:-$HOME/.claude/templates/project-init}"
+
+if [[ ! -d "$TEMPLATE_ROOT" ]]; then
+    echo -e "${RED}エラー: テンプレートディレクトリが見つかりません: $TEMPLATE_ROOT${NC}" >&2
+    echo -e "${YELLOW}  ~/.claude/templates/project-init/ に notes/_template.md, scratch/_template.md 等を配置してください${NC}" >&2
+    exit 1
+fi
+
+# ヘッダ
+echo -e "${BLUE}Initializing .claude/ project structure${NC}"
+[[ "$DRY_RUN" == "true" ]] && echo -e "${YELLOW}(dry-run mode - 実変更なし)${NC}"
+[[ "$FORCE"   == "true" ]] && echo -e "${YELLOW}(force mode - 既存ファイルを上書き)${NC}"
+echo ""
+
+# 1. ディレクトリ
+ensure_dir ".claude/notes"
+ensure_dir ".claude/notes/archive"
+ensure_dir ".claude/scratch"
+
+# 2. テンプレート展開
+deploy_file "$TEMPLATE_ROOT/notes/_template.md"   ".claude/notes/_template.md"
+deploy_file "$TEMPLATE_ROOT/notes/README.md"      ".claude/notes/README.md"
+deploy_file "$TEMPLATE_ROOT/scratch/_template.md" ".claude/scratch/_template.md"
+deploy_file "$TEMPLATE_ROOT/scratch/README.md"    ".claude/scratch/README.md"
+
+# 3. .gitkeep
+ensure_gitkeep ".claude/notes/archive/.gitkeep"
+
+# 4. .gitignore 追記
+ensure_gitignore_entry ".claude/scratch/" "Claude Code scratch (opus-47-policy.md)"
+
+echo ""
+echo -e "${GREEN}Done.${NC}"
+echo ""
+echo -e "${BLUE}次のステップ:${NC}"
+echo "  1. CLAUDE.md がなければ 'claude init' を実行"
+echo "  2. 新ブランチで作業するときは 'git-new-feature <name>' で notes を自動生成"
+

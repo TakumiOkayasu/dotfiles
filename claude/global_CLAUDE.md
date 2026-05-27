@@ -77,6 +77,8 @@ hook を迂回するための難読化・間接実行 (文字列分割 / 変数�
 @~/.claude/rules/implementation-policy.md
 @~/.claude/rules/hierarchical-architecture.md
 @~/.claude/rules/hallucination-prevention.md
+@~/.claude/rules/opus-47-policy.md
+@~/.claude/rules/phase-gate-framework.md
 
 | リソース | 場所 | 用途 |
 | --- | --- | --- |
