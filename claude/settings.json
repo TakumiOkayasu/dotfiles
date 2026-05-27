@@ -151,16 +151,16 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/primary-source-reminder.sh"
-          },
+          }
+        ]
+      },
+      {
+        "matcher": "startup|resume",
+        "hooks": [
           {
-            "matcher": "startup|resume",
-            "hooks": [
-                {
-                "type": "command",
-                "command": "~/.claude/hooks/session-start-notes-loader.sh",
-                "timeout": 5
-                }
-            ]
+            "type": "command",
+            "command": "~/.claude/hooks/session-start-notes-loader.sh",
+            "timeout": 5
           }
         ]
       }
