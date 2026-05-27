@@ -1,0 +1,6 @@
+interface:
+  display_name: "Explain"
+  short_description: "Code explanation only, no file changes."
+  default_prompt: "Use $explain for this task."
+policy:
+  allow_implicit_invocation: true

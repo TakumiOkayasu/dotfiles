@@ -18,9 +18,7 @@ Codex 側では skills は `codex/skills/*/SKILL.md` から `~/.agents/skills/*/
   - checksum marker を `codex_tmp/.codex_rules_loaded` に記録
 - `codex/hooks/rules-guard.sh`
   - rules 未注入 / checksum 不一致時に mutating tools を block
-- `codex/hooks/prompt-command-expand.sh`
-  - `prompt:*` command を `codex/prompts/commands/*.md` へ展開
-- `codex/skills/rules-required/SKILL.md`
+- - `codex/skills/rules-required/SKILL.md`
   - rules 読了・遵守の運用 skill
 
 ## 適用
@@ -40,7 +38,7 @@ cd /path/to/dotfile-work
 ## 推奨確認
 
 ```sh
-git diff -- codex/skills codex/rules codex/hooks codex/bin codex/prompts scripts
+git diff -- codex/skills codex/rules codex/hooks codex/bin scripts plugins .agents
 ./install.sh -n
 codex features list
 ```

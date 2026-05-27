@@ -69,13 +69,13 @@ def transform_frontmatter(frontmatter: str | None, source: Path) -> str | None:
 COMMON_REPLACEMENTS: tuple[tuple[str, str], ...] = (
     ("~/.claude/skills", "~/.agents/skills"),
     ("~/.claude/rules", "~/.codex/rules"),
-    ("~/.claude/commands", "~/.codex/prompts/commands"),
+    ("~/.claude/commands", "~/.agents/skills"),
     ("~/.claude/hooks", "~/.codex/hooks"),
     ("~/.claude/CLAUDE.md", "~/.codex/AGENTS.md"),
     ("~/.claude", "~/.codex"),
     ("claude/skills", "codex/skills"),
     ("claude/rules", "codex/rules"),
-    ("claude/commands", "codex/prompts/commands"),
+    ("claude/commands", "codex/skills"),
     ("claude/hooks", "codex/hooks"),
     ("global_CLAUDE.md", "global_AGENTS.md"),
     ("CLAUDE.md", "AGENTS.md"),
@@ -90,12 +90,12 @@ def transform_body(body: str, *, source: Path, kind: str) -> str:
     for old, new in COMMON_REPLACEMENTS:
         out = out.replace(old, new)
 
-    # Convert common Claude slash command references to the prompt shim vocabulary.
-    out = re.sub(r"`/([a-zA-Z0-9_.-]+)`", r"`/prompt:\1`", out)
-    out = re.sub(r"(?<![\w`])/(feat|fix|review|deep-review|commit|commit-msg|test|refactor|plan|explain)(?![\w`:-])", r"/prompt:\1", out)
+    # Convert common Claude slash command references to Codex plugin/local skill invocations.
+    out = re.sub(r"`/([a-zA-Z0-9_.-]+)`", r"`@\1`", out)
+    out = re.sub(r"(?<![\w`])/(feat|fix|review|deep-review|commit|commit-msg|test|refactor|plan|explain)(?![\w`:-])", r"@\1", out)
 
     source_str = str(source).replace("\\", "/")
-    note = f"""\n<!-- {MANAGED_MARKER}; source={source_str}; generated-by=scripts/port-claude-assets-to-codex.py -->\n\n## Codex portability notes\n\n- This file was ported from `{source_str}`.\n- Codex skills are installed under `~/.agents/skills/<skill>/SKILL.md` by `install.sh`.\n- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.\n- Claude slash-command references should be invoked through `/prompt:<name>` or `codex/prompts/commands/<name>.md`.\n- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.\n"""
+    note = f"""\n<!-- {MANAGED_MARKER}; source={source_str}; generated-by=scripts/port-claude-assets-to-codex.py -->\n\n## Codex portability notes\n\n- This file was ported from `{source_str}`.\n- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `~/.agents/skills` in plugin-only mode.\n- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.\n- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.\n- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.\n"""
     if MANAGED_MARKER not in out:
         # Insert after first H1 when possible; otherwise prepend after frontmatter.
         match = re.search(r"(^# .+?\n)", out, re.MULTILINE)

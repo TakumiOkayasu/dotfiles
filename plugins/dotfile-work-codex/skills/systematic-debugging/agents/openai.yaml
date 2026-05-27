@@ -1,0 +1,6 @@
+interface:
+  display_name: "Systematic Debugging"
+  short_description: "Reproduce, trace, root cause, then patch."
+  default_prompt: "Use $systematic-debugging for this task."
+policy:
+  allow_implicit_invocation: true

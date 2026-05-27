@@ -1,0 +1,42 @@
+# Codex Skill Policy
+
+Core skills are packaged in `dotfile-work-codex` and may be implicitly invoked.
+Optional skills are packaged in `dotfile-work-codex-extra` and should usually be explicitly invoked.
+
+## Core skills
+
+- `codex-handoff`
+- `commit-msg`
+- `consultation`
+- `deep-review`
+- `explain`
+- `feat`
+- `fix`
+- `implementation-router`
+- `plan`
+- `plugin-install`
+- `plugin-sync`
+- `refactor`
+- `review`
+- `rules-required`
+- `security-review`
+- `systematic-debugging`
+- `tdd`
+- `test`
+
+## Optional skills
+
+- `architecture-design`
+- `empirical-prompt-tuning`
+- `failure-logging`
+- `feature-pruning`
+- `handoff`
+- `interface-first-design`
+- `optimize`
+- `performance-optimization`
+- `plugin-migration`
+- `premise-questioning`
+- `prompt-tune`
+- `refactoring`
+- `rules`
+- `test-coverage-guard`

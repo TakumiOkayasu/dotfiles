@@ -1,0 +1,6 @@
+interface:
+  display_name: "Codex Handoff"
+  short_description: "Create compact Codex continuation handoff."
+  default_prompt: "Use $codex-handoff for this task."
+policy:
+  allow_implicit_invocation: true

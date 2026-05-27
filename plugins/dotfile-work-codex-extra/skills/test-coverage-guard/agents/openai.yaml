@@ -1,0 +1,6 @@
+interface:
+  display_name: "Test Coverage Guard"
+  short_description: "Optional workflow skill. Explicit invocation recommended."
+  default_prompt: "Use $test-coverage-guard for this task."
+policy:
+  allow_implicit_invocation: false

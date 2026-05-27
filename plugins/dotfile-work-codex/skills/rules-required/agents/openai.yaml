@@ -1,0 +1,6 @@
+interface:
+  display_name: "Rules Required"
+  short_description: "Read and apply mandatory markdown rules."
+  default_prompt: "Use $rules-required for this task."
+policy:
+  allow_implicit_invocation: true
