@@ -36,6 +36,31 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${PLUGIN_ROOT}/hooks/rules-enforce.sh",
+            "timeout": 30,
+            "statusMessage": "Checking rules compliance"
+          }
+        ],
+        "matcher": "Bash|apply_patch|Edit|Write|MultiEdit|ApplyPatch"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${PLUGIN_ROOT}/hooks/rules-enforce.sh",
+            "timeout": 30,
+            "statusMessage": "Final rules compliance check"
+          }
+        ]
+      }
     ]
   }
 }

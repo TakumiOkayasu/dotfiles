@@ -24,6 +24,17 @@
             "statusMessage": "Recording session context"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.codex/hooks/hook-dispatcher.sh post-tool-use",
+            "timeout": 30,
+            "statusMessage": "Checking rules compliance"
+          }
+        ],
+        "matcher": "Bash|apply_patch|Edit|Write|MultiEdit|ApplyPatch"
       }
     ],
     "UserPromptSubmit": [
@@ -58,6 +69,18 @@
             "command": "$HOME/.codex/hooks/hook-dispatcher.sh session-start",
             "timeout": 30,
             "statusMessage": "Loading session guidance"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.codex/hooks/hook-dispatcher.sh stop",
+            "timeout": 30,
+            "statusMessage": "Final rules compliance check"
           }
         ]
       }
