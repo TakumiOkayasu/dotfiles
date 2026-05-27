@@ -10,6 +10,8 @@
 #   - main ブランチに移動
 #   - 指定したブランチをローカル・リモート両方から削除
 #   - マージされていないブランチは削除しない (安全)
+#   - 対応する .claude/notes/{task-id}.md を .claude/notes/archive/ へ移動
+#     (opus-47-policy.md「File-System Memory」規約)
 
 set -euo pipefail
 
@@ -31,6 +33,21 @@ is_squash_merged() {
     local unmerged
     unmerged=$(git cherry HEAD "$squash_commit" "$merge_base" 2>/dev/null | grep '^\+' || true)
     [[ -z "$unmerged" ]]
+}
+
+# notes ファイルをアーカイブ
+# opus-47-policy.md「File-System Memory」規約に基づき、削除済みブランチに対応する
+# .claude/notes/{task-id}.md を .claude/notes/archive/ へ移動する
+archive_notes_for_branch() {
+    local branch="$1"
+    local task_id="${branch//\//-}"
+    local notes_file=".claude/notes/${task_id}.md"
+
+    if [[ -f "$notes_file" ]]; then
+        mkdir -p .claude/notes/archive
+        mv "$notes_file" ".claude/notes/archive/${task_id}.md"
+        echo -e "${GREEN}✓ notes アーカイブ: ${notes_file} → .claude/notes/archive/${task_id}.md${NC}"
+    fi
 }
 
 # メイン関数
@@ -95,20 +112,29 @@ main() {
 
     # ローカルブランチを削除
     echo -e "${BLUE}ローカルブランチを削除中...${NC}"
+    local local_deleted=false
     if git merge-base --is-ancestor "$branch_to_delete" HEAD 2>/dev/null; then
         # 通常マージ: ブランチが HEAD の祖先
         git branch -D "$branch_to_delete"
         echo -e "${GREEN}✓ ローカルブランチを削除しました (マージ済み)${NC}"
+        local_deleted=true
     elif is_squash_merged "$branch_to_delete"; then
         git branch -D "$branch_to_delete"
         echo -e "${GREEN}✓ ローカルブランチを削除しました (スカッシュマージ済み)${NC}"
+        local_deleted=true
     else
         echo -e "${YELLOW}! ブランチはまだマージされていません${NC}"
         read -rp "強制削除しますか? [y/N]: " force_confirm
         if [[ "$force_confirm" =~ ^[Yy]$ ]]; then
             git branch -D "$branch_to_delete"
             echo -e "${GREEN}✓ ローカルブランチを強制削除しました${NC}"
+            local_deleted=true
         fi
+    fi
+
+    # notes アーカイブ (opus-47-policy.md 規約)
+    if [[ "$local_deleted" == "true" ]]; then
+        archive_notes_for_branch "$branch_to_delete"
     fi
 
     # リモートブランチを削除
@@ -126,3 +152,4 @@ main() {
 }
 
 main "$@"
+

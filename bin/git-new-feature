@@ -20,6 +20,57 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# notes ファイルを雛形から生成
+# opus-47-policy.md「File-System Memory」規約に基づく
+# - _template.md がなければ警告のみ (ブランチ作成は完了済み)
+# - 既存ファイルがあれば上書きしない (冪等)
+# - macOS BSD sed / GNU sed 両対応
+init_notes_for_branch() {
+    local branch="$1"
+    local task_id="${branch//\//-}"
+    local notes_file=".claude/notes/${task_id}.md"
+    local template_file=".claude/notes/_template.md"
+
+    # 既に存在すればスキップ
+    if [[ -f "$notes_file" ]]; then
+        echo -e "${YELLOW}! notes ファイルが既に存在: ${notes_file} (スキップ)${NC}"
+        return 0
+    fi
+
+    # _template.md が存在しない場合は警告のみ
+    if [[ ! -f "$template_file" ]]; then
+        echo -e "${YELLOW}! _template.md が見つかりません: ${template_file}${NC}"
+        echo -e "${YELLOW}  notes ファイル生成をスキップします${NC}"
+        echo -e "${YELLOW}  プロジェクト初期化が未済の場合は 'claude-init-project' を実行してください${NC}"
+        return 0
+    fi
+
+    # _template.md からコピー
+    mkdir -p "$(dirname "$notes_file")"
+    cp "$template_file" "$notes_file"
+
+    # プレースホルダ置換 (macOS / Linux 両対応)
+    local today
+    today=$(date +%Y-%m-%d)
+    if sed --version >/dev/null 2>&1; then
+        # GNU sed
+        sed -i \
+            -e "s|{task-id}|${task_id}|g" \
+            -e "s|{branch-name}|${branch}|g" \
+            -e "s|YYYY-MM-DD|${today}|" \
+            "$notes_file"
+    else
+        # BSD sed (macOS)
+        sed -i '' \
+            -e "s|{task-id}|${task_id}|g" \
+            -e "s|{branch-name}|${branch}|g" \
+            -e "s|YYYY-MM-DD|${today}|" \
+            "$notes_file"
+    fi
+
+    echo -e "${GREEN}✓ notes ファイルを生成: ${notes_file}${NC}"
+}
+
 # 使い方を表示
 usage() {
     cat <<EOF
@@ -114,21 +165,26 @@ main() {
     echo -e "${BLUE}新しいブランチ: ${full_branch_name}${NC}"
     echo ""
 
+    # 新しいブランチを作成
+    echo -e "${BLUE}ブランチを作成中...${NC}"
+    git switch -c "$full_branch_name"
+
+    # notes ファイルを雛形から生成 (opus-47-policy.md 規約)
+    init_notes_for_branch "$full_branch_name"
+
+    echo ""
+    echo -e "${GREEN}✓ ${full_branch_name} を作成しました${NC}"
+    
     # メインブランチに移動して最新化
     echo -e "${BLUE}${main_branch} を最新化中...${NC}"
-    git checkout "$main_branch"
+    git switch "$main_branch"
+
     if git remote get-url origin &>/dev/null; then
         git pull --ff-only origin "$main_branch"
     else
         echo -e "${YELLOW}! リモート (origin) が未設定のため pull をスキップしました${NC}"
     fi
-
-    # 新しいブランチを作成
-    echo -e "${BLUE}ブランチを作成中...${NC}"
-    git checkout -b "$full_branch_name"
-
-    echo ""
-    echo -e "${GREEN}✓ ${full_branch_name} を作成しました${NC}"
+    
     echo ""
     echo -e "${YELLOW}作業が終わったら:${NC}"
     echo "  1. git add . && git commit -m 'メッセージ'"
@@ -138,3 +194,4 @@ main() {
 }
 
 main "$@"
+
