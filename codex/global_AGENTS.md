@@ -1,92 +1,40 @@
 # Codex Global Instructions
 
-このファイルは `~/.codex/AGENTS.md` として読み込ませるグローバル指示である。
-プロジェクト固有の `AGENTS.md` / `AGENTS.override.md` がある場合は、より近い階層の指示を優先する。
+## must rule
 
-## 1. 出力
+- 全ての応答は日本語で行うこと。
 
-- ユーザー向けの応答は常に日本語で行う。
-- スラッシュコマンド風プロンプト実行後の確認、説明、要約、レビュー結果も日本語で返す。
-- コード、識別子、ファイル名、コマンド、ログ、エラー、引用文は原文を維持する。
-- 前置き、過剰な謝辞、定型的な締め文は省く。
-- 形式は箇条書き、表、短い見出しを優先する。
-- 半角記号を優先する。全角括弧は使わない。
-- 不確実な点、未確認の点、実行できなかった検証は明示する。
+<!-- codex-performance-profile:start -->
 
-## 2. タスク分類
+## Performance profile
 
-作業開始時にタスクを次のいずれかに分類する。
+Keep the default context small and route details through skills.
 
-| 種別 | 対応 |
-| --- | --- |
-| 回答のみ | ファイル変更、ブランチ作成、進捗ファイル更新は行わない |
-| 調査 / レビュー | 必要なファイルを読んで根拠付きで回答する |
-| 小規模修正 | 対象ファイルを確認し、最小差分で修正する |
-| 設計 / 方針決定 | 2-3案を提示し、比較して推奨案を示す |
-| 大規模変更 | 実装前に計画、影響範囲、検証方法を提示する |
+Priority order:
 
-## 3. 着手前チェック
+1. User instruction
+2. Project-local `AGENTS.md`
+3. Active plugin rules and project rules
+4. Active skill workflow
+5. General best practice
 
-編集が必要な場合のみ、次を確認する。
+Before mutating files or running mutating commands:
 
-1. `pwd` とリポジトリルート
-2. `git status --short`
-3. `git branch --show-current`
-4. 変更対象ファイルの現在内容
-5. プロジェクトの実行方法と検証方法
+- Apply `RULES_CORE.md` and `RULES_INDEX.md` immediately.
+- Ensure full rules were injected for implementation, review, test, refactor, fix, or any write operation.
+- If `rules-guard.sh` blocks a tool, re-read rules instead of bypassing the guard.
+- Do not overwrite user changes. Check `git status --short` when editing is involved.
+- Never report unrun checks as passed. Report unverified risks explicitly.
 
-ルール:
+Skill routing:
 
-- 未読のファイルを編集しない。
-- ユーザーが加えた変更を勝手に戻さない。
-- `main` / `master` 上で編集が必要な場合は、作業ブランチを作成する。
-- 回答のみ、調査のみ、レビューのみの場合はブランチを作成しない。
+- Use `$feat` for feature implementation.
+- Use `$fix` for bugs, failing tests, runtime errors, or unexpected behavior.
+- Use `$review` or `$deep-review` for code review.
+- Use `$rules-required` when the applicable rules are unclear.
+- Use high-effort strategy skills (`premise-questioning`, `feature-pruning`, `deep-review`) only for high-risk tasks.
 
-## 4. 確認が必要な操作
-
-次の操作は実行前にユーザー確認を取る。
-
-- 依存関係の追加、削除、更新
-- install 系コマンド
-- DBスキーマ変更、マイグレーション生成、公開API変更
-- 破壊的操作: `rm -rf`, `git reset`, `git clean`, 大量削除、大量置換
-- 権限変更、所有者変更、`sudo`
-- 外部サービスへの書き込み、デプロイ、課金操作
-- secrets、token、API key、認証情報に関わる変更
-- commit、push、PR作成
-
-## 5. Git ワークフロー
-
-- 1ブランチ = 1目的。無関係な変更を混ぜない。
-- 差分は最小にする。
-- commit / push は原則として実行しない。必要な場合もユーザーの明示指示と直前確認を必須とする。
-- コミットメッセージ案は Conventional Commits で提示する。
-- lockfile は依存変更に伴う正当な差分として扱う。
-
-## 6. 実装方針
-
-- まず既存実装、型、命名、テスト、ディレクトリ構造を確認する。
-- プロジェクトの規約を優先する。グローバル指示とプロジェクト指示が衝突する場合はプロジェクト指示を優先する。
-- 言語バージョンやツールバージョンは、`package.json`, lockfile, `pyproject.toml`, `.tool-versions`, `mise.toml`, `Dockerfile`, CI設定などのピン留めを優先する。
-- 推測で仕様を作らない。既存コード、テスト、README、公式ドキュメント、ユーザー指示の順で確認する。
-- 既存で実現できる処理を不要に自作しない。
-
-## 7. 実行と検証
-
-- テスト、lint、型チェック、ビルドはプロジェクト定義のコマンドを優先する。
-- プロジェクトが runner や version manager を定義している場合、素の `node`, `python3`, `ruby`, `go`, `rustc` などでアプリやテストを直接実行しない。
-- 調査用の一時スクリプトは、プロジェクトを変更せず、安全で再現性を損ねない範囲に限って使用できる。
-- 検証を実行できない場合は、理由と未検証リスクを報告する。
-- 未実行の検証を「通った」と報告しない。
-
-## 8. Hooks / Skills / Rules
-
-- hooks は補助的な安全機構であり、完全な enforcement 境界ではない。
-- hook が無効、未設定、未対応でも、このファイルのルールを自分で守る。
-- タスクに該当する skill が利用可能な場合は、その説明と `SKILL.md` を確認してから使う。
-- skill の場所を `~/.codex/skills/` だけに決め打ちしない。Codex が認識している skill、`$HOME/.agents/skills`、repo 内 `.agents/skills`、admin/system skill を確認する。
-- `~/.codex/rules/` は参照資料であり、自動的に常時ロードされる前提にしない。必要な内容は `AGENTS.md` に集約する。
-
+<!-- codex-performance-profile:end -->
 
 <!-- codex-rules-required: begin -->
 
@@ -96,269 +44,7 @@
 - `rules-inject.sh` が full content を context に注入した場合、その注入内容を読了済み rules として扱う。
 - 実装 / 修正 / リファクタ / テスト追加 / レビュー / 設計では、最低限 `coding-conventions.md`, `implementation-policy.md`, `hallucination-prevention.md`, `hierarchical-architecture.md` を適用する。
 - rules 未読または checksum 不一致のまま mutating tool を使わない。`rules-guard.sh` が block した場合は、先に rules を再読する。
+- plugin-only 運用では workflow 起動は `$feat`, `$fix`, `$deep-review`, `$rules-required` などの `$skill` を使う。独自 `/prompt:*` や `prompt:*` 互換導線は使わない。
 - 競合時は project-local rule を優先し、競合内容を完了報告に明示する。
 
 <!-- codex-rules-required: end -->
-
-## 9. Subagents
-
-subagent は下記「必ず使う場面」に該当する場合は必ず使う。dispatch mechanics は `~/.codex/SUBAGENTS.md` を参照する。
-該当しない場合でも、品質または速度が上がるなら使ってよい。
-
-必ず使う場面:
-
-- 独立した観点のレビュー: security / performance / maintainability
-- 影響範囲調査の並列化
-- 大きな調査対象の分割
-- 設計案の妥当性検証
-
-特に `deep-review` / 多角レビュー / 並列レビュー / 3 視点レビューの依頼では、security / performance / maintainability の 3 subagent を必ず起動する。
-
-使わない場面:
-
-- 親セッションで即判断すべき作業
-- 同じ問いの重複調査
-- 小規模修正
-- subagent の結果待ちで全体が遅くなる場合。ただし「必ず使う場面」に該当する場合は除く
-
-使う場合のルール:
-
-- Codex の tool contract で明示要求時のみ起動可とされる場合は、その制約を優先する。
-- 担当範囲、編集可否、対象ファイル、禁止事項を明示する。
-- 他者またはユーザーの変更を戻させない。
-- subagent の結論は親セッションで統合し、根拠、差分、テストで検証してから採用する。
-- 必須場面で subagent を使えない環境では、親セッション単独で代替せず、`subagent dispatch unavailable` と明示してブロックする。
-- 任意場面で subagent を使えない環境では、同じ観点分解を親セッション内で行う。
-
-## 10. 進捗管理
-
-- `.codex/progress.md` が存在する場合、長めの作業では最初に読む。
-- 複数ターンにまたがる作業、大規模変更、再開前提の作業では `.codex/progress.md` を更新する。
-- 回答のみ、小規模修正、短時間の調査では新規作成しない。
-- checkpoint を作る場合は `.codex/checkpoints/latest.md` を使う。
-
-推奨フォーマット:
-
-```md
-# PROGRESS
-
-## Current task
-- [ ] タスク名 - 目的: ...
-
-## Decisions
-- YYYY-MM-DD: 判断内容。理由: ...
-
-## Done
-- [x] 完了したタスク
-
-## Next
-- 次に行うこと
-```
-
-## 11. 外部情報と一次ソース
-
-- 仕様、API、ライブラリ、料金、法律、セキュリティ、最新情報が関係する場合は、公式ドキュメントまたは一次ソースを優先する。
-- 参照した情報の出典を要約内に示す。
-- 古い情報、未確認情報、推測を根拠に実装しない。
-
-## 12. 完了報告
-
-```text
-✅ 完了
-- 変更: ...
-- 検証: ...
-- 未検証: ...
-- 注意: ...
-- 次の候補: ...
-```
-
-ファイル変更を伴う場合は、変更ファイル、主な差分、実行した検証コマンド、結果を必ず含める。
-
-# コーディングルール
-
-## Coding Conventions
-
-言語非依存のコード規約。プロジェクト固有の規約があればそれを優先する。
-
-### 比較・制御フロー
-
-- 厳密等価 (`===`, `!==`) を原則とする。緩い比較を使うなら理由を明示する
-- boolean は truthy/falsy で評価する。`=== true` / `=== false` は使わない
-- 早期リターン (ガード節) でネストを減らす。制御構造のネストは 3 階層まで、超えたら関数抽出
-- 早期 return 後の `else` は書かない
-
-### 関数・変数
-
-- 引数は 3-4 個まで。超えたらオブジェクト/構造体にまとめる
-- 関数は 30 行を目安に。超えたら分割を検討する
-- 1 関数 = 1 責務。副作用のある関数は名前で示す (`saveUser`, `fetchData`)
-- 再代入不可の宣言を第一選択にする。可変は必要な場合のみ
-- 変数は使用箇所の直前で宣言する
-- マジックナンバー・マジック文字列は意味のある定数名にする
-
-### null / Optional
-
-- null 可能性は型で示す (`User | null`, `Optional[User]`)
-- 関数冒頭のガード節で早期に null を検出する
-- 原則 null ではなく空配列/空オブジェクトを返す。「未取得」と「空結果」を区別する必要がある場合のみ null を許容する
-
-### 型
-
-- 公開 API (関数/メソッドの引数・戻り値) には型注釈を付ける
-- `any` は使わない。不明な型は `unknown` / `object` / ジェネリクスにする
-- 自明なローカル変数は型推論に任せる (過剰注釈をしない)
-
-### 非同期
-
-- async/await を優先し、Promise chain (`.then`) は避ける
-- 独立処理は `Promise.all` で並列化する
-- エラーは握り潰さない。意味のある回復・文脈付与・ログができるなら捕捉、できなければ上位へ伝播する
-
-### コメント
-
-- WHY を書く。WHAT は書かない (読めば分かる)
-- コメントが必要なら、まず変数名・関数名で表現できないか検討する
-- 不要コードはコメントアウトせず削除する (履歴は git で追う)
-- docstring は公開 API のみ。内部関数には付けない
-- TODO は `TODO(@user): 内容` 形式。プロジェクト既存形式があればそれに従う
-
-### 命名
-
-- 名前は意図 (なぜ存在するか) を表現する。略語を避け、検索可能にする
-- ブール値は `is_` / `has_` / `can_` で始める
-- 対になる概念は対になる名前にする (open/close, start/stop)
-- 曖昧な接頭辞・名前を使わず、具体的な動詞・名詞にする:
-
-| 避ける | 具体化の例 |
-| --- | --- |
-| `handle*` / `process*` / `do*` / 単独の `execute` | `validateOrder`, `parsePayload`, `sendEmail` |
-| `*Helper` / `*Util` | 役割別に分割 (`DateFormatter`, `PathResolver`) |
-| `data` / `info` / `item` / `obj` / `temp` | `userRecord`, `invoiceRow`, `parsedConfig` |
-
-例外: フレームワーク規約 (React の `handleClick` 等、イベントを直接受信する関数) は従う。受信内から呼ぶ業務関数は具体名にする。ループ変数・極小スコープ (2-3 行) の `item` / `temp` は許容。目的語付きの `executeQuery` 等は許容。レイヤー役割のサフィックスは `hierarchical-architecture.md` を参照。
-
-### 設計原則
-
-- SOLID に従う
-- DRY: 重複を避ける。ただし早すぎる抽象化もしない (3 回繰り返したら抽出)
-- KISS / YAGNI: 最も単純な解を選び、現在必要な機能だけ実装する
-- ビジネスロジックと I/O、表示ロジックとデータ処理を混在させない
-
-### エラーハンドリング
-
-- fail-fast。不正な状態は早期に検出して即報告する
-- バリデーションはシステム境界 (入力受付点) で行う
-- 空 catch、`catch (Exception e)` での一括捕捉、例外の制御フロー利用をしない
-- 種類別の対応: 業務エラー = ユーザーへ明確なメッセージ / システムエラー = ログ + リトライ・フォールバック / プログラムエラー = バグとして例外を投げる
-
-### ログ
-
-ロガー経由で構造化ログ (キー・バリュー) を出力する。レベル (ERROR/WARN/INFO/DEBUG) を使い分け、コンテキストを付与し、機密情報は含めない。`print` 等の直接使用は `implementation-policy.md` を参照。
-
-### テスト
-
-アサーションは具体値を検証し、振る舞いを実際に判定するテストだけを書く。トートロジー・`toBeDefined()` のみ・カバレッジ稼ぎは書かない。書く前に「何を検証するか」を 1 行で言語化できること。AAA 構造 (Arrange/Act/Assert)、1 テスト 1 概念、テスト間の状態共有・順序依存をなしにする。命名は `should_<expected>_when_<condition>`。詳細は `~/.claude/skills/tdd/SKILL.md` を参照。
-
-## Architecture Invariants
-
-アーキテクチャ上、常に守る不変条件。設計の手順・判断は `architecture-design` スキルを参照する。
-
-### 依存方向
-
-- 依存は上位→下位の一方向のみ。下位→上位の依存をしない
-- 横参照 (同一レイヤー間の直接参照) をしない
-- 段階飛ばしのアクセスをしない (中間レイヤーを必ず経由する)
-- 上位は指示のみ。下位の内部操作を代行しない
-
-### 合成と継承
-
-- 継承より合成を優先する。能力・振る舞いの差分はコンストラクタ注入で合成する
-- 継承深度は 2 段まで
-- 具象クラスではなくインターフェースに依存する (DI)
-
-### インターフェース
-
-- インターフェースは単一責任。薄く保つ (必要最小限のメソッドのみ)
-- 入力と出力は論理的責務で分離する
-
-## 命名規則
-
-レイヤー役割をサフィックスで表す。
-
-| 役割 | サフィックス |
-| --- | --- |
-| 管理 (下位のライフサイクルを持つ) | `*Context`, `*Manager` |
-| 提供 (同種能力を束ねる) | `*Provider`, `*Registry` |
-| 操作 (特定リソースに直接アクセス) | `*Accessor`, `*Client` |
-
-`*Service` / `*Repository` / `*Handler` 等は、責務が管理/提供/操作のいずれかに一致すれば許容する。
-
-### 入力の境界
-
-アプリケーションコードは `Intent` (意図レベルのデータ) のみに依存し、`Raw Input` (引数・パス文字列等の生データ) を直接扱わない。
-
-## Hallucination Prevention
-
-「たぶん正しい」で出力しない。不確実なものは不確実と明示する。
-
-### 基本
-
-- 確認済みの情報のみを回答に含める
-- 不確実な箇所は `[要確認: <理由>]` マーカーで明示する
-- パッケージ・API・引数・戻り値の型・コマンドオプション・設定ファイル名・環境変数名は、公式レジストリ / 公式リファレンスで実在を確認してから使う
-- 出典の信頼性は 公式ドキュメント > 査読済み論文 > その他 の順で評価する
-
-### URL の扱い
-
-- 公知の公式ドメイン root とパス断片 (例: `nodejs.org`, `docs.github.com/en/rest/pulls/comments`) は、パッケージ名・API 名と同格の参照先として提示してよい
-- フルパス URL (`https://...`) を提示する場合は `[要確認: 実在確認推奨]` を付ける
-- WebFetch / 実行ログで実在確認できない URL は提示しない
-- コマンド引数中の REST API パス (例: `gh api repos/{owner}/{repo}/pulls/{n}/comments`) はコマンド仕様の一部として扱い、この制限の対象外とする
-
-### 不確実な場合の対処
-
-既定は `[要確認: <理由>]` を付けて出力する。誤情報が致命的、明確な代替が存在する、訂正が必要などのケースでは次を行う:
-
-- 確認できないものは出力しない
-- 確実に存在する代替案を提示する
-- ユーザーが自分で確認できる手順を案内する
-- 間違いに気づいたら影響範囲を説明し、即訂正する
-
-## Implementation Policy
-
-車輪の再発明をしない。技術選定・ライブラリ利用・データアクセスの方針。
-
-### 守るべき基本的なルール
-
-- 標準ライブラリ / 定評 OSS / 採用済みフレームワークで解決できるなら自前実装しない
-- 自前実装するなら「なぜ既存で不可か」を明示して承認を得る
-- 汎用ユーティリティ (配列・オブジェクト操作, 日時, UUID, 乱数, エンコード, 正規表現) は再発明しない
-- 実行時計算量は**最悪でも** `線形 / 線形対数`で終わらせる
-
-### 依存管理
-
-- 新規ライブラリ追加前に、既存依存で代替できないか確認する
-- 選定基準: 利用実績 + メンテ状況 (6 ヶ月以内コミット) + ライセンス (MIT/Apache/BSD 系)
-- lockfile は必ずコミットする。`latest` / ワイルドカード指定はしない
-- 依存の追加・更新時に脆弱性スキャン (npm audit, pip-audit 等) を実行する
-
-### 必須経由 (自前実装・直接操作をしない領域)
-
-| 領域 | 方針 |
-| --- | --- |
-| DB アクセス | ORM 経由を原則とする (生 SQL の例外は後述) |
-| スキーマ変更 | マイグレーションツール経由。本番 DDL の直接実行をしない |
-| ロギング | 本番コードはロギングライブラリ経由。`print` / `console.log` / `echo` を直接使わない (使い捨てスクリプトは対象外) |
-| バリデーション | 定評ライブラリ (zod / pydantic / joi / valibot 等)。自前 if 羅列をしない |
-| 暗号・ハッシュ | 自前実装をしない。言語標準または定評ライブラリのみ。アルゴリズムは公式推奨に従う |
-| HTTP クライアント | プロジェクト内で 1 つに統一する |
-| 設定値 | 環境変数または設定ファイルで外部化する。ハードコードしない |
-
-### 生 SQL を許可するシナリオ
-
-次の場合のみ生 SQL を許可する。いずれもプリペアドステートメント必須、理由を PR 本文・コメントに記載、レビュー対象として明示する。
-
-- バルク処理: パフォーマンス計測結果を根拠に示す
-- 複雑な集計 (CTE / window 関数): ORM で表現困難なことを示す
-- DB 固有機能: 移植性を捨てる判断を明示する
-- 読み取り専用レポート: ビュー定義または生 SQL、レビュー必須

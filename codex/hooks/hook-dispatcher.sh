@@ -67,8 +67,6 @@ case "$EVENT" in
         run_hook context-monitor.sh
         ;;
     user-prompt-submit)
-        # `/prompt:<name>` を prompt file に展開する。最初に走らせる。
-        run_hook prompt-command-expand.sh
         run_hook rules-inject.sh
         run_hook context-monitor.sh
         run_hook primary-source-check.sh
@@ -78,6 +76,7 @@ case "$EVENT" in
         run_hook pre-compact-backup.sh
         ;;
     session-start)
+        run_hook rules-inject.sh
         run_hook session-start-reminder.sh
         run_hook session-resume.sh
         run_hook project-environment-check.sh

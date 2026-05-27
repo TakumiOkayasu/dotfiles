@@ -918,13 +918,13 @@ codex_dest_for_relative() {
         SUBAGENTS.md|hooks.json)
             printf '%s/.codex/%s\n' "$HOME" "$_cdf_relative"
             ;;
-        bin/*|hooks/*.sh|prompts/*.md|prompts/commands/*.md|prompts/fragments/*.md|prompts/templates/*.md|prompts/evals/*.md|rules/*.md)
+        bin/*|hooks/*.sh|rules/*.md|rules/*.rules)
             printf '%s/.codex/%s\n' "$HOME" "$_cdf_relative"
             ;;
-        skills/*/SKILL.md)
-            _skill_name=${_cdf_relative#skills/}
-            _skill_name=${_skill_name%%/*}
-            printf '%s/.agents/skills/%s/SKILL.md\n' "$HOME" "$_skill_name"
+        skills/*/SKILL.md|skills/*/agents/openai.yaml)
+            # Plugin-only mode: skills are distributed via plugins, not symlinked to ~/.agents/skills.
+            # This keeps the initial skill list small and avoids duplicate plugin/local skills.
+            return 1
             ;;
         *)
             return 1

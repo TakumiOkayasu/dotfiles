@@ -1,0 +1,37 @@
+{
+  "name": "dotfile-work-codex",
+  "version": "0.3.0",
+  "description": "Performance-optimized core Codex workflows, skills, rules, and safety hooks for dotfile-work.",
+  "author": {
+    "name": "TakumiOkayasu"
+  },
+  "repository": "https://github.com/TakumiOkayasu/dotfile-work",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "skills",
+    "hooks",
+    "rules",
+    "tdd",
+    "review"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "dotfile-work Codex Core",
+    "shortDescription": "Core @skills with mandatory rule enforcement.",
+    "longDescription": "Performance profile: small core skill set, markdown rule injection, rules guard, and official command-safety .rules.",
+    "developerName": "TakumiOkayasu",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use $feat to implement a feature with risk-gated TDD.",
+      "Use $fix to repair a reproducible bug after root-cause analysis.",
+      "Use $deep-review to review the current diff.",
+      "Use $rules-required to load and apply mandatory rules."
+    ]
+  }
+}

@@ -29,9 +29,27 @@ trusted_hash = "sha256:aed27c2ca63acfacd99bece5e58dcb3fe51dfb15acffd6e4398f49bb0
 [hooks.state."/home/okayasu/.codex/hooks.json:user_prompt_submit:0:0"]
 trusted_hash = "sha256:33b22da3ad1094fccd39f19c8b429c34cec149ebd68150438e2c88d3767176f0"
 
+[hooks.state."dotfile-work-codex@dotfile-work-personal:hooks/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:ad71e5ff87a2c17d367f6896b37ca3ccfe108fed57e182180661f9967c792530"
+
+[hooks.state."dotfile-work-codex@dotfile-work-personal:hooks/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:0cf931fdd56d33674301160af986b57d5610a5a1060436fbb5ad5760e68f74db"
+
+[hooks.state."dotfile-work-codex@dotfile-work-personal:hooks/hooks.json:user_prompt_submit:0:0"]
+trusted_hash = "sha256:580f9765ee69111014941295fbc0ccf899c57182ce0c45f2704e1d3ead9ab02f"
+
 [features]
 terminal_resize_reflow = true
 memories = true
 goals = true
 prevent_idle_sleep = true
 external_migration = true
+
+[plugins."github@openai-curated"]
+enabled = true
+
+[plugins."dotfile-work-codex@dotfile-work-personal"]
+enabled = true
+
+[plugins."dotfile-work-codex-extra@dotfile-work-personal"]
+enabled = true

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Consultation"
+  short_description: "Compare 2-3 implementation plans and create handoff."
+  default_prompt: "Use $consultation for this task."
+policy:
+  allow_implicit_invocation: true

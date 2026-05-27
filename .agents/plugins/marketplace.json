@@ -1,0 +1,32 @@
+{
+  "name": "dotfile-work-local",
+  "interface": {
+    "displayName": "dotfile-work plugins"
+  },
+  "plugins": [
+    {
+      "name": "dotfile-work-codex",
+      "source": {
+        "source": "local",
+        "path": "./plugins/dotfile-work-codex"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "dotfile-work-codex-extra",
+      "source": {
+        "source": "local",
+        "path": "./plugins/dotfile-work-codex-extra"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

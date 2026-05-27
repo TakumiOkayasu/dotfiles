@@ -1,0 +1,6 @@
+interface:
+  display_name: "Architecture Design"
+  short_description: "Optional workflow skill. Explicit invocation recommended."
+  default_prompt: "Use $architecture-design for this task."
+policy:
+  allow_implicit_invocation: false

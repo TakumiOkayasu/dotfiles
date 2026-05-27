@@ -1,0 +1,30 @@
+{
+  "name": "dotfile-work-codex-extra",
+  "version": "0.3.0",
+  "description": "Optional Codex skills ported from Claude Code for dotfile-work.",
+  "author": {
+    "name": "TakumiOkayasu"
+  },
+  "repository": "https://github.com/TakumiOkayasu/dotfile-work",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "skills",
+    "optional",
+    "claude-port"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "dotfile-work Codex Extra Skills",
+    "shortDescription": "Optional explicit-use skills. Enable only when needed.",
+    "longDescription": "Optional Claude Code skill ports. Keep disabled unless you need the broader skill catalog to preserve Codex's initial skill budget.",
+    "developerName": "TakumiOkayasu",
+    "category": "Productivity",
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Use an optional skill explicitly with $skill-name when a specialized workflow is needed."
+    ]
+  }
+}
