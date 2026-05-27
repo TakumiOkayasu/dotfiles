@@ -315,7 +315,9 @@ _remove_stale() {
 
 # DOTFILES_DIR 向きリンクならラベル付きで削除
 remove_dotfiles_link() {
-    is_dotfiles_link "$1" && _remove_stale "$1" "$2"
+    if is_dotfiles_link "$1"; then
+        _remove_stale "$1" "$2"
+    fi
 }
 
 # ============================================================================
