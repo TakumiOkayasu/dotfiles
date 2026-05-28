@@ -23,7 +23,6 @@
 [core]
     editor = code --wait
     symlinks = true
-    excludesfile = ~/.gitignore
     compression = 1
     pager = delta
 

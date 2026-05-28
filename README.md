@@ -26,7 +26,7 @@ source ~/.bashrc           # 設定反映
 | ディレクトリ | 配置先 | 内容 |
 | --- | --- | --- |
 | `config/shell/` | `~/` | bash/zsh/fish設定、共通aliases/env |
-| `config/git/` | `~/` | .gitconfig (work/private)、.gitignore、補完 |
+| `config/git/` | `~/`, `~/.config/git/` | .gitconfig (work/private)、補完。gitignore/gitattributes は `~/.config/git/ignore`・`~/.config/git/attributes` |
 | `config/vim/` | `~/` | .vimrc |
 | `claude/` | `~/.claude/` | Claude Code設定一式 (後述) |
 | `codex/` | `~/.codex/`, `~/.agents/skills/` | Codex設定一式 (AGENTS.md, SUBAGENTS.md, hooks, skills, rules) |

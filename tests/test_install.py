@@ -835,3 +835,68 @@ class TestVendorSkillsUpdateHook:
 
         result = self._run_hook(home)
         assert result.returncode == 0
+
+
+# ---------------------------------------------------------------------------
+# git グローバル設定 (ignore / attributes) の XDG 配置
+# ---------------------------------------------------------------------------
+
+
+class TestGitInstall:
+    """~/.config/git/ 配下への gitignore / gitattributes 配置テスト"""
+
+    def test_install_creates_xdg_gitignore(self, tmp_path: Path) -> None:
+        """install 後 ~/.config/git/ignore が base+variant マージの実体ファイル"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _run_install_sh(REPO_ROOT, home)
+
+        ignore = home / ".config" / "git" / "ignore"
+        assert ignore.is_file()
+        assert not ignore.is_symlink()
+
+        content = ignore.read_text()
+        # base (.gitignore.common) 由来
+        assert ".DS_Store" in content
+        # variant (.gitignore.work / .private) が結合されていること
+        assert ("**/.codex/" in content) or ("Private-specific" in content)
+
+    def test_install_creates_xdg_gitattributes_symlink(self, tmp_path: Path) -> None:
+        """install 後 ~/.config/git/attributes が repo の .gitattributes へのリンク"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _run_install_sh(REPO_ROOT, home)
+
+        attributes = home / ".config" / "git" / "attributes"
+        assert attributes.is_symlink()
+        assert attributes.resolve() == (REPO_ROOT / "config" / "git" / ".gitattributes").resolve()
+
+    def test_uninstall_removes_xdg_git_files(self, tmp_path: Path) -> None:
+        """uninstall 後 ~/.config/git/ignore と attributes が削除される"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _run_install_sh(REPO_ROOT, home)
+        _run_install_sh(REPO_ROOT, home, uninstall=True)
+
+        assert not (home / ".config" / "git" / "ignore").exists()
+        attributes = home / ".config" / "git" / "attributes"
+        assert not attributes.exists()
+        assert not attributes.is_symlink()
+
+    def test_install_removes_legacy_git_artifacts(self, tmp_path: Path) -> None:
+        """install 時に旧配置 (ドット付き attributes / gitignore_global) の残骸リンクが除去される"""
+        home = tmp_path / "home"
+        home.mkdir()
+        cfg_git = home / ".config" / "git"
+        cfg_git.mkdir(parents=True)
+
+        # 旧 dotfiles 由来リンク (DOTFILES_DIR=REPO_ROOT 配下を指す) を事前作成
+        legacy_attr = cfg_git / ".gitattributes"
+        legacy_attr.symlink_to(REPO_ROOT / "config" / "git" / ".gitattributes")
+        legacy_global = home / ".gitignore_global"
+        legacy_global.symlink_to(REPO_ROOT / "config" / "git" / ".gitignore.common")
+
+        _run_install_sh(REPO_ROOT, home)
+
+        assert not legacy_attr.is_symlink(), "ドット付き旧 gitattributes リンクが残存"
+        assert not legacy_global.is_symlink(), "旧 gitignore_global リンクが残存"
