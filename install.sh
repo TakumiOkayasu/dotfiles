@@ -414,25 +414,44 @@ _remove_codex_skill_dir_if_all_dotfiles_links() {
 # ============================================================================
 
 install_git_files() {
+    cleanup_legacy_git_artifacts
+
     create_link "config/git/.git-completion.bash" "${HOME}/.git-completion.bash"
     create_link "config/git/.git-prompt.sh"        "${HOME}/.git-prompt.sh"
 
     ensure_dir "${HOME}/.config/git"
     create_link "config/git/.git-prompt.sh"   "${HOME}/.config/git/.git-prompt.sh"
-    create_link "config/git/.gitattributes"   "${HOME}/.config/git/.gitattributes"
+    create_link "config/git/.gitattributes"   "${HOME}/.config/git/attributes"
 }
 
 uninstall_git_files() {
+    cleanup_legacy_git_artifacts
+
     remove_link "config/git/.git-completion.bash" "${HOME}/.git-completion.bash"
     remove_link "config/git/.git-prompt.sh"        "${HOME}/.git-prompt.sh"
     remove_link "config/git/.git-prompt.sh"        "${HOME}/.config/git/.git-prompt.sh"
-    remove_link "config/git/.gitattributes"        "${HOME}/.config/git/.gitattributes"
+    remove_link "config/git/.gitattributes"        "${HOME}/.config/git/attributes"
+}
+
+# 旧配置 (命名変遷の名残) の残骸を除去する。
+# dotfiles 由来リンクのみ remove_dotfiles_link で安全に削除し、
+# 判定不能な実体 ~/.gitignore は誤削除を避け手動削除を案内する。
+cleanup_legacy_git_artifacts() {
+    remove_dotfiles_link "${HOME}/.gitignore_global"        "旧gitignore_globalリンク"
+    remove_dotfiles_link "${HOME}/.config/git/.gitattributes" "旧gitattributesリンク (ドット付き)"
+
+    _legacy_ignore="${HOME}/.gitignore"
+    if is_dotfiles_link "$_legacy_ignore"; then
+        remove_dotfiles_link "$_legacy_ignore" "旧gitignoreリンク"
+    elif [ -f "$_legacy_ignore" ]; then
+        print_info "残骸の可能性: ${_legacy_ignore} (旧 excludesfile 実体)。不要なら手動削除してください"
+    fi
 }
 
 install_gitignore() {
     [ -z "$GITCONFIG_VARIANT" ] && return 0
 
-    _target="${HOME}/.gitignore"
+    _target="${HOME}/.config/git/ignore"
     _base="${DOTFILES_DIR}/config/git/.gitignore.common"
     _variant="${DOTFILES_DIR}/config/git/.gitignore.${GITCONFIG_VARIANT}"
 
@@ -442,6 +461,7 @@ install_gitignore() {
     fi
 
     _gitignore_validate_variant "$_variant" || return 1
+    ensure_dir "${HOME}/.config/git" || return 1
     _gitignore_backup_existing "$_target"
     _gitignore_merge_and_write "$_base" "$_variant" "$_target"
 }
@@ -470,7 +490,7 @@ _gitignore_merge_and_write() {
 }
 
 uninstall_gitignore() {
-    _target="${HOME}/.gitignore"
+    _target="${HOME}/.config/git/ignore"
 
     if [ -f "$_target" ]; then
         rm "$_target"
@@ -1231,11 +1251,11 @@ _preview_git() {
     printf "  ${COLOR_CYAN}Git設定:${COLOR_RESET}\n"
     printf "    + config/git/.git-completion.bash -> ~/.git-completion.bash\n"
     printf "    + config/git/.git-prompt.sh -> ~/.git-prompt.sh\n"
-    printf "    + config/git/.gitattributes -> ~/.config/git/.gitattributes\n"
+    printf "    + config/git/.gitattributes -> ~/.config/git/attributes\n"
     if [ -n "$GITCONFIG_VARIANT" ]; then
         printf "    + config/git/.gitconfig.common -> ~/.gitconfig.common\n"
         printf "    + config/git/.gitconfig.%s -> ~/.gitconfig\n" "$GITCONFIG_VARIANT"
-        printf "    + config/git/.gitignore.common + .gitignore.%s -> ~/.gitignore\n" "$GITCONFIG_VARIANT"
+        printf "    + config/git/.gitignore.common + .gitignore.%s -> ~/.config/git/ignore\n" "$GITCONFIG_VARIANT"
     fi
     echo ""
 }
