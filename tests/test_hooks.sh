@@ -401,6 +401,16 @@ run_output_test "完了報告なし → 無出力" "$COMP" \
 {\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"次の手順を検討します。\"}]},\"isSidechain\":false}" \
 ""
 
+echo "--- completion: 偽陽性回避 (案A: できました単独は拾わない) ---"
+run_output_test "実証できました → 無出力 (誤検知回避)" "$COMP" \
+"$USER_LINE
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"gitignore の出典を実証できました。\"}]},\"isSidechain\":false}" \
+""
+run_output_test "実装できました+テストなし → block (限定形)" "$COMP" \
+"$USER_LINE
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"機能を実装できました。\"}]},\"isSidechain\":false}" \
+"\"decision\": \"block\""
+
 echo "--- completion: ループ防止 (stop_hook_active=true) → 許可 ---"
 run_output_test "stop_hook_active → 無出力" "$COMP" \
 "$USER_LINE
