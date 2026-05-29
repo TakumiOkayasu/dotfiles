@@ -118,6 +118,20 @@
         ]
       }
     ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/sycophancy-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/completion-claim-check.sh"
+          }
+        ]
+      }
+    ],
     "PreCompact": [
       {
         "hooks": [
@@ -210,7 +224,6 @@
       ]
     }
   },
-  "effortLevel": "xhigh",
   "fastMode": false,
   "showThinkingSummaries": true,
   "theme": "dark-daltonized",

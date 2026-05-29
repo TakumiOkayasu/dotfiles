@@ -10,7 +10,7 @@
 #   - UserPromptSubmit: プレーンテキスト(stdout → Claudeのコンテキストに注入)
 #   - PostToolUse: JSON(additionalContext)
 #
-# 依存: jaq or jq, perl
+# 依存: jaq or jq
 
 # set -e を使わない（exit 1 = hookエラー = 許可扱いリスク）
 
@@ -38,30 +38,17 @@ fi
 
 # --- コンテキスト使用率算出 ---
 # transcript JSONL の末尾から最新の usage を持つ非sidechain行を取得
-# perl で高速に末尾から逆順走査
-USAGE_LINE=$(tail -200 "$TRANSCRIPT_PATH" | perl -MJSON::PP -ne '
-    BEGIN { $latest = undef; $latest_ts = ""; }
-    chomp;
-    eval {
-        my $d = decode_json($_);
-        return if ($d->{isSidechain} // 0);
-        return if ($d->{isApiErrorMessage} // 0);
-        return unless $d->{message} && $d->{message}{usage};
-        my $ts = $d->{timestamp} // "";
-        if ($ts gt $latest_ts) {
-            $latest_ts = $ts;
-            $latest = $d->{message}{usage};
-        }
-    };
-    END {
-        if ($latest) {
-            my $input = ($latest->{input_tokens} // 0);
-            my $cache = ($latest->{cache_read_input_tokens} // 0);
-            print $input + $cache;
-        } else {
-            print "0";
-        }
-    }
+# timestamp 最大 (ISO 文字列の辞書順 = 時系列順) の usage を jq で抽出
+USAGE_LINE=$(tail -200 "$TRANSCRIPT_PATH" | "$JQ" -s -r '
+    [ .[]
+      | select((.isSidechain // false) == false)
+      | select((.isApiErrorMessage // false) == false)
+      | select(.message.usage != null) ]
+    | (max_by(.timestamp // "") // null) as $latest
+    | if $latest == null then 0
+      else (($latest.message.usage.input_tokens // 0)
+            + ($latest.message.usage.cache_read_input_tokens // 0))
+      end
 ' 2>/dev/null || echo "0")
 
 # モデルのコンテキスト上限 (tokens)
