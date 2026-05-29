@@ -330,6 +330,94 @@ unset REMOTE_CONTAINERS
 export CLAUDE_HOOK_TEST_MODE=1
 
 echo ""
+# ============================================================
+# Stop hooks: sycophancy-check.sh / completion-claim-check.sh
+# exit code でなく stdout の出力内容で判定する
+# ============================================================
+echo ""
+echo "=== sycophancy-check.sh / completion-claim-check.sh (Stop) ==="
+echo ""
+
+# Stop hook の stdout 内容を検証するヘルパ
+# $1 desc, $2 hook, $3 JSONL, $4 expect_substr (空なら無出力を期待), $5 stop_active(任意)
+run_output_test() {
+    _desc="$1"; _hook="$2"; _jsonl="$3"; _expect="$4"; _stop_active="${5:-false}"
+    TOTAL=$((TOTAL + 1))
+    _tf=$(mktemp)
+    printf '%s\n' "$_jsonl" > "$_tf"
+    _input=$(printf '{"hook_event_name":"Stop","transcript_path":"%s","stop_hook_active":%s,"cwd":"/workspace"}' "$_tf" "$_stop_active")
+    _out=$(printf '%s' "$_input" | "$_hook" 2>/dev/null)
+    rm -f "$_tf"
+    if [ -z "$_expect" ]; then
+        if [ -z "$_out" ]; then
+            printf "  PASS: %s\n" "$_desc"; PASS=$((PASS + 1))
+        else
+            printf "  FAIL: %s (expected empty output)\n" "$_desc"; FAIL=$((FAIL + 1))
+        fi
+    else
+        case "$_out" in
+            *"$_expect"*) printf "  PASS: %s\n" "$_desc"; PASS=$((PASS + 1)) ;;
+            *) printf "  FAIL: %s (missing substr: %s)\n" "$_desc" "$_expect"; FAIL=$((FAIL + 1)) ;;
+        esac
+    fi
+}
+
+SYCO="/workspace/hooks/sycophancy-check.sh"
+COMP="/workspace/hooks/completion-claim-check.sh"
+USER_LINE='{"type":"user","message":{"role":"user","content":"レビューして"},"isSidechain":false}'
+
+echo "--- sycophancy: 追従句検出 ---"
+run_output_test "おっしゃる通り → 警告" "$SYCO" \
+"$USER_LINE
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"おっしゃる通りです。直します。\"}]},\"isSidechain\":false}" \
+"おべっか検出"
+run_output_test "You're right → 警告" "$SYCO" \
+"$USER_LINE
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"You're right, let me fix it.\"}]},\"isSidechain\":false}" \
+"おべっか検出"
+
+echo "--- sycophancy: 非該当は無警告 ---"
+run_output_test "根拠ある応答 → 無警告" "$SYCO" \
+"$USER_LINE
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"3点指摘します。1つ目は型定義です。\"}]},\"isSidechain\":false}" \
+""
+
+echo "--- completion: テスト痕跡なし完了報告 → block ---"
+run_output_test "完了報告+テストなし → block" "$COMP" \
+"$USER_LINE
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"実装しました。\"}]},\"isSidechain\":false}" \
+"\"decision\": \"block\""
+
+echo "--- completion: テスト痕跡あり → 許可 ---"
+run_output_test "完了報告+テストあり → 無出力" "$COMP" \
+"$USER_LINE
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Bash\",\"input\":{\"command\":\"docker compose -f tests/compose.yml run --rm hooks-test\"}}]},\"isSidechain\":false}
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"実装しました。テスト pass。\"}]},\"isSidechain\":false}" \
+""
+
+echo "--- completion: 完了報告なし → 許可 ---"
+run_output_test "完了報告なし → 無出力" "$COMP" \
+"$USER_LINE
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"次の手順を検討します。\"}]},\"isSidechain\":false}" \
+""
+
+echo "--- completion: 偽陽性回避 (案A: できました単独は拾わない) ---"
+run_output_test "実証できました → 無出力 (誤検知回避)" "$COMP" \
+"$USER_LINE
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"gitignore の出典を実証できました。\"}]},\"isSidechain\":false}" \
+""
+run_output_test "実装できました+テストなし → block (限定形)" "$COMP" \
+"$USER_LINE
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"機能を実装できました。\"}]},\"isSidechain\":false}" \
+"\"decision\": \"block\""
+
+echo "--- completion: ループ防止 (stop_hook_active=true) → 許可 ---"
+run_output_test "stop_hook_active → 無出力" "$COMP" \
+"$USER_LINE
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"実装しました。\"}]},\"isSidechain\":false}" \
+"" "true"
+
+echo ""
 echo "=== 結果: ${PASS}/${TOTAL} passed, ${FAIL} failed ==="
 
 if [ "$FAIL" -gt 0 ]; then

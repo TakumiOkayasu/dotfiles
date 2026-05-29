@@ -7,7 +7,7 @@
 #   - .claude/checkpoints/latest.md に集約
 #
 # 発動: PreCompact (auto|manual)
-# 依存: jaq or jq, perl
+# 依存: jaq or jq
 
 # set -e を使わない（exit 1 = hookエラー = 許可扱いリスク）
 
@@ -52,30 +52,16 @@ SUMMARY_FILE="${CHECKPOINT_DIR}/latest.md"
     if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
         echo "## User Requests (recent)"
         echo ""
-        tail -500 "$TRANSCRIPT_PATH" | perl -MJSON::PP -ne '
-            chomp;
-            eval {
-                my $d = decode_json($_);
-                return unless $d->{message} && $d->{message}{role};
-                if ($d->{message}{role} eq "user") {
-                    my $content = $d->{message}{content};
-                    if (ref $content eq "ARRAY") {
-                        for my $block (@$content) {
-                            if (ref $block eq "HASH" && ($block->{type} // "") eq "text") {
-                                my $text = $block->{text} // "";
-                                $text =~ s/\n/ /g;
-                                $text = substr($text, 0, 200);
-                                print "- $text\n";
-                            }
-                        }
-                    } elsif (!ref $content) {
-                        my $text = $content;
-                        $text =~ s/\n/ /g;
-                        $text = substr($text, 0, 200);
-                        print "- $text\n";
-                    }
-                }
-            };
+        tail -500 "$TRANSCRIPT_PATH" | "$JQ" -s -r '
+            .[]
+            | select(.message.role == "user")
+            | .message.content
+            | if type == "array" then (.[] | select(.type == "text") | .text)
+              elif type == "string" then .
+              else empty end
+            | gsub("\n"; " ")
+            | .[0:200]
+            | "- " + .
         ' 2>/dev/null || echo "- (transcript parse failed)"
         echo ""
     fi
