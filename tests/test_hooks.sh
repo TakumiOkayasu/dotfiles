@@ -382,11 +382,11 @@ run_output_test "根拠ある応答 → 無警告" "$SYCO" \
 {\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"3点指摘します。1つ目は型定義です。\"}]},\"isSidechain\":false}" \
 ""
 
-echo "--- completion: テスト痕跡なし完了報告 → block ---"
-run_output_test "完了報告+テストなし → block" "$COMP" \
+echo "--- completion: テスト痕跡なし完了報告 → 警告 ---"
+run_output_test "完了報告+テストなし → 警告" "$COMP" \
 "$USER_LINE
 {\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"実装しました。\"}]},\"isSidechain\":false}" \
-"\"decision\": \"block\""
+"完了報告チェック"
 
 echo "--- completion: テスト痕跡あり → 許可 ---"
 run_output_test "完了報告+テストあり → 無出力" "$COMP" \
@@ -406,10 +406,18 @@ run_output_test "実証できました → 無出力 (誤検知回避)" "$COMP" 
 "$USER_LINE
 {\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"gitignore の出典を実証できました。\"}]},\"isSidechain\":false}" \
 ""
-run_output_test "実装できました+テストなし → block (限定形)" "$COMP" \
+run_output_test "実装できました+テストなし → 警告 (限定形)" "$COMP" \
 "$USER_LINE
 {\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"機能を実装できました。\"}]},\"isSidechain\":false}" \
-"\"decision\": \"block\""
+"完了報告チェック"
+
+echo "--- completion: ハーネス注入行を実ユーザー誤判定しない (root cause 回帰) ---"
+run_output_test "task-notification で区間が切れない → 無出力" "$COMP" \
+"$USER_LINE
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Bash\",\"input\":{\"command\":\"docker compose -f tests/compose.yml run --rm hooks-test\"}}]},\"isSidechain\":false}
+{\"type\":\"user\",\"isMeta\":false,\"message\":{\"role\":\"user\",\"content\":\"<task-notification>\\n<task-id>x</task-id> completed\"}}
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"実装しました。\"}]},\"isSidechain\":false}" \
+""
 
 echo "--- completion: ループ防止 (stop_hook_active=true) → 許可 ---"
 run_output_test "stop_hook_active → 無出力" "$COMP" \

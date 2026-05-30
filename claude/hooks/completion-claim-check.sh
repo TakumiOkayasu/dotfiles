@@ -1,14 +1,15 @@
 #!/bin/sh
-# completion-claim-check.sh - テスト pass ログ無しの完了報告をブロック (Stop)
+# completion-claim-check.sh - テスト pass ログ無しの完了報告を警告 (Stop)
 #
 # 責務:
 #   - 直近の実ユーザーターン以降の応答に「完了報告」表現があり、かつ
-#     同区間にテスト実行の痕跡 (Bash tool_use) が無い場合に停止をブロックする
+#     同区間にテスト実行の痕跡 (Bash tool_use) が無い場合に警告する (停止はブロックしない)
 #   - global_CLAUDE.md「テスト pass のログを示してから完了報告する」と整合させる
+#   - 実ユーザーターン判定では isMeta 行とハーネス注入 (task-notification 等) を除外する
 #
-# 出力: 該当時のみ {"decision":"block","reason":...} を返す。それ以外は exit 0
-# ループ防止: stop_hook_active が true の場合は判定を skip (二重発火しない)
-# 依存: jaq or jq, perl
+# 出力: 該当時のみ {"systemMessage":...} を返す。それ以外は exit 0
+# 二重発火抑制: stop_hook_active が true の場合は判定を skip
+# 依存: jaq or jq
 #
 # 配置先: ~/.claude/hooks/completion-claim-check.sh
 
@@ -41,9 +42,14 @@ EXTRACT=$(tail -300 "$TRANSCRIPT_PATH" | "$JQ" -s -r '
     [ .[] | select(.isSidechain != true) ] as $rows
     | ( [ $rows | to_entries[]
           | select(.value.type == "user"
-              and ((.value.message.content | type) == "string"
-                   or ((.value.message.content | type) == "array"
-                       and (.value.message.content | map(.type) | any(. == "text")))))
+              and (.value.isMeta != true)
+              and (.value.message.content as $c | ($c | type) as $ct
+                   | ($ct == "string"
+                      and (($c | (startswith("<task-notification>")
+                                  or startswith("Stop hook feedback:")
+                                  or startswith("Your tool call was malformed")
+                                  or startswith("[Request interrupted"))) | not))
+                     or ($ct == "array" and ($c | map(.type) | any(. == "text")))))
           | .key ] | (.[-1]) ) as $u
     | (($u // -1) + 1) as $start
     | $rows[$start:] as $resp
@@ -88,9 +94,9 @@ if [ "$HAS_TEST" -eq 1 ]; then
     exit 0
 fi
 
-# --- テスト痕跡無しの完了報告 → ブロック ---
-REASON="完了報告「${CLAIM}」を検出しましたが、直近の応答にテスト/検証コマンドの実行痕跡がありません。global_CLAUDE.md の方針: テスト pass のログを示してから完了報告する。未確認の完了報告は禁止です。テストを実行して pass を確認するか、検証をスキップした理由を明示してください。"
+# --- テスト痕跡無しの完了報告 → 警告 (停止はブロックしない) ---
+MSG="⚠️ [完了報告チェック] 完了報告「${CLAIM}」を検出しましたが、直近の応答にテスト/検証コマンドの実行痕跡がありません。global_CLAUDE.md の方針: テスト pass のログを示してから完了報告する。テストを実行して pass を確認するか、検証をスキップした理由を明示してください。"
 
-printf '%s' "$REASON" | "$JQ" -R -s '{decision: "block", reason: .}' 2>/dev/null || exit 0
+printf '%s' "$MSG" | "$JQ" -R -s '{systemMessage: .}' 2>/dev/null || exit 0
 
 exit 0
