@@ -36,9 +36,14 @@ HEAD=$(tail -200 "$TRANSCRIPT_PATH" | "$JQ" -s -r '
     [ .[] | select(.isSidechain != true) ] as $rows
     | ( [ $rows | to_entries[]
           | select(.value.type == "user"
-              and ((.value.message.content | type) == "string"
-                   or ((.value.message.content | type) == "array"
-                       and (.value.message.content | map(.type) | any(. == "text")))))
+              and (.value.isMeta != true)
+              and (.value.message.content as $c | ($c | type) as $ct
+                   | ($ct == "string"
+                      and (($c | (startswith("<task-notification>")
+                                  or startswith("Stop hook feedback:")
+                                  or startswith("Your tool call was malformed")
+                                  or startswith("[Request interrupted"))) | not))
+                     or ($ct == "array" and ($c | map(.type) | any(. == "text")))))
           | .key ] | (.[-1]) ) as $u
     | (($u // -1) + 1) as $start
     | [ $rows[$start:][]
