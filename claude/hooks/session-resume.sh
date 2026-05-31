@@ -45,12 +45,20 @@ if [ "$SOURCE" = "compact" ]; then
     HAS_CONTEXT=true
 fi
 
-# --- PROGRESS.md の注入 ---
+# --- PROGRESS.md の注入 (省エネ: 全文でなく要点のみ抽出) ---
+# 全文 cat は compact 毎に大量注入となり固定コンテキスト費が嵩むため、
+# 「現在のタスク」節 + 未完了 `- [ ]` 行 + 「判断ログ」節の直近10行のみ注入する
 if [ -f "$PROGRESS_FILE" ]; then
-    echo "📋 [PROGRESS.md] 前回のタスク状況:"
+    echo "📋 [PROGRESS.md] 前回のタスク状況 (要点抽出):"
     echo ""
-    cat "$PROGRESS_FILE"
+    awk '
+        /^## / { intask = ($0 ~ /現在のタスク/); inlog = ($0 ~ /判断ログ/); logn = 0 }
+        intask { print; next }
+        inlog { if (logn < 10) { print; logn++ }; next }
+        /^- \[ \]/ { print }
+    ' "$PROGRESS_FILE"
     echo ""
+    echo "(全文は .claude/progress.md を参照)"
     HAS_CONTEXT=true
 
     # 未完了タスクのカウント
@@ -61,12 +69,12 @@ if [ -f "$PROGRESS_FILE" ]; then
     fi
 fi
 
-# --- checkpoint の注入(compact 後 or resume 時) ---
+# --- checkpoint の注入(compact 後 or resume 時、先頭40行にキャップ) ---
 if [ "$SOURCE" = "compact" ] || [ "$SOURCE" = "resume" ]; then
     if [ -f "$CHECKPOINT_FILE" ]; then
-        echo "📦 [Checkpoint] 最終チェックポイント:"
+        echo "📦 [Checkpoint] 最終チェックポイント (先頭40行):"
         echo ""
-        cat "$CHECKPOINT_FILE"
+        head -40 "$CHECKPOINT_FILE"
         echo ""
         HAS_CONTEXT=true
     fi

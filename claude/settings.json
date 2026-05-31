@@ -22,6 +22,7 @@
     ],
     "defaultMode": "plan"
   },
+  "model": "sonnet",
   "hooks": {
     "PreToolUse": [
       {
