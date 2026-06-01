@@ -98,9 +98,11 @@ dispatch 形式・並列起動の作法は `~/.claude/SUBAGENTS.md` を参照。
 
 ### dispatch 内容
 
-各 subagent に対象機能の要件 + `hierarchical-architecture` 不変条件を渡し、**互いに異なるレイヤー切り分け案**を 1 つ出させる (例: 案 A = 管理層厚め / 案 B = 提供層分割 / 案 C = Platform 層に逃がす)。subagent 種別は `general-purpose` (`Plan` は単一計画立案用途のため、3 並列で互いに異なる案を出す本節と不整合)。
+**`design-consultant` subagent を 1 dispatch** して、対象機能の要件 + `hierarchical-architecture` 不変条件を渡す。`design-consultant` は複数案 (管理層厚め / 提供層分割 / Platform 層逃がし 等) を内部で生成・比較・推奨まで行い、比較表と推奨案を親に返す。(旧: `general-purpose` 3 並列で案を分散生成していたが、`design-consultant` が 1 dispatch で同等の多様性と比較を担うため統合)
 
-### 評価軸 (親が事後集約)
+### 評価軸 (`design-consultant` に渡す文脈として使う)
+
+`design-consultant` への dispatch プロンプトに以下の評価軸を含める:
 
 | 軸 | 確認内容 |
 | --- | --- |

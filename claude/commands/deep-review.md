@@ -67,7 +67,7 @@
 
 ### Step 4: 3 並列 subagent dispatch
 
-`general-purpose` subagent を 1 メッセージ内で 3 並列起動する (逐次起動は禁止、並列性が失われる)。
+`code-reviewer` subagent を 1 メッセージ内で 3 並列起動する (逐次起動は禁止、並列性が失われる)。`code-reviewer` は読み取り専用・sonnet モデルで安定した出力形式を持つため、3 並列 dispatch に適合している。
 起動ツールが未ロードなら、利用可能な tool discovery で subagent / multi-agent tool を確認してから dispatch する。
 tool contract 上どうしても起動できない場合は、レビューを実施せず `## 判定: BLOCK` とし、理由を `subagent dispatch unavailable` と明示する。
 

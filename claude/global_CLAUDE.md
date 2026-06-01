@@ -100,7 +100,10 @@ main context を消費する調査・検証を別 context に逃がす (公式 b
 
 - 3 ファイル以上のコード探索 → `Explore`
 - 横断調査 / オープンな問い → `general-purpose`
-- 実装計画の立案 → `Plan`
+- 実装計画の立案 → `impl-planner`
+- コードレビュー → `code-reviewer`
+- バグ修正 → `debugger`
+- 設計判断・技術選定 (複数案比較) → `design-consultant`
 - 実装後の verify → `general-purpose`
 - 悪夢テスト網羅 → `qa-nightmare`
 - テストコード作成 → `test-writer`
