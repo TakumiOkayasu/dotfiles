@@ -20,7 +20,7 @@
 | 入力データ | 検証対象のコード / 仮説 / 機能リスト (固定: subagent が勝手に分割・集約しない) |
 | 出力フォーマット | 親が機械的に集約できる形式 (3 軸スコア / リスト / マトリクス等) |
 | 環境制約 | dispatch 不能環境では skip し理由報告 |
-| thinking_budget | `default` / `high` / `xhigh` / `max` のいずれか。タスク性質に基づき `opus-47-policy.md`「Thinking Budget Policy」を参照。未指定時は呼び出し元スキルの推奨レベル |
+| thinking_budget | `default` (定型実装・既知パターン) / `high` (設計判断・複数案比較・バグ調査) / `xhigh` (アーキテクチャ変更・セキュリティ審査) / `max` (新規ドメイン設計・全体影響調査、乱用禁止)。迷ったときの方向は `opus-47-policy.md`「Thinking Budget Policy」に従う。未指定時は呼び出し元スキルの推奨レベル |
 
 ## dispatch 出力契約
 

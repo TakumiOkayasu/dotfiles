@@ -61,6 +61,18 @@ trusted_hash = "sha256:0cf931fdd56d33674301160af986b57d5610a5a1060436fbb5ad5760e
 [hooks.state."dotfile-work-codex@dotfile-work-personal:hooks/hooks.json:user_prompt_submit:0:0"]
 trusted_hash = "sha256:580f9765ee69111014941295fbc0ccf899c57182ce0c45f2704e1d3ead9ab02f"
 
+[hooks.state."/home/okayasu/.codex/hooks.json:post_tool_use:1:0"]
+trusted_hash = "sha256:f4e82ba43dc16de418955a973428159254c5137475d65fa5985c222ca497d475"
+
+[hooks.state."/home/okayasu/.codex/hooks.json:stop:0:0"]
+trusted_hash = "sha256:df596c7e139c18b47a7c7f5117f4f7508e2e662e0ef26a329bc5e4da4c17023e"
+
+[hooks.state."dotfile-work-codex@dotfile-work-personal:hooks/hooks.json:post_tool_use:0:0"]
+trusted_hash = "sha256:f5135679e21d6621dda9bb6a944dbdcf569e565b0f9e4e8a90cbf3e4ecb47880"
+
+[hooks.state."dotfile-work-codex@dotfile-work-personal:hooks/hooks.json:stop:0:0"]
+trusted_hash = "sha256:5537abf2d105593671b67e65e7528cad2961db57885eb634f66c2d1281f43fc1"
+
 [features]
 terminal_resize_reflow = true
 memories = true
