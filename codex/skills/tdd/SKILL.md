@@ -37,20 +37,20 @@ description: 機能実装やバグ修正でテストを書く・変更する作�
 
 ---
 
-## Phase 0: スコープ判定と qa-nightmare 連携
+## Phase 0: スコープ判定と qa_nightmare 連携
 
 着手前に対象スコープを判定する。
 
-| スコープ | 例 | qa-nightmare の利用 |
+| スコープ | 例 | qa_nightmare の利用 |
 | --- | --- | --- |
 | ユニット (関数・純粋ロジック) | 値オブジェクト、ユーティリティ関数、純粋な計算 | 利用しない。次フェーズへ進む |
-| 機能単位 (画面 / API / エンドポイント / ジョブ) | ユーザー登録画面、決済 API、夜間バッチ | qa-nightmare subagent を起動する |
+| 機能単位 (画面 / API / エンドポイント / ジョブ) | ユーザー登録画面、決済 API、夜間バッチ | qa_nightmare subagent を起動する |
 
-機能単位と判定したら、テストリスト作成に進む前に qa-nightmare subagent を起動して悪夢テストケースを先に列挙する。
+機能単位と判定したら、テストリスト作成に進む前に qa_nightmare subagent を起動して悪夢テストケースを先に列挙する。
 
-### qa-nightmare 起動
+### qa_nightmare 起動
 
-Task tool で `subagent_type: qa-nightmare` を起動する。プロンプトには対象機能名と画面 URL / API パスを渡す。
+Task tool で `subagent_type: qa_nightmare` を起動する。プロンプトには対象機能名と画面 URL / API パスを渡す。
 
 ```
 対象機能: <機能名>

@@ -944,7 +944,7 @@ codex_dest_for_relative() {
         SUBAGENTS.md|hooks.json)
             printf '%s/.codex/%s\n' "$HOME" "$1"
             ;;
-        bin/*|hooks/*.sh|rules/*.md|rules/*.rules)
+        agents/*.toml|agents/*/checklists/*.md|bin/*|hooks/*.sh|rules/*.md|rules/*.rules)
             printf '%s/.codex/%s\n' "$HOME" "$1"
             ;;
         skills/*/SKILL.md|skills/*/agents/openai.yaml)
@@ -969,6 +969,7 @@ install_codex_config() {
 
 _codex_ensure_directories() {
     ensure_dir "${HOME}/.codex"
+    ensure_dir "${HOME}/.codex/agents"
     ensure_dir "${HOME}/.codex/bin"
     ensure_dir "${HOME}/.codex/hooks"
     ensure_dir "${HOME}/.codex/prompts"
@@ -977,7 +978,7 @@ _codex_ensure_directories() {
 }
 
 _codex_cleanup_all() {
-    cleanup_stale_links_in "Codex"       "${HOME}/.codex"  bin hooks prompts rules skills
+    cleanup_stale_links_in "Codex"       "${HOME}/.codex"  agents bin hooks prompts rules skills
     cleanup_removed_codex_links
     cleanup_stale_links_in "Codex skill" "${HOME}/.agents" skills
 }
@@ -1114,7 +1115,7 @@ show_category_menu() {
     printf "  ${COLOR_BOLD}5)${COLOR_RESET} Claude Code設定\n"
     printf "     hooks, skills, rules, commands を ~/.claude/ に配置\n"
     printf "  ${COLOR_BOLD}6)${COLOR_RESET} Codex設定\n"
-    printf "     hooks, rules, prompts を ~/.codex/ に、skills を ~/.agents/skills/ に配置\n"
+    printf "     agents, hooks, rules, prompts を ~/.codex/ に配置 (skills は plugin 配布)\n"
     echo ""
     printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべて  ${COLOR_BOLD}q)${COLOR_RESET} 終了\n"
     echo ""
@@ -1280,8 +1281,8 @@ _preview_claude() {
 
 _preview_codex() {
     printf "  ${COLOR_CYAN}Codex設定:${COLOR_RESET}\n"
-    printf "    + codex/AGENTS, config.toml, hooks, rules, prompts -> ~/.codex/*\n"
-    printf "    + codex/skills/* -> ~/.agents/skills/*\n"
+    printf "    + codex/AGENTS, config.toml, agents, hooks, rules, prompts -> ~/.codex/*\n"
+    printf "    - codex/skills/* は plugin 配布のため install 対象外\n"
     printf "    + codex/hooks.json -> ~/.codex/hooks.json\n"
     echo ""
 }

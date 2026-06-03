@@ -1,6 +1,6 @@
 # Codex 設定
 
-Claude Code 用の `commands/`、`hooks/`、`rules/`、`skills/` を Codex 向けに移植したディレクトリ。
+Claude Code 用の `agents/`、`commands/`、`hooks/`、`rules/`、`skills/` を Codex 向けに移植したディレクトリ。
 
 ## 対応表
 
@@ -8,8 +8,9 @@ Claude Code 用の `commands/`、`hooks/`、`rules/`、`skills/` を Codex 向�
 | --- | --- | --- |
 | `claude/global_CLAUDE.md` | `codex/global_AGENTS.md` | `~/.codex/AGENTS.md` にリネームして配置 |
 | `claude/SUBAGENTS.md` | `codex/SUBAGENTS.md` | `~/.codex/SUBAGENTS.md` に配置する subagent mechanics |
+| `claude/agents/*.md` | `codex/agents/*.toml` | `~/.codex/agents/*.toml` に配置する Codex custom agent 定義 |
 | `claude/rules/` | `codex/rules/` | 参照用の設計・実装ルール |
-| `claude/skills/` | `codex/skills/` | sourceとして管理し、`~/.agents/skills/` に配置 |
+| `claude/skills/` | `codex/skills/` | plugin 配布用 source。plugin-only mode では `install.sh` の配置対象外 |
 | `claude/commands/` | `codex/prompts/commands/` | slash command 代替のプロンプト集 |
 | `claude/hooks/` | `codex/hooks/` | `codex/hooks.json` から呼ばれる Codex hook 実体 |
 | `claude/bin/` | `codex/bin/` | 補助スクリプト |
@@ -35,9 +36,9 @@ Claude Code 用の `commands/`、`hooks/`、`rules/`、`skills/` を Codex 向�
 | --- | --- |
 | `~/.codex/AGENTS.md` | `codex/global_AGENTS.md` |
 | `~/.codex/SUBAGENTS.md` | `codex/SUBAGENTS.md` |
+| `~/.codex/agents/` | `codex/agents/` |
 | `~/.codex/hooks.json` | `codex/hooks.json` |
 | `~/.codex/hooks/` | `codex/hooks/` |
-| `~/.agents/skills/` | `codex/skills/` |
 | `~/.codex/rules/` | `codex/rules/` |
 | `~/.codex/prompts/commands/` | `codex/prompts/commands/` |
 
@@ -65,7 +66,7 @@ codex debug prompt-input ping
 - `hooks` / `multi_agent` の feature flag が有効なこと
 - `codex debug prompt-input ping` の出力に AGENTS 指示が含まれること
 - `codex/reference/claude-settings.reference.json` ではなく `~/.codex/config.toml` が Codex の実行時設定であること
-- skill は `~/.agents/skills/` に配置されること
+- skill は plugin から利用可能で、`install.sh` が `~/.agents/skills/` に重複配置しないこと
 
 ### プロジェクトローカルで使う場合
 
@@ -79,7 +80,7 @@ cp codex/global_AGENTS.md AGENTS.md
 
 ## skills / rules
 
-- `codex/skills/` は source。install後のユーザー配置先は `~/.agents/skills/`。
+- `codex/skills/` は plugin 配布用 source。plugin-only mode では `install.sh` で `~/.agents/skills/` に重複配置しない。
 - `codex/rules/` は参照資料。Codex が自動的に常時ロードする前提にはしない。
 - 常時必要な運用ルールは `codex/global_AGENTS.md` に直接集約する。
 - vendor skill の更新は自動実行しない。必要な場合のみ `~/.codex/bin/vendor-skills-update-manual.sh` を手動実行する。
@@ -92,6 +93,8 @@ cp codex/global_AGENTS.md AGENTS.md
 - Codex の `child_agents_md` などの自動読込は有効と仮定しない
 - subagent の起動可否は、現在の tool contract と feature flag を優先する
 - 起動できない場合は、親セッション内で同じ観点分解を行う
+
+Codex custom agent 定義は `codex/agents/*.toml` として管理し、`install.sh` で `~/.codex/agents/*.toml` にリンクされる。Codex の custom agent 仕様は standalone TOML を前提にしているため、Claude Code の `claude/agents/*.md` は本文を `developer_instructions` に移植する。
 
 ## commands の代替
 
