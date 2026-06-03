@@ -228,5 +228,6 @@
   "fastMode": false,
   "showThinkingSummaries": true,
   "theme": "dark-daltonized",
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "effortLevel": "xhigh"
 }
