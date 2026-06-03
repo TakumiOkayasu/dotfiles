@@ -8,7 +8,9 @@
 """
 
 import os
+import re
 import subprocess
+import tomllib
 from pathlib import Path
 
 INSTALL_SH = Path(__file__).resolve().parent.parent / "install.sh"
@@ -34,6 +36,56 @@ def _run_install_sh(
 # ---------------------------------------------------------------------------
 # 統合テスト: 実リポジトリで install.sh を実行
 # ---------------------------------------------------------------------------
+
+
+class TestCodexAgentDefinitions:
+    """Codex custom agent 定義の基本 schema を検証するテスト"""
+
+    REQUIRED_KEYS = ("name", "description", "developer_instructions")
+
+    def _agent_names(self) -> set[str]:
+        agent_files = sorted((REPO_ROOT / "codex" / "agents").glob("*.toml"))
+        return {
+            tomllib.loads(agent_file.read_text(encoding="utf-8"))["name"]
+            for agent_file in agent_files
+        }
+
+    def test_agent_toml_files_are_valid(self) -> None:
+        """codex/agents/*.toml が Codex custom agent の必須キーを満たす"""
+        agent_files = sorted((REPO_ROOT / "codex" / "agents").glob("*.toml"))
+        assert agent_files, "codex/agents should contain custom agent TOML files"
+
+        for agent_file in agent_files:
+            data = tomllib.loads(agent_file.read_text(encoding="utf-8"))
+            for key in self.REQUIRED_KEYS:
+                assert isinstance(data.get(key), str), (
+                    f"{agent_file}: {key} must be a string"
+                )
+                assert data[key].strip(), f"{agent_file}: {key} must not be empty"
+            assert data["name"] == agent_file.stem, (
+                f"{agent_file}: name should match file stem"
+            )
+
+    def test_skill_subagent_type_references_existing_agents(self) -> None:
+        """Codex skill 内の subagent_type 指定が実在する agent 名を参照する"""
+        agent_names = self._agent_names()
+        skill_files = [
+            REPO_ROOT / "codex" / "skills" / "tdd" / "SKILL.md",
+            REPO_ROOT
+            / "plugins"
+            / "dotfile-work-codex"
+            / "skills"
+            / "tdd"
+            / "SKILL.md",
+        ]
+
+        for skill_file in skill_files:
+            content = skill_file.read_text(encoding="utf-8")
+            for subagent_type in re.findall(r"subagent_type:\s*([A-Za-z0-9_-]+)", content):
+                assert subagent_type in agent_names, (
+                    f"{skill_file}: subagent_type {subagent_type!r} must match a "
+                    "codex/agents/*.toml name"
+                )
 
 
 class TestIntegrationInstallUninstall:
@@ -82,13 +134,18 @@ class TestIntegrationInstallUninstall:
         assert (codex_dir / "AGENTS.md").resolve() == REPO_ROOT / "codex" / "global_AGENTS.md"
         assert (codex_dir / "SUBAGENTS.md").is_symlink()
         assert (codex_dir / "SUBAGENTS.md").resolve() == REPO_ROOT / "codex" / "SUBAGENTS.md"
+        assert (codex_dir / "agents" / "code_reviewer.toml").is_symlink()
+        assert (
+            (codex_dir / "agents" / "qa-nightmare" / "checklists" / "auth-bypass.md")
+            .is_symlink()
+        )
         assert (codex_dir / "hooks.json").is_symlink()
         assert (codex_dir / "hooks").is_dir()
         assert (codex_dir / "hooks" / "destructive-command-block.sh").is_symlink()
         assert not (codex_dir / "README.md").exists()
         assert not (codex_dir / "settings.json").exists()
         assert not (codex_dir / "skills" / "tdd" / "SKILL.md").exists()
-        assert (home / ".agents" / "skills" / "tdd" / "SKILL.md").is_symlink()
+        assert not (home / ".agents" / "skills" / "tdd" / "SKILL.md").exists()
         assert (codex_dir / "rules" / "coding-conventions.md").is_symlink()
 
     def test_codex_install_excludes_untracked_files(self, tmp_path: Path) -> None:
@@ -128,13 +185,14 @@ class TestIntegrationInstallUninstall:
         _run_install_sh(REPO_ROOT, home)
 
         assert (home / ".codex" / "hooks.json").is_symlink()
+        assert (home / ".codex" / "agents" / "code_reviewer.toml").is_symlink()
         assert (home / ".codex" / "hooks" / "destructive-command-block.sh").is_symlink()
-        assert (home / ".agents" / "skills" / "tdd" / "SKILL.md").is_symlink()
+        assert not (home / ".agents" / "skills" / "tdd" / "SKILL.md").exists()
 
         _run_install_sh(REPO_ROOT, home, uninstall=True)
         assert not (home / ".codex" / "hooks.json").exists()
+        assert not (home / ".codex" / "agents" / "code_reviewer.toml").exists()
         assert not (home / ".codex" / "hooks" / "destructive-command-block.sh").exists()
-        assert not (home / ".agents" / "skills" / "tdd" / "SKILL.md").exists()
 
     def test_uninstall_empty_dir_summary(self, tmp_path: Path) -> None:
         """uninstall の空ディレクトリ削除メッセージがカテゴリごとの1行サマリー形式"""
