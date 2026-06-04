@@ -1,0 +1,116 @@
+model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
+
+[agents]
+max_threads = 8
+max_depth = 1
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+
+[features]
+hooks = true
+terminal_resize_reflow = true
+memories = true
+goals = true
+
+[mcp_servers.github]
+bearer_token_env_var = "CODEX_GITHUB_PERSONAL_ACCESS_TOKEN"
+
+[[hooks.PreToolUse]]
+matcher = "Bash|Read|Edit|Write|apply_patch"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "$HOME/.codex/hooks/hook-dispatcher.sh pre-tool-use"
+timeout = 30
+statusMessage = "Checking tool safety"
+
+[[hooks.PostToolUse]]
+matcher = "Bash|apply_patch|Edit|Write|MultiEdit|ApplyPatch"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "$HOME/.codex/hooks/hook-dispatcher.sh post-tool-use"
+timeout = 30
+statusMessage = "Recording session context and checking rules compliance"
+
+[[hooks.UserPromptSubmit]]
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = "$HOME/.codex/hooks/hook-dispatcher.sh user-prompt-submit"
+timeout = 30
+statusMessage = "Checking prompt context"
+
+[[hooks.PreCompact]]
+
+[[hooks.PreCompact.hooks]]
+type = "command"
+command = "$HOME/.codex/hooks/hook-dispatcher.sh pre-compact"
+timeout = 30
+statusMessage = "Saving compact checkpoint"
+
+[[hooks.SessionStart]]
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = "$HOME/.codex/hooks/hook-dispatcher.sh session-start"
+timeout = 30
+statusMessage = "Loading session guidance"
+
+[[hooks.Stop]]
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = "$HOME/.codex/hooks/hook-dispatcher.sh stop"
+timeout = 30
+statusMessage = "Final rules compliance check"
+
+[desktop]
+ambient-suggestions-enabled = true
+appearanceLightCodeThemeId = "github"
+appearanceDarkCodeThemeId = "ayu"
+codeFontSize = 14
+usePointerCursors = true
+dictationDictionary = []
+composerEnterBehavior = "cmdIfMultiline"
+git-pull-request-merge-method = "merge"
+git-show-sidebar-pr-icons = true
+conversationDetailMode = "STEPS_COMMANDS"
+
+[desktop.appearanceLightChromeTheme]
+accent = "#0969da"
+contrast = 45
+ink = "#1f2328"
+opaqueWindows = false
+surface = "#ffffff"
+
+[desktop.appearanceLightChromeTheme.fonts]
+
+[desktop.appearanceLightChromeTheme.semanticColors]
+diffAdded = "#1a7f37"
+diffRemoved = "#cf222e"
+skill = "#8250df"
+
+[desktop.appearanceDarkChromeTheme]
+accent = "#e6b450"
+contrast = 74
+ink = "#bfbdb6"
+opaqueWindows = false
+surface = "#0b0e14"
+
+[desktop.appearanceDarkChromeTheme.semanticColors]
+diffAdded = "#7fd962"
+diffRemoved = "#ea6c73"
+skill = "#cda1fa"
+
+[notice.external_config_migration_prompts]
+home_last_prompted_at = 1780546225
+
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+EDITOR = "code --wait"
+VISUAL = "code --wait"

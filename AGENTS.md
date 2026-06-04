@@ -43,12 +43,12 @@ dotfile-work/
 ├── codex/              # Codex設定 → ~/.codex/ にリンク
 │   ├── global_AGENTS.md # → ~/.codex/AGENTS.md (リネームしてリンク)
 │   ├── SUBAGENTS.md    # → ~/.codex/SUBAGENTS.md (subagent mechanics)
-│   ├── hooks.json      # Codex hook定義
+│   ├── config.toml.template # → ~/.codex/config.toml 初回生成用 (hook定義はinline TOML)
 │   ├── reference/      # install対象外の参照資料
 │   ├── prompts/        # prompt command 断片
 │   ├── hooks/           # 補助ガード (セキュリティ, セッション管理)
 │   ├── rules/           # 参照ルール (hallucination-prevention, hierarchical-architecture, coding-conventions, implementation-policy)
-│   └── skills/          # source。install時は ~/.agents/skills/ に配置
+│   └── skills/          # plugin配布用 source。install対象外
 ├── bin/                 # CLI ツール → ~/.local/bin/
 ├── tests/               # Docker テスト
 └── docs/                # ドキュメント
@@ -61,10 +61,11 @@ Codex vendor skill は自動 clone / 自動更新しない。必要な場合の�
 1. `git ls-files` で `config/` と `codex/` の tracked file を列挙
 2. `config/` → `$HOME` に、`codex/` の allowlist 対象 → `~/.codex/` にシンボリックリンク作成
 3. `global_AGENTS.md` は `AGENTS.md` にリネームしてリンク
-4. `codex/skills/*` は `~/.agents/skills/*` にリンク
-5. `codex/README.md` と `codex/reference/` は install 対象外
-6. プラットフォーム自動検出: macOS → `.gitconfig.private` / Linux・WSL → `.gitconfig.work`
-7. `bin/` は `~/.local/bin/` にリンクし、Codex 用ショートカット (`codex-feat` など) も配置する
+4. `~/.codex/config.toml` が存在しない場合だけ `codex/config.toml.template` から通常ファイルを生成
+5. `codex/skills/*` は plugin 配布用 source として install 対象外
+6. `codex/README.md`、`codex/config.toml.template`、`codex/reference/` はリンク対象外
+7. プラットフォーム自動検出: macOS → `.gitconfig.private` / Linux・WSL → `.gitconfig.work`
+8. `bin/` は `~/.local/bin/` にリンクし、Codex 用ショートカット (`codex-feat` など) も配置する
 
 ## Development Notes
 
