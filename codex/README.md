@@ -12,10 +12,10 @@ Claude Code 用の `agents/`、`commands/`、`hooks/`、`rules/`、`skills/` を
 | `claude/rules/` | `codex/rules/` | 参照用の設計・実装ルール |
 | `claude/skills/` | `codex/skills/` | plugin 配布用 source。plugin-only mode では `install.sh` の配置対象外 |
 | `claude/commands/` | `codex/prompts/commands/` | slash command 代替のプロンプト集 |
-| `claude/hooks/` | `codex/hooks/` | `codex/hooks.json` から呼ばれる Codex hook 実体 |
+| `claude/hooks/` | `codex/hooks/` | `config.toml.template` の inline hook から呼ばれる Codex hook 実体 |
 | `claude/bin/` | `codex/bin/` | 補助スクリプト |
 | `claude/settings.json` | `codex/reference/claude-settings.reference.json` | 参照用。install対象外 |
-| `claude/settings.json` の hooks | `codex/hooks.json` | `~/.codex/hooks.json` に配置される Codex hook 定義 |
+| `claude/settings.json` の hooks | `codex/config.toml.template` | `~/.codex/config.toml` 初回生成用 template。hook 定義は inline TOML |
 
 ## 使い方
 
@@ -36,19 +36,19 @@ Claude Code 用の `agents/`、`commands/`、`hooks/`、`rules/`、`skills/` を
 | --- | --- |
 | `~/.codex/AGENTS.md` | `codex/global_AGENTS.md` |
 | `~/.codex/SUBAGENTS.md` | `codex/SUBAGENTS.md` |
+| `~/.codex/config.toml` | `codex/config.toml.template` から初回生成 |
 | `~/.codex/agents/` | `codex/agents/` |
-| `~/.codex/hooks.json` | `codex/hooks.json` |
 | `~/.codex/hooks/` | `codex/hooks/` |
 | `~/.codex/rules/` | `codex/rules/` |
 | `~/.codex/prompts/commands/` | `codex/prompts/commands/` |
 
-`codex/README.md` と `codex/reference/` はリポジトリ内の参照資料であり、`~/.codex/` には配置しない。
+`codex/README.md`、`codex/reference/`、`codex/config.toml.template` はリポジトリ内の参照資料であり、`~/.codex/` にはリンク配置しない。`~/.codex/config.toml` が存在しない場合のみ template から通常ファイルとして生成する。
 
 ### 初回確認
 
 Codex 起動時に hook のレビュー警告が出た場合は、Codex 上で `/hooks` を開いて内容を確認し、許可する。
 
-`codex/hooks.json` は Codex 側のレビュー対象を減らすため、個別 hook を直接登録せず、イベントごとの `hook-dispatcher.sh` 呼び出しに集約している。
+hook 定義は `codex/config.toml.template` の inline TOML に集約し、イベントごとの `hook-dispatcher.sh` 呼び出しにしている。Codex CLI が `~/.codex/config.toml` に生成する `[hooks.state.*]` や `trusted_hash` は環境固有 state のため template には含めない。
 
 Codex の実仕様は CLI と現在の設定を一次ソースにする。確認コマンド:
 
@@ -65,7 +65,7 @@ codex debug prompt-input ping
 - `~/.codex/AGENTS.md` が `codex/global_AGENTS.md` を指していること
 - `hooks` / `multi_agent` の feature flag が有効なこと
 - `codex debug prompt-input ping` の出力に AGENTS 指示が含まれること
-- `codex/reference/claude-settings.reference.json` ではなく `~/.codex/config.toml` が Codex の実行時設定であること
+- `codex/config.toml.template` ではなく `~/.codex/config.toml` が Codex の実行時設定であること
 - skill は plugin から利用可能で、`install.sh` が `~/.agents/skills/` に重複配置しないこと
 
 ### プロジェクトローカルで使う場合
@@ -148,7 +148,7 @@ Codex 本体が `/feat` や `/fix` をプロジェクトローカル command と
 
 ## hooks
 
-Codex は `~/.codex/hooks.json` から hook を読み込む。`install.sh` は `codex/hooks.json` と `codex/hooks/` を `~/.codex/` にシンボリックリンク配置する。
+Codex hook は `~/.codex/config.toml` の inline TOML から読み込む。`install.sh` は `codex/config.toml.template` から `~/.codex/config.toml` を初回生成し、`codex/hooks/` を `~/.codex/hooks/` にシンボリックリンク配置する。既存の `~/.codex/config.toml` は上書きしない。
 
 - `PreToolUse` / `PostToolUse`: 主に Bash ツールの安全ガード
 - `UserPromptSubmit`: 一次ソース確認・方針検証リマインド
@@ -157,6 +157,8 @@ Codex は `~/.codex/hooks.json` から hook を読み込む。`install.sh` は `
 hook は補助的な安全機構であり、完全な enforcement 境界ではない。`apply_patch` など一部編集系は hook 側でも検知するが、最終的には `codex/global_AGENTS.md` の指示とテスト・レビューで補完する。
 
 `codex/reference/claude-settings.reference.json` は Claude Code 形式の hook 定義を Codex パスに置き換えた参照用ファイル。Codex 本体がこの JSON を自動で解釈する前提にはしない。
+
+既存の `~/.codex/hooks.json` がある場合、`install.sh` は自動削除しない。inline hooks へ移行済みで不要なら手動で退避する。
 
 ## progress
 

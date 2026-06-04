@@ -88,6 +88,42 @@ class TestCodexAgentDefinitions:
                 )
 
 
+class TestCodexConfigTemplate:
+    """Codex config template が共有可能な内容だけを持つことを検証するテスト"""
+
+    TEMPLATE = REPO_ROOT / "codex" / "config.toml.template"
+
+    def test_config_template_is_valid_toml_with_inline_hooks(self) -> None:
+        """config.toml.template が inline hook と GitHub MCP env var を含む"""
+        content = self.TEMPLATE.read_text(encoding="utf-8")
+        data = tomllib.loads(content)
+
+        assert data["model"] == "gpt-5.5"
+        assert "hooks = true" in content
+        assert (
+            data["mcp_servers"]["github"]["bearer_token_env_var"]
+            == "CODEX_GITHUB_PERSONAL_ACCESS_TOKEN"
+        )
+        assert (
+            data["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+            == "$HOME/.codex/hooks/hook-dispatcher.sh pre-tool-use"
+        )
+
+    def test_config_template_excludes_local_state_and_secrets(self) -> None:
+        """config.toml.template に環境固有 state や secret 実値を含めない"""
+        content = self.TEMPLATE.read_text(encoding="utf-8")
+
+        forbidden_fragments = (
+            "[hooks.state",
+            'status = "trusted"',
+            "trusted_hash",
+            "bearer_token =",
+            "/home/okayasu/",
+        )
+        for fragment in forbidden_fragments:
+            assert fragment not in content
+
+
 class TestIntegrationInstallUninstall:
     """実リポジトリ構造で install.sh -f / -u -f を実行するテスト"""
 
@@ -121,7 +157,7 @@ class TestIntegrationInstallUninstall:
         assert (claude_dir / "CLAUDE.md").is_symlink()
 
     def test_install_creates_codex_symlinks(self, tmp_path: Path) -> None:
-        """install 後に ~/.codex/ 配下にCodex設定リンクが作られる"""
+        """install 後に ~/.codex/ 配下にCodex設定とリンクが作られる"""
         home = tmp_path / "home"
         home.mkdir()
         result = _run_install_sh(REPO_ROOT, home)
@@ -139,7 +175,13 @@ class TestIntegrationInstallUninstall:
             (codex_dir / "agents" / "qa-nightmare" / "checklists" / "auth-bypass.md")
             .is_symlink()
         )
-        assert (codex_dir / "hooks.json").is_symlink()
+        config_toml = codex_dir / "config.toml"
+        assert config_toml.is_file()
+        assert not config_toml.is_symlink()
+        assert config_toml.read_text(encoding="utf-8") == (
+            REPO_ROOT / "codex" / "config.toml.template"
+        ).read_text(encoding="utf-8")
+        assert not (codex_dir / "hooks.json").exists()
         assert (codex_dir / "hooks").is_dir()
         assert (codex_dir / "hooks" / "destructive-command-block.sh").is_symlink()
         assert not (codex_dir / "README.md").exists()
@@ -147,6 +189,22 @@ class TestIntegrationInstallUninstall:
         assert not (codex_dir / "skills" / "tdd" / "SKILL.md").exists()
         assert not (home / ".agents" / "skills" / "tdd" / "SKILL.md").exists()
         assert (codex_dir / "rules" / "coding-conventions.md").is_symlink()
+
+    def test_install_preserves_existing_codex_config(self, tmp_path: Path) -> None:
+        """既存 ~/.codex/config.toml は install で上書きされない"""
+        home = tmp_path / "home"
+        config_toml = home / ".codex" / "config.toml"
+        config_toml.parent.mkdir(parents=True)
+        config_toml.write_text("model = \"local-only\"\n", encoding="utf-8")
+
+        first_result = _run_install_sh(REPO_ROOT, home)
+        second_result = _run_install_sh(REPO_ROOT, home)
+
+        assert first_result.returncode == 0
+        assert second_result.returncode == 0
+        assert config_toml.read_text(encoding="utf-8") == "model = \"local-only\"\n"
+        assert "既存の ~/.codex/config.toml は上書きしません" in first_result.stdout
+        assert "既存の ~/.codex/config.toml は上書きしません" in second_result.stdout
 
     def test_codex_install_excludes_untracked_files(self, tmp_path: Path) -> None:
         """codex/ 配下の untracked file はallowlist形状でも配置されない"""
@@ -184,13 +242,15 @@ class TestIntegrationInstallUninstall:
         home.mkdir()
         _run_install_sh(REPO_ROOT, home)
 
-        assert (home / ".codex" / "hooks.json").is_symlink()
+        config_toml = home / ".codex" / "config.toml"
+        assert config_toml.is_file()
+        assert not (home / ".codex" / "hooks.json").exists()
         assert (home / ".codex" / "agents" / "code_reviewer.toml").is_symlink()
         assert (home / ".codex" / "hooks" / "destructive-command-block.sh").is_symlink()
         assert not (home / ".agents" / "skills" / "tdd" / "SKILL.md").exists()
 
         _run_install_sh(REPO_ROOT, home, uninstall=True)
-        assert not (home / ".codex" / "hooks.json").exists()
+        assert config_toml.is_file()
         assert not (home / ".codex" / "agents" / "code_reviewer.toml").exists()
         assert not (home / ".codex" / "hooks" / "destructive-command-block.sh").exists()
 

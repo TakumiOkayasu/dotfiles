@@ -113,7 +113,7 @@ print_info()    { printf "${COLOR_BLUE}→${COLOR_RESET} %s\n" "$1"; }
 print_header()  { printf "\n${COLOR_BOLD}${COLOR_CYAN}%s${COLOR_RESET}\n" "$1"; }
 
 check_requirements() {
-    for cmd in git ln mkdir rm mv; do
+    for cmd in git ln mkdir rm mv cp; do
         command -v "$cmd" >/dev/null 2>&1 || die "必須コマンドが見つかりません: $cmd"
     done
 }
@@ -938,14 +938,14 @@ codex_dest_for_relative() {
         global_AGENTS.md)
             printf '%s/.codex/AGENTS.md\n' "$HOME"
             ;;
-        config.toml)
-            printf '%s/.codex/config.toml' "$HOME"
-            ;;
-        SUBAGENTS.md|hooks.json)
+        SUBAGENTS.md)
             printf '%s/.codex/%s\n' "$HOME" "$1"
             ;;
         agents/*.toml|agents/*/checklists/*.md|bin/*|hooks/*.sh|rules/*.md|rules/*.rules)
             printf '%s/.codex/%s\n' "$HOME" "$1"
+            ;;
+        config.toml|config.toml.template|hooks.json)
+            return 1
             ;;
         skills/*/SKILL.md|skills/*/agents/openai.yaml)
             # Plugin-only mode: skills are distributed via plugins.
@@ -964,6 +964,8 @@ install_codex_config() {
     _codex_ensure_directories
     _codex_cleanup_all
     _codex_link_managed_files
+    _codex_generate_config_from_template
+    _codex_warn_legacy_hooks_json
     _codex_verify_hooks_feature
 }
 
@@ -1001,6 +1003,46 @@ _codex_link_managed_files() {
     done < "$_filelist"
 
     rm -f "$_filelist"
+}
+
+_codex_generate_config_from_template() {
+    _template="${DOTFILES_DIR}/codex/config.toml.template"
+    _dest="${HOME}/.codex/config.toml"
+
+    if [ ! -f "$_template" ]; then
+        print_skip "スキップ: codex/config.toml.template (ファイルが存在しません)"
+        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+        return 0
+    fi
+
+    if [ -e "$_dest" ] || [ -L "$_dest" ]; then
+        print_info "既存の ~/.codex/config.toml は上書きしません。codex/config.toml.template を手動 merge してください"
+        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+        return 0
+    fi
+
+    if [ "$MODE_DRY_RUN" = "true" ]; then
+        print_info "[ドライラン] 生成: ~/.codex/config.toml <- codex/config.toml.template"
+        COUNT_CREATED=$((COUNT_CREATED + 1))
+        return 0
+    fi
+
+    ensure_dir "$(dirname "$_dest")" || return 1
+    if cp "$_template" "$_dest" 2>/dev/null; then
+        print_success "生成: ~/.codex/config.toml"
+        COUNT_CREATED=$((COUNT_CREATED + 1))
+    else
+        print_error "生成失敗: ~/.codex/config.toml"
+        COUNT_ERROR=$((COUNT_ERROR + 1))
+        return 1
+    fi
+}
+
+_codex_warn_legacy_hooks_json() {
+    _hooks_json="${HOME}/.codex/hooks.json"
+    [ -e "$_hooks_json" ] || [ -L "$_hooks_json" ] || return 0
+    print_info "既存の ~/.codex/hooks.json は自動削除しません。inline hooks へ移行済みのため必要なら手動で退避してください"
+    COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
 }
 
 _codex_verify_hooks_feature() {
@@ -1115,7 +1157,7 @@ show_category_menu() {
     printf "  ${COLOR_BOLD}5)${COLOR_RESET} Claude Code設定\n"
     printf "     hooks, skills, rules, commands を ~/.claude/ に配置\n"
     printf "  ${COLOR_BOLD}6)${COLOR_RESET} Codex設定\n"
-    printf "     agents, hooks, rules, prompts を ~/.codex/ に配置 (skills は plugin 配布)\n"
+    printf "     agents, inline hooks template, rules, prompts を ~/.codex/ に配置 (skills は plugin 配布)\n"
     echo ""
     printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべて  ${COLOR_BOLD}q)${COLOR_RESET} 終了\n"
     echo ""
@@ -1281,9 +1323,10 @@ _preview_claude() {
 
 _preview_codex() {
     printf "  ${COLOR_CYAN}Codex設定:${COLOR_RESET}\n"
-    printf "    + codex/AGENTS, config.toml, agents, hooks, rules, prompts -> ~/.codex/*\n"
+    printf "    + codex/AGENTS, agents, hooks, rules, prompts -> ~/.codex/*\n"
+    printf "    + codex/config.toml.template -> ~/.codex/config.toml (存在しない場合のみ生成)\n"
     printf "    - codex/skills/* は plugin 配布のため install 対象外\n"
-    printf "    + codex/hooks.json -> ~/.codex/hooks.json\n"
+    printf "    - codex/hooks.json は作成しない (hooks は config.toml inline TOML)\n"
     echo ""
 }
 
