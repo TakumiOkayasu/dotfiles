@@ -109,6 +109,9 @@ bind 'set completion-ignore-case on'        # 大文字小文字無視
 bind 'set mark-symlinked-directories on'    # symlink に / 付与
 bind 'set colored-stats on'                 # 補完候補に色
 
+# mise 
+eval "$(mise activate bash)"
+
 # ============================================================================
 # プロンプト
 # ============================================================================
@@ -118,7 +121,7 @@ _setup_oh_my_posh() {
     if ! command -v oh-my-posh &>/dev/null; then
         return 1
     fi
-    
+
     local theme="${OH_MY_POSH_THEME:-sim-web.omp.json}"
     local config=""
     
