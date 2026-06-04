@@ -109,7 +109,7 @@ bind 'set completion-ignore-case on'        # 大文字小文字無視
 bind 'set mark-symlinked-directories on'    # symlink に / 付与
 bind 'set colored-stats on'                 # 補完候補に色
 
-# mise 
+# mise
 eval "$(mise activate bash)"
 
 # ============================================================================
@@ -124,7 +124,7 @@ _setup_oh_my_posh() {
 
     local theme="${OH_MY_POSH_THEME:-sim-web.omp.json}"
     local config=""
-    
+
     # テーマファイルの検索
     for dir in "$HOME/.poshthemes" "$DOTFILES_DIR/poshthemes" "/usr/share/oh-my-posh/themes"; do
         if [[ -f "$dir/$theme" ]]; then
@@ -132,15 +132,15 @@ _setup_oh_my_posh() {
             break
         fi
     done
-    
+
     if [[ -z "$config" ]]; then
         return 1
     fi
-    
+
     # キャッシュディレクトリ
     local cache_dir="$HOME/.cache/oh-my-posh"
     mkdir -p "$cache_dir"
-    
+
     # 初期化
     if ! eval "$(oh-my-posh init bash --config "$config")" 2>/dev/null; then
         rm -rf "$cache_dir"
@@ -149,7 +149,7 @@ _setup_oh_my_posh() {
             return 1
         fi
     fi
-    
+
     return 0
 }
 
