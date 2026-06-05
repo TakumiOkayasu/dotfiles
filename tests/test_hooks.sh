@@ -426,6 +426,60 @@ run_output_test "stop_hook_active → 無出力" "$COMP" \
 "" "true"
 
 echo ""
+echo "=== failure-log.sh ==="
+echo ""
+
+FAILLOG="/workspace/hooks/failure-log.sh"
+
+# ログファイル内容を検証する (failure-log は stdout でなく auto-fail.log に書く)。
+# 各テストは独立した一時 CWD で実行し offset/ログの持ち越しを防ぐ。
+run_faillog_test() {
+    _desc="$1"; _jsonl="$2"; _expect="$3"; _absent="${4:-}"
+    TOTAL=$((TOTAL + 1))
+    _wd=$(mktemp -d); _tf="${_wd}/transcript.jsonl"
+    printf '%s\n' "$_jsonl" > "$_tf"
+    _pl=$(printf '{"hook_event_name":"Stop","transcript_path":"%s","cwd":"%s"}' "$_tf" "$_wd")
+    ( cd "$_wd" && printf '%s' "$_pl" | "$FAILLOG" >/dev/null 2>&1 )
+    _log="${_wd}/claude_tmp/failure_log/auto-fail.log"
+    _content=""; [ -f "$_log" ] && _content=$(cat "$_log")
+    _ok=1
+    if [ -n "$_expect" ]; then case "$_content" in *"$_expect"*) ;; *) _ok=0 ;; esac; fi
+    if [ -n "$_absent" ]; then case "$_content" in *"$_absent"*) _ok=0 ;; esac; fi
+    if [ "$_ok" -eq 1 ]; then printf "  PASS: %s\n" "$_desc"; PASS=$((PASS + 1));
+    else printf "  FAIL: %s (expect=%s absent=%s)\n" "$_desc" "$_expect" "$_absent"; FAIL=$((FAIL + 1)); fi
+    rm -rf "$_wd"
+}
+
+FAIL_JSONL='{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","id":"toolu_fail1","input":{"command":"ls /nonexistent"}}]}}
+{"type":"user","toolUseResult":"Error: Exit code 2\nls: cannot access","message":{"content":[{"type":"tool_result","is_error":true,"tool_use_id":"toolu_fail1"}]}}'
+
+OK_JSONL='{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","id":"toolu_ok","input":{"command":"echo hi"}}]}}
+{"type":"user","toolUseResult":"hi","message":{"content":[{"type":"tool_result","is_error":false,"tool_use_id":"toolu_ok"}]}}'
+
+SECRET_JSONL='{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","id":"toolu_sec","input":{"command":"deploy --token=abc123XYZ"}}]}}
+{"type":"user","toolUseResult":"Error: auth failed","message":{"content":[{"type":"tool_result","is_error":true,"tool_use_id":"toolu_sec"}]}}'
+
+echo "--- 失敗 Bash の記録 / 成功の除外 ---"
+run_faillog_test "失敗 Bash (is_error) を記録" "$FAIL_JSONL" "id: toolu_fail1" ""
+run_faillog_test "失敗コマンド本文を記録" "$FAIL_JSONL" "ls /nonexistent" ""
+run_faillog_test "成功 Bash は記録しない" "$OK_JSONL" "" "toolu_ok"
+
+echo "--- 秘密情報のマスク ---"
+run_faillog_test "token 値を <redacted> にマスク" "$SECRET_JSONL" "<redacted>" "abc123XYZ"
+
+echo "--- offset による重複防止 (2 回実行で 1 件) ---"
+TOTAL=$((TOTAL + 1))
+_wd=$(mktemp -d); _tf="${_wd}/t.jsonl"
+printf '%s\n' "$FAIL_JSONL" > "$_tf"
+_pl=$(printf '{"hook_event_name":"Stop","transcript_path":"%s","cwd":"%s"}' "$_tf" "$_wd")
+( cd "$_wd" && printf '%s' "$_pl" | "$FAILLOG" >/dev/null 2>&1 )
+( cd "$_wd" && printf '%s' "$_pl" | "$FAILLOG" >/dev/null 2>&1 )
+_cnt=$(grep -c '^id: ' "${_wd}/claude_tmp/failure_log/auto-fail.log" 2>/dev/null || echo 0)
+if [ "$_cnt" -eq 1 ]; then printf "  PASS: 2 回実行で 1 件 (offset dedup)\n"; PASS=$((PASS + 1));
+else printf "  FAIL: offset dedup (count=%s, expected 1)\n" "$_cnt"; FAIL=$((FAIL + 1)); fi
+rm -rf "$_wd"
+
+echo ""
 echo "=== 結果: ${PASS}/${TOTAL} passed, ${FAIL} failed ==="
 
 if [ "$FAIL" -gt 0 ]; then
