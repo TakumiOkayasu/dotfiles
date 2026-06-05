@@ -124,9 +124,53 @@ get_first_command() {
     }'
 }
 
+# --- RTK wrapper の内側コマンドを検査対象に正規化 ---
+normalize_rtk_segment() {
+    printf '%s' "$1" | awk '
+        function base_name(value, parts, count) {
+            count = split(value, parts, "/")
+            return parts[count]
+        }
+        {
+            start = 0
+            for (i=1; i<=NF; i++) {
+                if ($i ~ /^[A-Za-z_][A-Za-z0-9_]*=/) continue
+                if ($i == "env") {
+                    i++
+                    while (i<=NF) {
+                        if ($i ~ /^-.*[uSC]$/) { i += 2; continue }
+                        if ($i ~ /^-/) { i++; continue }
+                        if ($i ~ /^[A-Za-z_][A-Za-z0-9_]*=/) { i++; continue }
+                        break
+                    }
+                    if (i>NF) { print $0; exit }
+                }
+                start = i
+                break
+            }
+            if (start == 0) { print $0; exit }
+            if (base_name($start) != "rtk") { print $0; exit }
+
+            next_index = start + 1
+            if (next_index > NF) { print ""; exit }
+            if ($next_index ~ /^(--version|-V|version|gain|discover|hook)$/) { print ""; exit }
+            if ($next_index == "proxy") {
+                next_index++
+                if (next_index > NF) { print ""; exit }
+            }
+
+            out = ""
+            for (i=next_index; i<=NF; i++) {
+                out = out (out ? " " : "") $i
+            }
+            print out
+            exit
+        }'
+}
+
 # --- 個別セグメントのブロックチェック関数 ---
 check_segment() {
-    _seg="$1"
+    _seg=$(normalize_rtk_segment "$1")
     [ -z "$_seg" ] && return 0
     if is_docker_command "$_seg"; then
         return 0
@@ -155,6 +199,7 @@ check_raw_input_fallback() {
 '
     for _fseg in $_fallback_segs; do
         _fseg=$(printf '%s' "$_fseg" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+        _fseg=$(normalize_rtk_segment "$_fseg")
         _fcmd=$(get_first_command "$_fseg")
         if [ -n "$_fcmd" ] && printf '%s\n' "$_fcmd" | grep -qE "$BLOCKED_EXACT" 2>/dev/null; then
             IFS="$_oldifs"
