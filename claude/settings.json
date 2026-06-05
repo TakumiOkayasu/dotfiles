@@ -91,10 +91,6 @@
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/failure-log.sh"
-          },
-          {
-            "type": "command",
             "command": "~/.claude/hooks/post-cleanup-notes-archive.sh",
             "timeout": 10
           }
@@ -129,6 +125,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/completion-claim-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/failure-log.sh"
           }
         ]
       }
