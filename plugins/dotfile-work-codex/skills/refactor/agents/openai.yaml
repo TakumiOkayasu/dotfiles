@@ -1,6 +1,0 @@
-interface:
-  display_name: "Refactor"
-  short_description: "Behavior-preserving structure improvement."
-  default_prompt: "Use $refactor for this task."
-policy:
-  allow_implicit_invocation: true

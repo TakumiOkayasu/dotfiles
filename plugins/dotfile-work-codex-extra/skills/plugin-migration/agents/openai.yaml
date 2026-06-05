@@ -1,6 +1,0 @@
-interface:
-  display_name: "Plugin Migration"
-  short_description: "Optional workflow skill. Explicit invocation recommended."
-  default_prompt: "Use $plugin-migration for this task."
-policy:
-  allow_implicit_invocation: false

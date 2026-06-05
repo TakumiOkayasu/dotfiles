@@ -1,5 +1,0 @@
-interface:
-  display_name: "Rules Compliance Review"
-  short_description: "Deterministic + semantic audit of codex/rules/*.md against the current diff."
-policy:
-  allow_implicit_invocation: true

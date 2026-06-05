@@ -4,6 +4,8 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 CORE = "dotfile-work-codex"
@@ -26,12 +28,22 @@ def marketplace() -> dict:
     }
 
 
+def sync_plugin_bundles(root: Path) -> None:
+    script = root / "scripts" / "sync-codex-plugin.py"
+    subprocess.run(
+        [sys.executable, str(script), "--repo", str(root), "--clean"],
+        cwd=str(root),
+        check=True,
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default=".")
     args = ap.parse_args()
     root = Path(args.repo).resolve()
     home = Path.home()
+    sync_plugin_bundles(root)
     dst_root = home / ".codex" / "plugins"
     dst_root.mkdir(parents=True, exist_ok=True)
     for name in [CORE, EXTRA]:

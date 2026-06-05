@@ -71,12 +71,6 @@ class TestCodexAgentDefinitions:
         agent_names = self._agent_names()
         skill_files = [
             REPO_ROOT / "codex" / "skills" / "tdd" / "SKILL.md",
-            REPO_ROOT
-            / "plugins"
-            / "dotfile-work-codex"
-            / "skills"
-            / "tdd"
-            / "SKILL.md",
         ]
 
         for skill_file in skill_files:
@@ -94,16 +88,14 @@ class TestCodexConfigTemplate:
     TEMPLATE = REPO_ROOT / "codex" / "config.toml.template"
 
     def test_config_template_is_valid_toml_with_inline_hooks(self) -> None:
-        """config.toml.template が inline hook と GitHub MCP env var を含む"""
+        """config.toml.template が inline hook と plugin feature を含む"""
         content = self.TEMPLATE.read_text(encoding="utf-8")
         data = tomllib.loads(content)
 
         assert data["model"] == "gpt-5.5"
         assert "hooks = true" in content
-        assert (
-            data["mcp_servers"]["github"]["bearer_token_env_var"]
-            == "CODEX_GITHUB_PERSONAL_ACCESS_TOKEN"
-        )
+        assert data["features"]["plugins"] is True
+        assert "mcp_servers" not in data
         assert (
             data["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
             == "$HOME/.codex/hooks/hook-dispatcher.sh pre-tool-use"

@@ -1,6 +1,0 @@
-interface:
-  display_name: "Empirical Prompt Tuning"
-  short_description: "Optional workflow skill. Explicit invocation recommended."
-  default_prompt: "Use $empirical-prompt-tuning for this task."
-policy:
-  allow_implicit_invocation: false

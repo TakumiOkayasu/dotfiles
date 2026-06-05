@@ -1,6 +1,0 @@
-interface:
-  display_name: "Tdd"
-  short_description: "RED-GREEN-REFACTOR test-driven workflow."
-  default_prompt: "Use $tdd for this task."
-policy:
-  allow_implicit_invocation: true
