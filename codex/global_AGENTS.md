@@ -56,3 +56,6 @@ Skill routing:
 - `rules-guard.sh` blocks mutating tools when rules are inactive or changed.
 - `rules-enforce.sh` scans changed code after edits and at turn stop; if it reports `BLOCK`, fix the violations before final output.
 - For semantic rules that cannot be fully scanned, use `$rules-compliance-review`; for large/high-risk diffs, dispatch one rules-only review subagent and then parent session makes the final decision.
+
+@~/.codex/RTK.md
+

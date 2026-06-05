@@ -13,6 +13,7 @@ This profile applies the model-performance strategy to dotfile-work Codex settin
 - `command-safety.rules` adds official Codex command execution policy for high-risk shell commands.
 - `agents/openai.yaml` is generated per skill: core skills may be implicitly invoked; optional skills require explicit invocation.
 - `install.sh` is patched to avoid symlinking `codex/skills` into `~/.agents/skills`, preventing duplicate local/plugin skills.
+- `plugins/dotfile-work-codex*` are generated from `codex/` sources and ignored by Git.
 
 ## Recommended runtime flow
 
@@ -27,6 +28,9 @@ python3 scripts/apply-codex-performance-profile.py --repo .
 python3 scripts/sync-codex-plugin.py --repo . --clean
 python3 scripts/verify-codex-plugin.py --repo .
 ```
+
+`scripts/sync-codex-plugin.py` writes local plugin bundles under `plugins/dotfile-work-codex*`.
+Those directories are build outputs; do not commit them.
 
 ## Why this improves performance
 

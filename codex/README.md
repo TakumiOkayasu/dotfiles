@@ -81,9 +81,17 @@ cp codex/global_AGENTS.md AGENTS.md
 ## skills / rules
 
 - `codex/skills/` は plugin 配布用 source。plugin-only mode では `install.sh` で `~/.agents/skills/` に重複配置しない。
+- `plugins/dotfile-work-codex*` は `codex/skills` / `codex/rules` / `codex/hooks` / `codex/bin` から生成するローカル bundle。Git 管理しない。
 - `codex/rules/` は参照資料。Codex が自動的に常時ロードする前提にはしない。
 - 常時必要な運用ルールは `codex/global_AGENTS.md` に直接集約する。
 - vendor skill の更新は自動実行しない。必要な場合のみ `~/.codex/bin/vendor-skills-update-manual.sh` を手動実行する。
+
+plugin bundle を更新する場合は次を実行する。
+
+```bash
+python3 scripts/sync-codex-plugin.py --repo . --clean
+python3 scripts/verify-codex-plugin.py --repo .
+```
 
 ## subagents
 

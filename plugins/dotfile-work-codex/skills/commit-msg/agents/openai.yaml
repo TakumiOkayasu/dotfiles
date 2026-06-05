@@ -1,6 +1,0 @@
-interface:
-  display_name: "Commit Msg"
-  short_description: "Generate commit message proposal without committing."
-  default_prompt: "Use $commit-msg for this task."
-policy:
-  allow_implicit_invocation: true

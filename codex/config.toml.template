@@ -10,12 +10,13 @@ max_depth = 1
 
 [features]
 hooks = true
+plugins = true
 terminal_resize_reflow = true
 memories = true
 goals = true
 
-[mcp_servers.github]
-bearer_token_env_var = "CODEX_GITHUB_PERSONAL_ACCESS_TOKEN"
+#[mcp_servers.github]
+#bearer_token_env_var = "CODEX_GITHUB_PERSONAL_ACCESS_TOKEN"
 
 [[hooks.PreToolUse]]
 matcher = "Bash|Read|Edit|Write|apply_patch"

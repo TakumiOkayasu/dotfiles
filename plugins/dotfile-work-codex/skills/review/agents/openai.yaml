@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review"
-  short_description: "Evidence-based code review with fix proposals."
-  default_prompt: "Use $review for this task."
-policy:
-  allow_implicit_invocation: true

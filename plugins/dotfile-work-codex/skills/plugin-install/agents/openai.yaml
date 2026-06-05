@@ -1,6 +1,0 @@
-interface:
-  display_name: "Plugin Install"
-  short_description: "Install local plugin marketplace for this user."
-  default_prompt: "Use $plugin-install for this task."
-policy:
-  allow_implicit_invocation: true
