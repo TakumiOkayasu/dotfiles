@@ -22,7 +22,6 @@
     ],
     "defaultMode": "plan"
   },
-  "model": "sonnet",
   "hooks": {
     "PreToolUse": [
       {
@@ -225,9 +224,9 @@
       ]
     }
   },
-  "fastMode": false,
+  "effortLevel": "xhigh",
+  "fastMode": true,
   "showThinkingSummaries": true,
   "theme": "dark-daltonized",
-  "skipAutoPermissionPrompt": true,
-  "effortLevel": "xhigh"
+  "skipAutoPermissionPrompt": true
 }
