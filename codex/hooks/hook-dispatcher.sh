@@ -68,10 +68,19 @@ case "$EVENT" in
         run_hook context-monitor.sh
         ;;
     user-prompt-submit)
+        CODEX_RULES_CONTEXT_MODE=none
+        export CODEX_RULES_CONTEXT_MODE
         run_hook rules-inject.sh
+        unset CODEX_RULES_CONTEXT_MODE
         run_hook context-monitor.sh
+        CODEX_PRIMARY_SOURCE_CHECK_MODE=quiet
+        export CODEX_PRIMARY_SOURCE_CHECK_MODE
         run_hook primary-source-check.sh
+        unset CODEX_PRIMARY_SOURCE_CHECK_MODE
+        CODEX_METHODOLOGY_SKILL_REMINDER_MODE=quiet
+        export CODEX_METHODOLOGY_SKILL_REMINDER_MODE
         run_hook methodology-skill-reminder.sh
+        unset CODEX_METHODOLOGY_SKILL_REMINDER_MODE
         ;;
     pre-compact)
         run_hook pre-compact-backup.sh

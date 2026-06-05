@@ -7,6 +7,8 @@
 #
 # 配置先: codex/hooks/primary-source-check.sh
 
+[ "${CODEX_PRIMARY_SOURCE_CHECK_MODE:-}" = "quiet" ] && exit 0
+
 # stdin がない場合はスキップ
 if [ -t 0 ]; then
     exit 0
@@ -39,4 +41,3 @@ CHECKLIST
 esac
 
 exit 0
-

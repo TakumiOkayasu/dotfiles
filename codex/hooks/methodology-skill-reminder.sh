@@ -8,6 +8,8 @@
 #
 # 配置先: codex/hooks/methodology-skill-reminder.sh
 
+[ "${CODEX_METHODOLOGY_SKILL_REMINDER_MODE:-}" = "quiet" ] && exit 0
+
 # === 設定: 二重発火回避対象コマンド ===
 # command md 側で発動するため hook 側はスキップ
 # 素の "/xxx" 形式と <command-name>/xxx</command-name> タグ形式の両方に対応

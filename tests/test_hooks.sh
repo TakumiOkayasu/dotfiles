@@ -41,6 +41,7 @@ echo "--- ブロックすべきコマンド (exit 2) ---"
 
 # git commit
 run_test "git commit -m test" "$(make_input 'git commit -m test')" 2
+run_test "rtk git commit -m test" "$(make_input 'rtk git commit -m test')" 2
 run_test "git commit --amend" "$(make_input 'git commit --amend')" 2
 run_test "git commit (引数なし)" "$(make_input 'git commit')" 2
 
@@ -177,9 +178,12 @@ run_local_test "perl -e print" "$(make_input 'perl -e \"print 1\"')" 2
 run_local_test "rustc main.rs" "$(make_input 'rustc main.rs')" 2
 run_local_test "bare: go" "$(make_input 'go')" 2
 run_local_test "python3 --version" "$(make_input 'python3 --version')" 2
+run_local_test "rtk python3 script.py" "$(make_input 'rtk python3 script.py')" 2
+run_local_test "rtk proxy python3 script.py" "$(make_input 'rtk proxy python3 script.py')" 2
 
 # インストール/パッケージ追加系 (プロジェクト外汚染リスクあるため継続ブロック)
 run_local_test "npm install" "$(make_input 'npm install')" 2
+run_local_test "rtk npm install" "$(make_input 'rtk npm install')" 2
 run_local_test "pip install flask" "$(make_input 'pip install flask')" 2
 run_local_test "yarn add express" "$(make_input 'yarn add express')" 2
 run_local_test "poetry install" "$(make_input 'poetry install')" 2
@@ -297,6 +301,9 @@ run_local_test "cd && npm run dev" "$(make_input 'cd /app && npm run dev')" 0
 run_local_test "./gradlew build" "$(make_input './gradlew build')" 0
 run_local_test "/usr/bin/npm run" "$(make_input '/usr/bin/npm run dev')" 0
 run_local_test "FOO=bar npm test" "$(make_input 'FOO=bar npm test')" 0
+run_local_test "rtk npm run build" "$(make_input 'rtk npm run build')" 0
+run_local_test "rtk git diff" "$(make_input 'rtk git diff')" 0
+run_local_test "rtk gain" "$(make_input 'rtk gain')" 0
 
 # サブシェル内の安全なコマンド
 run_local_test "echo \$(cat go.sum)" "$(make_input 'echo \$(cat go.sum)')" 0
