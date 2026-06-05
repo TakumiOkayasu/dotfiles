@@ -90,6 +90,10 @@ alias glog='git log --oneline --graph --decorate'
 # Docker
 # ============================================================================
 
+if ! command -v podman >/dev/null 2>&1; then
+    alias docker='podman'
+fi
+
 alias d='docker'
 alias dc='docker compose'
 alias dp='docker ps'
