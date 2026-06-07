@@ -10,10 +10,10 @@
 
 ## 出力
 
-**Think in English, interact with the user in Japanese.**
-応答は簡潔に。前置き・締めの定型文 (了解 / ありがとう / 以上です 等) は省く。
-形式はテーブル・箇条書きを優先し、状態は記号で示す (✅ 完了 / ❌ 失敗 / ⚠️ 注意)。
-1 応答あたり 1 万トークン以内を目安とする。
+- **Think in English, interact with the user in Japanese.**
+- 応答は簡潔に。前置き・締めの定型文 (了解 / ありがとう / 以上です 等) は省く。
+- 形式はテーブル・箇条書きを優先し、状態は記号で示す (✅ 完了 / ❌ 失敗 / ⚠️ 注意)。
+- 1 応答あたり 1 万トークン以内を目安とする。
 
 ## 🎯 作業フロー
 
@@ -28,7 +28,7 @@
 | バグ修正 | `skills/systematic-debugging/SKILL.md` |
 | リファクタリング | `skills/refactoring/SKILL.md` |
 | 設計判断・技術選定 | `skills/architecture-design/SKILL.md` + `skills/consultation/SKILL.md` |
-| それ以外 | `ls ~/.claude/skills/` で確認後、該当のみ |
+| それ以外 | `ls $HOME/.claude/skills/` で確認後、該当のみ |
 
 ## 制約
 
@@ -69,7 +69,7 @@
 
 ## ⚡ レートリミット節約 (TPM・RPM)
 
-thinking budget 規律は `~/.claude/rules/opus-47-policy.md`「Thinking Budget Policy」を参照。
+thinking budget 規律は `$HOME/.claude/rules/opus-47-policy.md`「Thinking Budget Policy」を参照。
 
 ツール呼び出しバッチ化:
 
@@ -81,23 +81,23 @@ thinking budget 規律は `~/.claude/rules/opus-47-policy.md`「Thinking Budget 
 
 ## 🔧 リソース
 
-`~/.claude/` 配下のリソースを活用し、既存で実現できる処理を自前実装しない。
+`$HOME/.claude/` 配下のリソースを活用し、既存で実現できる処理を自前実装しない。
 
 常時適用の規約は以下を import する (毎セッション自動ロードされる)。
 
-@~/.claude/rules/coding-conventions.md
-@~/.claude/rules/implementation-policy.md
-@~/.claude/rules/hierarchical-architecture.md
-@~/.claude/rules/hallucination-prevention.md
-@~/.claude/rules/opus-47-policy.md
-@~/.claude/rules/phase-gate-framework.md
+@'$HOME/.claude/rules/coding-conventions.md'
+@'$HOME/.claude/rules/implementation-policy.md'
+@'$HOME/.claude/rules/hierarchical-architecture.md'
+@'$HOME/.claude/rules/hallucination-prevention.md'
+@'$HOME/.claude/rules/opus-47-policy.md'
+@'$HOME/.claude/rules/phase-gate-framework.md'
 
 | リソース | 場所 | 用途 |
 | --- | --- | --- |
-| skills | `~/.claude/skills/` | オンデマンドの作業手順。タスクに応じて読む |
-| commands | `~/.claude/commands/` | トリガーワード対応 |
-| hooks | `~/.claude/hooks/` | 自動処理 (機械的 enforce) |
-| agents | `~/.claude/agents/` | サブエージェント定義 |
+| skills | `$HOME/.claude/skills/` | オンデマンドの作業手順。タスクに応じて読む |
+| commands | `$HOME/.claude/commands/` | トリガーワード対応 |
+| hooks | `$HOME/.claude/hooks/` | 自動処理 (機械的 enforce) |
+| agents | `$HOME/.claude/agents/` | サブエージェント定義 |
 
 skills はタスク着手前に該当するものを確認して読む。
 
@@ -123,7 +123,7 @@ main context を消費する調査・検証を別 context に逃がす (公式 b
 
 ### 並列起動
 
-独立タスクは同一メッセージ内に複数 Agent を並べる (逐次は並列性を失う)。並列数上限・観点独立条件・dispatch/集約/nested 禁止等の mechanics は `~/.claude/SUBAGENTS.md` を参照。
+独立タスクは同一メッセージ内に複数 Agent を並べる (逐次は並列性を失う)。並列数上限・観点独立条件・dispatch/集約/nested 禁止等の mechanics は `$HOME/.claude/SUBAGENTS.md` を参照。
 
 ## 🔀 Git ワークフロー
 
