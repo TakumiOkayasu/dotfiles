@@ -41,23 +41,23 @@ fi
 EXTRACT=$(tail -300 "$TRANSCRIPT_PATH" | "$JQ" -s -r '
     [ .[] | select(.isSidechain != true) ] as $rows
     | ( [ $rows | to_entries[]
-          | select(.value.type == "user"
-              and (.value.isMeta != true)
-              and (.value.message.content as $c | ($c | type) as $ct
-                   | ($ct == "string"
-                      and (($c | (startswith("<task-notification>")
-                                  or startswith("Stop hook feedback:")
-                                  or startswith("Your tool call was malformed")
-                                  or startswith("[Request interrupted"))) | not))
-                     or ($ct == "array" and ($c | map(.type) | any(. == "text")))))
-          | .key ] | (.[-1]) ) as $u
+        | select(.value.type == "user"
+            and (.value.isMeta != true)
+            and (.value.message.content as $c | ($c | type) as $ct
+                | ($ct == "string"
+                    and (($c | (startswith("<task-notification>")
+                                or startswith("Stop hook feedback:")
+                                or startswith("Your tool call was malformed")
+                                or startswith("[Request interrupted"))) | not))
+                    or ($ct == "array" and ($c | map(.type) | any(. == "text")))))
+        | .key ] | (.[-1]) ) as $u
     | (($u // -1) + 1) as $start
     | $rows[$start:] as $resp
     | ([ $resp[] | select(.type == "assistant") | .message.content[]?
-         | select(.type == "text") | .text ] | join("\n"))
-      + "\n<<<CMDS>>>\n"
-      + ([ $resp[] | select(.type == "assistant") | .message.content[]?
-           | select(.type == "tool_use" and .name == "Bash") | .input.command ] | join("\n"))
+        | select(.type == "text") | .text ] | join("\n"))
+    + "\n<<<CMDS>>>\n"
+    + ([ $resp[] | select(.type == "assistant") | .message.content[]?
+        | select(.type == "tool_use" and .name == "Bash") | .input.command ] | join("\n"))
 ' 2>/dev/null) || EXTRACT=""
 
 if [ -z "$EXTRACT" ]; then

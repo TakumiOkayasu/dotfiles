@@ -44,7 +44,7 @@ OPTIONS:
 ENVIRONMENT:
   CLAUDE_TEMPLATE_ROOT
         テンプレートディレクトリのパス
-        (default: ~/.claude/templates/project-init)
+        (default: ${HOME}/.claude/templates/project-init)
 EOF
             exit 0
             ;;
@@ -159,7 +159,7 @@ TEMPLATE_ROOT="${CLAUDE_TEMPLATE_ROOT:-$HOME/.claude/templates/project-init}"
 
 if [[ ! -d "$TEMPLATE_ROOT" ]]; then
     echo -e "${RED}エラー: テンプレートディレクトリが見つかりません: $TEMPLATE_ROOT${NC}" >&2
-    echo -e "${YELLOW}  ~/.claude/templates/project-init/ に notes/_template.md, scratch/_template.md 等を配置してください${NC}" >&2
+    echo -e "${YELLOW}   ${HOME}/.claude/templates/project-init/ に notes/_template.md, scratch/_template.md 等を配置してください${NC}" >&2
     exit 1
 fi
 

@@ -59,13 +59,13 @@ Codex vendor skill は自動 clone / 自動更新しない。必要な場合の�
 ## Install Flow
 
 1. `git ls-files` で `config/` と `codex/` の tracked file を列挙
-2. `config/` → `$HOME` に、`codex/` の allowlist 対象 → `~/.codex/` にシンボリックリンク作成
+2. `config/` → `${HOME}` に、`codex/` の allowlist 対象 → `${HOME}/.codex/` にシンボリックリンク作成
 3. `global_AGENTS.md` は `AGENTS.md` にリネームしてリンク
-4. `~/.codex/config.toml` が存在しない場合だけ `codex/config.toml.template` から通常ファイルを生成
+4. `${HOME}/.codex/config.toml` が存在しない場合だけ `codex/config.toml.template` から通常ファイルを生成
 5. `codex/skills/*` は plugin 配布用 source として install 対象外
 6. `codex/README.md`、`codex/config.toml.template`、`codex/reference/` はリンク対象外
 7. プラットフォーム自動検出: macOS → `.gitconfig.private` / Linux・WSL → `.gitconfig.work`
-8. `bin/` は `~/.local/bin/` にリンクし、Codex 用ショートカット (`codex-feat` など) も配置する
+8. `bin/` は `${HOME}/.local/bin/` にリンクし、Codex 用ショートカット (`codex-feat` など) も配置する
 
 ## Development Notes
 

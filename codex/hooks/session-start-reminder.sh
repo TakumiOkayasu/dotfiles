@@ -50,7 +50,7 @@ if [ -n "$CONFIG_INFO_SCRIPT" ]; then
     "$CONFIG_INFO_SCRIPT" --all
 else
     echo "⚠️  codex-config-info.sh が見つかりません"
-    echo "   期待場所: ~/.codex/bin/codex-config-info.sh"
+    echo "   期待場所: ${HOME}/.codex/bin/codex-config-info.sh"
     echo ""
 fi
 

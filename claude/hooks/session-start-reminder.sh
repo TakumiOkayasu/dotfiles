@@ -37,14 +37,14 @@ echo "  1. Read CLAUDE.md before starting any task"
 echo "  2. Create a new branch before coding (no work on main)"
 echo "  3. Test-first approach (RED-GREEN-REFACTOR)"
 echo "  4. Consult before implementing if unclear"
-echo "  5. Check ~/.claude/rules/ and ~/.claude/skills/"
+echo "  5. Check ${HOME}/.claude/rules/ and ${HOME}/.claude/skills/"
 echo ""
 
 if [ -n "$CONFIG_INFO_SCRIPT" ]; then
     "$CONFIG_INFO_SCRIPT" --all
 else
     echo "⚠️  claude-config-info.sh not found"
-    echo "   Expected: ~/.claude/bin/claude-config-info.sh"
+    echo "   Expected: ${HOME}/.claude/bin/claude-config-info.sh"
     echo ""
 fi
 

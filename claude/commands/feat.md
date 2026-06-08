@@ -18,12 +18,12 @@ $ARGUMENTS に実装する機能の説明が渡されます。
 ### Phase 0: スキル読み込み
 
 - **方針検証スキル (戦略 → 戦術の順)**:
-  - `~/.claude/skills/premise-questioning/SKILL.md` ← 戦略 (方針自体)
-  - `~/.claude/skills/feature-pruning/SKILL.md` ← 戦術 (個別機能)
+  - `${HOME}/.claude/skills/premise-questioning/SKILL.md` ← 戦略 (方針自体)
+  - `${HOME}/.claude/skills/feature-pruning/SKILL.md` ← 戦術 (個別機能)
 - **実装スキル**:
-  - `~/.claude/skills/tdd/SKILL.md`
-  - `~/.claude/skills/systematic-debugging/SKILL.md`
-  - `~/.claude/skills/optimize/SKILL.md`
+  - `${HOME}/.claude/skills/tdd/SKILL.md`
+  - `${HOME}/.claude/skills/systematic-debugging/SKILL.md`
+  - `${HOME}/.claude/skills/optimize/SKILL.md`
 
 ### Phase 0.5: 方針検証 (Phase 1 前に必須)
 
@@ -62,7 +62,7 @@ premise-questioning で ✅ 採用後、または以下のいずれかに該当�
   - 設定ファイル (環境変数・フレームワーク設定)
   - 依存ライブラリ (追加/更新)
   - API 契約 (エンドポイント・リクエスト/レスポンス)
-- 影響範囲調査: **`impl-planner` subagent** に機能説明とコードベースパスを渡し、変更ファイル・実装順序・インターフェース疑似コード・テスト方針を受け取る。1 ファイル以下の局所変更は親 context の Glob/Grep で処理する (起動オーバーヘッドが上回るため)。dispatch 形式・並列起動の作法は `~/.claude/SUBAGENTS.md` を参照。
+- 影響範囲調査: **`impl-planner` subagent** に機能説明とコードベースパスを渡し、変更ファイル・実装順序・インターフェース疑似コード・テスト方針を受け取る。1 ファイル以下の局所変更は親 context の Glob/Grep で処理する (起動オーバーヘッドが上回るため)。dispatch 形式・並列起動の作法は `${HOME}/.claude/SUBAGENTS.md` を参照。
 - 不明点があればユーザーに確認(**推測で実装しない**)
 
 ### Phase 2: テスト設計 (RED)

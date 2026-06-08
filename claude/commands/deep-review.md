@@ -18,7 +18,7 @@
 | --- | --- |
 | `$ARGUMENTS` | ブランチ名・コミットハッシュ・ファイルパス (省略可) |
 | `git diff` | ステージ済み + 未ステージの差分 |
-| ロード済み rules | `~/.claude/rules/*` は @import 済みで context にある |
+| ロード済み rules | `${HOME}/.claude/rules/*` は @import 済みで context にある |
 
 | 出力 | 内容 |
 | --- | --- |
@@ -45,7 +45,7 @@
 
 ### Step 3: 適用ルールの特定
 
-`~/.claude/rules/*` は @import 済みで既に context にある。読み直さず、今回の差分で違反しうる具体パターンを観点別に列挙する。
+`${HOME}/.claude/rules/*` は @import 済みで既に context にある。読み直さず、今回の差分で違反しうる具体パターンを観点別に列挙する。
 
 - アーキ・設計・命名・テスト系 → 保守性 subagent へ
 - 性能系 → パフォーマンス subagent へ
@@ -63,7 +63,7 @@
 - [ ] 各 subagent への入力フォーマットが固定されている
 - [ ] **subagent dispatch 入力契約**: thinking_budget を明示している (security=xhigh / performance=high / maintainability=high)
 
-詳細規約: `~/.claude/rules/phase-gate-framework.md`
+詳細規約: `${HOME}/.claude/rules/phase-gate-framework.md`
 
 ### Step 4: 3 並列 subagent dispatch
 
@@ -112,7 +112,7 @@ tool contract 上どうしても起動できない場合は、レビューを実
 - [ ] **deep-review固有**: 全指摘に修正コードが添えられている
 - [ ] **deep-review固有**: 方針検証発動跡の確認が完了している (該当差分の場合)
 
-詳細規約: `~/.claude/rules/phase-gate-framework.md`
+詳細規約: `${HOME}/.claude/rules/phase-gate-framework.md`
 
 ### Handoff Gate (Step 7 直前)
 

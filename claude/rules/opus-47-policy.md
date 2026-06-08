@@ -7,7 +7,7 @@ Claude Opus 4.7 の以下強化点を運用に反映する:
 - ファイルシステムベースのメモリ強化
 - 長時間 / マルチステップタスクの信頼性向上
 
-本ポリシーは `~/.claude/rules/` 配下にあるため、CLAUDE.md の `@import` 経由で常時適用される。premise-questioning / feature-pruning より**軽量・常時適用**。
+本ポリシーは `${HOME}/.claude/rules/` 配下にあるため、CLAUDE.md の `@import` 経由で常時適用される。premise-questioning / feature-pruning より**軽量・常時適用**。
 
 ## 🧠 Thinking Budget Policy
 
@@ -95,4 +95,3 @@ Claude Opus 4.7 の以下強化点を運用に反映する:
 
 - マージ済みブランチに対応する `notes/{task-id}.md` は `git-cleanup-branch` 時に `notes/archive/` へ移動する
 - `scratch/` は 30 日以上更新のないファイルを自由に削除可
-

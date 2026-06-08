@@ -150,7 +150,7 @@ subagent から返ってきたランク付き一覧 (NM-001, NM-002, ...) をユ
 - [ ] **TDD固有**: テストリストの優先順位がユーザー確認済み
 - [ ] **TDD固有**: 機能単位の場合、qa-nightmare subagent の出力を反映済み
 
-詳細規約: `~/.claude/rules/phase-gate-framework.md`
+詳細規約: `${HOME}/.claude/rules/phase-gate-framework.md`
 
 ### 順序の決め方
 

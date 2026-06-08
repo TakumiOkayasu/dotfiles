@@ -6,7 +6,7 @@
 #     含む場合に reminder を注入する
 #   - 発動条件は global_CLAUDE.md 「着手前の方針検証 (2 段階)」と整合させる
 #
-# 配置先: ~/.claude/hooks/methodology-skill-reminder.sh
+# 配置先: ${HOME}/.claude/hooks/methodology-skill-reminder.sh
 
 # === 設定: 二重発火回避対象コマンド ===
 # command md 側で発動するため hook 側はスキップ
@@ -127,7 +127,7 @@ if [ "$PREMISE_HIT" -eq 1 ]; then
     - [ ] DB スキーマ / 公開 API I/F 変更
     - [ ] バグ修正で根本原因に手を入れる
     - [ ] 「設計レビューして」「方針確認して」と要求された
-    → いずれかに該当する場合は ~/.claude/skills/premise-questioning/SKILL.md を起動
+    → いずれかに該当する場合は ${HOME}/.claude/skills/premise-questioning/SKILL.md を起動
 PREMISE
 fi
 
@@ -140,7 +140,7 @@ if [ "$PRUNING_HIT" -eq 1 ]; then
     - [ ] DB テーブル 5 列以上新設
     - [ ] 既存画面 / API の削減レビュー
     - [ ] 「機能多すぎないか」「これ要るか」と要求された
-    → いずれかに該当する場合は ~/.claude/skills/feature-pruning/SKILL.md を起動
+    → いずれかに該当する場合は ${HOME}/.claude/skills/feature-pruning/SKILL.md を起動
 PRUNING
 fi
 

@@ -29,27 +29,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/destructive-command-block.sh"
+            "command": "$HOME/.claude/hooks/destructive-command-block.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/docker-build-check.sh"
+            "command": "$HOME/.claude/hooks/docker-build-check.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/language-version-check.sh"
+            "command": "$HOME/.claude/hooks/language-version-check.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/local-command-block.sh"
+            "command": "$HOME/.claude/hooks/local-command-block.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/admin-command-block.sh"
+            "command": "$HOME/.claude/hooks/admin-command-block.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/secret-leak-check.sh"
+            "command": "$HOME/.claude/hooks/secret-leak-check.sh"
           }
         ]
       },
@@ -58,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/env-file-protect.sh"
+            "command": "$HOME/.claude/hooks/env-file-protect.sh"
           }
         ]
       },
@@ -67,7 +67,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/main-branch-code-warning.sh"
+            "command": "$HOME/.claude/hooks/main-branch-code-warning.sh"
           }
         ]
       },
@@ -87,19 +87,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/commit-checkpoint.sh"
+            "command": "$HOME/.claude/hooks/commit-checkpoint.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/context-monitor.sh"
+            "command": "$HOME/.claude/hooks/context-monitor.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/gh-repo-auto-setup.sh"
+            "command": "$HOME/.claude/hooks/gh-repo-auto-setup.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/post-cleanup-notes-archive.sh",
+            "command": "$HOME/.claude/hooks/post-cleanup-notes-archive.sh",
             "timeout": 10
           }
         ]
@@ -110,15 +110,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/context-monitor.sh"
+            "command": "$HOME/.claude/hooks/context-monitor.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/primary-source-check.sh"
+            "command": "$HOME/.claude/hooks/primary-source-check.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/methodology-skill-reminder.sh"
+            "command": "$HOME/.claude/hooks/methodology-skill-reminder.sh"
           }
         ]
       }
@@ -128,15 +128,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/sycophancy-check.sh"
+            "command": "$HOME/.claude/hooks/sycophancy-check.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/completion-claim-check.sh"
+            "command": "$HOME/.claude/hooks/completion-claim-check.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/failure-log.sh"
+            "command": "$HOME/.claude/hooks/failure-log.sh"
           }
         ]
       }
@@ -146,7 +146,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/pre-compact-backup.sh",
+            "command": "$HOME/.claude/hooks/pre-compact-backup.sh",
             "async": true
           }
         ]
@@ -157,23 +157,23 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/session-start-reminder.sh"
+            "command": "$HOME/.claude/hooks/session-start-reminder.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/session-resume.sh"
+            "command": "$HOME/.claude/hooks/session-resume.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/project-environment-check.sh"
+            "command": "$HOME/.claude/hooks/project-environment-check.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/vendor-skills-update.sh"
+            "command": "$HOME/.claude/hooks/vendor-skills-update.sh"
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/primary-source-reminder.sh"
+            "command": "$HOME/.claude/hooks/primary-source-reminder.sh"
           }
         ]
       },
@@ -182,7 +182,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/session-start-notes-loader.sh",
+            "command": "$HOME/.claude/hooks/session-start-notes-loader.sh",
             "timeout": 5
           }
         ]
@@ -191,7 +191,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "~/.claude/bin/statusline-command.sh"
+    "command": "$HOME/.claude/bin/statusline-command.sh"
   },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,

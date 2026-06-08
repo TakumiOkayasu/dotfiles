@@ -65,7 +65,7 @@ thinking_hint: xhigh
 
 ### Phase 3.5: 並列仮説検証 (subagent dispatch)
 
-Phase 3 で根本原因の仮説が**複数**立った場合、または以下のいずれかに該当する場合は **3 並列 subagent で独立に深掘りする**。dispatch 形式・並列起動の作法・種別選択は `~/.claude/SUBAGENTS.md` を参照:
+Phase 3 で根本原因の仮説が**複数**立った場合、または以下のいずれかに該当する場合は **3 並列 subagent で独立に深掘りする**。dispatch 形式・並列起動の作法・種別選択は `${HOME}/.claude/SUBAGENTS.md` を参照:
 
 - 仮説 A/B/C で**原因層 (データ / 責務 / 契約) が異なる**
 - 1 仮説で深掘りしたが結論に確信が持てない (修正 1 回以上失敗)
@@ -89,7 +89,7 @@ Phase 3 で根本原因の仮説が**複数**立った場合、または以下�
 - [ ] **debugging固有**: 修正失敗時の rollback 手順 (git revert で戻せるか)
 - [ ] Phase 3.5 実施時: subagent 3 つの出力が `.claude/notes/{task-id}.md` に集約済み
 
-詳細規約: `~/.claude/rules/phase-gate-framework.md`
+詳細規約: `${HOME}/.claude/rules/phase-gate-framework.md`
 
 ### Phase 4: TDDで修正
 
