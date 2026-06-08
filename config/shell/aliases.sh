@@ -87,20 +87,10 @@ alias gb='git branch'
 alias glog='git log --oneline --graph --decorate'
 
 # ============================================================================
-# Docker / Podman
+# Docker
 # ============================================================================
 
 _dotfiles_container_cli='docker'
-if command -v podman >/dev/null 2>&1; then
-    _dotfiles_container_cli='podman'
-    alias docker='podman'
-    if command -v podman-compose >/dev/null 2>&1; then
-        alias docker-compose='podman-compose'
-    else
-        alias docker-compose='podman compose'
-    fi
-fi
-
 alias d="$_dotfiles_container_cli"
 alias dc="$_dotfiles_container_cli compose"
 alias dp="$_dotfiles_container_cli ps"
