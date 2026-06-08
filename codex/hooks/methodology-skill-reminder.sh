@@ -117,7 +117,7 @@ fi
 cat <<'HEADER'
 🎯 [方針検証 skill 発動チェック]
 入力に方針検証が必要な可能性のあるキーワードを検知しました。
-~/.codex/AGENTS.md 「着手前の方針検証 (2 段階)」と照合して必要なら skill を起動してください。
+${HOME}/.codex/AGENTS.md 「着手前の方針検証 (2 段階)」と照合して必要なら skill を起動してください。
 HEADER
 
 if [ "$PREMISE_HIT" -eq 1 ]; then
@@ -129,7 +129,7 @@ if [ "$PREMISE_HIT" -eq 1 ]; then
     - [ ] DB スキーマ / 公開 API I/F 変更
     - [ ] バグ修正で根本原因に手を入れる
     - [ ] 「設計レビューして」「方針確認して」と要求された
-    → いずれかに該当する場合は ~/.agents/skills/premise-questioning/SKILL.md を起動
+    → いずれかに該当する場合は ${HOME}/.agents/skills/premise-questioning/SKILL.md を起動
 PREMISE
 fi
 
@@ -142,7 +142,7 @@ if [ "$PRUNING_HIT" -eq 1 ]; then
     - [ ] DB テーブル 5 列以上新設
     - [ ] 既存画面 / API の削減レビュー
     - [ ] 「機能多すぎないか」「これ要るか」と要求された
-    → いずれかに該当する場合は ~/.agents/skills/feature-pruning/SKILL.md を起動
+    → いずれかに該当する場合は ${HOME}/.agents/skills/feature-pruning/SKILL.md を起動
 PRUNING
 fi
 

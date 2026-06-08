@@ -67,12 +67,12 @@ def transform_frontmatter(frontmatter: str | None, source: Path) -> str | None:
 
 
 COMMON_REPLACEMENTS: tuple[tuple[str, str], ...] = (
-    ("~/.claude/skills", "~/.agents/skills"),
-    ("~/.claude/rules", "~/.codex/rules"),
-    ("~/.claude/commands", "~/.agents/skills"),
-    ("~/.claude/hooks", "~/.codex/hooks"),
-    ("~/.claude/CLAUDE.md", "~/.codex/AGENTS.md"),
-    ("~/.claude", "~/.codex"),
+    ("${HOME}/.claude/skills", "${HOME}/.agents/skills"),
+    ("${HOME}/.claude/rules", "${HOME}/.codex/rules"),
+    ("${HOME}/.claude/commands", "${HOME}/.agents/skills"),
+    ("${HOME}/.claude/hooks", "${HOME}/.codex/hooks"),
+    ("${HOME}/.claude/CLAUDE.md", "${HOME}/.codex/AGENTS.md"),
+    ("${HOME}/.claude", "${HOME}/.codex"),
     ("claude/skills", "codex/skills"),
     ("claude/rules", "codex/rules"),
     ("claude/commands", "codex/skills"),
@@ -95,7 +95,7 @@ def transform_body(body: str, *, source: Path, kind: str) -> str:
     out = re.sub(r"(?<![\w`])/(feat|fix|review|deep-review|commit|commit-msg|test|refactor|plan|explain)(?![\w`:-])", r"@\1", out)
 
     source_str = str(source).replace("\\", "/")
-    note = f"""\n<!-- {MANAGED_MARKER}; source={source_str}; generated-by=scripts/port-claude-assets-to-codex.py -->\n\n## Codex portability notes\n\n- This file was ported from `{source_str}`.\n- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `~/.agents/skills` in plugin-only mode.\n- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.\n- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.\n- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.\n"""
+    note = f"""\n<!-- {MANAGED_MARKER}; source={source_str}; generated-by=scripts/port-claude-assets-to-codex.py -->\n\n## Codex portability notes\n\n- This file was ported from `{source_str}`.\n- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.\n- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.\n- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.\n- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.\n"""
     if MANAGED_MARKER not in out:
         # Insert after first H1 when possible; otherwise prepend after frontmatter.
         match = re.search(r"(^# .+?\n)", out, re.MULTILINE)
@@ -106,7 +106,7 @@ def transform_body(body: str, *, source: Path, kind: str) -> str:
             out = note + "\n" + out
 
     if kind == "rule" and "## Codex rule loading" not in out:
-        out += """\n\n## Codex rule loading\n\nThis rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `~/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.\n"""
+        out += """\n\n## Codex rule loading\n\nThis rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.\n"""
 
     return out
 
@@ -302,7 +302,7 @@ def main() -> int:
     print(f"skills: {sum(1 for p in ported if p.kind == 'skill')}")
     print(f"rules:  {sum(1 for p in ported if p.kind == 'rule')}")
     print(f"changed:{sum(1 for p in ported if p.changed)}")
-    print(f"report: codex/skills/CLAUDE_PORT_REPORT.md")
+    print("report: codex/skills/CLAUDE_PORT_REPORT.md")
     return 0
 
 

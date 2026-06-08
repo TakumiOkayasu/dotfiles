@@ -56,10 +56,10 @@ dotfile-work/
 ## Install Flow
 
 1. `git ls-files` で `config/` と `claude/` のファイルを列挙
-2. `config/` → `$HOME` に、`claude/` → `~/.claude/` にシンボリックリンク作成
+2. `config/` → `${HOME}` に、`claude/` → `${HOME}/.claude/` にシンボリックリンク作成
 3. `global_CLAUDE.md` は `CLAUDE.md` にリネームしてリンク
 4. プラットフォーム自動検出: macOS → `.gitconfig.private` / Linux・WSL → `.gitconfig.work`
-5. vendor スキル (vercel-labs/agent-skills) を `~/.claude/vendor/` に clone し、選択スキルを `~/.claude/skills/` にシンボリックリンク
+5. vendor スキル (vercel-labs/agent-skills) を `${HOME}/.claude/vendor/` に clone し、選択スキルを `${HOME}/.claude/skills/` にシンボリックリンク
 
 ## Development Notes
 

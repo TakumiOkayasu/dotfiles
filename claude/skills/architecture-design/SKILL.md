@@ -86,7 +86,7 @@ SystemContext       # システム全体のライフサイクル管理
 
 ## 複数設計案の並列出し (明示要求時のみ)
 
-dispatch 形式・並列起動の作法は `~/.claude/SUBAGENTS.md` を参照。
+dispatch 形式・並列起動の作法は `${HOME}/.claude/SUBAGENTS.md` を参照。
 
 ### 起動条件
 

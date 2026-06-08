@@ -909,7 +909,7 @@ _claude_unlink_vendor_skills() {
         if [ "$MODE_DRY_RUN" = "true" ]; then
             print_info "[ドライラン] 削除: ~/.claude/skills/${_skill}"
         else
-            rm "$_dest" && print_success "削除: ~/.claude/skills/${_skill}"
+            rm "$_dest" && print_success "削除: ${HOME}/.claude/skills/${_skill}"
         fi
     done
 

@@ -20,7 +20,7 @@ tools: Read, Glob, Grep, Bash
 
 ## Phase 2: チェックリスト適用
 
-`~/.claude/skills/qa-nightmare/checklists/*.md` の全 11 ファイルを読む。未読でのパターン抽出はしない。
+`${HOME}/.claude/skills/qa-nightmare/checklists/*.md` の全 11 ファイルを読む。未読でのパターン抽出はしない。
 
 | カテゴリ | ファイル | 内容 |
 | --- | --- | --- |

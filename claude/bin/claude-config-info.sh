@@ -173,7 +173,7 @@ print_hooks_text() {
         if [ "$file" != "$current_file" ]; then
             current_file="$file"
             case "$file" in
-                "$GLOBAL_SETTINGS") label="Global: ~/.claude/settings.json" ;;
+                "$GLOBAL_SETTINGS") label="Global: ${HOME}/.claude/settings.json" ;;
                 "$PROJECT_SETTINGS") label="Project: .claude/settings.json" ;;
                 "$PROJECT_LOCAL_SETTINGS") label="Local: .claude/settings.local.json" ;;
                 *) label="$file" ;;
@@ -231,11 +231,11 @@ print_skills_text() {
     count=$((count + 0))
 
     if [ "$count" -eq 0 ] || [ -z "$skills" ]; then
-        echo "  No skills found in ~/.claude/skills/"
+        echo "  No skills found in ${HOME}/.claude/skills/"
         return
     fi
 
-    echo "  ${count} skill(s) in ~/.claude/skills/"
+    echo "  ${count} skill(s) in ${HOME}/.claude/skills/"
 
     # 最大10個まで表示
     echo -n "  "
