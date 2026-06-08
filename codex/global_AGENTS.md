@@ -62,3 +62,11 @@ Skill routing:
 - `rtk` が利用可能な環境では、Bash コマンドは原則 `rtk <command>` で実行して出力を圧縮する。
 - `rtk gain`, `rtk gain --history`, `rtk proxy <command>` は必要時のみ使う。
 - safety hooks は `rtk` wrapper の内側コマンドを検査する。禁止されるローカル実行や破壊的操作を `rtk` で迂回しない。
+
+## WebFetch fallback
+
+- If built-in WebFetch fails or returns incomplete/noisy content, use `r.jina.ai` first for public URLs.
+- Never send private, internal, authenticated, signed, customer, secret-bearing content, cookies, tokens, or credentials to hosted reader/proxy services.
+- If fallback requires installs, scripts, proxy/gateway setup, cookie forwarding, credential access, or system changes, stop and report; do not delete, rename, chmod, quarantine, restore, or otherwise mutate files.
+- Treat extracted text as derived content and verify important facts against the original source when possible.
+
