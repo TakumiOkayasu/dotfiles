@@ -87,23 +87,31 @@ alias gb='git branch'
 alias glog='git log --oneline --graph --decorate'
 
 # ============================================================================
-# Docker
+# Docker / Podman
 # ============================================================================
 
-if ! command -v podman >/dev/null 2>&1; then
+_dotfiles_container_cli='docker'
+if command -v podman >/dev/null 2>&1; then
+    _dotfiles_container_cli='podman'
     alias docker='podman'
+    if command -v podman-compose >/dev/null 2>&1; then
+        alias docker-compose='podman-compose'
+    else
+        alias docker-compose='podman compose'
+    fi
 fi
 
-alias d='docker'
-alias dc='docker compose'
-alias dp='docker ps'
-alias dpa='docker ps -a'
-alias dps='docker ps'
-alias dpsa='docker ps -a'
-alias di='docker images'
-alias dls='docker logs'
-alias dex='docker exec -it'
-alias dlog='docker logs -f'
+alias d="$_dotfiles_container_cli"
+alias dc="$_dotfiles_container_cli compose"
+alias dp="$_dotfiles_container_cli ps"
+alias dpa="$_dotfiles_container_cli ps -a"
+alias dps="$_dotfiles_container_cli ps"
+alias dpsa="$_dotfiles_container_cli ps -a"
+alias di="$_dotfiles_container_cli images"
+alias dls="$_dotfiles_container_cli logs"
+alias dex="$_dotfiles_container_cli exec -it"
+alias dlog="$_dotfiles_container_cli logs -f"
+unset _dotfiles_container_cli
 
 # ============================================================================
 # Kubernetes
@@ -197,8 +205,12 @@ alias myip='curl -s ifconfig.me'
 alias localip="ip route get 1 2>/dev/null | awk '{print \$7}' || ipconfig getifaddr en0 2>/dev/null"
 
 # ============================================================================
-# ローカルエイリアス (Git管理外、マシン固有)
+# ローカルエイリアス
 # ============================================================================
+
+if [ -n "$DOTFILES_DIR" ] && [ -f "$DOTFILES_DIR/config/shell/aliases.local" ]; then
+    . "$DOTFILES_DIR/config/shell/aliases.local"
+fi
 
 if [ -f "$HOME/.aliases.local" ]; then
     . "$HOME/.aliases.local"
