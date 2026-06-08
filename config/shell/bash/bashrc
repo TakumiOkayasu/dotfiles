@@ -287,13 +287,4 @@ case "${DOTFILES_PLATFORM:-}" in
         ;;
 esac
 
-# ============================================================================
-# Podman(Docker代替)
-# ============================================================================
-if command -v podman &>/dev/null; then
-    if ! pgrep -f "podman system service" > /dev/null; then
-        podman system service unix://$HOME/.podman.sock --time=0 &> /dev/null &
-    fi
-    export DOCKER_HOST="unix://$HOME/.podman.sock"
-fi
 
