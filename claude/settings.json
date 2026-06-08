@@ -228,14 +228,13 @@
     "allowUnsandboxedCommands": false,
     "filesystem": {
       "allowWrite": [
-        "/home/okayasu/.claude/plugins/data",
-        "/home/okayasu/.codex"
+        "$HOME/.claude/plugins/data",
+        "$HOME/.codex"
       ]
     }
   },
   "effortLevel": "xhigh",
   "fastMode": true,
-  "showThinkingSummaries": true,
   "theme": "dark-daltonized",
   "skipAutoPermissionPrompt": true
 }
