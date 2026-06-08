@@ -227,3 +227,10 @@ premise-questioning 採用後、または:
 - 速度: 既定 `effort` は `high`、`xhigh` / `max` は難易度の高いタスクに限定する。体感が遅い時は `/fast` をトグルする (`settings.json` の `fastMode` 既定は意図的に false のため据え置き、必要時のみセッション内で切替)
 
 @RTK.md
+
+## WebFetch ルール
+
+| 用途 | 方針 |
+| --- | --- |
+| WebFetch | URL を直接フェッチせず、`https://r.jina.ai/<URL>` 経由で取得する |
+
