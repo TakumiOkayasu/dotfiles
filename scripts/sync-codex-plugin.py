@@ -185,7 +185,7 @@ def sync_core(root: Path, clean: bool) -> None:
     if hooks_dir.exists():
         shutil.rmtree(hooks_dir)
     hooks_dir.mkdir(parents=True, exist_ok=True)
-    for name in ["rules-inject.sh", "rules-guard.sh"]:
+    for name in ["rules-lib.sh", "rules-inject.sh", "rules-guard.sh"]:
         src = codex / "hooks" / name
         if src.exists():
             copy_file(src, hooks_dir / name)

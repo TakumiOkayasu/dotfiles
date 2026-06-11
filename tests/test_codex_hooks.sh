@@ -48,6 +48,89 @@ run_hook_stdout_empty_test() {
     fi
 }
 
+write_test_rules() {
+    rules_dir="$1"
+    mkdir -p "$rules_dir"
+    cat > "$rules_dir/RULES_CORE.md" <<'EOF_RULE'
+# RULES_CORE
+core rule
+EOF_RULE
+    cat > "$rules_dir/coding-conventions.md" <<'EOF_RULE'
+# Coding Conventions
+strict equality
+EOF_RULE
+}
+
+run_rules_checksum_stability_test() {
+    TOTAL=$((TOTAL + 1))
+    wd=$(mktemp -d)
+    write_test_rules "$wd/home/.codex/rules"
+    write_test_rules "$wd/repo/codex/rules"
+    write_test_rules "$wd/plugin/rules"
+
+    prompt_input=$(jq -n --arg cwd "$wd/repo" '{hook_event_name: "UserPromptSubmit", cwd: $cwd, prompt: "修正して"}')
+    tool_input=$(jq -n --arg cwd "$wd/repo" '{tool_name: "apply_patch", cwd: $cwd, tool_input: {patch: "*** Begin Patch\n*** Add File: x\n+ok\n*** End Patch"}}')
+
+    actual_exit=0
+    (
+        export HOME="$wd/home" PLUGIN_ROOT="$wd/plugin"
+        printf '%s\n' "$prompt_input" | /workspace/hooks/rules-inject.sh >/dev/null
+    ) || actual_exit=$?
+    with_plugin=$(grep '^checksum=' "$wd/repo/codex_tmp/.codex_rules_loaded" | head -n 1)
+    (
+        export HOME="$wd/home"
+        unset PLUGIN_ROOT
+        printf '%s\n' "$tool_input" | /workspace/hooks/rules-guard.sh >/dev/null
+    ) || actual_exit=$?
+
+    (
+        export HOME="$wd/home"
+        unset PLUGIN_ROOT
+        printf '%s\n' "$prompt_input" | /workspace/hooks/rules-inject.sh >/dev/null
+    ) || actual_exit=$?
+    without_plugin=$(grep '^checksum=' "$wd/repo/codex_tmp/.codex_rules_loaded" | head -n 1)
+    (
+        export HOME="$wd/home" PLUGIN_ROOT="$wd/plugin"
+        printf '%s\n' "$tool_input" | /workspace/hooks/rules-guard.sh >/dev/null
+    ) || actual_exit=$?
+
+    if [ "$actual_exit" -eq 0 ] && [ "$with_plugin" = "$without_plugin" ]; then
+        printf "  PASS: rules checksum stable across plugin/home/repo mirrors\n"
+        PASS=$((PASS + 1))
+    else
+        printf "  FAIL: rules checksum stable across plugin/home/repo mirrors\n"
+        printf "    with_plugin: %s\n" "$with_plugin"
+        printf "    without_plugin: %s\n" "$without_plugin"
+        printf "    exit: %s\n" "$actual_exit"
+        FAIL=$((FAIL + 1))
+    fi
+    rm -rf "$wd"
+}
+
+run_codex_rules_refresh_test() {
+    TOTAL=$((TOTAL + 1))
+    wd=$(mktemp -d)
+    write_test_rules "$wd/repo/codex/rules"
+    mkdir -p "$wd/home"
+
+    actual_exit=0
+    (
+        cd "$wd/repo" || exit 1
+        export HOME="$wd/home" CODEX_RULES_CONTEXT_MODE=none
+        /workspace/bin/codex-rules refresh >/dev/null
+    ) || actual_exit=$?
+    mode=$(grep '^mode=' "$wd/repo/codex_tmp/.codex_rules_loaded" 2>/dev/null | head -n 1)
+
+    if [ "$actual_exit" -eq 0 ] && [ "$mode" = "mode=enforced" ]; then
+        printf "  PASS: codex-rules refresh writes enforced marker\n"
+        PASS=$((PASS + 1))
+    else
+        printf "  FAIL: codex-rules refresh writes enforced marker (mode=%s exit=%s)\n" "$mode" "$actual_exit"
+        FAIL=$((FAIL + 1))
+    fi
+    rm -rf "$wd"
+}
+
 make_input() {
     tool="$1"
     field="$2"
@@ -113,6 +196,8 @@ run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks rtk package install 
 run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks rtk runtime command" "$(make_input Bash command "rtk python3 script.py")" 2
 run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks rtk proxy runtime command" "$(make_input Bash command "rtk proxy python3 script.py")" 2
 run_hook_stdout_empty_test "$DISPATCHER user-prompt-submit" "dispatcher suppresses prompt reminder output" "$(make_prompt_input "修正して")" 0
+run_rules_checksum_stability_test
+run_codex_rules_refresh_test
 
 SECRET_HOOK="/workspace/hooks/secret-leak-check.sh"
 run_hook_test "$SECRET_HOOK" "blocks Authorization bearer literal" "$(make_input Bash command "curl -H 'Authorization: Bearer abcdefghijklmnop' https://example.com")" 2

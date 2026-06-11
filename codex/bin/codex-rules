@@ -7,37 +7,21 @@ shift || true
 
 CWD=$(pwd)
 
-find_git_root() {
-  if command -v git >/dev/null 2>&1; then
-    git rev-parse --show-toplevel 2>/dev/null && return 0
-  fi
-  return 1
-}
-
-GIT_ROOT=$(find_git_root || echo "")
 SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P || dirname "$0")
 CODEX_ROOT=$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || echo "${HOME}/.codex")
-
-append_rule_dir() {
-  _dir="$1"
-  [ -d "$_dir" ] || return 0
-  for _file in "$_dir"/*.md; do
-    [ -f "$_file" ] || continue
-    case "$(basename "$_file")" in
-      RULES_BUNDLE.md|RULES_INDEX.md) continue ;;
-    esac
-    printf '%s\n' "$_file"
-  done
-}
+RULES_LIB="${CODEX_ROOT}/hooks/rules-lib.sh"
+if [ -f "$RULES_LIB" ]; then
+  . "$RULES_LIB"
+else
+  echo "rules-lib.sh not found" >&2
+  exit 1
+fi
 
 rules_list() {
-  append_rule_dir "${HOME}/.codex/rules"
-  append_rule_dir "${CODEX_ROOT}/rules"
-  append_rule_dir "${CWD}/.codex/rules"
-  append_rule_dir "${CWD}/codex/rules"
-  [ -n "$GIT_ROOT" ] && append_rule_dir "${GIT_ROOT}/.codex/rules"
-  [ -n "$GIT_ROOT" ] && append_rule_dir "${GIT_ROOT}/codex/rules"
-  2>/dev/null | awk '!seen[$0]++' | sort
+  _tmp=$(rules_mktemp_file codex-rules-list)
+  rules_collect_rule_files "$CWD" "$_tmp" "$CODEX_ROOT"
+  cat "$_tmp"
+  rm -f "$_tmp"
 }
 
 case "$CMD" in
@@ -52,6 +36,8 @@ case "$CMD" in
     ;;
   refresh)
     if [ -x "${CODEX_ROOT}/hooks/rules-inject.sh" ]; then
+      CODEX_RULES_FORCE_ENFORCED=1
+      export CODEX_RULES_FORCE_ENFORCED
       printf '{"cwd":"%s","hook_event_name":"Manual"}' "$CWD" | "${CODEX_ROOT}/hooks/rules-inject.sh" --check
     else
       echo "rules-inject.sh not found" >&2

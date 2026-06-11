@@ -9,6 +9,7 @@ from pathlib import Path
 REQUIRED = [
     "plugins/dotfile-work-codex/.codex-plugin/plugin.json",
     "plugins/dotfile-work-codex/hooks/hooks.json",
+    "plugins/dotfile-work-codex/hooks/rules-lib.sh",
     "plugins/dotfile-work-codex/hooks/rules-inject.sh",
     "plugins/dotfile-work-codex/hooks/rules-guard.sh",
     "plugins/dotfile-work-codex/skills/rules-required/SKILL.md",
@@ -39,24 +40,25 @@ def load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--repo", default=".")
-    args = ap.parse_args()
-    root = Path(args.repo).resolve()
-
+def check_required_paths(root: Path) -> int:
     missing = [p for p in REQUIRED if not (root / p).exists()]
     if missing:
         for p in missing:
             print(f"MISSING: {p}", file=sys.stderr)
         return 3
+    return 0
 
+
+def check_forbidden_paths(root: Path) -> int:
     forbidden = [p for p in FORBIDDEN if (root / p).exists()]
     if forbidden:
         for p in forbidden:
             print(f"FORBIDDEN_LEGACY: {p}", file=sys.stderr)
         return 7
+    return 0
 
+
+def check_core_manifest(root: Path) -> int:
     manifest = load(root / "plugins/dotfile-work-codex/.codex-plugin/plugin.json")
     if manifest.get("name") != CORE_PLUGIN:
         print("BAD core manifest name", file=sys.stderr)
@@ -68,30 +70,63 @@ def main() -> int:
     if "prompt:" in blob or "codex-prompt" in blob:
         print("BAD core manifest contains legacy prompt compatibility", file=sys.stderr)
         return 4
+    return 0
 
+
+def check_extra_manifest(root: Path) -> int:
     extra = load(root / "plugins/dotfile-work-codex-extra/.codex-plugin/plugin.json")
     if extra.get("name") != EXTRA_PLUGIN or "hooks" in extra:
         print("BAD extra manifest", file=sys.stderr)
         return 5
+    return 0
 
+
+def check_marketplace(root: Path) -> int:
     marketplace = load(root / ".agents/plugins/marketplace.json")
     names = {p.get("name") for p in marketplace.get("plugins", [])}
     if CORE_PLUGIN not in names or EXTRA_PLUGIN not in names:
         print("BAD marketplace missing core/extra plugins", file=sys.stderr)
         return 5
+    return 0
 
+
+def check_hook_commands(root: Path) -> int:
     hooks = json.dumps(load(root / "plugins/dotfile-work-codex/hooks/hooks.json"))
     for needle in ["${PLUGIN_ROOT}/hooks/rules-inject.sh", "${PLUGIN_ROOT}/hooks/rules-guard.sh"]:
         if needle not in hooks:
             print(f"MISSING hook command: {needle}", file=sys.stderr)
             return 6
+    return 0
 
+
+def report_skill_counts(root: Path) -> None:
     core_skills = [p.name for p in (root / "plugins/dotfile-work-codex/skills").iterdir() if p.is_dir()]
     extra_skills_dir = root / "plugins/dotfile-work-codex-extra/skills"
     extra_skills = [p.name for p in extra_skills_dir.iterdir() if p.is_dir()] if extra_skills_dir.exists() else []
     if len(core_skills) > 24:
         print(f"WARN: core skill count is high: {len(core_skills)}", file=sys.stderr)
     print(f"OK core_skills={len(core_skills)} extra_skills={len(extra_skills)}")
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--repo", default=".")
+    args = ap.parse_args()
+    root = Path(args.repo).resolve()
+
+    for check in [
+        check_required_paths,
+        check_forbidden_paths,
+        check_core_manifest,
+        check_extra_manifest,
+        check_marketplace,
+        check_hook_commands,
+    ]:
+        result = check(root)
+        if result != 0:
+            return result
+
+    report_skill_counts(root)
     return 0
 
 
