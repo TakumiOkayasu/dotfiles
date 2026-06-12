@@ -13,6 +13,7 @@ services:
     entrypoint: ["sh", "/workspace/test_codex_hooks.sh"]
     volumes:
       - ../codex/hooks:/workspace/hooks:ro
+      - ../codex/bin:/workspace/bin:ro
       - ./test_codex_hooks.sh:/workspace/test_codex_hooks.sh:ro
   bin-test:
     build:

@@ -22,6 +22,7 @@
     ],
     "defaultMode": "plan"
   },
+  "model": "claude-fable-5[1m]",
   "hooks": {
     "PreToolUse": [
       {
@@ -191,7 +192,9 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "$HOME/.claude/bin/statusline-command.sh"
+    "command": "ccstatusline",
+    "padding": 0,
+    "refreshInterval": 10
   },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
@@ -233,7 +236,7 @@
       ]
     }
   },
-  "effortLevel": "xhigh",
+  "effortLevel": "medium",
   "fastMode": true,
   "theme": "dark-daltonized",
   "skipAutoPermissionPrompt": true

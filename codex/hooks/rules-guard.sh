@@ -3,6 +3,16 @@
 
 INPUT=""
 [ ! -t 0 ] && INPUT=$(cat)
+SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P || dirname "$0")
+CODEX_ROOT=$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || echo "")
+RULES_LIB="${SCRIPT_DIR}/rules-lib.sh"
+if [ -f "$RULES_LIB" ]; then
+    . "$RULES_LIB"
+else
+    echo "[rules-guard] ERROR: rules-lib.sh not found" >&2
+    exit 1
+fi
+
 JQ=$(command -v jaq 2>/dev/null || command -v jq 2>/dev/null || echo "")
 if [ -n "$JQ" ] && [ -n "$INPUT" ]; then
     CWD=$(printf '%s\n' "$INPUT" | "$JQ" -r '.cwd // empty' 2>/dev/null) || CWD=""
@@ -37,39 +47,11 @@ case "$TOOL_NAME" in
 esac
 [ "${MUTATING:-0}" = "1" ] || exit 0
 
-hash_cmd() {
-    if command -v sha256sum >/dev/null 2>&1; then sha256sum | awk '{print $1}'
-    elif command -v shasum >/dev/null 2>&1; then shasum -a 256 | awk '{print $1}'
-    else cksum | awk '{print $1}'
-    fi
-}
-mktemp_safe() { mktemp 2>/dev/null || printf '%s\n' "/tmp/codex-rules-guard.$$.$1"; }
-add_rule_dir() {
-    _dir="$1"
-    [ -d "$_dir" ] || return 0
-    find -L "$_dir" -maxdepth 1 -type f -name '*.md' \
-        ! -name 'RULES_BUNDLE.md' ! -name 'RULES_INDEX.md' 2>/dev/null
-}
-
-FILES_TMP=$(mktemp_safe files)
-: > "$FILES_TMP"
-[ -n "${PLUGIN_ROOT:-}" ] && add_rule_dir "${PLUGIN_ROOT}/rules" >> "$FILES_TMP"
-add_rule_dir "$HOME/.codex/rules" >> "$FILES_TMP"
-add_rule_dir "$CWD/.codex/rules" >> "$FILES_TMP"
-add_rule_dir "$CWD/codex/rules" >> "$FILES_TMP"
-if command -v git >/dev/null 2>&1; then
-    ROOT=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || echo "")
-    [ -n "$ROOT" ] && add_rule_dir "$ROOT/codex/rules" >> "$FILES_TMP"
-    [ -n "$ROOT" ] && add_rule_dir "$ROOT/.codex/rules" >> "$FILES_TMP"
-fi
-sort -u "$FILES_TMP" -o "$FILES_TMP"
+FILES_TMP=$(rules_mktemp_file guard-files)
+rules_collect_rule_files "$CWD" "$FILES_TMP" "$CODEX_ROOT"
 [ ! -s "$FILES_TMP" ] && { rm -f "$FILES_TMP"; exit 0; }
 
-CHECKSUM=$(while IFS= read -r f; do
-    [ -f "$f" ] || continue
-    printf 'FILE:%s\n' "$(basename "$f")"
-    cat "$f"
-done < "$FILES_TMP" | hash_cmd)
+CHECKSUM=$(rules_checksum_file_list "$FILES_TMP")
 MARKER="$CWD/codex_tmp/.codex_rules_loaded"
 
 if [ ! -f "$MARKER" ]; then
