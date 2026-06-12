@@ -11,10 +11,10 @@ description: 設計判断・新規実装・バグ修正に着手する直前に�
 ## Codex portability notes
 
 - This file was ported from `claude/skills/premise-questioning/SKILL.md`.
-- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `~/.agents/skills` in plugin-only mode.
-- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
+- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
-- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
+- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 着手直前の方針は、書いた本人には筋が良く見える。だが「そもそも解くべき問題か」「そもそもその実装は要るか」を一段引いて問い直すと、実装後にひっくり返ることがしょっちゅうある。**バイアスを排した実行者に違う角度から問いを立ててもらい、3 軸でスコア化して比較する**のが本 skill の核。最低 3 ラウンド、結論が割れている間は止めない。
 
@@ -123,7 +123,7 @@ description: 設計判断・新規実装・バグ修正に着手する直前に�
 
 ## subagent 起動契約
 
-共通 mechanics (並列起動の作法 / 集約 / nested 禁止 / 環境制約 / 再 dispatch 条件) は `~/.codex/SUBAGENTS.md` を参照。本節では本 skill 固有契約 (手法名・採点軸・プロンプト構造) のみ書く。
+共通 mechanics (並列起動の作法 / 集約 / nested 禁止 / 環境制約 / 再 dispatch 条件) は `${HOME}/.codex/SUBAGENTS.md` を参照。本節では本 skill 固有契約 (手法名・採点軸・プロンプト構造) のみ書く。
 
 各 Round で渡すプロンプトの構造。empirical-prompt-tuning と同形式で揃える。
 
@@ -222,18 +222,18 @@ description: 設計判断・新規実装・バグ修正に着手する直前に�
 ## 反復の打ち切り基準
 
 - **収束 (採用 / 撤回どちらでも停止)**:
-  - 3 ラウンド全てで結論ラベルが一致 (**全 ✅ または全 🔴 のみ**。**🟡 単独一致は収束扱いではなく追加ラウンド発動**: 修正必要は採用にも撤回にもならず追加検討が要る)
-  - かつ各軸のラウンド間ばらつきが ±1 点以内
+   - 3 ラウンド全てで結論ラベルが一致 (**全 ✅ または全 🔴 のみ**。**🟡 単独一致は収束扱いではなく追加ラウンド発動**: 修正必要は採用にも撤回にもならず追加検討が要る)
+   - かつ各軸のラウンド間ばらつきが ±1 点以内
 - **追加ラウンド発動**:
-  - 結論ラベルがラウンド間で割れる (例: ✅ / 🟡 / 🔴 が混在)
-  - または 🟡 単独一致
-  - または特定軸でラウンド間ばらつきが 2 点以上
-  - → 拡張モード (制約除去 / 問題再定義) を Round 4-5 として追加投入。**発動判定は親 (本 skill 発動主体) が事後集約後に行う**
+   - 結論ラベルがラウンド間で割れる (例: ✅ / 🟡 / 🔴 が混在)
+   - または 🟡 単独一致
+   - または特定軸でラウンド間ばらつきが 2 点以上
+   - → 拡張モード (制約除去 / 問題再定義) を Round 4-5 として追加投入。**発動判定は親 (本 skill 発動主体) が事後集約後に行う**
 - **発散 (設計を疑う)**:
-  - 5 ラウンド回しても結論が割れ続ける → そもそも対象方針が複雑すぎて「そもそも論」では捌けない。問題を分解して各部分に対して個別に再適用する
+   - 5 ラウンド回しても結論が割れ続ける → そもそも対象方針が複雑すぎて「そもそも論」では捌けない。問題を分解して各部分に対して個別に再適用する
 - **過適合チェック (通常モードのみ)**:
-  - **適用条件**: 通常モード (3 ラウンド) で全 ✅ 採用判定が出た直後のみ。簡易モード (1 ラウンド) や 🔴 撤回判定 / 🟡 単独一致時は対象外
-  - **手順**: hold-out として「現状方針と真逆の方針」を仮置きして 1 ラウンド回す。それでも対象方針が勝つなら採用確定、負けるなら判定を疑う
+   - **適用条件**: 通常モード (3 ラウンド) で全 ✅ 採用判定が出た直後のみ。簡易モード (1 ラウンド) や 🔴 撤回判定 / 🟡 単独一致時は対象外
+   - **手順**: hold-out として「現状方針と真逆の方針」を仮置きして 1 ラウンド回す。それでも対象方針が勝つなら採用確定、負けるなら判定を疑う
 
 ## 提示フォーマット
 

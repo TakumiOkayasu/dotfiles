@@ -2,6 +2,7 @@
 codex_port_source: claude/skills/systematic-debugging/SKILL.md
 name: systematic-debugging
 description: バグやテスト失敗に遭遇した際に使用。修正前の4フェーズ根本原因分析を強制。
+thinking_hint: xhigh
 ---
 
 # Systematic Debugging
@@ -11,10 +12,10 @@ description: バグやテスト失敗に遭遇した際に使用。修正前の4
 ## Codex portability notes
 
 - This file was ported from `claude/skills/systematic-debugging/SKILL.md`.
-- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `~/.agents/skills` in plugin-only mode.
-- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
+- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
-- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
+- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## トリガー条件
 
@@ -75,7 +76,7 @@ description: バグやテスト失敗に遭遇した際に使用。修正前の4
 
 ### Phase 3.5: 並列仮説検証 (subagent dispatch)
 
-Phase 3 で根本原因の仮説が**複数**立った場合、または以下のいずれかに該当する場合は **3 並列 subagent で独立に深掘りする**。dispatch 形式・並列起動の作法・種別選択は `~/.codex/SUBAGENTS.md` を参照:
+Phase 3 で根本原因の仮説が**複数**立った場合、または以下のいずれかに該当する場合は **3 並列 subagent で独立に深掘りする**。dispatch 形式・並列起動の作法・種別選択は `${HOME}/.codex/SUBAGENTS.md` を参照:
 
 - 仮説 A/B/C で**原因層 (データ / 責務 / 契約) が異なる**
 - 1 仮説で深掘りしたが結論に確信が持てない (修正 1 回以上失敗)
@@ -87,11 +88,36 @@ Phase 3 で根本原因の仮説が**複数**立った場合、または以下�
 
 **起動しないケース**: 仮説が 1 つに絞れた / 局所的なバグ (null チェック追加・typo レベル) / 既知パターンで類例がある場合。`premise-questioning` と本 Phase 3.5 は責務が異なる (`premise-questioning` = **修正方針の妥当性**を問う / Phase 3.5 = **原因仮説の検証**) ため、本 Phase 3.5 起動と `premise-questioning` 起動は独立に判定する (各々の発動条件で個別判定)。
 
+### Plan Gate (Phase 3 / 3.5 → Phase 4)
+
+修正実装 (Phase 4) に進む前に以下を内省する。No が 1 つでもあれば Phase 1 (再現) へ戻る:
+
+- [ ] 根本原因が原因層 (データ / 責務 / 契約) のいずれかに到達した
+- [ ] 「なぜ?」を最低 2 回繰り返した
+- [ ] 仮説と実コード / ログの整合を確認した
+- [ ] **debugging固有**: 再現条件が文書化されている (環境 / 入力 / 操作手順)
+- [ ] **debugging固有**: 仮説の検証手段が具体的 (該当する関数名 / 行番号 / ログ箇所を特定済み)
+- [ ] **debugging固有**: 修正失敗時の rollback 手順 (git revert で戻せるか)
+- [ ] Phase 3.5 実施時: subagent 3 つの出力が `.codex/notes/{task-id}.md` に集約済み
+
+詳細規約: `${HOME}/.codex/rules/phase-gate-framework.md`
+
 ### Phase 4: TDDで修正
 
 1. バグを再現するテストを書く (RED)
 2. 最小限の修正 (GREEN)
 3. リグレッションがないことを確認
+
+### Verify Gate (Phase 4 完了)
+
+修正完了 → 報告に進む前に内省する:
+
+- [ ] バグ再現テスト (RED) を書いた
+- [ ] 最小修正で GREEN にした
+- [ ] **debugging固有**: 既存テストにリグレッションがない
+- [ ] **debugging固有**: 根本原因への修正であり対症療法ではない
+- [ ] **debugging固有**: 同種バグの他箇所への横展開を検討した (該当ありなら別タスクへ)
+- [ ] hook block が出ていない
 
 ---
 
@@ -117,6 +143,16 @@ Phase 3 で根本原因の仮説が**複数**立った場合、または以下�
 ### 根本原因:
 ### 修正方針:
 ```
+
+## Handoff Gate
+
+ユーザーへの完了報告前に以下を確認する:
+
+- [ ] デバッグ記録テンプレート (下記) を `.codex/notes/{task-id}.md` に保存した
+- [ ] `.codex/progress.md` の判断ログに根本原因と修正方針を要約反映した
+- [ ] 試した内容と失敗理由を failure-logging スキル経由で記録した
+- [ ] Phase 3.5 subagent 出力を notes へ集約した
+- [ ] 同種バグの横展開検討結果を明示した
 
 ---
 

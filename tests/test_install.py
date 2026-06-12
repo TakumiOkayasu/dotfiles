@@ -116,6 +116,99 @@ class TestCodexConfigTemplate:
             assert fragment not in content
 
 
+class TestRuleDistribution:
+    """Claude/Codex の常時 rule 配布境界を検証するテスト"""
+
+    def test_natural_japanese_is_rule_not_stale_codex_skill(self) -> None:
+        """natural-japanese は skill ではなく Claude/Codex 両方の rule として配布される"""
+        claude_global = (REPO_ROOT / "claude" / "global_CLAUDE.md").read_text(
+            encoding="utf-8"
+        )
+        codex_index = (REPO_ROOT / "codex" / "rules" / "RULES_INDEX.md").read_text(
+            encoding="utf-8"
+        )
+        codex_bundle = (REPO_ROOT / "codex" / "rules" / "RULES_BUNDLE.md").read_text(
+            encoding="utf-8"
+        )
+
+        assert (REPO_ROOT / "claude" / "rules" / "natural-japanese.md").is_file()
+        assert "@'$HOME/.claude/rules/natural-japanese.md'" in claude_global
+        assert (REPO_ROOT / "codex" / "rules" / "natural-japanese.md").is_file()
+        assert "`codex/rules/natural-japanese.md`" in codex_index
+        assert "## Source: `codex/rules/natural-japanese.md`" in codex_bundle
+        assert not (
+            REPO_ROOT / "codex" / "skills" / "natural-japanese" / "SKILL.md"
+        ).exists()
+        assert not (
+            REPO_ROOT / "codex" / "skills" / "natural-japanese" / "agents" / "openai.yaml"
+        ).exists()
+
+    def test_plan_and_review_is_ported_to_codex_skill(self) -> None:
+        """Claude に追加した plan-and-review は Codex skill としても port される"""
+        skill_path = REPO_ROOT / "codex" / "skills" / "plan-and-review" / "SKILL.md"
+        content = skill_path.read_text(encoding="utf-8")
+
+        assert "name: plan-and-review" in content
+        assert "codex_port_source: claude/skills/plan-and-review/SKILL.md" in content
+        assert "Codex/Codex" not in content
+        assert "| task 種別 / 役割 | 複雑度シグナル | Driver | Worker |" in content
+        assert "task ごとの commit" not in content
+        assert "Step 5: commit" not in content
+        assert "subagent が TDD で実装・テスト・自己レビューする" in content
+
+    def test_rule_bundle_header_has_separate_description_line(self) -> None:
+        """RULES_BUNDLE の見出しと説明文は同一行に潰さない"""
+        bundle = REPO_ROOT / "codex" / "rules" / "RULES_BUNDLE.md"
+        lines = bundle.read_text(encoding="utf-8").splitlines()
+
+        assert lines[0] == "# Codex Rules Bundle"
+        assert lines[1] == ""
+        assert lines[2].startswith("このファイルは hook/context injection 用")
+
+
+class TestScriptCli:
+    """scripts/*.py の CLI 基本動作を検証するテスト"""
+
+    def test_patch_codex_rule_enforcement_help_exits_successfully(self) -> None:
+        """patch-codex-rule-enforcement.py --help は repo path 扱いされず正常終了する"""
+        result = subprocess.run(
+            [
+                "python3",
+                str(REPO_ROOT / "scripts" / "patch-codex-rule-enforcement.py"),
+                "--help",
+            ],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert "usage: patch-codex-rule-enforcement.py" in result.stdout
+        assert "not a dotfile-work repo root" not in result.stderr
+
+    def test_port_claude_assets_dry_run_keeps_home_literal(self) -> None:
+        """port-claude-assets-to-codex.py は `${HOME}` を未定義変数として評価しない"""
+        result = subprocess.run(
+            [
+                "python3",
+                str(REPO_ROOT / "scripts" / "port-claude-assets-to-codex.py"),
+                "--repo",
+                str(REPO_ROOT),
+                "--dry-run",
+                "--overwrite",
+            ],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert "NameError: name 'HOME' is not defined" not in result.stderr
+        assert "Claude -> Codex port complete" in result.stdout
+
+
 class TestIntegrationInstallUninstall:
     """実リポジトリ構造で install.sh -f / -u -f を実行するテスト"""
 
@@ -147,6 +240,7 @@ class TestIntegrationInstallUninstall:
         assert (claude_dir / "hooks").is_dir()
         assert (claude_dir / "settings.json").is_symlink()
         assert (claude_dir / "CLAUDE.md").is_symlink()
+        assert (claude_dir / "rules" / "natural-japanese.md").is_symlink()
 
     def test_install_creates_codex_symlinks(self, tmp_path: Path) -> None:
         """install 後に ~/.codex/ 配下にCodex設定とリンクが作られる"""
@@ -179,8 +273,10 @@ class TestIntegrationInstallUninstall:
         assert not (codex_dir / "README.md").exists()
         assert not (codex_dir / "settings.json").exists()
         assert not (codex_dir / "skills" / "tdd" / "SKILL.md").exists()
+        assert not (codex_dir / "skills" / "natural-japanese" / "SKILL.md").exists()
         assert not (home / ".agents" / "skills" / "tdd" / "SKILL.md").exists()
         assert (codex_dir / "rules" / "coding-conventions.md").is_symlink()
+        assert (codex_dir / "rules" / "natural-japanese.md").is_symlink()
 
     def test_install_preserves_existing_codex_config(self, tmp_path: Path) -> None:
         """既存 ~/.codex/config.toml は install で上書きされない"""
@@ -400,7 +496,7 @@ class TestUninstallStaleLinks:
         assert stale.is_symlink()
         assert not stale.exists()  # dangling
 
-        result = _run_uninstall(dotfiles, home)
+        _run_uninstall(dotfiles, home)
         # uninstall は config/shell 等がなくてもエラー終了しないことを確認しないが
         # stale リンクが消えることだけ検証
         assert not stale.is_symlink(), "stale symlink should be removed on uninstall"
@@ -513,7 +609,7 @@ class TestNestedEmptyDirs:
         skills_dir = home / ".claude" / "skills"
         assert skills_dir.is_dir()
 
-        result = _run_uninstall(dotfiles, home)
+        _run_uninstall(dotfiles, home)
 
         # skills/my-skill/ 内のリンクが消え、my-skill/ も skills/ も空になり削除
         assert not skills_dir.exists(), "empty skills dir should be removed"
@@ -696,7 +792,7 @@ class TestVendorInstall:
         # .git だけある空の vendor を作成
         vendor_dir = home / ".claude" / "vendor" / "agent-skills"
         vendor_dir.mkdir(parents=True)
-        subprocess.run(
+        result = subprocess.run(
             ["git", "init", str(vendor_dir)], check=True, capture_output=True
         )
 
@@ -799,7 +895,7 @@ class TestVendorUninstall:
 
         env = os.environ.copy()
         env["HOME"] = str(home)
-        result = subprocess.run(
+        subprocess.run(
             ["sh", str(REPO_ROOT / "install.sh"), "-u", "-n", "-f"],
             cwd=str(REPO_ROOT),
             env=env,
