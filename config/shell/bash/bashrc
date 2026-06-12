@@ -46,6 +46,23 @@ elif [[ -f "$DOTFILES_DIR/config/shell/common.sh" ]]; then
 fi
 
 # ============================================================================
+# パッケージマネージャ / ランタイム初期化
+# ============================================================================
+# プロンプト設定 (oh-my-posh) と補完 ($HOMEBREW_PREFIX) が PATH に依存するため、それらより先に初期化する
+
+# Homebrew (Linux/WSL環境のみ)
+if [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
+# mise (ランタイムバージョン管理)
+if command -v mise &>/dev/null; then
+    eval "$(mise activate bash)"
+elif [[ -x "$HOME/.local/bin/mise" ]]; then
+    eval "$("${HOME}/.local/bin/mise" activate bash)"
+fi
+
+# ============================================================================
 # bash オプション
 # ============================================================================
 
@@ -60,6 +77,9 @@ shopt -s histappend      # ヒストリを追記
 shopt -s cmdhist         # 複数行コマンドを1行で保存
 shopt -s lithist         # 複数行コマンドの改行を保持
 
+# プロンプト表示ごとに履歴を即時追記 (複数端末間で履歴を失わない)
+PROMPT_COMMAND+=("history -a")
+
 # ディレクトリ
 shopt -s autocd          # ディレクトリ名だけで cd
 shopt -s cdspell         # cd のタイプミスを修正
@@ -69,12 +89,10 @@ shopt -s direxpand       # Tab補完で変数を展開
 # グロブ
 shopt -s globstar        # ** で再帰マッチ
 shopt -s nocaseglob      # 大文字小文字を無視
-shopt -s dotglob         # * でドットファイルもマッチ
 shopt -s extglob         # !(pattern) 等の拡張グロブ
 
 # その他
 shopt -s checkwinsize    # ウィンドウサイズを更新
-shopt -s expand_aliases  # エイリアスを展開
 shopt -s no_empty_cmd_completion  # 空行Tab補完防止
 
 # ============================================================================
@@ -119,12 +137,18 @@ _setup_oh_my_posh() {
         return 1
     fi
 
-    local theme="${OH_MY_POSH_THEME:-sim-web.omp.json}"
+    # ここは気分によって変えてもよい
+    # markbull
+    # gruvbox
+    local theme="${OH_MY_POSH_THEME:-sim-web}"
     local config=""
 
-    # テーマファイルの検索
+    # テーマファイルの検索 (拡張子なしの短い名前にも対応)
     for dir in "$HOME/.poshthemes" "$DOTFILES_DIR/poshthemes" "/usr/share/oh-my-posh/themes"; do
-        if [[ -f "$dir/$theme" ]]; then
+        if [[ -f "$dir/$theme.omp.json" ]]; then
+            config="$dir/$theme.omp.json"
+            break
+        elif [[ -f "$dir/$theme" ]]; then
             config="$dir/$theme"
             break
         fi
@@ -148,47 +172,6 @@ _setup_oh_my_posh() {
     fi
 
     return 0
-}
-
-# カスタムGitプロンプト関数
-__custom_git_prompt() {
-    # Gitリポジトリ内かチェック
-    if ! git rev-parse --is-inside-work-tree &>/dev/null; then
-        return
-    fi
-
-    local branch
-    branch=$(git branch --show-current 2>/dev/null)
-    [[ -z "$branch" ]] && branch=$(git rev-parse --short HEAD 2>/dev/null)
-    [[ -z "$branch" ]] && return
-
-    local indicators=""
-
-    # 変更チェック(*, 赤Bold)
-    if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
-        indicators+="\001\033[1;31m\002*\001\033[0m\002"
-    fi
-
-    # リモートとの差分チェック
-    local upstream
-    upstream=$(git rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)
-    if [[ -n "$upstream" ]]; then
-        local ahead behind
-        ahead=$(git rev-list --count '@{upstream}..HEAD' 2>/dev/null)
-        behind=$(git rev-list --count 'HEAD..@{upstream}' 2>/dev/null)
-
-        # push必要(↑, ライトブルー)
-        if [[ "$ahead" -gt 0 ]]; then
-            indicators+="\001\033[1;96m\002↑\001\033[0m\002"
-        fi
-        # pull必要(↓, ライトブルー)
-        if [[ "$behind" -gt 0 ]]; then
-            indicators+="\001\033[1;96m\002↓\001\033[0m\002"
-        fi
-    fi
-
-    # ブランチ名は赤Bold
-    echo -e " (\001\033[1;31m\002${branch}\001\033[0m\002${indicators})"
 }
 
 # oh-my-posh を試行、失敗したらシンプルなプロンプト
@@ -247,18 +230,6 @@ pp() { popd >/dev/null && dirs -v; }
 
 if [[ -f "$HOME/.bashrc.local" ]]; then
     source "$HOME/.bashrc.local"
-fi
-
-# Homebrew (Linux/WSL環境のみ)
-if [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-fi
-
-# mise (ランタイムバージョン管理)
-if command -v mise &>/dev/null; then
-    eval "$(mise activate bash)"
-elif [[ -x "$HOME/.local/bin/mise" ]]; then
-    eval "$("${HOME}/.local/bin/mise" activate bash)"
 fi
 
 # ============================================================================

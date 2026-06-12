@@ -25,7 +25,7 @@ DOTFILES_LOADED=1
 # このファイルからの相対パスで dotfiles ルートを検出
 _dotfiles_detect_root() {
     local this_file="$1"
-    
+
     # シンボリックリンクを解決
     while [ -L "$this_file" ]; do
         local dir="$(cd -P "$(dirname "$this_file")" && pwd)"
@@ -35,7 +35,7 @@ _dotfiles_detect_root() {
             *) this_file="$dir/$this_file" ;;
         esac
     done
-    
+
     # config/shell/ の親の親ディレクトリが dotfiles ルート
     local shell_dir="$(cd -P "$(dirname "$this_file")" && pwd)"
     dirname "$(dirname "$shell_dir")"
@@ -73,7 +73,7 @@ _dotfiles_detect_platform() {
         echo "wsl"
         return
     fi
-    
+
     # OS検出
     case "$(uname -s)" in
         Darwin)
@@ -147,16 +147,16 @@ _dotfiles_detect_win_home() {
 _dotfiles_add_path() {
     local new_path="$1"
     local position="${2:-prepend}"  # prepend or append
-    
+
     [ ! -d "$new_path" ] && return
-    
+
     case ":$PATH:" in
         *":$new_path:"*)
             # 既に含まれている
             return
             ;;
     esac
-    
+
     if [ "$position" = "append" ]; then
         PATH="$PATH:$new_path"
     else
@@ -171,12 +171,6 @@ _dotfiles_add_path "$DOTFILES_DIR/bin"
 _dotfiles_add_path "$HOME/.local/bin"
 _dotfiles_add_path "$HOME/bin"
 
-# 言語別パッケージマネージャ
-_dotfiles_add_path "$HOME/.cargo/bin"           # Rust
-_dotfiles_add_path "$HOME/go/bin"               # Go
-_dotfiles_add_path "$HOME/.npm-global/bin"      # npm global
-_dotfiles_add_path "$HOME/.bun/bin"             # Bun
-
 export PATH
 
 # ============================================================================
@@ -189,16 +183,25 @@ if command -v code >/dev/null 2>&1; then
 elif command -v vim >/dev/null 2>&1; then
     export EDITOR="vim"
 elif command -v vi >/dev/null 2>&1; then
-    export EDITOR="vi"
+    export EDITOR="vim"
 fi
 export VISUAL="$EDITOR"
-
-# Bun
-export BUN_INSTALL="$HOME/.bun"
 
 # ロケール
 export LANG="${LANG:-ja_JP.UTF-8}"
 export LC_ALL="${LC_ALL:-ja_JP.UTF-8}"
+export LC_CTYPE="${LC_CTYPE:-ja_JP.UTF-8}"
+export LC_NUMERIC="${LC_NUMERIC:-ja_JP.UTF-8}"
+export LC_TIME="${LC_TIME:-ja_JP.UTF-8}"
+export LC_COLLATE="${LC_COLLATE:-ja_JP.UTF-8}"
+export LC_MONETARY="${LC_MONETARY:-ja_JP.UTF-8}"
+export LC_MESSAGES="${LC_MESSAGES:-ja_JP.UTF-8}"
+export LC_PAPER="${LC_PAPER:-ja_JP.UTF-8}"
+export LC_NAME="${LC_NAME:-ja_JP.UTF-8}"
+export LC_ADDRESS="${LC_ADDRESS:-ja_JP.UTF-8}"
+export LC_TELEPHONE="${LC_TELEPHONE:-ja_JP.UTF-8}"
+export LC_MEASUREMENT="${LC_MEASUREMENT:-ja_JP.UTF-8}"
+export LC_IDENTIFICATION="${LC_IDENTIFICATION:-ja_JP.UTF-8}"
 
 # ページャー
 export PAGER="less"
