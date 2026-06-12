@@ -2,8 +2,8 @@
 """Patch dotfile-work for deterministic codex/rules/*.md enforcement."""
 from __future__ import annotations
 
+import argparse
 import json
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -137,7 +137,11 @@ def clean_markers(repo: Path) -> None:
 
 
 def main(argv: list[str]) -> int:
-    repo = Path(argv[1] if len(argv) > 1 else ".").resolve()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("repo", nargs="?", default=".")
+    parser.add_argument("--repo", dest="repo_option")
+    args = parser.parse_args(argv[1:])
+    repo = Path(args.repo_option or args.repo).resolve()
     if not (repo / ".git").exists() and not (repo / "install.sh").exists():
         print(f"not a dotfile-work repo root: {repo}", file=sys.stderr)
         return 1

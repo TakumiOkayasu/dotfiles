@@ -1,10 +1,10 @@
-# RULES_BUNDLE
+# Codex Rules Bundle
 
-Generated at: 2026-05-27T01:15:49Z
-
-This file is generated from `codex/rules/*.md`. Do not edit it directly.
+このファイルは hook/context injection 用の連結 rules bundle です。直接編集せず、元 rule を編集して再生成してください。
 
 ---
+
+## Source: `codex/rules/RULES_CORE.md`
 
 # RULES_CORE
 
@@ -41,10 +41,9 @@ When instructions conflict, follow the higher-priority source and report the con
 
 Treat as high-risk: DB schema, public API/SDK/CLI contract, auth/authorization, secrets, payments, dependency add/remove/update, data migration/destructive change, 100+ changed lines, multiple services, or unclear requirements.
 
-
 ---
 
-# RULE FILE: coding-conventions.md
+## Source: `codex/rules/coding-conventions.md`
 
 # Coding Conventions
 
@@ -53,10 +52,10 @@ Treat as high-risk: DB schema, public API/SDK/CLI contract, auth/authorization, 
 ## Codex portability notes
 
 - This file was ported from `claude/rules/coding-conventions.md`.
-- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `~/.agents/skills` in plugin-only mode.
-- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
+- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
-- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
+- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 言語非依存のコード規約。プロジェクト固有の規約があればそれを優先する。
 
@@ -137,17 +136,16 @@ Treat as high-risk: DB schema, public API/SDK/CLI contract, auth/authorization, 
 
 ## テスト
 
-アサーションは具体値を検証し、振る舞いを実際に判定するテストだけを書く。トートロジー・`toBeDefined()` のみ・カバレッジ稼ぎは書かない。書く前に「何を検証するか」を 1 行で言語化できること。AAA 構造 (Arrange/Act/Assert)、1 テスト 1 概念、テスト間の状態共有・順序依存をなしにする。命名は `should_<expected>_when_<condition>`。詳細は `~/.agents/skills/tdd/SKILL.md` を参照。
+アサーションは具体値を検証し、振る舞いを実際に判定するテストだけを書く。トートロジー・`toBeDefined()` のみ・カバレッジ稼ぎは書かない。書く前に「何を検証するか」を 1 行で言語化できること。AAA 構造 (Arrange/Act/Assert)、1 テスト 1 概念、テスト間の状態共有・順序依存をなしにする。命名は `should_<expected>_when_<condition>`。詳細は `${HOME}/.agents/skills/tdd/SKILL.md` を参照。
 
 
 ## Codex rule loading
 
-This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `~/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
-
+This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
 ---
 
-# RULE FILE: hallucination-prevention.md
+## Source: `codex/rules/hallucination-prevention.md`
 
 # Hallucination Prevention
 
@@ -156,10 +154,10 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 ## Codex portability notes
 
 - This file was ported from `claude/rules/hallucination-prevention.md`.
-- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `~/.agents/skills` in plugin-only mode.
-- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
+- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
-- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
+- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 「たぶん正しい」で出力しない。不確実なものは不確実と明示する。
 
@@ -189,12 +187,11 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 
 ## Codex rule loading
 
-This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `~/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
-
+This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
 ---
 
-# RULE FILE: hierarchical-architecture.md
+## Source: `codex/rules/hierarchical-architecture.md`
 
 # Architecture Invariants
 
@@ -203,10 +200,10 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 ## Codex portability notes
 
 - This file was ported from `claude/rules/hierarchical-architecture.md`.
-- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `~/.agents/skills` in plugin-only mode.
-- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
+- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
-- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
+- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 アーキテクチャ上、常に守る不変条件。設計の手順・判断は `architecture-design` スキルを参照する。
 
@@ -247,12 +244,11 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 
 ## Codex rule loading
 
-This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `~/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
-
+This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
 ---
 
-# RULE FILE: implementation-policy.md
+## Source: `codex/rules/implementation-policy.md`
 
 # Implementation Policy
 
@@ -261,10 +257,10 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 ## Codex portability notes
 
 - This file was ported from `claude/rules/implementation-policy.md`.
-- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `~/.agents/skills` in plugin-only mode.
-- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
+- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
-- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
+- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 車輪の再発明をしない。技術選定・ライブラリ利用・データアクセスの方針。
 
@@ -306,4 +302,366 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 
 ## Codex rule loading
 
-This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `~/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
+This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
+
+---
+
+## Source: `codex/rules/natural-japanese.md`
+
+# Natural Japanese
+
+<!-- codex-port: managed; source=claude/rules/natural-japanese.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/rules/natural-japanese.md`.
+- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
+- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
+
+- 基本的にあなた達の日本語はAIだと簡単にわかる、以下の点に注意しなさい。
+
+## 人は本質的にそもそも怠惰である
+
+- 人間は基本的に怠惰なのでできるだけ簡単な書き方、言い回し、変換を行うので、まずこれを念頭に置きなさい。
+
+## 言い回しがおかしい
+
+- 日本語は助詞が重要なため、助詞を**絶対**に省略するな
+
+## いかに当てはまる文章は書くな
+
+### 冗長な書き方
+
+- 共通化（抽象化）
+- 別の例（仮想ファイルシステム VFS）
+
+こういう前の語彙に対してカッコで補足する書き方は基本的に冗長
+
+### 余計な強調
+
+** このような強調はまず使用するな
+
+### 人間が使わない記号の使用
+
+- `「」` （かぎかっこ）や `・`（てん/黒丸/中黒）などは人間はあまり使わない
+    - かっこは `""` （ダブルクォーテーション）に置き換えることが多いがあまり使わない
+- `・` は `/` （スラッシュ）に置き換えることが多い
+
+### 段落番号を書くな
+
+基本的に後からの編集によって順番や内容の増減が起きるため番号をハードコードしてはいけない、以下がダメな例
+
+```text
+1. 有線LANと無線LANについて、物理層の違いからデータリンク層の実現方法の違い、
+    そしてネットワーク層から見た共通化までを順に検討する。
+2. 下位層は違うのに、ある層から上では同じに見え、途中の層の実現が違う、
+```
+
+このように直接マークダウン内に数字を振るな。
+
+```text
+* 有線LANと無線LANについて、物理層の違いからデータリンク層の実現方法の違い、
+    そしてネットワーク層から見た共通化までを順に検討する。
+* 下位層は違うのに、ある層から上では同じに見え、途中の層の実現が違う、
+```
+書くなら標準のリスト形式でかけ。
+
+又
+
+```text
+## 1. 課題1：有線LANと無線LANの比較
+
+### 1.1 物理層の違い
+```
+
+このようなヘッダーに数字を振るのも禁止。
+
+### 意味不明なアスキーでの表現
+
+```text
++-------------------------------------------------------------+
+|                         Kubernetes                          |
+|                                                             |
+|  +----------------------+      +--------------------------+  |
+|  |  API Server Service  |----->|  Go + Gin Deployment     |  |
+|  |  LoadBalancer/Ingress|      |  Pods: api-0, api-1      |  |
+|  +----------------------+      +------------+-------------+  |
+|                                           |                  |
+|                  +------------------------+---------+        |
+|                  |                                  |        |
+|                  v                                  v        |
+|        +-------------------+              +----------------+ |
+|        | PostgreSQL        |              | MinIO          | |
+|        | StatefulSet + PVC |              | StatefulSet/PVC| |
+|        +-------------------+              +----------------+ |
+|                                                             |
++-------------------------------------------------------------+
+```
+
+このようなアスキーアートでの表現は人間は書かない、特に複雑なものは書かない。もし必要ならばマーメイドといったコードで図を表記できるのを使用するべきであり、アスキーアートは使用しないこと。
+
+
+
+## Codex rule loading
+
+This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
+
+---
+
+## Source: `codex/rules/opus-47-policy.md`
+
+# Opus 4.7 Policy
+
+<!-- codex-port: managed; source=claude/rules/opus-47-policy.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/rules/opus-47-policy.md`.
+- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
+- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
+
+Codex Opus 4.7 の以下強化点を運用に反映する:
+
+- 計画段階での self-checking 能力向上
+- `xhigh` thinking レベル追加と Adaptive thinking
+- ファイルシステムベースのメモリ強化
+- 長時間 / マルチステップタスクの信頼性向上
+
+本ポリシーは `${HOME}/.codex/rules/` 配下にあるため、AGENTS.md の `@import` 経由で常時適用される。premise-questioning / feature-pruning より**軽量・常時適用**。
+
+## 🧠 Thinking Budget Policy
+
+タスク性質に応じて推論深度を引き上げる。Codex 内では `think` 系キーワードを内省的に発動する (公式推奨)。
+
+| タスク性質 | 推論レベル | キーワード例 |
+| --- | --- | --- |
+| 軽量編集・typo・単純な置換 | default | (即実装) |
+| 複数ファイル変更・新機能追加・設計判断 | high | `think` |
+| 難解なバグ・並行処理・型パズル | xhigh | `think hard` |
+| アーキテクチャ設計・セキュリティ監査・長時間エージェント | max | `ultrathink` |
+
+判定が曖昧な場合は**1 段上**を選ぶ。軽量で済むタスクに重いレベルを当てるコストより、難問を軽量で誤る損失の方が大きい。
+
+## ✅ Self-Review Gate (常時)
+
+実装着手前に**必ず**以下を内省する。No が 1 つでもあれば 1 段上の thinking レベルで再検討する。
+
+| # | 自問 |
+| --- | --- |
+| 1 | 入出力の型と契約を 1 文で言えるか |
+| 2 | エッジケースを 3 つ以上挙げられるか |
+| 3 | 既存パターン (skills / rules) と整合するか |
+| 4 | テスト可能な単位に分割されているか |
+| 5 | 失敗した場合の rollback 手順があるか |
+
+本 gate は premise-questioning / feature-pruning の**前段**に位置する常時適用ゲート。100 行未満の変更にも適用する。重い検証への昇格条件は AGENTS.md「着手前の方針検証」節を参照。
+
+## 📂 File-System Memory (3 層構造)
+
+長時間 / マルチセッションタスクの継続性を担保するため、以下 3 層で運用する。
+
+```text
+.codex/
+├── progress.md       # 主帳簿 (既存)
+├── notes/            # 詳細メモ (新規)
+│   └── {task-id}.md
+└── scratch/          # 試行錯誤 (新規、gitignore)
+    └── {task-id}.md
+```
+
+| 層 | 用途 | git 管理 | 更新頻度 |
+| --- | --- | --- | --- |
+| `progress.md` | タスク履歴・判断ログ・完了状況 | ✅ | 着手時 / 判断時 / 完了時 |
+| `notes/{task-id}.md` | 長時間タスクの調査結果・参考リンク・中間成果 | ✅ | セッション中随時 |
+| `scratch/{task-id}.md` | REPL 風メモ・没アイデア・実験コード | ❌ (gitignore) | 自由 |
+
+### 規約
+
+- `{task-id}` はブランチ名と一致させる (例: `feat/login-form` → `feat-login-form.md`)
+- セッション開始時、対応する `notes/{task-id}.md` が存在すれば**必ず** read する
+- タスク完了時、`notes/` の要点を `progress.md` の「判断ログ」へ要約反映する
+- `scratch/` は `.gitignore` 必須。コミットしない
+- 新規ディレクトリ作成時は `.codex/notes/.gitkeep` を置く
+
+### Adaptive thinking との連携
+
+`notes/` を読み戻すことで前提コンテキストの量を減らせるため、その分の thinking budget を実装側に振り向けられる。長時間タスクではこれを意識する。
+
+### failure-logging との接続
+
+`failure-logging` skill は試した内容と失敗理由を **`.codex/notes/{task-id}.md` の `## failure-log` セクション**へ追記する。これにより:
+
+- 失敗履歴と決定事項・調査メモが**同一ファイルに集約**される
+- SessionStart hook で失敗履歴も自動 read され、4.7 のファイルメモリ強化で「同じ失敗を繰り返さない」が機械的に支援される
+- `systematic-debugging` skill の「失敗パターン」節 (「試した内容と失敗理由は failure-logging スキルで記録する」) と整合する
+
+#### failure-log エントリのフォーマット
+
+```markdown
+### YYYY-MM-DD HH:MM
+- 試したこと: (1 文で)
+- 結果: 失敗 (エラーメッセージは原文引用)
+- 理由: (根本原因。推測なら推測と明示)
+- 次に試すこと: (1 文で)
+```
+
+#### 書き込み先の決定
+
+- 通常は `.codex/notes/{task-id}.md` の `## failure-log` セクションへ追記
+- notes ファイルが未作成なら `_template.md` をコピーして作成してから追記
+- task-id (ブランチ名 → ハイフン置換) は `git branch --show-current | tr '/' '-'` で取得
+
+## 🔄 削除・整理
+
+- マージ済みブランチに対応する `notes/{task-id}.md` は `git-cleanup-branch` 時に `notes/archive/` へ移動する
+- `scratch/` は 30 日以上更新のないファイルを自由に削除可
+
+
+## Codex rule loading
+
+This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
+
+---
+
+## Source: `codex/rules/phase-gate-framework.md`
+
+# Phase Gate Framework
+
+<!-- codex-port: managed; source=claude/rules/phase-gate-framework.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/rules/phase-gate-framework.md`.
+- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
+- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
+
+スキル / 長時間タスクのフェーズ遷移時に置く**ゲート** (gate) の標準規約。Opus 4.7 の self-checking 能力を構造化された check point として活かす。
+
+opus-47-policy.md の Self-Review Gate (常時適用) が**点**のゲートだとすれば、本 framework は**スキル内フェーズ間に置く線**のゲート。両者は併存し、後者が前者を内包する。
+
+## 🎯 Gate の役割
+
+- フェーズ遷移時に**前提が満たされていることを検証**する
+- 検証失敗時は前フェーズへ差し戻す (前進しない)
+- 検証結果を `.codex/notes/{task-id}.md` に記録する (4.7 のファイルメモリ強化に対応)
+
+## 🚪 Gate 種別 (3 種)
+
+スキルは以下から必要なものを採用する。**全部置く必要はない**。
+
+### 1. Plan Gate (計画 → 実装)
+
+実装へ進む前に検証する。失敗したら計画フェーズへ戻す。
+
+| # | チェック項目 |
+| --- | --- |
+| 1 | 入出力の型と契約を 1 文で言える |
+| 2 | エッジケースを 3 つ以上挙げた |
+| 3 | 既存パターン (skills / rules) との整合を確認した |
+| 4 | テスト可能な単位に分割されている |
+| 5 | 失敗時の rollback 手順がある |
+
+(opus-47-policy.md の Self-Review Gate と同一項目。Plan Gate はその**フェーズ末への明示配置**版)
+
+### 2. Verify Gate (実装 → 完了)
+
+完了報告へ進む前に検証する。失敗したら実装フェーズへ戻す。
+
+| # | チェック項目 |
+| --- | --- |
+| 1 | 該当スキル固有の成功基準を全て満たした |
+| 2 | 全テストが pass している (未確認での pass 報告は禁止) |
+| 3 | 既存テストを破壊していない |
+| 4 | hook block が出ていない |
+| 5 | スキル固有の品質基準 (security / performance / accessibility 等) を満たした |
+
+### 3. Handoff Gate (skill 完了 → ユーザー報告 / 次タスク)
+
+ユーザーへの完了報告前に検証する。失敗したら記録漏れを補完してから報告する。
+
+| # | チェック項目 |
+| --- | --- |
+| 1 | `.codex/progress.md` を更新した (完了マーク + 次タスク) |
+| 2 | `.codex/notes/{task-id}.md` の要点を progress.md の判断ログへ反映した |
+| 3 | subagent 出力 (あれば) を notes へ集約した |
+| 4 | 残課題 / 未確認事項を明示した |
+
+## 📝 Gate の記述形式
+
+スキル内では gate を以下の形式で明示する:
+
+```markdown
+### Plan Gate
+進めて良いかを次の項目で自己検証する。No が 1 つでもあれば計画へ戻る:
+
+- [ ] 入出力の型と契約を 1 文で言える
+- [ ] エッジケースを 3 つ以上挙げた
+- [ ] 既存パターンとの整合を確認した
+- [ ] テスト可能な単位に分割されている
+- [ ] 失敗時の rollback 手順がある
+- [ ] (skill 固有項目を追記可)
+```
+
+## ➕ カスタム項目
+
+各スキルは標準項目に**追加項目**を持てる (削除は不可)。例:
+
+- `tdd`: RED が本当に失敗しているか / GREEN は最小実装か / REFACTOR で振る舞いが変わっていないか
+- `code-review`: 3 観点 (security / performance / maintainability) を網羅したか
+- `systematic-debugging`: 仮説の検証手段が具体的か / 再現条件が記録されているか
+
+## 🤖 Subagent 連携
+
+### dispatch 入力契約 (SUBAGENTS.md と同期)
+
+subagent 呼び出し時、以下を入力契約に含める:
+
+| 項目 | 内容 |
+| --- | --- |
+| 役割 | 何を判断・調査・出力するか (1 文) |
+| スコープ | 担当外観点に踏み込まない明示制約 |
+| 入力データ | 検証対象 (固定) |
+| 出力フォーマット | 親が機械的に集約できる形式 |
+| 環境制約 | dispatch 不能環境では skip し理由報告 |
+| **thinking_budget** | **default / high / xhigh / max のいずれか (opus-47-policy 参照)** |
+
+`thinking_budget` 未指定時の既定値は呼び出し元スキルの推奨レベル。
+
+### subagent 出力の永続化
+
+subagent 復帰後、出力を `.codex/notes/{task-id}.md` の以下構造へ追記する:
+
+```markdown
+## subagent: {name} ({YYYY-MM-DD HH:MM})
+- 役割: ...
+- thinking_budget: high
+
+### 結論
+採用 / 棄却 / 要確認
+
+### 根拠
+- ...
+
+### 自己申告
+- 詰まった箇所 / 裁量補完 / 再試行回数
+```
+
+これにより、後続セッションや別 skill から subagent 結果を参照可能になる (4.7 のファイルメモリ強化の活用)。
+
+## 🚫 Gate を**置かない**ケース
+
+- 軽量編集 (1 ファイル / 30 行未満 / typo) → gate は省略可
+- skill を読まずに済む単純タスク → そもそも skill 適用外
+- gate を**機械的にチェックリスト消化するだけ**で意味のある内省が伴わない場合 → 失敗。1 段上の thinking レベルで再実施
+
+
+
+## Codex rule loading
+
+This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.

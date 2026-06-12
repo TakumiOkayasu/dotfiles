@@ -2,6 +2,7 @@
 codex_port_source: claude/skills/tdd/SKILL.md
 name: tdd
 description: 機能実装やバグ修正でテストを書く・変更する作業に使用。RED-GREEN-REFACTORサイクルを適用する。
+thinking_hint: high
 ---
 
 # Test-Driven Development
@@ -11,10 +12,10 @@ description: 機能実装やバグ修正でテストを書く・変更する作�
 ## Codex portability notes
 
 - This file was ported from `claude/skills/tdd/SKILL.md`.
-- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `~/.agents/skills` in plugin-only mode.
-- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
+- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
-- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
+- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## トリガー条件
 
@@ -141,12 +142,26 @@ subagent から返ってきたランク付き一覧 (NM-001, NM-002, ...) をユ
 
 ```
 // テストリスト例: ポイント計算機能
-// □ 1000円の購入で10ポイント付与される
-// □ 999円の購入ではポイント0
-// □ 負の金額ではエラー
-// □ ゴールド会員は2倍のポイント
-// □ 0円の購入ではポイント0（境界値）
+// [ ]  1000円の購入で10ポイント付与される
+// [ ]  999円の購入ではポイント0
+// [ ]  負の金額ではエラー
+// [ ]  ゴールド会員は2倍のポイント
+// [ ]  0円の購入ではポイント0（境界値）
 ```
+
+### Plan Gate
+
+ステップ3 (RED-GREEN-REFACTOR サイクル) に進む前に以下を内省する。No が 1 つでもあれば計画へ戻る:
+
+- [ ] 入出力の型と契約を 1 文で言える
+- [ ] エッジケース (null / 空 / 0 / 負数 / 境界値) を 3 つ以上テストリストに含めた
+- [ ] 既存パターン (skills / rules / 既存テスト) との整合を確認した
+- [ ] テスト可能な単位に分割されている (1 サイクル = 1 ケース)
+- [ ] 失敗時の rollback 手順がある (git でテスト追加前に戻せるか)
+- [ ] **TDD固有**: テストリストの優先順位がユーザー確認済み
+- [ ] **TDD固有**: 機能単位の場合、qa_nightmare subagent の出力を反映済み
+
+詳細規約: `${HOME}/.codex/rules/phase-gate-framework.md`
 
 ### 順序の決め方
 
@@ -378,6 +393,19 @@ AI の見立て: [方針のみ / 探索的 / 不明（複数候補なら併記�
 
 ---
 
+## Verify Gate
+
+全サイクル完了後、コミット前に以下を内省する。No が 1 つでもあれば実装へ戻る:
+
+- [ ] 全テストが PASS している (実行ログで確認、未確認 PASS 報告は禁止)
+- [ ] 既存テストを破壊していない
+- [ ] hook block が出ていない
+- [ ] **TDD固有**: 全 RED → GREEN サイクルで RED を意図した理由で確認した
+- [ ] **TDD固有**: GREEN は最小実装に留まっている (テストを通すだけの実装か)
+- [ ] **TDD固有**: REFACTOR で振る舞いが変わっていない (テスト緑のまま完了)
+- [ ] **TDD固有**: テストの期待値を無断変更していない
+- [ ] **TDD固有**: 連続ガード化が発生した場合、ガードコメントが付与済み
+
 ## コミット戦略
 
 全テストがPASSした状態でのみコミットする。コミットメッセージはプロジェクト慣習に従う（git-workflowスキルがあれば参照）。
@@ -392,6 +420,16 @@ AI の見立て: [方針のみ / 探索的 / 不明（複数候補なら併記�
 RED（FAILするテスト）単独ではコミットしない。RED+GREENをセットでコミットする。
 
 ---
+
+## Handoff Gate
+
+ユーザーへの完了報告前に以下を確認する:
+
+- [ ] `.codex/progress.md` に完了マーク + 次タスクを記載した
+- [ ] `.codex/notes/{task-id}.md` の要点を progress.md の判断ログへ反映した
+- [ ] qa_nightmare subagent を使った場合、出力を notes へ集約した
+- [ ] 残課題 (未実装ケース / 特性テスト昇格待ち / TODO コメント等) を明示した
+- [ ] **TDD固有**: テストリストの未着手ケースが残っている場合、次タスクとして progress.md に記載した
 
 ## 関連スキルとの連携
 

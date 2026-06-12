@@ -11,10 +11,10 @@ description: クラス・モジュールのアーキテクチャ設計時に使�
 ## Codex portability notes
 
 - This file was ported from `claude/skills/architecture-design/SKILL.md`.
-- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `~/.agents/skills` in plugin-only mode.
-- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
+- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
-- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
+- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 コンポーネントをどのレイヤーに置き、どう責務分割し、合成で組み立てるかの設計手順。常に守る不変条件 (依存方向・継承深度・命名等) は `hierarchical-architecture` ルールにあり、本スキルはその不変条件を満たす設計の進め方を扱う。
 
@@ -97,7 +97,7 @@ SystemContext       # システム全体のライフサイクル管理
 
 ## 複数設計案の並列出し (明示要求時のみ)
 
-dispatch 形式・並列起動の作法は `~/.codex/SUBAGENTS.md` を参照。
+dispatch 形式・並列起動の作法は `${HOME}/.codex/SUBAGENTS.md` を参照。
 
 ### 起動条件
 
@@ -109,9 +109,11 @@ dispatch 形式・並列起動の作法は `~/.codex/SUBAGENTS.md` を参照。
 
 ### dispatch 内容
 
-各 subagent に対象機能の要件 + `hierarchical-architecture` 不変条件を渡し、**互いに異なるレイヤー切り分け案**を 1 つ出させる (例: 案 A = 管理層厚め / 案 B = 提供層分割 / 案 C = Platform 層に逃がす)。subagent 種別は `general-purpose` (`Plan` は単一計画立案用途のため、3 並列で互いに異なる案を出す本節と不整合)。
+**`design-consultant` subagent を 1 dispatch** して、対象機能の要件 + `hierarchical-architecture` 不変条件を渡す。`design-consultant` は複数案 (管理層厚め / 提供層分割 / Platform 層逃がし 等) を内部で生成・比較・推奨まで行い、比較表と推奨案を親に返す。(旧: `general-purpose` 3 並列で案を分散生成していたが、`design-consultant` が 1 dispatch で同等の多様性と比較を担うため統合)
 
-### 評価軸 (親が事後集約)
+### 評価軸 (`design-consultant` に渡す文脈として使う)
+
+`design-consultant` への dispatch プロンプトに以下の評価軸を含める:
 
 | 軸 | 確認内容 |
 | --- | --- |

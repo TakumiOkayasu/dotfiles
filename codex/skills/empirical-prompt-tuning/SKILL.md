@@ -11,10 +11,10 @@ description: agent 向けテキスト指示（skill / slash command / task プ�
 ## Codex portability notes
 
 - This file was ported from `claude/skills/empirical-prompt-tuning/SKILL.md`.
-- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `~/.agents/skills` in plugin-only mode.
-- Global and project rules live under `~/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
+- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
-- Subagent usage must follow `~/.codex/SUBAGENTS.md` and the current Codex tool contract.
+- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 プロンプトの品質は書いた本人には分からない。書き手が「明瞭だ」と思うものほど、別エージェントが読むと詰まる。**バイアスを排した実行者に実際に動かしてもらい、両面で評価して反復する** のが本 skill の核。改善が頭打ちになるまで止めない。
 
@@ -93,7 +93,7 @@ description: agent 向けテキスト指示（skill / slash command / task プ�
 
 ## subagent 起動契約
 
-共通 mechanics (並列起動の作法 / 集約 / nested 禁止 / 環境制約 / 再 dispatch 条件) は `~/.codex/SUBAGENTS.md` を参照。本節では本 skill 固有契約 (実行者プロンプト構造・両面評価入力) のみ書く。
+共通 mechanics (並列起動の作法 / 集約 / nested 禁止 / 環境制約 / 再 dispatch 条件) は `${HOME}/.codex/SUBAGENTS.md` を参照。本節では本 skill 固有契約 (実行者プロンプト構造・両面評価入力) のみ書く。
 
 実行者に渡すプロンプトは次の構造を取る。これが「両面評価」の入力契約。
 

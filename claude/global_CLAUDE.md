@@ -27,6 +27,7 @@
 | バグ修正 | `skills/systematic-debugging/SKILL.md` |
 | リファクタリング | `skills/refactoring/SKILL.md` |
 | 設計判断・技術選定 | `skills/architecture-design/SKILL.md` + `skills/consultation/SKILL.md` |
+| 複数 task の実装計画〜実行 | `skills/plan-and-review/SKILL.md` |
 | それ以外 | `ls $HOME/.claude/skills/` で確認後、該当のみ |
 
 ## 制約
@@ -91,6 +92,7 @@ thinking budget 規律は `$HOME/.claude/rules/opus-47-policy.md`「Thinking Bud
 @'$HOME/.claude/rules/hallucination-prevention.md'
 @'$HOME/.claude/rules/opus-47-policy.md'
 @'$HOME/.claude/rules/phase-gate-framework.md'
+@'$HOME/.claude/rules/natural-japanese.md'
 
 | リソース | 場所 | 用途 |
 | --- | --- | --- |
@@ -233,4 +235,3 @@ premise-questioning 採用後、または:
 | 用途 | 方針 |
 | --- | --- |
 | WebFetch | URL を直接フェッチせず、`https://r.jina.ai/<URL>` 経由で取得する |
-

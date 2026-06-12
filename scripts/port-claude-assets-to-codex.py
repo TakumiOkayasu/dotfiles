@@ -12,12 +12,10 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import hashlib
-import os
 from pathlib import Path
 import re
 import shutil
 import sys
-from typing import Iterable
 
 MANAGED_MARKER = "codex-port: managed"
 RULE_BUNDLE_NAME = "RULES_BUNDLE.md"
@@ -77,6 +75,7 @@ COMMON_REPLACEMENTS: tuple[tuple[str, str], ...] = (
     ("claude/rules", "codex/rules"),
     ("claude/commands", "codex/skills"),
     ("claude/hooks", "codex/hooks"),
+    ("qa-nightmare", "qa_nightmare"),
     ("global_CLAUDE.md", "global_AGENTS.md"),
     ("CLAUDE.md", "AGENTS.md"),
     ("Claude Code", "Codex"),
@@ -95,7 +94,7 @@ def transform_body(body: str, *, source: Path, kind: str) -> str:
     out = re.sub(r"(?<![\w`])/(feat|fix|review|deep-review|commit|commit-msg|test|refactor|plan|explain)(?![\w`:-])", r"@\1", out)
 
     source_str = str(source).replace("\\", "/")
-    note = f"""\n<!-- {MANAGED_MARKER}; source={source_str}; generated-by=scripts/port-claude-assets-to-codex.py -->\n\n## Codex portability notes\n\n- This file was ported from `{source_str}`.\n- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.\n- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.\n- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.\n- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.\n"""
+    note = f"""\n<!-- {MANAGED_MARKER}; source={source_str}; generated-by=scripts/port-claude-assets-to-codex.py -->\n\n## Codex portability notes\n\n- This file was ported from `{source_str}`.\n- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${{HOME}}/.agents/skills` in plugin-only mode.\n- Global and project rules live under `${{HOME}}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.\n- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.\n- Subagent usage must follow `${{HOME}}/.codex/SUBAGENTS.md` and the current Codex tool contract.\n"""
     if MANAGED_MARKER not in out:
         # Insert after first H1 when possible; otherwise prepend after frontmatter.
         match = re.search(r"(^# .+?\n)", out, re.MULTILINE)
@@ -133,6 +132,7 @@ def backup_existing(dest: Path) -> bool:
 
 
 def write_file(dest: Path, text: str, *, args: argparse.Namespace) -> tuple[bool, bool]:
+    text = text.rstrip() + "\n"
     existing = None
     if dest.exists():
         existing = dest.read_text(encoding="utf-8")
@@ -235,13 +235,11 @@ def generate_rule_bundle(repo: Path, args: argparse.Namespace) -> None:
     ]
     for rule in rules:
         rel = rule.relative_to(repo).as_posix()
-        parts.append(f"\n---\n\n## Source: `{rel}`\n\n")
-        parts.append(rule.read_text(encoding="utf-8"))
-        parts.append("\n")
-    content = "".join(parts)
+        parts.extend(["---", "", f"## Source: `{rel}`", "", rule.read_text(encoding="utf-8").rstrip(), ""])
+    content = "\n".join(parts)
     if not args.dry_run:
         rules_dir.mkdir(parents=True, exist_ok=True)
-        (rules_dir / RULE_BUNDLE_NAME).write_text(content, encoding="utf-8")
+        (rules_dir / RULE_BUNDLE_NAME).write_text(content.rstrip() + "\n", encoding="utf-8")
 
 
 def generate_report(repo: Path, ported: list[PortedFile], args: argparse.Namespace) -> None:
