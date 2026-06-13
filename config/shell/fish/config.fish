@@ -65,6 +65,23 @@ else
 end
 
 # ============================================================================
+# パッケージマネージャ / ランタイム初期化
+# ============================================================================
+# プロンプト設定 (oh-my-posh) が PATH に依存するため、それより先に初期化する
+
+# Homebrew (Linux/WSL環境のみ)
+if test -x "/home/linuxbrew/.linuxbrew/bin/brew"
+    eval (/home/linuxbrew/.linuxbrew/bin/brew shellenv)
+end
+
+# mise (ランタイムバージョン管理)
+if type -q mise
+    mise activate fish | source
+else if test -x "$HOME/.local/bin/mise"
+    "$HOME/.local/bin/mise" activate fish | source
+end
+
+# ============================================================================
 # プラットフォーム固有設定
 # ============================================================================
 
@@ -150,15 +167,6 @@ end
 
 if test -f "$HOME/.config/fish/local.fish"
     source "$HOME/.config/fish/local.fish"
-end
-
-# ============================================================================
-# Homebrew (Linux/WSL環境のみ)
-# ============================================================================
-# Linuxbrew がインストールされていれば環境変数を設定
-
-if test -x "/home/linuxbrew/.linuxbrew/bin/brew"
-    eval (/home/linuxbrew/.linuxbrew/bin/brew shellenv)
 end
 
 # ============================================================================

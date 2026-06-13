@@ -192,7 +192,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "ccstatusline",
+    "command": "sh $HOME/.claude/statusline-command.sh",
     "padding": 0,
     "refreshInterval": 10
   },
@@ -236,8 +236,8 @@
       ]
     }
   },
-  "effortLevel": "medium",
+  "effortLevel": "high",
   "fastMode": true,
-  "theme": "dark-daltonized",
+  "theme": "auto",
   "skipAutoPermissionPrompt": true
 }

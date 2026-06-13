@@ -34,6 +34,23 @@ elif [[ -f "$DOTFILES_DIR/config/shell/common.sh" ]]; then
 fi
 
 # ============================================================================
+# パッケージマネージャ / ランタイム初期化
+# ============================================================================
+# プロンプト設定 (oh-my-posh) が PATH に依存するため、それより先に初期化する
+
+# Homebrew (Linux/WSL環境のみ)
+if [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
+# mise (ランタイムバージョン管理)
+if command -v mise &>/dev/null; then
+    eval "$(mise activate zsh)"
+elif [[ -x "$HOME/.local/bin/mise" ]]; then
+    eval "$("${HOME}/.local/bin/mise" activate zsh)"
+fi
+
+# ============================================================================
 # zsh オプション
 # ============================================================================
 
@@ -62,7 +79,6 @@ setopt MENU_COMPLETE         # 補完候補を順番に表示
 
 # グロブ
 setopt EXTENDED_GLOB         # 拡張グロブ
-setopt GLOB_DOTS             # ドットファイルもマッチ
 
 # その他
 setopt INTERACTIVE_COMMENTS  # コメントを許可
@@ -191,15 +207,6 @@ mkcd() {
 
 if [[ -f "$HOME/.zshrc.local" ]]; then
     source "$HOME/.zshrc.local"
-fi
-
-# ============================================================================
-# Homebrew (Linux/WSL環境のみ)
-# ============================================================================
-# Linuxbrew がインストールされていれば環境変数を設定
-
-if [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
 
 # ============================================================================
