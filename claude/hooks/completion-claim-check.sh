@@ -38,6 +38,7 @@ fi
 
 # --- 直近の実ユーザーターン以降の「応答テキスト全文」と「Bash コマンド群」を抽出 ---
 # 出力形式: text を結合し、区切り "<<<CMDS>>>" 以降に Bash command を結合 (jq で一括抽出)
+# shellcheck disable=SC2016
 EXTRACT=$(tail -300 "$TRANSCRIPT_PATH" | "$JQ" -s -r '
     [ .[] | select(.isSidechain != true) ] as $rows
     | ( [ $rows | to_entries[]
@@ -65,7 +66,7 @@ if [ -z "$EXTRACT" ]; then
 fi
 
 RESPONSE_TEXT=${EXTRACT%%<<<CMDS>>>*}
-BASH_CMDS=${EXTRACT#*<<<CMDS>>>}
+EXTRACTED_CMDS=${EXTRACT#*<<<CMDS>>>}
 
 # --- 完了報告表現の検出 ---
 # 誤検知を抑えるため、明確な「完了」断定のみを対象にする
@@ -85,7 +86,7 @@ fi
 # いずれかにマッチすればテストを実行したとみなしブロックしない
 HAS_TEST=0
 for tp in "pytest" "jest" "vitest" " test" "test " "go test" "cargo test" "npm t" "yarn test" "pnpm test" "gradlew" "mvn test" "dotnet test" "rspec" "phpunit" "compose" "docker run"; do
-    case "$BASH_CMDS" in
+    case "$EXTRACTED_CMDS" in
         *"$tp"*) HAS_TEST=1; break ;;
     esac
 done

@@ -39,16 +39,17 @@ fi
 # --- コンテキスト使用率算出 ---
 # transcript JSONL の末尾から最新の usage を持つ非sidechain行を取得
 # timestamp 最大 (ISO 文字列の辞書順 = 時系列順) の usage を jq で抽出
+# jq変数 $latest をシェル展開させないため単一引用符で囲む (二重引用符だと空展開で常に0になる)
+# shellcheck disable=SC2016
 USAGE_LINE=$(tail -200 "$TRANSCRIPT_PATH" | "$JQ" -s -r '
     [ .[]
-      | select((.isSidechain // false) == false)
-      | select((.isApiErrorMessage // false) == false)
-      | select(.message.usage != null) ]
-    | (max_by(.timestamp // "") // null) as $latest
-    | if $latest == null then 0
-      else (($latest.message.usage.input_tokens // 0)
-            + ($latest.message.usage.cache_read_input_tokens // 0))
-      end
+        | select((.isSidechain // false) == false)
+        | select((.isApiErrorMessage // false) == false)
+        | select(.message.usage != null) ]
+        | (max_by(.timestamp // "") // null) as $latest
+        | if $latest == null then 0
+      else (($latest.message.usage.input_tokens // 0) + ($latest.message.usage.cache_read_input_tokens // 0))
+    end
 ' 2>/dev/null || echo "0")
 
 # モデルのコンテキスト上限 (tokens)
@@ -92,10 +93,10 @@ case "$HOOK_EVENT" in
         ESCAPED_MSG=$(printf '%s' "$MSG" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
         cat <<EOF
 {
-  "hookSpecificOutput": {
-    "hookEventName": "PostToolUse",
-    "additionalContext": "${ESCAPED_MSG}"
-  }
+    "hookSpecificOutput": {
+        "hookEventName": "PostToolUse",
+        "additionalContext": "${ESCAPED_MSG}"
+    }
 }
 EOF
         ;;

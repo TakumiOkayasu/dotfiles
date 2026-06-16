@@ -32,6 +32,7 @@ fi
 # --- 直近の実ユーザーターン以降の「最初の assistant text」の冒頭を抽出 ---
 # 実ユーザー入力 (tool_result でない user 行) でリセットし、その後の最初の text を取る
 # 先頭の ASCII 記号を除いた冒頭 90 文字のみを判定対象にする
+# shellcheck disable=SC2016
 HEAD=$(tail -200 "$TRANSCRIPT_PATH" | "$JQ" -s -r '
     [ .[] | select(.isSidechain != true) ] as $rows
     | ( [ $rows | to_entries[]
@@ -61,7 +62,7 @@ fi
 
 # --- 追従句パターン (global_CLAUDE.md の禁止句と整合) ---
 # 大文字小文字を無視するため小文字化した版で英語句を判定
-HEAD_LOWER=$(printf '%s' "$HEAD" | tr 'A-Z' 'a-z')
+HEAD_LOWER=$(printf '%s' "$HEAD" | tr '[:upper:]' '[:lower:]')
 
 HIT=""
 # 英語の追従句 (小文字化後に部分一致)
