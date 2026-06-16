@@ -20,9 +20,9 @@
       "Bash(rm -rf *)",
       "Bash(rm -f *)"
     ],
-    "defaultMode": "plan"
+    "defaultMode": "auto"
   },
-  "model": "claude-fable-5[1m]",
+  "model": "opus[1m]",
   "hooks": {
     "PreToolUse": [
       {
@@ -192,7 +192,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "sh $HOME/.claude/statusline-command.sh",
+    "command": "bunx -y ccstatusline@latest",
     "padding": 0,
     "refreshInterval": 10
   },
@@ -239,5 +239,9 @@
   "effortLevel": "high",
   "fastMode": true,
   "theme": "auto",
+  "preferredNotifChannel": "ghostty",
+  "remoteControlAtStartup": true,
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true
 }
