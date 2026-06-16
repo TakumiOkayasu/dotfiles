@@ -1,0 +1,112 @@
+{
+  "version": 3,
+  "lines": [
+    [
+      {
+        "id": "1",
+        "type": "model",
+        "color": "brightMagenta"
+      },
+      {
+        "id": "41686898-1251-48ba-8f87-7aa425698cd2",
+        "type": "version",
+        "backgroundColor": "bgGreen"
+      },
+      {
+        "id": "3",
+        "type": "context-length",
+        "color": "brightCyan"
+      },
+      {
+        "id": "5",
+        "type": "git-branch",
+        "color": "brightRed"
+      },
+      {
+        "id": "7",
+        "type": "git-changes",
+        "color": "yellow"
+      }
+    ],
+    [
+      {
+        "id": "31aad135-4a28-4e12-9d56-72b7aa177192",
+        "type": "context-percentage"
+      },
+      {
+        "id": "5aee5d3f-530a-4b6d-8258-9dba81095c6e",
+        "type": "tokens-cached",
+        "backgroundColor": "bgCyan"
+      },
+      {
+        "id": "2bc3af91-a467-4cf1-a08b-f7d92bbb4306",
+        "type": "input-speed"
+      },
+      {
+        "id": "c816ac03-8815-4e57-827c-1246163d8966",
+        "type": "output-speed"
+      },
+      {
+        "id": "9eb9a475-1969-4577-acaf-f283d3acd04e",
+        "type": "tokens-total"
+      }
+    ],
+    [
+      {
+        "id": "a0739f65-1118-4ba5-8df5-8ac11ceeceb8",
+        "type": "session-cost"
+      },
+      {
+        "id": "194e67bb-f1e4-447f-b734-d7f409057d6e",
+        "type": "reset-timer"
+      },
+      {
+        "id": "58245191-3806-44ef-832e-c2b007a2808f",
+        "type": "weekly-usage"
+      },
+      {
+        "id": "42d34dea-4785-4774-8d46-583c564d3955",
+        "type": "free-memory",
+        "backgroundColor": "bgBrightCyan"
+      },
+      {
+        "id": "12df0ad3-7127-4b13-b314-93413115377e",
+        "type": "context-bar",
+        "backgroundColor": "bgBrightYellow",
+        "metadata": {
+          "display": "slider"
+        }
+      }
+    ]
+  ],
+  "flexMode": "full-minus-40",
+  "compactThreshold": 60,
+  "colorLevel": 3,
+  "defaultPadding": " ",
+  "inheritSeparatorColors": false,
+  "globalBold": true,
+  "gitCacheTtlSeconds": 5,
+  "minimalistMode": true,
+  "powerline": {
+    "enabled": true,
+    "separators": [
+      ""
+    ],
+    "separatorInvertBackground": [
+      false
+    ],
+    "startCaps": [
+      ""
+    ],
+    "endCaps": [
+      ""
+    ],
+    "theme": "nord-aurora",
+    "autoAlign": true,
+    "continueThemeAcrossLines": true
+  },
+  "installation": {
+    "method": "auto-update",
+    "packageManager": "bun"
+  }
+}
