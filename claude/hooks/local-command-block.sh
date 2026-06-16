@@ -175,6 +175,53 @@ normalize_rtk_segment() {
         }'
 }
 
+# --- クォート対応のセグメント分割 ---
+# シェル演算子 (&& || ; |) で分割するが、引用符 ('...' "...") 内の演算子は区切らない。
+# これによりクォート内文字列 (grep パターン "a|b|c" 等) の | が誤って分割され、
+# バラのトークン (php 等) が BLOCKED_EXACT に誤マッチするのを防ぐ。
+split_segments() {
+    printf '%s' "$1" | awk '
+    {
+        seg = ""; sq = 0; dq = 0; n = length($0); i = 1
+        while (i <= n) {
+            c = substr($0, i, 1); d = substr($0, i + 1, 1)
+            if (dq == 0 && c == "\047") { sq = !sq; seg = seg c; i++; continue }
+            if (sq == 0 && c == "\042") { dq = !dq; seg = seg c; i++; continue }
+            if (sq == 0 && dq == 0) {
+                if ((c == "&" && d == "&") || (c == "|" && d == "|")) { print seg; seg = ""; i += 2; continue }
+                if (c == "|" || c == ";") { print seg; seg = ""; i++; continue }
+            }
+            seg = seg c; i++
+        }
+        print seg
+    }'
+}
+
+# --- バージョン/存在確認コマンドかチェックする関数 ---
+# `php -v`, `node --version`, `go version` 等のバージョン/存在確認は実行とみなさず許可する。
+# (`command -v xx` / `which xx` は第1コマンドが command/which のため元から許可される)
+is_version_probe() {
+    _vp_cmd=$(get_first_command "$1")
+    [ -z "$_vp_cmd" ] && return 1
+    # コマンド名以降のトークン (引数列) を取得
+    _vp_rest=$(printf '%s' "$1" | awk -v cmd="$_vp_cmd" '
+        BEGIN { found = 0; out = "" }
+        {
+            for (i = 1; i <= NF; i++) {
+                if (found) { out = out (out ? " " : "") $i; continue }
+                n = split($i, parts, "/")
+                if (parts[n] == cmd) found = 1
+            }
+        }
+        END { print out }')
+    _vp_rest=$(printf '%s' "$_vp_rest" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+    # 引数がバージョン/ヘルプフラグ単独の場合のみ許可 (実行引数が続く場合はブロック継続)
+    case "$_vp_rest" in
+        -v|-V|--version|version|-h|--help) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # --- 個別セグメントのブロックチェック関数 ---
 check_segment() {
     _seg=$(normalize_rtk_segment "$1")
@@ -190,6 +237,10 @@ check_segment() {
         debug_log "RUNNER_COMMAND: 許可 $_seg"
         return 0
     fi
+    if is_version_probe "$_seg"; then
+        debug_log "VERSION_PROBE: 許可 $_seg"
+        return 0
+    fi
     _cmd=$(get_first_command "$_seg")
     [ -z "$_cmd" ] && return 0
     if printf '%s\n' "$_cmd" | grep -qE "$BLOCKED_EXACT"; then
@@ -203,14 +254,13 @@ check_segment() {
 check_raw_input_fallback() {
     _raw_cmd=$(printf '%s' "$INPUT" | sed -n 's/.*"command"\s*:\s*"\([^"]*\)".*/\1/p')
     [ -z "$_raw_cmd" ] && return 0
-    _fallback_segs=$(printf '%s' "$_raw_cmd" | awk '{
-        gsub(/&&/, "\n"); gsub(/\|\|/, "\n"); gsub(/;/, "\n"); gsub(/\|/, "\n"); print
-    }')
+    _fallback_segs=$(split_segments "$_raw_cmd")
     _oldifs="$IFS"; IFS='
 '
     for _fseg in $_fallback_segs; do
         _fseg=$(printf '%s' "$_fseg" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
         _fseg=$(normalize_rtk_segment "$_fseg")
+        is_version_probe "$_fseg" && continue
         _fcmd=$(get_first_command "$_fseg")
         if [ -n "$_fcmd" ] && printf '%s\n' "$_fcmd" | grep -qE "$BLOCKED_EXACT" 2>/dev/null; then
             IFS="$_oldifs"
@@ -256,10 +306,8 @@ if is_docker_command "$COMMAND"; then
 fi
 
 # チェーンコマンド分割 (&&, ||, ;, | で分割して各セグメントをチェック)
-# awk使用でPOSIX準拠
-SEGMENTS=$(printf '%s\n' "$COMMAND" | awk '{
-    gsub(/&&/, "\n"); gsub(/\|\|/, "\n"); gsub(/;/, "\n"); gsub(/\|/, "\n"); print
-}')
+# 引用符内の演算子は区切らない (split_segments がクォートを解釈)
+SEGMENTS=$(split_segments "$COMMAND")
 OLDIFS="$IFS"
 IFS='
 '
@@ -283,6 +331,7 @@ if [ -n "$SUBSHELL_CMDS" ]; then
 '
     for subcmd in $SUBSHELL_CMDS; do
         # $( と ) を除去
+        # shellcheck disable=SC2016  # sedパターンは $( をリテラル一致させるため展開不可が正
         inner=$(printf '%s\n' "$subcmd" | sed 's/^\$([[:space:]]*//; s/[[:space:]]*)$//')
         if ! check_segment "$inner"; then
             echo "[ローカルコマンド禁止] サブシェル内のコマンドはDockerコンテナ内で実行してください。" >&2
@@ -295,12 +344,14 @@ if [ -n "$SUBSHELL_CMDS" ]; then
 fi
 
 # バッククォート展開: `...` 内のコマンドを抽出してチェック
+# shellcheck disable=SC2016  # grepパターンはバッククォートをリテラル一致させるため展開不可が正
 BACKTICK_CMDS=$(printf '%s\n' "$COMMAND" | grep -oE '`[^`]+`' 2>/dev/null || true)
 if [ -n "$BACKTICK_CMDS" ]; then
     OLDIFS="$IFS"
     IFS='
 '
     for btcmd in $BACKTICK_CMDS; do
+        # shellcheck disable=SC2016  # sedパターンはバッククォートをリテラル一致させるため展開不可が正
         inner=$(printf '%s\n' "$btcmd" | sed 's/^`//; s/`$//')
         if ! check_segment "$inner"; then
             echo "[ローカルコマンド禁止] バッククォート内のコマンドはDockerコンテナ内で実行してください。" >&2

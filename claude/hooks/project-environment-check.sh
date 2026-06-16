@@ -93,9 +93,9 @@ if [ -d ".git" ]; then
     fi
 
     # 未pushコミット
-    UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "")
+    UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || echo "")
     if [ -n "$UPSTREAM" ]; then
-        UNPUSHED=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo "0")
+        UNPUSHED=$(git rev-list --count '@{u}..HEAD' 2>/dev/null || echo "0")
         if [ "$UNPUSHED" -gt 0 ]; then
             echo "  Unpushed commits: ⚠️  $UNPUSHED commits"
         else
