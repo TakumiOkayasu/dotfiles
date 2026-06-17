@@ -30,6 +30,7 @@ source ~/.bashrc           # 設定反映
 | `config/vim/` | `~/` | .vimrc |
 | `claude/` | `~/.claude/` | Claude Code設定一式 (後述) |
 | `codex/` | `~/.codex/` | Codex設定一式 (AGENTS.md, SUBAGENTS.md, hooks, rules)。skills は plugin 配布用 source |
+| `common/` | `~/.claude/`, `~/.codex/` | Claude/Codex の両方で使う共通ファイル |
 | `bin/` | `~/.local/bin/` | CLIツール (後述) |
 
 ### CLIツール (bin/)

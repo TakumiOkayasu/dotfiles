@@ -4,6 +4,7 @@
 PASS=0
 FAIL=0
 TOTAL=0
+HOOK_DIR="${HOOK_DIR:-/workspace/hooks}"
 
 run_hook_test() {
     hook="$1"
@@ -74,24 +75,24 @@ run_rules_checksum_stability_test() {
     actual_exit=0
     (
         export HOME="$wd/home" PLUGIN_ROOT="$wd/plugin"
-        printf '%s\n' "$prompt_input" | /workspace/hooks/rules-inject.sh >/dev/null
+        printf '%s\n' "$prompt_input" | "$HOOK_DIR/rules-inject.sh" >/dev/null
     ) || actual_exit=$?
     with_plugin=$(grep '^checksum=' "$wd/repo/codex_tmp/.codex_rules_loaded" | head -n 1)
     (
         export HOME="$wd/home"
         unset PLUGIN_ROOT
-        printf '%s\n' "$tool_input" | /workspace/hooks/rules-guard.sh >/dev/null
+        printf '%s\n' "$tool_input" | "$HOOK_DIR/rules-guard.sh" >/dev/null
     ) || actual_exit=$?
 
     (
         export HOME="$wd/home"
         unset PLUGIN_ROOT
-        printf '%s\n' "$prompt_input" | /workspace/hooks/rules-inject.sh >/dev/null
+        printf '%s\n' "$prompt_input" | "$HOOK_DIR/rules-inject.sh" >/dev/null
     ) || actual_exit=$?
     without_plugin=$(grep '^checksum=' "$wd/repo/codex_tmp/.codex_rules_loaded" | head -n 1)
     (
         export HOME="$wd/home" PLUGIN_ROOT="$wd/plugin"
-        printf '%s\n' "$tool_input" | /workspace/hooks/rules-guard.sh >/dev/null
+        printf '%s\n' "$tool_input" | "$HOOK_DIR/rules-guard.sh" >/dev/null
     ) || actual_exit=$?
 
     if [ "$actual_exit" -eq 0 ] && [ "$with_plugin" = "$without_plugin" ]; then
@@ -146,7 +147,7 @@ make_prompt_input() {
 
 echo "=== Codex hooks ==="
 
-ENV_HOOK="/workspace/hooks/env-file-protect.sh"
+ENV_HOOK="${HOOK_DIR}/env-file-protect.sh"
 PATCH_ENV='*** Begin Patch
 *** Update File: .env
 @@
@@ -162,7 +163,7 @@ run_hook_test "$ENV_HOOK" "apply_patch blocks .env edits" "$(make_input apply_pa
 run_hook_test "$ENV_HOOK" "apply_patch allows .env.example" "$(make_input apply_patch command "$PATCH_ENV_EXAMPLE")" 0
 run_hook_test "$ENV_HOOK" "Write blocks .env edits" "$(make_input Write file_path ".env.local")" 2
 
-MAIN_HOOK="/workspace/hooks/main-branch-code-warning.sh"
+MAIN_HOOK="${HOOK_DIR}/main-branch-code-warning.sh"
 REPO_DIR=$(mktemp -d)
 git init -b main "$REPO_DIR" >/dev/null 2>&1
 
@@ -182,11 +183,11 @@ run_hook_test "$MAIN_HOOK" "main branch apply_patch allows docs" "$(make_input a
 git -C "$REPO_DIR" switch -c feat/test >/dev/null 2>&1
 run_hook_test "$MAIN_HOOK" "feature branch apply_patch allows code files" "$(make_input apply_patch command "$PATCH_CODE")" 0 "$REPO_DIR"
 
-LANG_HOOK="/workspace/hooks/language-version-check.sh"
+LANG_HOOK="${HOOK_DIR}/language-version-check.sh"
 run_hook_test "$LANG_HOOK" "blocks floating language image tag" "$(make_input Bash command "docker run --rm python:slim python -V")" 2
 run_hook_test "$LANG_HOOK" "allows pinned language image tag" "$(make_input Bash command "docker run --rm python:3.12-slim python -V")" 0
 
-DISPATCHER="/workspace/hooks/hook-dispatcher.sh"
+DISPATCHER="${HOOK_DIR}/hook-dispatcher.sh"
 export CODEX_HOOK_TEST_MODE=1
 run_hook_test "$DISPATCHER pre-tool-use" "dispatcher allows runner build command" "$(make_input Bash command "npm run build")" 0
 run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks package install command" "$(make_input Bash command "npm install")" 2
@@ -199,7 +200,7 @@ run_hook_stdout_empty_test "$DISPATCHER user-prompt-submit" "dispatcher suppress
 run_rules_checksum_stability_test
 run_codex_rules_refresh_test
 
-SECRET_HOOK="/workspace/hooks/secret-leak-check.sh"
+SECRET_HOOK="${HOOK_DIR}/secret-leak-check.sh"
 run_hook_test "$SECRET_HOOK" "blocks Authorization bearer literal" "$(make_input Bash command "curl -H 'Authorization: Bearer abcdefghijklmnop' https://example.com")" 2
 run_hook_test "$SECRET_HOOK" "allows token via environment variable" "$(make_input Bash command 'curl --token "$TOKEN" https://example.com')" 0
 

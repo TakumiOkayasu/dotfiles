@@ -3,16 +3,35 @@ services:
     build:
       context: ..
       dockerfile: tests/Dockerfile
+    entrypoint:
+      - sh
+      - -c
+      - |
+        mkdir -p /workspace/hooks &&
+        cp -a /workspace/source-hooks/. /workspace/hooks/ &&
+        cp -a /workspace/common-hooks/. /workspace/hooks/ &&
+        chmod +x /workspace/hooks/*.sh &&
+        HOOK_DIR=/workspace/hooks sh /workspace/test_hooks.sh
     volumes:
-      - ../claude/hooks:/workspace/hooks:ro
+      - ../claude/hooks:/workspace/source-hooks:ro
+      - ../common/hooks:/workspace/common-hooks:ro
       - ./test_hooks.sh:/workspace/test_hooks.sh:ro
   codex-hooks-test:
     build:
       context: ..
       dockerfile: tests/Dockerfile
-    entrypoint: ["sh", "/workspace/test_codex_hooks.sh"]
+    entrypoint:
+      - sh
+      - -c
+      - |
+        mkdir -p /workspace/hooks &&
+        cp -a /workspace/source-hooks/. /workspace/hooks/ &&
+        cp -a /workspace/common-hooks/. /workspace/hooks/ &&
+        chmod +x /workspace/hooks/*.sh &&
+        HOOK_DIR=/workspace/hooks sh /workspace/test_codex_hooks.sh
     volumes:
-      - ../codex/hooks:/workspace/hooks:ro
+      - ../codex/hooks:/workspace/source-hooks:ro
+      - ../common/hooks:/workspace/common-hooks:ro
       - ../codex/bin:/workspace/bin:ro
       - ./test_codex_hooks.sh:/workspace/test_codex_hooks.sh:ro
   bin-test:

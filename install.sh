@@ -55,6 +55,8 @@ UNINSTALL_CLAUDE=false
 UNINSTALL_CODEX=false
 
 VENDOR_SKILLS="composition-patterns react-best-practices web-design-guidelines"
+COMMON_HOOKS="common/hooks"
+COMMON_QA_NIGHTMARE_CHECKLISTS="common/qa-nightmare/checklists"
 
 DOTWORK_MARKER_BEGIN="# === dotfile-work: BEGIN ==="
 DOTWORK_MARKER_END="# === dotfile-work: END ==="
@@ -774,6 +776,78 @@ uninstall_bin_files() {
 }
 
 # ============================================================================
+# Common shared assets
+# ============================================================================
+
+link_common_hooks() {
+    _dest_dir="$1"
+
+    for _file_path in "$DOTFILES_DIR"/"$COMMON_HOOKS"/*.sh; do
+        [ -f "$_file_path" ] || continue
+        _relative=$(basename "$_file_path")
+        _dest="${_dest_dir}/${_relative}"
+        ensure_dir "$(dirname "$_dest")"
+        create_link "${COMMON_HOOKS}/${_relative}" "$_dest"
+    done
+}
+
+unlink_common_hooks() {
+    _dest_dir="$1"
+
+    for _file_path in "$DOTFILES_DIR"/"$COMMON_HOOKS"/*.sh; do
+        [ -f "$_file_path" ] || continue
+        _relative=$(basename "$_file_path")
+        _dest="${_dest_dir}/${_relative}"
+        remove_link "${COMMON_HOOKS}/${_relative}" "$_dest"
+    done
+}
+
+remove_legacy_common_hook_links() {
+    _dest_dir="$1"
+
+    for _file_path in "$DOTFILES_DIR"/"$COMMON_HOOKS"/*.sh; do
+        [ -f "$_file_path" ] || continue
+        _relative=$(basename "$_file_path")
+        _dest="${_dest_dir}/${_relative}"
+        [ -e "$_dest" ] || [ -L "$_dest" ] || continue
+        remove_dotfiles_link "$_dest" "旧common hook: ${_relative}"
+    done
+}
+
+link_common_qa_nightmare_checklists() {
+    _dest_dir="$1"
+
+    for _file_path in "$DOTFILES_DIR"/"$COMMON_QA_NIGHTMARE_CHECKLISTS"/*.md; do
+        [ -f "$_file_path" ] || continue
+        _relative=$(basename "$_file_path")
+        _dest="${_dest_dir}/${_relative}"
+        ensure_dir "$(dirname "$_dest")"
+        create_link "${COMMON_QA_NIGHTMARE_CHECKLISTS}/${_relative}" "$_dest"
+    done
+}
+
+unlink_common_qa_nightmare_checklists() {
+    _dest_dir="$1"
+
+    for _file_path in "$DOTFILES_DIR"/"$COMMON_QA_NIGHTMARE_CHECKLISTS"/*.md; do
+        [ -f "$_file_path" ] || continue
+        _relative=$(basename "$_file_path")
+        _dest="${_dest_dir}/${_relative}"
+        remove_link "${COMMON_QA_NIGHTMARE_CHECKLISTS}/${_relative}" "$_dest"
+    done
+}
+
+remove_legacy_qa_nightmare_checklist_links() {
+    _dest_dir="$1"
+    [ -d "$_dest_dir" ] || return 0
+
+    for _entry in "$_dest_dir"/*; do
+        [ -e "$_entry" ] || [ -L "$_entry" ] || continue
+        remove_dotfiles_link "$_entry" "旧qa-nightmare checklist: $(basename "$_entry")"
+    done
+}
+
+# ============================================================================
 # Claude
 # ============================================================================
 
@@ -784,6 +858,8 @@ install_claude_config() {
     _claude_ensure_directories
     _claude_cleanup_stale
     _claude_link_managed_files
+    link_common_hooks "${HOME}/.claude/hooks"
+    link_common_qa_nightmare_checklists "${HOME}/.claude/skills/qa-nightmare/checklists"
     _claude_setup_vendor_skills
 }
 
@@ -877,6 +953,10 @@ uninstall_claude_config() {
 
     _claude_cleanup_stale
     _claude_unlink_managed_files
+    unlink_common_hooks "${HOME}/.claude/hooks"
+    remove_legacy_common_hook_links "${HOME}/.claude/hooks"
+    unlink_common_qa_nightmare_checklists "${HOME}/.claude/skills/qa-nightmare/checklists"
+    remove_legacy_qa_nightmare_checklist_links "${HOME}/.claude/skills/qa-nightmare/checklists"
     _claude_unlink_vendor_skills
     _claude_prune_empty_dirs
 }
@@ -964,6 +1044,8 @@ install_codex_config() {
     _codex_ensure_directories
     _codex_cleanup_all
     _codex_link_managed_files
+    link_common_hooks "${HOME}/.codex/hooks"
+    link_common_qa_nightmare_checklists "${HOME}/.codex/agents/qa-nightmare/checklists"
     _codex_generate_config_from_template
     _codex_warn_legacy_hooks_json
     _codex_verify_hooks_feature
@@ -1060,6 +1142,10 @@ uninstall_codex_config() {
 
     _codex_cleanup_all
     _codex_unlink_managed_files
+    unlink_common_hooks "${HOME}/.codex/hooks"
+    remove_legacy_common_hook_links "${HOME}/.codex/hooks"
+    unlink_common_qa_nightmare_checklists "${HOME}/.codex/agents/qa-nightmare/checklists"
+    remove_legacy_qa_nightmare_checklist_links "${HOME}/.codex/agents/qa-nightmare/checklists"
     _codex_prune_empty_dirs
 }
 

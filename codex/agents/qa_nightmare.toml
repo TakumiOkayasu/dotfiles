@@ -17,7 +17,7 @@ Phase 1: 機能分析
 Phase 2: チェックリスト適用
 次のいずれかにあるチェックリストを全ファイル読む。未読でパターン抽出しない。
 - `${HOME}/.codex/agents/qa-nightmare/checklists/*.md`
-- `codex/agents/qa-nightmare/checklists/*.md`
+- `common/qa-nightmare/checklists/*.md`
 
 カテゴリ:
 - silent-corruption.md: サイレントデータ破損

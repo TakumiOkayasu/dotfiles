@@ -238,9 +238,21 @@ class TestIntegrationInstallUninstall:
 
         # 代表的なファイルの存在確認
         assert (claude_dir / "hooks").is_dir()
+        destructive_hook = claude_dir / "hooks" / "destructive-command-block.sh"
+        assert destructive_hook.is_symlink()
+        assert destructive_hook.resolve() == (
+            REPO_ROOT / "common" / "hooks" / "destructive-command-block.sh"
+        )
         assert (claude_dir / "settings.json").is_symlink()
         assert (claude_dir / "CLAUDE.md").is_symlink()
         assert (claude_dir / "rules" / "natural-japanese.md").is_symlink()
+        checklist = (
+            claude_dir / "skills" / "qa-nightmare" / "checklists" / "auth-bypass.md"
+        )
+        assert checklist.is_symlink()
+        assert checklist.resolve() == (
+            REPO_ROOT / "common" / "qa-nightmare" / "checklists" / "auth-bypass.md"
+        )
 
     def test_install_creates_codex_symlinks(self, tmp_path: Path) -> None:
         """install 後に ~/.codex/ 配下にCodex設定とリンクが作られる"""
@@ -257,9 +269,12 @@ class TestIntegrationInstallUninstall:
         assert (codex_dir / "SUBAGENTS.md").is_symlink()
         assert (codex_dir / "SUBAGENTS.md").resolve() == REPO_ROOT / "codex" / "SUBAGENTS.md"
         assert (codex_dir / "agents" / "code_reviewer.toml").is_symlink()
-        assert (
-            (codex_dir / "agents" / "qa-nightmare" / "checklists" / "auth-bypass.md")
-            .is_symlink()
+        checklist = (
+            codex_dir / "agents" / "qa-nightmare" / "checklists" / "auth-bypass.md"
+        )
+        assert checklist.is_symlink()
+        assert checklist.resolve() == (
+            REPO_ROOT / "common" / "qa-nightmare" / "checklists" / "auth-bypass.md"
         )
         config_toml = codex_dir / "config.toml"
         assert config_toml.is_file()
@@ -269,7 +284,11 @@ class TestIntegrationInstallUninstall:
         ).read_text(encoding="utf-8")
         assert not (codex_dir / "hooks.json").exists()
         assert (codex_dir / "hooks").is_dir()
-        assert (codex_dir / "hooks" / "destructive-command-block.sh").is_symlink()
+        destructive_hook = codex_dir / "hooks" / "destructive-command-block.sh"
+        assert destructive_hook.is_symlink()
+        assert destructive_hook.resolve() == (
+            REPO_ROOT / "common" / "hooks" / "destructive-command-block.sh"
+        )
         assert not (codex_dir / "README.md").exists()
         assert not (codex_dir / "settings.json").exists()
         assert not (codex_dir / "skills" / "tdd" / "SKILL.md").exists()
@@ -320,9 +339,22 @@ class TestIntegrationInstallUninstall:
 
         # install 後にリンクが存在することを前提確認
         assert (home / ".claude" / "settings.json").is_symlink()
+        destructive_hook = home / ".claude" / "hooks" / "destructive-command-block.sh"
+        assert destructive_hook.is_symlink()
+        checklist = (
+            home
+            / ".claude"
+            / "skills"
+            / "qa-nightmare"
+            / "checklists"
+            / "auth-bypass.md"
+        )
+        assert checklist.is_symlink()
 
         _run_install_sh(REPO_ROOT, home, uninstall=True)
         assert not (home / ".claude" / "settings.json").exists()
+        assert not destructive_hook.exists()
+        assert not checklist.exists()
 
     def test_uninstall_removes_codex_symlinks(self, tmp_path: Path) -> None:
         """uninstall 後に dotfiles 由来のCodexリンクが削除される"""
@@ -334,13 +366,80 @@ class TestIntegrationInstallUninstall:
         assert config_toml.is_file()
         assert not (home / ".codex" / "hooks.json").exists()
         assert (home / ".codex" / "agents" / "code_reviewer.toml").is_symlink()
-        assert (home / ".codex" / "hooks" / "destructive-command-block.sh").is_symlink()
+        destructive_hook = home / ".codex" / "hooks" / "destructive-command-block.sh"
+        assert destructive_hook.is_symlink()
+        checklist = (
+            home
+            / ".codex"
+            / "agents"
+            / "qa-nightmare"
+            / "checklists"
+            / "auth-bypass.md"
+        )
+        assert checklist.is_symlink()
         assert not (home / ".agents" / "skills" / "tdd" / "SKILL.md").exists()
 
         _run_install_sh(REPO_ROOT, home, uninstall=True)
         assert config_toml.is_file()
         assert not (home / ".codex" / "agents" / "code_reviewer.toml").exists()
-        assert not (home / ".codex" / "hooks" / "destructive-command-block.sh").exists()
+        assert not destructive_hook.exists()
+        assert not checklist.exists()
+
+    def test_uninstall_removes_legacy_common_hooks(self, tmp_path: Path) -> None:
+        """common化前の hook リンクが uninstall で削除される"""
+        home = tmp_path / "home"
+        claude_hooks = home / ".claude" / "hooks"
+        codex_hooks = home / ".codex" / "hooks"
+        claude_hooks.mkdir(parents=True)
+        codex_hooks.mkdir(parents=True)
+
+        claude_legacy = claude_hooks / "destructive-command-block.sh"
+        codex_legacy = codex_hooks / "destructive-command-block.sh"
+        claude_legacy.symlink_to(
+            REPO_ROOT / "claude" / "hooks" / "destructive-command-block.sh"
+        )
+        codex_legacy.symlink_to(
+            REPO_ROOT / "codex" / "hooks" / "destructive-command-block.sh"
+        )
+
+        _run_install_sh(REPO_ROOT, home, uninstall=True)
+
+        assert not claude_legacy.is_symlink()
+        assert not codex_legacy.is_symlink()
+
+    def test_uninstall_removes_legacy_qa_nightmare_checklists(
+        self, tmp_path: Path
+    ) -> None:
+        """common化前の qa-nightmare checklist リンクが uninstall で削除される"""
+        home = tmp_path / "home"
+        claude_checklists = home / ".claude" / "skills" / "qa-nightmare" / "checklists"
+        codex_checklists = home / ".codex" / "agents" / "qa-nightmare" / "checklists"
+        claude_checklists.mkdir(parents=True)
+        codex_checklists.mkdir(parents=True)
+
+        claude_legacy = claude_checklists / "auth-bypass.md"
+        codex_legacy = codex_checklists / "auth-bypass.md"
+        claude_legacy.symlink_to(
+            REPO_ROOT
+            / "claude"
+            / "skills"
+            / "qa-nightmare"
+            / "checklists"
+            / "auth-bypass.md"
+        )
+        codex_legacy.symlink_to(
+            REPO_ROOT
+            / "codex"
+            / "agents"
+            / "qa-nightmare"
+            / "checklists"
+            / "auth-bypass.md"
+        )
+
+        _run_install_sh(REPO_ROOT, home, uninstall=True)
+
+        assert not claude_legacy.is_symlink()
+        assert not codex_legacy.is_symlink()
 
     def test_uninstall_empty_dir_summary(self, tmp_path: Path) -> None:
         """uninstall の空ディレクトリ削除メッセージがカテゴリごとの1行サマリー形式"""
