@@ -89,9 +89,20 @@ cp codex/global_AGENTS.md AGENTS.md
 plugin bundle を更新する場合は次を実行する。
 
 ```bash
+python3 scripts/generate-standard-workflow-skills.py --repo . --overwrite
 python3 scripts/sync-codex-plugin.py --repo . --clean
 python3 scripts/verify-codex-plugin.py --repo .
 ```
+
+既存の `codex/skills/` を bundle に反映するだけなら、`generate-standard-workflow-skills.py` は省略してよい。
+
+個人環境の `~/.codex/plugins/` と `~/.agents/plugins/marketplace.json` に配置する場合は次を実行する。
+
+```bash
+python3 scripts/install-codex-plugin-personal.py --repo .
+```
+
+配置後は Codex を再起動し、`/plugins` で `dotfile-work-codex` を有効化する。`dotfile-work-codex-extra` は必要な時だけ有効化する。
 
 ## subagents
 
