@@ -29,7 +29,7 @@ source ~/.bashrc           # 設定反映
 | `config/git/` | `~/`, `~/.config/git/` | .gitconfig (work/private)、補完。gitignore/gitattributes は `~/.config/git/ignore`・`~/.config/git/attributes` |
 | `config/vim/` | `~/` | .vimrc |
 | `claude/` | `~/.claude/` | Claude Code設定一式 (後述) |
-| `codex/` | `~/.codex/`, `~/.agents/skills/` | Codex設定一式 (AGENTS.md, SUBAGENTS.md, hooks, skills, rules) |
+| `codex/` | `~/.codex/` | Codex設定一式 (AGENTS.md, SUBAGENTS.md, hooks, rules)。skills は plugin 配布用 source |
 | `bin/` | `~/.local/bin/` | CLIツール (後述) |
 
 ### CLIツール (bin/)
@@ -66,12 +66,34 @@ source ~/.bashrc           # 設定反映
 | `SUBAGENTS.md` | `~/.codex/SUBAGENTS.md` に配置される subagent mechanics |
 | `hooks.json` | Codex hook 定義 (`PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `PreCompact`, `SessionStart`) |
 | `hooks/` | hook 実体スクリプト |
-| `skills/` | sourceとして管理し、`~/.agents/skills/` に配置される Codex skill |
+| `skills/` | plugin 配布用 source。`install.sh` では `~/.agents/skills/` に重複配置しない |
 | `rules/` | 参照ルール。常時ロード前提にはしない |
 | `reference/` | 参照用ファイル。install対象外 |
 | `prompts/commands/` | Claude slash command の代替プロンプト (`codex-cmd` / `codex-feat` から利用) |
 
 Codex設定の使い方は `codex/README.md` を参照。初回起動時に hook レビュー警告が出た場合は、Codex 上で `/hooks` を開いて許可する。
+
+### Codex skills の配置
+
+Codex skill は `codex/skills/<name>/SKILL.md` を正本にし、ローカル plugin bundle へ配置して使う。bundle は `plugins/dotfile-work-codex*` に生成され、Git 管理しない。
+
+標準 workflow skills を再生成して plugin bundle に反映する場合は、リポジトリルートで次を実行する。
+
+```bash
+python3 scripts/generate-standard-workflow-skills.py --repo . --overwrite
+python3 scripts/sync-codex-plugin.py --repo . --clean
+python3 scripts/verify-codex-plugin.py --repo .
+```
+
+既存の `codex/skills/` を bundle に反映するだけなら `sync-codex-plugin.py` と `verify-codex-plugin.py` だけでよい。
+
+個人環境の `~/.codex/plugins/` と `~/.agents/plugins/marketplace.json` まで配置する場合は次を実行する。
+
+```bash
+python3 scripts/install-codex-plugin-personal.py --repo .
+```
+
+配置後は Codex を再起動し、`/plugins` で `dotfile-work-codex` を有効化する。`dotfile-work-codex-extra` は必要な時だけ有効化する。
 
 ## プラットフォーム
 
