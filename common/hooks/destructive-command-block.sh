@@ -1,11 +1,11 @@
 #!/bin/sh
 # PreToolUse hook - git commit/push および破壊的操作をブロック
-# CLAUDE.mdルール: git commit/push はユーザーのみ操作可能
+# 共通ルール: git commit/push はユーザーのみ操作可能
 #
 # 使い方 (手動実行):
 #   echo '{"tool_input":{"command":"git commit -m test"}}' | ./destructive-command-block.sh
 #
-# Claude Code hook として自動実行される場合は stdin から JSON を受け取る
+# Claude/Codex hook として自動実行される場合は stdin から JSON を受け取る
 
 # set -e を使わない（exit 1 = hookエラー = 許可扱いリスク）
 
@@ -18,7 +18,7 @@ destructive-command-block.sh - git commit/push および破壊的操作をブロ
   echo '{"tool_input":{"command":"git commit -m test"}}' | ./destructive-command-block.sh
 
 説明:
-  Claude Code の PreToolUse hook として動作し、以下を検出した場合に
+  Claude/Codex の PreToolUse hook として動作し、以下を検出した場合に
   exit 2 でブロックします。
   - git commit / git push (ユーザーのみ操作可能)
   - git reset --hard / git clean -f / git checkout -- . / git restore (破壊的操作)

@@ -14,6 +14,7 @@ RUN git config --global user.email "test@test.com" && \
 
 WORKDIR /workspace
 COPY claude/hooks/ /workspace/hooks/
+COPY common/hooks/ /workspace/hooks/
 COPY bin/ /workspace/bin/
 COPY tests/test_hooks.sh /workspace/test_hooks.sh
 COPY tests/test_bin.sh /workspace/test_bin.sh

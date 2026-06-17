@@ -5,6 +5,7 @@
 PASS=0
 FAIL=0
 TOTAL=0
+HOOK_DIR="${HOOK_DIR:-/workspace/hooks}"
 
 # テストヘルパー
 run_hook_test() {
@@ -26,7 +27,7 @@ run_hook_test() {
     fi
 }
 
-HOOK="/workspace/hooks/destructive-command-block.sh"
+HOOK="${HOOK_DIR}/destructive-command-block.sh"
 run_test() {
     run_hook_test "$HOOK" "$1" "$2" "$3"
 }
@@ -156,7 +157,7 @@ run_test "空コマンド" '{"tool_input":{"command":""}}' 0
 echo ""
 echo "=== local-command-block.sh ==="
 
-LOCAL_HOOK="/workspace/hooks/local-command-block.sh"
+LOCAL_HOOK="${HOOK_DIR}/local-command-block.sh"
 # テストはDocker内で実行されるため、コンテナ検出による早期exitをバイパス
 export CLAUDE_HOOK_TEST_MODE=1
 run_local_test() {
@@ -177,7 +178,6 @@ run_local_test "php -r echo" "$(make_input 'php -r \"echo 1;\"')" 2
 run_local_test "perl -e print" "$(make_input 'perl -e \"print 1\"')" 2
 run_local_test "rustc main.rs" "$(make_input 'rustc main.rs')" 2
 run_local_test "bare: go" "$(make_input 'go')" 2
-run_local_test "python3 --version" "$(make_input 'python3 --version')" 2
 run_local_test "rtk python3 script.py" "$(make_input 'rtk python3 script.py')" 2
 run_local_test "rtk proxy python3 script.py" "$(make_input 'rtk proxy python3 script.py')" 2
 
@@ -267,6 +267,7 @@ run_local_test "cat log | grep npm" "$(make_input 'cat log | grep npm')" 0
 run_local_test "curl nodejs.org" "$(make_input 'curl https://nodejs.org/dist/')" 0
 
 # 存在チェック
+run_local_test "python3 --version" "$(make_input 'python3 --version')" 0
 run_local_test "command -v python3" "$(make_input 'command -v python3')" 0
 run_local_test "which node" "$(make_input 'which node')" 0
 run_local_test "type go" "$(make_input 'type go')" 0
@@ -369,8 +370,8 @@ run_output_test() {
     fi
 }
 
-SYCO="/workspace/hooks/sycophancy-check.sh"
-COMP="/workspace/hooks/completion-claim-check.sh"
+SYCO="${HOOK_DIR}/sycophancy-check.sh"
+COMP="${HOOK_DIR}/completion-claim-check.sh"
 USER_LINE='{"type":"user","message":{"role":"user","content":"レビューして"},"isSidechain":false}'
 
 echo "--- sycophancy: 追従句検出 ---"
@@ -436,7 +437,7 @@ echo ""
 echo "=== failure-log.sh ==="
 echo ""
 
-FAILLOG="/workspace/hooks/failure-log.sh"
+FAILLOG="${HOOK_DIR}/failure-log.sh"
 
 # ログファイル内容を検証する (failure-log は stdout でなく auto-fail.log に書く)。
 # 各テストは独立した一時 CWD で実行し offset/ログの持ち越しを防ぐ。
