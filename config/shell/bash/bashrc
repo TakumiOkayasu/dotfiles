@@ -162,11 +162,14 @@ _setup_oh_my_posh() {
     local cache_dir="$HOME/.cache/oh-my-posh"
     mkdir -p "$cache_dir"
 
+    # oh-my-posh の path
+    local omp_path="$(command -v oh-my-posh)"
+
     # 初期化
-    if ! eval "$(oh-my-posh init bash --config "$config")" 2>/dev/null; then
+    if ! eval "$($omp_path init bash --config "$config")" 2>/dev/null; then
         rm -rf "$cache_dir"
         mkdir -p "$cache_dir"
-        if ! eval "$(oh-my-posh init bash --config "$config")" 2>/dev/null; then
+        if ! eval "$($omp_path init bash --config "$config")" 2>/dev/null; then
             return 1
         fi
     fi
