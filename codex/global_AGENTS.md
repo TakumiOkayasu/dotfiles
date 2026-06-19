@@ -70,3 +70,7 @@ Skill routing:
 - If fallback requires installs, scripts, proxy/gateway setup, cookie forwarding, credential access, or system changes, stop and report; do not delete, rename, chmod, quarantine, restore, or otherwise mutate files.
 - Treat extracted text as derived content and verify important facts against the original source when possible.
 
+## subagents
+
+- 作業は効率的に行わなければならない。そのためにsubagentを使うべきと判断したら、ユーザに許可を取らずに起動し、作業をさせてよい。
+
