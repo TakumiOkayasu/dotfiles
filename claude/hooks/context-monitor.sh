@@ -31,6 +31,171 @@ HOOK_EVENT=$(printf '%s\n' "$INPUT" | "$JQ" -r '.hook_event_name // ""' 2>/dev/n
 TRANSCRIPT_PATH=$(printf '%s\n' "$INPUT" | "$JQ" -r '.transcript_path // ""' 2>/dev/null) || TRANSCRIPT_PATH=""
 CWD=$(printf '%s\n' "$INPUT" | "$JQ" -r '.cwd // ""' 2>/dev/null) || CWD=""
 
+DEFAULT_CONTEXT_WINDOW_SIZE=200000
+PERCENT_SCALE=100
+
+trim() {
+    awk '{
+        sub(/^[[:space:]]+/, "")
+        sub(/[[:space:]]+$/, "")
+        print
+    }'
+}
+
+valid_window_size() {
+    awk -v value="$1" '
+        BEGIN {
+            if (value !~ /^[[:space:]]*[+]?[0-9]+([.][0-9]+)?[[:space:]]*$/) {
+                exit 1
+            }
+            numeric = value + 0
+            if (numeric <= 0) {
+                exit 1
+            }
+            printf "%d\n", int(numeric)
+        }
+    '
+}
+
+round_context_tokens() {
+    value=$(printf '%s\n' "$1" | tr -d ',_')
+    unit=$(printf '%s\n' "$2" | tr '[:upper:]' '[:lower:]')
+
+    case "$unit" in
+        m) multiplier=1000000 ;;
+        k) multiplier=1000 ;;
+        *) return 1 ;;
+    esac
+
+    awk -v value="$value" -v multiplier="$multiplier" '
+        BEGIN {
+            numeric = value + 0
+            if (numeric <= 0) {
+                exit 1
+            }
+            printf "%d\n", int(numeric * multiplier + 0.5)
+        }
+    '
+}
+
+parse_context_window_size() {
+    model_identifier="$1"
+
+    delimited=$(printf '%s\n' "$model_identifier" \
+        | grep -Eio '[([][[:space:]]*[0-9][0-9,_]*([.][0-9]+)?[[:space:]]*[km][[:space:]]*[])]' \
+        | head -n 1 || true)
+    if [ -n "$delimited" ]; then
+        delimited=$(printf '%s\n' "$delimited" \
+            | sed -nE 's/^[([][[:space:]]*([0-9][0-9,_]*([.][0-9]+)?)[[:space:]]*([kKmM])[[:space:]]*[])]$/\1 \3/p')
+        delimited_value=${delimited% *}
+        delimited_unit=${delimited##* }
+        round_context_tokens "$delimited_value" "$delimited_unit" && return 0
+    fi
+
+    context=$(printf '%s\n' "$model_identifier" \
+        | grep -Eio '(^|[^[:alnum:]_])[0-9][0-9,_]*([.][0-9]+)?[[:space:]]*[km]([[:space:]]*(token[[:space:]]*)?context)?([^[:alnum:]_]|$)' \
+        | head -n 1 || true)
+    if [ -n "$context" ]; then
+        context=$(printf '%s\n' "$context" \
+            | sed -nE 's/^([^[:alnum:]_])?([0-9][0-9,_]*([.][0-9]+)?)[[:space:]]*([kKmM]).*$/\2 \4/p')
+        context_value=${context% *}
+        context_unit=${context##* }
+        round_context_tokens "$context_value" "$context_unit" && return 0
+    fi
+
+    return 1
+}
+
+hook_context_window_size() {
+    # shellcheck disable=SC2016
+    printf '%s\n' "$INPUT" | "$JQ" -r '
+        [
+            .context_window.max_tokens?,
+            .context_window.maxTokens?,
+            .context_window.size?,
+            .contextWindowSize?,
+            .model.context_window?,
+            .model.contextWindow?,
+            .model.context_window_size?,
+            .model.contextWindowSize?
+        ]
+        | map(select(. != null and . != ""))
+        | .[0] // ""
+    ' 2>/dev/null || true
+}
+
+hook_model_identifier() {
+    # shellcheck disable=SC2016
+    printf '%s\n' "$INPUT" | "$JQ" -r '
+        def model_text($m):
+            if ($m | type) == "string" then $m
+            elif ($m | type) == "object" then
+                [($m.id? // ""), ($m.display_name? // $m.displayName? // "")]
+                | map(select(. != ""))
+                | join(" ")
+            else "" end;
+        [
+            model_text(.model?),
+            (.model_id? // ""),
+            (.modelId? // "")
+        ]
+        | map(select(. != ""))
+        | .[0] // ""
+    ' 2>/dev/null | trim || true
+}
+
+transcript_model_identifier() {
+    # shellcheck disable=SC2016
+    tail -200 "$TRANSCRIPT_PATH" | "$JQ" -s -r '
+        def model_text($m):
+            if ($m | type) == "string" then $m
+            elif ($m | type) == "object" then
+                [($m.id? // ""), ($m.display_name? // $m.displayName? // "")]
+                | map(select(. != ""))
+                | join(" ")
+            else "" end;
+        [
+            .[]
+            | select((.isSidechain // false) == false)
+            | select((.isApiErrorMessage // false) == false)
+            | select(.message.usage != null)
+        ]
+        | (max_by(.timestamp // "") // {}) as $latest
+        | [
+            model_text($latest.message.model?),
+            model_text($latest.model?),
+            ($latest.message.model_id? // ""),
+            ($latest.message.modelId? // ""),
+            ($latest.model_id? // ""),
+            ($latest.modelId? // "")
+        ]
+        | map(select(. != ""))
+        | .[0] // ""
+    ' 2>/dev/null | trim || true
+}
+
+resolve_model_limit() {
+    context_window_size=$(hook_context_window_size)
+    if max_tokens=$(valid_window_size "$context_window_size"); then
+        printf '%s\n' "$max_tokens"
+        return 0
+    fi
+
+    model_identifier=$(hook_model_identifier)
+    if [ -z "$model_identifier" ]; then
+        model_identifier=$(transcript_model_identifier)
+    fi
+
+    if [ -n "$model_identifier" ]; then
+        if max_tokens=$(parse_context_window_size "$model_identifier"); then
+            printf '%s\n' "$max_tokens"
+            return 0
+        fi
+    fi
+
+    printf '%s\n' "$DEFAULT_CONTEXT_WINDOW_SIZE"
+}
+
 # transcript がなければスキップ
 if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
     exit 0
@@ -52,16 +217,14 @@ USAGE_LINE=$(tail -200 "$TRANSCRIPT_PATH" | "$JQ" -s -r '
     end
 ' 2>/dev/null || echo "0")
 
-# モデルのコンテキスト上限 (tokens)
-# Sonnet: 200k, Opus: 200k
-MODEL_LIMIT=200000
-
 if [ "$USAGE_LINE" -eq 0 ] 2>/dev/null; then
     exit 0
 fi
 
+MODEL_LIMIT=$(resolve_model_limit)
+
 # 使用率算出 (整数パーセント)
-USAGE_PCT=$((USAGE_LINE * 100 / MODEL_LIMIT))
+USAGE_PCT=$((USAGE_LINE * PERCENT_SCALE / MODEL_LIMIT))
 
 # --- 閾値判定 ---
 WARN_THRESHOLD=50

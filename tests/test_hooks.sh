@@ -221,6 +221,7 @@ run_local_test "cd && npm install" "$(make_input 'cd /app && npm install')" 2
 run_local_test "echo | node" "$(make_input 'echo data | node process.js')" 2
 
 # サブシェル
+# shellcheck disable=SC2016
 run_local_test "subshell: python3" '{"tool_input":{"command":"echo $(python3 -c \"print(1)\")"}}' 2
 
 # 難読化 (既存テスト維持)
@@ -307,7 +308,9 @@ run_local_test "rtk git diff" "$(make_input 'rtk git diff')" 0
 run_local_test "rtk gain" "$(make_input 'rtk gain')" 0
 
 # サブシェル内の安全なコマンド
+# shellcheck disable=SC2016
 run_local_test "echo \$(cat go.sum)" "$(make_input 'echo \$(cat go.sum)')" 0
+# shellcheck disable=SC2016
 run_local_test "VAR=\$(wc -l go.mod)" "$(make_input 'VAR=\$(wc -l go.mod)')" 0
 
 # その他安全
@@ -336,6 +339,45 @@ unset REMOTE_CONTAINERS
 
 # TEST_MODE を再設定して以降のテストに影響させない
 export CLAUDE_HOOK_TEST_MODE=1
+
+echo ""
+echo "=== context-monitor.sh ==="
+echo ""
+
+CONTEXT_MONITOR="${HOOK_DIR}/context-monitor.sh"
+
+run_context_monitor_test() {
+    _desc="$1"; _extra="$2"; _transcript_model="$3"; _expect="$4"
+    TOTAL=$((TOTAL + 1))
+    _wd=$(mktemp -d); _tf="${_wd}/transcript.jsonl"
+    if [ -n "$_transcript_model" ]; then
+        jq -n --argjson model "$_transcript_model" \
+            '{timestamp:"2026-01-01T00:00:00Z", isSidechain:false, message:{model:$model, usage:{input_tokens:96000, cache_read_input_tokens:0}}}' > "$_tf"
+    else
+        jq -n '{timestamp:"2026-01-01T00:00:00Z", isSidechain:false, message:{usage:{input_tokens:96000, cache_read_input_tokens:0}}}' > "$_tf"
+    fi
+    _input=$(jq -n --arg path "$_tf" --arg cwd "$_wd" --argjson extra "$_extra" \
+        '$extra + {hook_event_name:"UserPromptSubmit", transcript_path:$path, cwd:$cwd}')
+    _out=$(printf '%s' "$_input" | "$CONTEXT_MONITOR" 2>/dev/null)
+    rm -rf "$_wd"
+    if [ -z "$_expect" ]; then
+        if [ -z "$_out" ]; then
+            printf "  PASS: %s\n" "$_desc"; PASS=$((PASS + 1))
+        else
+            printf "  FAIL: %s (expected empty output)\n" "$_desc"; FAIL=$((FAIL + 1))
+        fi
+    else
+        case "$_out" in
+            *"$_expect"*) printf "  PASS: %s\n" "$_desc"; PASS=$((PASS + 1)) ;;
+            *) printf "  FAIL: %s (missing substr: %s)\n" "$_desc" "$_expect"; FAIL=$((FAIL + 1)) ;;
+        esac
+    fi
+}
+
+run_context_monitor_test "hook model display_name から 100k を推定" '{"model":{"display_name":"Claude Test [100k]"}}' "" "[Context 96%]"
+run_context_monitor_test "hook context_window.max_tokens を優先" '{"context_window":{"max_tokens":128000}}' "" "[Context 75%]"
+run_context_monitor_test "transcript message.model から 100k を推定" '{}' '{"display_name":"Claude Test (100k)"}' "[Context 96%]"
+run_context_monitor_test "モデル不明時は 200k fallback で警告なし" '{}' "" ""
 
 echo ""
 # ============================================================

@@ -44,6 +44,16 @@ Claude Code 用の `agents/`、`commands/`、`hooks/`、`rules/`、`skills/` を
 
 `codex/README.md`、`codex/reference/`、`codex/config.toml.template` はリポジトリ内の参照資料であり、`~/.codex/` にはリンク配置しない。`~/.codex/config.toml` が存在しない場合のみ template から通常ファイルとして生成する。
 
+### 補助スクリプト
+
+`codex/bin/model-context.sh` は model 名から context window を推定し、`maxTokens` と `usableTokens` を JSON で返す。`install.sh` で `~/.codex/bin/model-context.sh` にリンクされる。
+
+```bash
+~/.codex/bin/model-context.sh "gpt-test (1.5m)"
+~/.codex/bin/model-context.sh --context-window-size 128000 "unknown"
+~/.codex/bin/model-context.sh --id model-id --display-name "Model [300k]"
+```
+
 ### 初回確認
 
 Codex 起動時に hook のレビュー警告が出た場合は、Codex 上で `/hooks` を開いて内容を確認し、許可する。

@@ -15,7 +15,7 @@ run_hook_test() {
 
     TOTAL=$((TOTAL + 1))
     actual_exit=0
-    (cd "$cwd" && set -- $hook && printf '%s\n' "$input" | "$@" > /tmp/codex_hook_stdout 2> /tmp/codex_hook_stderr) || actual_exit=$?
+    run_hook_command "$hook" "$input" "$cwd" || actual_exit=$?
 
     if [ "$actual_exit" -eq "$expect_exit" ]; then
         printf "  PASS: %s\n" "$desc"
@@ -36,7 +36,7 @@ run_hook_stdout_empty_test() {
 
     TOTAL=$((TOTAL + 1))
     actual_exit=0
-    (cd "$cwd" && set -- $hook && printf '%s\n' "$input" | "$@" > /tmp/codex_hook_stdout 2> /tmp/codex_hook_stderr) || actual_exit=$?
+    run_hook_command "$hook" "$input" "$cwd" || actual_exit=$?
 
     if [ "$actual_exit" -eq "$expect_exit" ] && [ ! -s /tmp/codex_hook_stdout ]; then
         printf "  PASS: %s\n" "$desc"
@@ -46,6 +46,21 @@ run_hook_stdout_empty_test() {
         printf "    stdout: %s\n" "$(cat /tmp/codex_hook_stdout 2>/dev/null)"
         printf "    stderr: %s\n" "$(cat /tmp/codex_hook_stderr 2>/dev/null)"
         FAIL=$((FAIL + 1))
+    fi
+}
+
+run_hook_command() {
+    hook="$1"
+    input="$2"
+    cwd="$3"
+    hook_command=${hook%% *}
+    hook_arg=${hook#"$hook_command"}
+    hook_arg=${hook_arg# }
+
+    if [ -n "$hook_arg" ]; then
+        (cd "$cwd" && printf '%s\n' "$input" | "$hook_command" "$hook_arg" > /tmp/codex_hook_stdout 2> /tmp/codex_hook_stderr)
+    else
+        (cd "$cwd" && printf '%s\n' "$input" | "$hook_command" > /tmp/codex_hook_stdout 2> /tmp/codex_hook_stderr)
     fi
 }
 
@@ -73,27 +88,13 @@ run_rules_checksum_stability_test() {
     tool_input=$(jq -n --arg cwd "$wd/repo" '{tool_name: "apply_patch", cwd: $cwd, tool_input: {patch: "*** Begin Patch\n*** Add File: x\n+ok\n*** End Patch"}}')
 
     actual_exit=0
-    (
-        export HOME="$wd/home" PLUGIN_ROOT="$wd/plugin"
-        printf '%s\n' "$prompt_input" | "$HOOK_DIR/rules-inject.sh" >/dev/null
-    ) || actual_exit=$?
+    printf '%s\n' "$prompt_input" | env HOME="$wd/home" PLUGIN_ROOT="$wd/plugin" "$HOOK_DIR/rules-inject.sh" >/dev/null || actual_exit=$?
     with_plugin=$(grep '^checksum=' "$wd/repo/codex_tmp/.codex_rules_loaded" | head -n 1)
-    (
-        export HOME="$wd/home"
-        unset PLUGIN_ROOT
-        printf '%s\n' "$tool_input" | "$HOOK_DIR/rules-guard.sh" >/dev/null
-    ) || actual_exit=$?
+    printf '%s\n' "$tool_input" | env -u PLUGIN_ROOT HOME="$wd/home" "$HOOK_DIR/rules-guard.sh" >/dev/null || actual_exit=$?
 
-    (
-        export HOME="$wd/home"
-        unset PLUGIN_ROOT
-        printf '%s\n' "$prompt_input" | "$HOOK_DIR/rules-inject.sh" >/dev/null
-    ) || actual_exit=$?
+    printf '%s\n' "$prompt_input" | env -u PLUGIN_ROOT HOME="$wd/home" "$HOOK_DIR/rules-inject.sh" >/dev/null || actual_exit=$?
     without_plugin=$(grep '^checksum=' "$wd/repo/codex_tmp/.codex_rules_loaded" | head -n 1)
-    (
-        export HOME="$wd/home" PLUGIN_ROOT="$wd/plugin"
-        printf '%s\n' "$tool_input" | "$HOOK_DIR/rules-guard.sh" >/dev/null
-    ) || actual_exit=$?
+    printf '%s\n' "$tool_input" | env HOME="$wd/home" PLUGIN_ROOT="$wd/plugin" "$HOOK_DIR/rules-guard.sh" >/dev/null || actual_exit=$?
 
     if [ "$actual_exit" -eq 0 ] && [ "$with_plugin" = "$without_plugin" ]; then
         printf "  PASS: rules checksum stable across plugin/home/repo mirrors\n"
@@ -117,8 +118,7 @@ run_codex_rules_refresh_test() {
     actual_exit=0
     (
         cd "$wd/repo" || exit 1
-        export HOME="$wd/home" CODEX_RULES_CONTEXT_MODE=none
-        /workspace/bin/codex-rules refresh >/dev/null
+        env HOME="$wd/home" CODEX_RULES_CONTEXT_MODE=none /workspace/bin/codex-rules refresh >/dev/null
     ) || actual_exit=$?
     mode=$(grep '^mode=' "$wd/repo/codex_tmp/.codex_rules_loaded" 2>/dev/null | head -n 1)
 
@@ -130,6 +130,25 @@ run_codex_rules_refresh_test() {
         FAIL=$((FAIL + 1))
     fi
     rm -rf "$wd"
+}
+
+run_model_context_test() {
+    desc="$1"
+    expected="$2"
+    shift 2
+
+    TOTAL=$((TOTAL + 1))
+    actual_exit=0
+    actual=$(/workspace/bin/model-context.sh "$@" 2> /tmp/model_context_stderr) || actual_exit=$?
+
+    if [ "$actual_exit" -eq 0 ] && [ "$actual" = "$expected" ]; then
+        printf "  PASS: %s\n" "$desc"
+        PASS=$((PASS + 1))
+    else
+        printf "  FAIL: %s (expected=[%s], actual=[%s], exit=%s)\n" "$desc" "$expected" "$actual" "$actual_exit"
+        printf "    stderr: %s\n" "$(cat /tmp/model_context_stderr 2>/dev/null)"
+        FAIL=$((FAIL + 1))
+    fi
 }
 
 make_input() {
@@ -200,9 +219,18 @@ run_hook_stdout_empty_test "$DISPATCHER user-prompt-submit" "dispatcher suppress
 run_rules_checksum_stability_test
 run_codex_rules_refresh_test
 
+echo ""
+echo "=== Codex bin ==="
+
+run_model_context_test "model-context uses explicit context window" '{"maxTokens":128000,"usableTokens":102400}' --context-window-size 128000 "unknown"
+run_model_context_test "model-context parses delimited m context" '{"maxTokens":1500000,"usableTokens":1200000}' "gpt-test (1.5m)"
+run_model_context_test "model-context parses token context suffix" '{"maxTokens":64000,"usableTokens":51200}' "model 64k token context"
+run_model_context_test "model-context joins id and display name" '{"maxTokens":300000,"usableTokens":240000}' --id model-id --display-name "Model [300k]"
+run_model_context_test "model-context falls back to default" '{"maxTokens":200000,"usableTokens":160000}' "legacy-model"
+
 SECRET_HOOK="${HOOK_DIR}/secret-leak-check.sh"
 run_hook_test "$SECRET_HOOK" "blocks Authorization bearer literal" "$(make_input Bash command "curl -H 'Authorization: Bearer abcdefghijklmnop' https://example.com")" 2
-run_hook_test "$SECRET_HOOK" "allows token via environment variable" "$(make_input Bash command 'curl --token "$TOKEN" https://example.com')" 0
+run_hook_test "$SECRET_HOOK" "allows token via environment variable" "$(make_input Bash command "curl --token \"\$TOKEN\" https://example.com")" 0
 
 echo ""
 printf "Total: %d, Pass: %d, Fail: %d\n" "$TOTAL" "$PASS" "$FAIL"
