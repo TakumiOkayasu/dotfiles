@@ -1,4 +1,4 @@
-# iter 1 — performance-optimization（baseline 3 並列 dispatch）
+# iter 1 — measure（baseline 3 並列 dispatch）
 
 **変更点（前回差分）**: なし（baseline）
 

@@ -75,7 +75,7 @@ Rules はセッション開始時に自動で読み込まれる。配置先: `~/
 | -------- | ------ | --------------- |
 | systematic-debugging | 4フェーズ根本原因分析 | バグ・テスト失敗時 |
 | test-driven-development | RED-GREEN-REFACTOR強制 | 機能実装・バグ修正時 |
-| consultation | 構造化された相談テンプレート | 判断が必要な時 |
+| consult | 構造化された相談テンプレート | 判断が必要な時 |
 | failure-logging | 失敗DB記録・参照 | エラー・失敗時 |
 
 ### Vendor スキル (vercel-labs/agent-skills)

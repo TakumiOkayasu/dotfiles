@@ -1,8 +1,8 @@
-# performance-optimization シナリオカタログ
+# measure シナリオカタログ
 
 empirical-prompt-tuning でチューニングするための評価シナリオ。**iter 開始後は変更しない**。
 
-- 対象スキル: `claude/skills/performance-optimization/SKILL.md`
+- 対象スキル: `claude/skills/measure/SKILL.md`
 - description: 「パフォーマンス最適化やプロファイリング時に使用。計測手法、ボトルネック特定、負荷テスト、レポート出力をカバー。」
 - 収束目標: **連続2** イテレーション（典型スキル）
 
@@ -106,7 +106,7 @@ end
 ```
 
 **要件チェックリスト**:
-1. [critical] **本スキル（performance-optimization）を発動せず、systematic-debugging / tdd へ委譲**
+1. [critical] **本スキル（measure）を発動せず、systematic-debugging / tdd へ委譲**
 2. [critical] **「動作が正しいが遅い」ではなく「動作が誤っている」ケースと判別**（処理時間は正常と明記されている）
 3. [critical] **description「パフォーマンス最適化やプロファイリング時に使用」に該当しないことを認識**
 4. systematic-debugging の 4 フェーズ（現象→仮説→検証→修正）経路を提案

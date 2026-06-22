@@ -1,6 +1,6 @@
-# iter 0 — performance-optimization（静的整合チェック）
+# iter 0 — measure（静的整合チェック）
 
-**対象**: `claude/skills/performance-optimization/SKILL.md`（183 行）
+**対象**: `claude/skills/measure/SKILL.md`（183 行）
 **dispatch**: なし（静的チェックのみ）
 
 ## description / body 整合表

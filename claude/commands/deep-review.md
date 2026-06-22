@@ -175,4 +175,4 @@ N. file:line — 要約
 
 ## レビュー後
 
-指摘カテゴリに対応するスキルを読んで対応する: パフォーマンス → `performance-optimization` / `optimize`、設計・保守性 → `refactoring`、方針検証スキップ → `premise-questioning` / `feature-pruning`、テスト不足 → `tdd` または `test-writer` subagent。ユーザーの許可を得てから Critical → Warning → Suggestion の順で修正する。
+指摘カテゴリに対応するスキルを読んで対応する: パフォーマンス → `measure` / `optimize`、設計・保守性 → `refactoring`、方針検証スキップ → `premise-questioning` / `feature-pruning`、テスト不足 → `tdd` または `test-writer` subagent。ユーザーの許可を得てから Critical → Warning → Suggestion の順で修正する。

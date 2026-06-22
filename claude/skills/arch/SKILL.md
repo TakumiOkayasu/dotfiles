@@ -1,6 +1,7 @@
 ---
-name: architecture-design
-description: クラス・モジュールのアーキテクチャ設計時に使用。レイヤー構造の決定、コンポーネントの配置、責務分割、合成と継承の判断、依存関係の整理をカバー。新規コンポーネント追加や既存設計のリファクタリング時に発動。常に守る不変条件は hierarchical-architecture ルール、疑似コードからのインターフェース起こしは interface-first-design スキルを参照。
+name: arch
+description: クラス・モジュールのアーキテクチャ設計時に使用。レイヤー構造の決定、コンポーネントの配置、モジュール/レイヤー間の責務分割、合成と継承の判断、依存関係の整理をカバー。新規コンポーネント追加や既存設計のリファクタリング時に発動。「レイヤー構造」「合成と継承」もトリガー。常に守る不変条件は hierarchical-architecture ルール、疑似コードからのインターフェース起こしは interface-first-design スキルを参照。
+effort: high
 ---
 
 # Architecture Design

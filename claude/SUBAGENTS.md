@@ -64,7 +64,7 @@ skill / command 固有の dispatch 内容 (手法名 / 評価軸 / 採点ルー�
 | `empirical-prompt-tuning` | 「subagent 起動契約」節 (プロンプト実行者として dispatch + 自己申告レポート) |
 | `systematic-debugging` | Phase 3.5「並列仮説検証」(原因層別 3 並列深掘り) |
 | `test-coverage-guard` | Step 2「観点別 subagent 並列化」(P1 / P2 / P3 観点別スキャン) |
-| `architecture-design` | 「複数設計案の並列出し」(明示要求時のみ) |
+| `arch` | 「複数設計案の並列出し」(明示要求時のみ) |
 | `commands/deep-review` | Step 4「3 並列 subagent dispatch」(`general-purpose` / security・performance・maintainability 担当割り) |
 | `commands/feat` | Phase 1 影響範囲特定 (本文 inline、見出しなし。`/feat` 起動時の必要時のみ並列化) |
 | `agents/qa-nightmare` | 単独 subagent (悪夢テストケース網羅) |

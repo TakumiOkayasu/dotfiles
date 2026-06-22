@@ -1,7 +1,7 @@
 ---
 name: tdd
-description: 機能実装やバグ修正でテストを書く・変更する作業に使用。RED-GREEN-REFACTORサイクルを適用する。
-thinking_hint: high
+description: 機能実装やバグ修正でテストを書く・変更する作業に使用。RED-GREEN-REFACTORサイクルを適用する。「TDD」「テストから書く」「テスト駆動」「テスト先に」で発動。
+effort: high
 ---
 
 # Test-Driven Development
@@ -431,7 +431,7 @@ RED（FAILするテスト）単独ではコミットしない。RED+GREENをセ�
 
 ---
 
-## 禁止事項
+## アンチパターン
 
 | 禁止操作 | 理由 |
 |----------|------|

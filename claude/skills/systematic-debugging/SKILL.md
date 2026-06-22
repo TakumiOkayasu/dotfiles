@@ -1,7 +1,7 @@
 ---
 name: systematic-debugging
-description: バグやテスト失敗に遭遇した際に使用。修正前の4フェーズ根本原因分析を強制。
-thinking_hint: xhigh
+description: バグやテスト失敗に遭遇した際に使用。修正前の4フェーズ根本原因分析を強制。「エラーが出る」「動かない」「落ちる」「なぜ失敗するか」で発動。
+effort: xhigh
 ---
 
 # Systematic Debugging
@@ -145,7 +145,7 @@ Phase 3 で根本原因の仮説が**複数**立った場合、または以下�
 
 ---
 
-## 禁止事項
+## アンチパターン
 
 - 推測だけで修正する
 - 再現せずに修正する

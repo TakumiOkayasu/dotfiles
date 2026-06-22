@@ -4,7 +4,7 @@
 
 **なし**。iter 2 追記（`[件数]` / `[手法名]` 定義注釈）の効果を別 subagent 3 本で再確認する目的の iteration。
 
-根拠: tdd iter 4 / qa-nightmare iter 4 / performance-optimization iter 3 と同型の「修正なし再評価で連続 2 達成」パターン。
+根拠: tdd iter 4 / qa-nightmare iter 4 / measure iter 3 と同型の「修正なし再評価で連続 2 達成」パターン。
 
 ## 実行結果（シナリオ別）
 

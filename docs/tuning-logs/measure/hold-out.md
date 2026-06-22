@@ -1,4 +1,4 @@
-# hold-out — performance-optimization
+# hold-out — measure
 
 ## シナリオ D（バグ修正依頼 = 発動すべきでない）
 
@@ -63,7 +63,7 @@ subagent は判定結果表の「根拠」列で次を**直接引用**:
 
 ## 収束判定
 
-- **performance-optimization スキル収束完了** ✅
+- **measure スキル収束完了** ✅
 - 典型スキル目標（連続 2 + hold-out パス）達成
 - 中核 4 本柱（鉄則 / Step 1-4 / 禁止事項表 / 関連スキル境界）は安定
 - 残存不明瞭点はすべて周辺運用詳細 or シナリオ情報不足由来

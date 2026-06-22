@@ -7,7 +7,7 @@
 
 ## 背景
 
-Phase 2 (個別チューニング) で他 10 スキルがすべて収束完了 (tdd / systematic-debugging / test-coverage-guard / refactoring / interface-first-design / consultation / e2e-browser / qa-nightmare / performance-optimization / failure-logging) したため、Phase 4 として empirical-prompt-tuning 自身の構造審査を実施する。循環参照回避のため empirical 評価は行わず、記述整合性のみを静的チェック。
+Phase 2 (個別チューニング) で他 10 スキルがすべて収束完了 (tdd / systematic-debugging / test-coverage-guard / refactoring / interface-first-design / consultation / e2e-browser / qa-nightmare / measure / failure-logging) したため、Phase 4 として empirical-prompt-tuning 自身の構造審査を実施する。循環参照回避のため empirical 評価は行わず、記述整合性のみを静的チェック。
 
 ## 審査方法
 
