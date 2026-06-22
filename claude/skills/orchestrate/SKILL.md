@@ -1,6 +1,6 @@
 ---
-name: plan-and-review
-description: 仕様が固まった複数 task の実装を、計画 → subagent 実装 → 2 段階レビュー (仕様適合 → 品質) で一気通貫に回す。task に分解できる機能追加・改修をまとめて自走実装したいときに使う。「実装計画」「計画立てて」「plan して」「まとめて実装」「全部作って」「順番に実装」「タスク分解」「subagent で回す」「2 段階レビュー」で起動。単発の小修正 (→ feat/fix) や設計未確定 (→ consultation) では使わない。
+name: orchestrate
+description: 仕様が固まった複数 task の実装を、計画 → subagent 実装 → 2 段階レビュー (仕様適合 → 品質) で一気通貫に回す。task に分解できる機能追加・改修をまとめて自走実装したいときに使う。「実装計画」「計画立てて」「plan して」「まとめて実装」「全部作って」「順番に実装」「タスク分解」「subagent で回す」「2 段階レビュー」で起動。単発の小修正 (→ feat/fix) や設計未確定 (→ consult) では使わない。
 ---
 
 # Plan and Review
@@ -12,19 +12,19 @@ description: 仕様が固まった複数 task の実装を、計画 → subagent
 
 **実行は連続させる。** 計画承認後は task 間で「続けますか?」と止まらず、全 task を通しで実行する。レビュー → 差し戻し → 再レビューのループも自走させる。停止するのは次の 3 つだけ: 副作用承認ゲート (後述) / 自力解決できない BLOCK / 全 task 完了。進捗の逐次報告や確認プロンプトはユーザーの時間を浪費するため出さない。
 
-設計判断が未確定なら本スキルに入らず `consultation` へ。仕様が固まっていることが前提。
+設計判断が未確定なら本スキルに入らず `consult` へ。仕様が固まっていることが前提。
 
-## トリガー語
+## トリガー条件
 
 - **明示**: 「実装計画」「計画立てて」「plan して」「タスク分解して」「2 段階レビュー」「spec 適合チェック」
 - **自然発話**: 「まとめて実装」「全部作って」「順番に実装して」「一気にやって」「subagent で回して」「複数機能を実装」
 - **状況**: 確定仕様/設計ドキュメントを渡されて「これ実装して」、複数の独立した変更を一括依頼された
-- `/plan-and-review` 直接起動
+- `/orchestrate` 直接起動
 
 ## 非対象
 
 - 単一ファイルの小修正 → `feat` / `fix` 直行
-- 設計判断・技術選定が未確定 → `consultation`
+- 設計判断・技術選定が未確定 → `consult`
 - 振る舞い保持の整理のみ → `refactoring`
 - レビュー単体 → `deep-review`
 
@@ -196,7 +196,7 @@ task の複雑度と driver/worker の役割を掛け合わせて割り当てる
 - driver は最強 model (Opus)、worker は task 複雑度に応じて Haiku/Sonnet
 - 1 task が 1〜2 ファイル + 完全な spec なら Haiku/Codex worker で十分。多ファイル結合は Sonnet に上げる
 
-## 禁止事項
+## アンチパターン
 
 | 禁止 | 理由 |
 | --- | --- |
@@ -213,7 +213,7 @@ task の複雑度と driver/worker の役割を掛け合わせて割り当てる
 
 ## 関連スキル
 
-- 前段 (設計未確定時): `consultation` / `architecture-design`
+- 前段 (設計未確定時): `consult` / `arch`
 - 実装単位: `tdd` (subagent が各 task で従う) / `feat` / `fix`
 - 品質レビュー (2 段目): `deep-review`
 - 完了確認: `verification-before-completion` 相当

@@ -30,10 +30,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/destructive-command-block.sh"
-          },
-          {
-            "type": "command",
             "command": "$HOME/.claude/hooks/docker-build-check.sh"
           },
           {

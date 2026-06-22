@@ -5,7 +5,7 @@
 ユーザーは方針と設計を決定し、Claude は実装を担当する。
 
 - 「どう実装するか」「実装して」「修正して」 → 実装する
-- 「どう設計するか」「どっちが良い」「何を選ぶ」「方針確認」「設計レビュー」 → consultation skill を読み、最低 2-3 案を比較表で提示してユーザーの判断を待つ。実装に着手しない (トリガー語: どう/何を/比較/方針/レビュー/確認 → 設計フェーズ判定)
+- 「どう設計するか」「どっちが良い」「何を選ぶ」「方針確認」「設計レビュー」 → consult skill を読み、最低 2-3 案を比較表で提示してユーザーの判断を待つ。実装に着手しない (トリガー語: どう/何を/比較/方針/レビュー/確認 → 設計フェーズ判定)
 - 単一案で進めない。実装系の依頼でも複数アプローチがあれば短く比較を出してから着手する
 
 ## 出力
@@ -26,8 +26,8 @@
 | TDD/テスト新規作成 | `skills/tdd/SKILL.md` |
 | バグ修正 | `skills/systematic-debugging/SKILL.md` |
 | リファクタリング | `skills/refactoring/SKILL.md` |
-| 設計判断・技術選定 | `skills/architecture-design/SKILL.md` + `skills/consultation/SKILL.md` |
-| 複数 task の実装計画〜実行 | `skills/plan-and-review/SKILL.md` |
+| 設計判断・技術選定 | `skills/arch/SKILL.md` + `skills/consult/SKILL.md` |
+| 複数 task の実装計画〜実行 | `skills/orchestrate/SKILL.md` |
 | それ以外 | `ls $HOME/.claude/skills/` で確認後、該当のみ |
 
 ## 制約

@@ -68,4 +68,4 @@ precision 100% 維持 + 境界節の直接引用 = **iter 2 境界節の効果�
 ## 次アクション
 
 1. PR 化: `docs/tuning-logs/qa-nightmare/{iter-3,iter-4,hold-out}.md` + `.claude/progress.md` をコミット（SKILL.md は iter 2 で既にコミット済 = 7494df8）
-2. qa-nightmare 収束完了 → **Phase 2 残: performance-optimization（典型）/ failure-logging（典型）/ empirical-prompt-tuning（構造審査）**
+2. qa-nightmare 収束完了 → **Phase 2 残: measure（典型）/ failure-logging（典型）/ empirical-prompt-tuning（構造審査）**

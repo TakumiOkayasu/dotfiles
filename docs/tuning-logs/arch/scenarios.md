@@ -2,7 +2,7 @@
 
 empirical-prompt-tuning でチューニングする評価シナリオ。**iter 開始後は変更しない**。
 
-- 対象 skill: `claude/skills/architecture-design/SKILL.md`
+- 対象 skill: `claude/skills/arch/SKILL.md`
 - 概要: コンポーネントのレイヤー配置・責務分割・合成と継承の判定・依存整理の設計手順
 - 収束目標: **連続 2** イテレーション (典型スキル)
 

@@ -4,7 +4,7 @@ empirical-prompt-tuning の iter 0 フェーズ。SKILL.md 本体の構成と de
 
 ## 対象
 
-- スキル: `claude/skills/consultation/SKILL.md`（116行）
+- スキル: `claude/skills/consult/SKILL.md`（116行）
 - description: 「実装中に判断が必要になった時、技術選定・設計相談が必要な時に使用。相談テンプレートで構造化された問題提示を強制。」
 - 収束目標: **連続2**（典型スキル）
 

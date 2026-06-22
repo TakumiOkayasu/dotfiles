@@ -1,6 +1,7 @@
 ---
 name: feature-pruning
 description: 個別機能 / UI 要素 / API エンドポイント / データ列の要否を機能名レベルで検証する skill。「このページネーション要らない」「この保存ボタン要らない」「この確認ダイアログ要らない」「この検索ボックスはブラウザ Cmd+F で済む」級の具体指摘を出す。3 手法 (YAGNI Probe / Convention Audit / Existing Substitute) を独立 subagent に投げて 3 ラウンド以上検証し、機能ごとに採点して過剰機能 / 代替可能機能リストを出す。premise-questioning が方針自体の妥当性を扱うのに対し、本 skill は **方針が採用された後の機能粒度の棚卸し専用**。empirical-prompt-tuning のバイアス排除手法を踏襲。
+effort: high
 ---
 
 # Feature Pruning (機能粒度の棚卸し - 戦術レベル)
@@ -9,7 +10,7 @@ description: 個別機能 / UI 要素 / API エンドポイント / データ列
 
 **本 skill の責務範囲は「個別機能の要否」まで**。「方針自体が筋が良いか」は別 skill (`premise-questioning`) で扱う。順序は **premise-questioning (戦略) → feature-pruning (戦術)**。方針自体が間違っていたら、機能を削っても無意味。
 
-## いつ使うか
+## トリガー条件
 
 - UI 設計レビュー (画面 / コンポーネントの要素確定直前)
 - API 設計レビュー (エンドポイント / クエリパラメータ確定直前)
@@ -372,6 +373,5 @@ subagent は各ラウンドで全 3 軸を採点する (機能数 × 3R × 3軸 
 
 - `empirical-prompt-tuning` - 本 skill のバイアス排除手法 (subagent dispatch / 連続クリア判定 / 過適合チェック) はここから踏襲
 - `premise-questioning` - **本 skill の戦略版**。方針自体の妥当性検証はそちら。順序: premise-questioning (戦略 ✅) → feature-pruning (戦術)。本 skill 実行中に方針レベルの疑問が出たら premise-questioning に戻る
-- `ui-ux-design` - UI 実装前の必須ペア。ui-ux-design でアクセシビリティ / レスポンシブ要件を固めた上で feature-pruning で機能粒度を絞り込む
-- `brainstorming-design` - 着手前のアイデア発散。順序: brainstorming → premise-questioning → feature-pruning → 着手
-- `interface-composition-design` - API / クラス設計時の併用。エンドポイント / メソッドの要否検証に feature-pruning を適用可能
+- `consult` - 着手前のアイデア発散・技術選定の相談。順序: consult → premise-questioning → feature-pruning → 着手
+- `interface-first-design` - API / クラス設計時の併用。エンドポイント / メソッドの要否検証に feature-pruning を適用可能

@@ -1,6 +1,6 @@
 # Architecture Invariants
 
-アーキテクチャ上、常に守る不変条件。設計の手順・判断は `architecture-design` スキルを参照する。
+アーキテクチャ上、常に守る不変条件。設計の手順・判断は `arch` スキルを参照する。
 
 ## 依存方向
 

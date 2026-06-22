@@ -4,7 +4,7 @@
 
 連続2/2達成（iter 2 + iter 3）後の過適合検出。baseline シナリオ A/B/C に存在しない hold-out シナリオD で発動抑止の正しさを検証する。
 
-- 対象スキル: `claude/skills/consultation/SKILL.md`（iter 3 時点、L118）
+- 対象スキル: `claude/skills/consult/SKILL.md`（iter 3 時点、L118）
 - baseline 直近平均: **100%**（iter 3 の A/B/C）
 - 過適合判定閾値: 直近平均から **-15pt 以上落ちたら過適合**（empirical-prompt-tuning L133）
 
@@ -68,7 +68,7 @@
 
 ## PR 対象
 
-- `claude/skills/consultation/SKILL.md`（+14行: 関連スキル・境界節 + 前提条件①拡張）
+- `claude/skills/consult/SKILL.md`（+14行: 関連スキル・境界節 + 前提条件①拡張）
 - `docs/tuning-logs/consultation/` 配下（scenarios.md / iter-0.md / iter-1.md / iter-2.md / iter-3.md / hold-out.md）
 
 ## 次スキル

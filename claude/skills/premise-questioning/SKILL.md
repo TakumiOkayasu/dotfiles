@@ -1,6 +1,7 @@
 ---
 name: premise-questioning
 description: 設計判断・新規実装・バグ修正に着手する直前に、その方針そのものを「そもそも論」で問い直す skill。「本当に解くべき問題か」「その実装は本当に要るか」「隠れた前提が崩れたら何が起きるか」を、毎回違う手法 (第一原理 / Inversion / 5 Whys) を独立 subagent に投げて 3 ラウンド以上検証し、3 軸スコアで採用可否を判定する。**戦略レベルの方針妥当性専用**。個別機能 / UI 要素 / API の要否検証は feature-pruning skill を使う。empirical-prompt-tuning のバイアス排除手法を踏襲。
+effort: high
 ---
 
 # Premise Questioning (そもそも論 - 戦略レベル)
@@ -9,7 +10,7 @@ description: 設計判断・新規実装・バグ修正に着手する直前に�
 
 **本 skill の責務範囲は「方針そのものの妥当性」まで**。「このページネーション要らない」「この保存ボタン要らない」級の機能粒度の指摘は別 skill (`feature-pruning`) で扱う。混ぜると単一責任が崩れる。
 
-## いつ使うか
+## トリガー条件
 
 - 新規実装の着手直前 (設計が固まったが、コードはまだ書いていない段階)
 - バグ修正の着手直前 (再現テスト前 / 修正方針を決めた直後)
@@ -20,7 +21,7 @@ description: 設計判断・新規実装・バグ修正に着手する直前に�
 
 - typo 修正 / コメント修正 / dependency bump など軽微な変更 (コストが割に合わない)
 - 締切が迫って意思決定の余裕がないとき (止まる方が損失大。事後レビューで補う)
-- 既に同等の skill (brainstorming-design など) を回した直後 (重複)
+- 既に同等の skill (consult など) を回した直後 (重複)
 - **個別機能 / UI 要素の要否レビュー** → `feature-pruning` skill を使う
 
 ## ワークフロー
@@ -298,6 +299,6 @@ description: 設計判断・新規実装・バグ修正に着手する直前に�
 
 - `empirical-prompt-tuning` - 本 skill のバイアス排除手法 (subagent dispatch / 連続クリア判定 / 過適合チェック) はここから踏襲
 - `feature-pruning` - **本 skill の戦術版**。本 skill で方針が採用判定された後、機能リストが含まれる方針なら次にこちらを回す。役割分担: 本 skill = 戦略 (方針自体)、feature-pruning = 戦術 (個別機能)
-- `brainstorming-design` - 着手前のアイデア発散。順序: brainstorming → premise-questioning → (機能リストあれば) feature-pruning → 着手
+- `consult` - 着手前のアイデア発散・技術選定の相談。順序: consult → premise-questioning → (機能リストあれば) feature-pruning → 着手
 - `systematic-debugging` - バグ修正時、根本原因分析と併用可。systematic-debugging で原因特定 → premise-questioning で「修正方針が筋が良いか」を問う流れ
-- `interface-composition-design` - 設計判断時に併用可
+- `interface-first-design` - 設計判断時に併用可

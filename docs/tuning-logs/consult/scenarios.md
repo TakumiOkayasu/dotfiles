@@ -2,7 +2,7 @@
 
 empirical-prompt-tuning でチューニングするための評価シナリオ。**iter 開始後は変更しない**。
 
-- 対象スキル: `claude/skills/consultation/SKILL.md`
+- 対象スキル: `claude/skills/consult/SKILL.md`
 - description: 「実装中に判断が必要になった時、技術選定・設計相談が必要な時に使用。相談テンプレートで構造化された問題提示を強制。」
 - 収束目標: **連続2** イテレーション（典型スキル）
 

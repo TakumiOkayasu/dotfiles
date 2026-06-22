@@ -4,7 +4,7 @@ empirical-prompt-tuning の iter 1 フェーズ。3 シナリオを新規 subage
 
 ## 対象
 
-- スキル: `claude/skills/consultation/SKILL.md`（116行、iter 0 時点）
+- スキル: `claude/skills/consult/SKILL.md`（116行、iter 0 時点）
 - 変更点（前回差分）: なし（baseline）
 - 収束目標: **連続2**（典型スキル）
 - iter 1 はカウント開始前（前回比なし）

@@ -83,6 +83,6 @@
 - SKILL.md 起因の新規不明瞭点が 0 件で「構造的欠陥の顕在化は iter 2 で収束方向」
 - FL-1-B-2（iter 2 テーマ）の効果は subagent 直接引用で確証取れているが、subagent 1 ロット での検証。iter 3 で別 subagent 3本で再現性を確認
 - 残存 FL-1-A-1 / FL-1-A-2 / FL-1-C-1 はいずれも裁量許容範囲、追加修正すると肥大化リスク
-- 先行スキル（tdd iter 4 / qa-nightmare iter 4 / performance-optimization iter 3）と同型の「修正なし再評価で連続2/3達成」パターンを踏襲
+- 先行スキル（tdd iter 4 / qa-nightmare iter 4 / measure iter 3）と同型の「修正なし再評価で連続2/3達成」パターンを踏襲
 
 停止条件まであと: 1 iter（iter 3 で連続 2 達成 → hold-out へ）

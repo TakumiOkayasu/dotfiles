@@ -63,6 +63,6 @@ duration の +188% は subagent 個体差 (より詳細な擬似コード生成)
 
 ## PR 対象ファイル
 
-- `claude/skills/architecture-design/SKILL.md` (変更なし、git status の新規追加)
+- `claude/skills/arch/SKILL.md` (変更なし、git status の新規追加)
 - `docs/tuning-logs/architecture-design/scenarios.md` (新規)
 - `docs/tuning-logs/architecture-design/iter-1.md` (新規、本ファイル: iter 1 + 2 + hold-out 合冊)

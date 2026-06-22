@@ -1,6 +1,6 @@
 ---
 name: interface-first-design
-description: 機能追加・クラス設計・interface設計・依存関係整理・責務分割時に使用。疑似コードから interface→クラス→TDD→実装の順で設計する。TDDスキルの前段。
+description: 機能追加・クラス設計・interface設計・依存関係整理・クラス/メソッドの責務分割時に使用。疑似コードから interface→クラス→TDD→実装の順で設計する。TDDスキルの前段。「インターフェースから設計」「疑似コードで設計」もトリガー。
 ---
 
 # Interface-First Design
