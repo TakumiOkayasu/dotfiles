@@ -10,7 +10,7 @@
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
-アーキテクチャ上、常に守る不変条件。設計の手順・判断は `architecture-design` スキルを参照する。
+アーキテクチャ上、常に守る不変条件。設計の手順・判断は `arch` スキルを参照する。
 
 ## 依存方向
 

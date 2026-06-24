@@ -20,6 +20,9 @@ codex/progress.md
 codex/checkpoints/
 codex/agents-tmp/
 
+# Generated GNU stow packages
+.stow-work/
+
 # Generated Codex plugin bundles
 plugins/dotfile-work-codex/
 plugins/dotfile-work-codex-extra/

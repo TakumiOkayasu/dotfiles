@@ -162,8 +162,14 @@ _setup_oh_my_posh() {
     local cache_dir="$HOME/.cache/oh-my-posh"
     mkdir -p "$cache_dir"
 
-    # oh-my-posh の path
-    local omp_path="$(command -v oh-my-posh)"
+    # mise の shim 経由だと初期化に失敗する環境があるため、実体 path を優先する
+    local omp_path=""
+    if command -v mise &>/dev/null; then
+        omp_path="$(mise which oh-my-posh 2>/dev/null || true)"
+    fi
+    if [[ -z "$omp_path" ]]; then
+        omp_path="$(command -v oh-my-posh)"
+    fi
 
     # 初期化
     if ! eval "$($omp_path init bash --config "$config")" 2>/dev/null; then
@@ -260,5 +266,4 @@ case "${DOTFILES_PLATFORM:-}" in
         export CLAUDE_CODE_SKIP_WINDOWS_PROFILE=1
         ;;
 esac
-
 

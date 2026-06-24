@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import argparse
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+JST = timezone(timedelta(hours=9), "JST")
 
 WORKFLOWS: dict[str, tuple[str, str, str]] = {
     "feat": (
@@ -92,6 +94,10 @@ WORKFLOWS: dict[str, tuple[str, str, str]] = {
 COMMON = """\n## Common contract\n\n- Plugin-only operation: use `$skill` / `@skill` or `/skills`; no `/prompt:*` or `prompt:*`.\n- Apply mandatory rules before editing, reviewing, testing, or implementation conclusions.\n- Keep diffs minimal and scoped.\n- Report unverified items and skipped checks.\n- Destructive operations, dependency changes, DB/API contract changes, commit, push, deploy, privileged commands, and external writes require explicit user approval.\n"""
 
 
+def generated_at_jst() -> str:
+    return f"{datetime.now(JST).isoformat(timespec='seconds')} JST"
+
+
 def skill_body(name: str, desc: str, title: str, content: str) -> str:
     return f"""---\nname: {name}\ndescription: {desc} Front-load this description for Codex implicit matching; explicit invocation via ${name} always works.\n---\n\n# {title}\n\n{content.strip()}\n{COMMON}\n"""
 
@@ -124,7 +130,7 @@ def main() -> int:
         (outdir / "PLUGIN_ONLY_WORKFLOWS.md").write_text(
             "# Plugin-only workflow skills\n\n"
             "Generated optimized core @skill workflow entrypoints. Legacy prompt compatibility is intentionally not generated.\n\n"
-            f"Generated at: {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}\n\n"
+            f"Generated at: {generated_at_jst()}\n\n"
             + "\n".join(f"- `{p}`" for p in generated) + "\n",
             encoding="utf-8",
         )

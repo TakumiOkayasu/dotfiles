@@ -6,8 +6,10 @@ import hashlib
 import re
 import shutil
 import stat
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+JST = timezone(timedelta(hours=9), "JST")
 
 CORE_SKILLS = {
     "feat",
@@ -288,7 +290,7 @@ def generate_rules(root: Path) -> None:
     bundle_parts = [
         "# RULES_BUNDLE",
         "",
-        f"Generated at: {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}",
+        f"Generated at: {datetime.now(JST).isoformat(timespec='seconds')} JST",
         "",
         "This file is generated from `codex/rules/*.md`. Do not edit it directly.",
         "",
