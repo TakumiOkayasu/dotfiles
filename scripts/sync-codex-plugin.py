@@ -5,12 +5,13 @@ import argparse
 import json
 import shutil
 import stat
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 CORE_PLUGIN = "dotfile-work-codex"
 EXTRA_PLUGIN = "dotfile-work-codex-extra"
 VERSION = "0.3.0"
+JST = timezone(timedelta(hours=9), "JST")
 
 CORE_SKILLS = {
     "feat",
@@ -44,6 +45,10 @@ def write_json(path: Path, data: dict) -> None:
 def chmodx(path: Path) -> None:
     if path.exists() and path.is_file():
         path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def generated_at_jst() -> str:
+    return f"{datetime.now(JST).isoformat(timespec='seconds')} JST"
 
 
 def copy_file(src: Path, dst: Path) -> None:
@@ -198,7 +203,7 @@ def sync_core(root: Path, clean: bool) -> None:
         "Performance-optimized core plugin. Use `$feat`, `$fix`, `$deep-review`, `$rules-required`.\n\n"
         f"Core skills: {', '.join(skills)}\n\n"
         "Optional skills live in `dotfile-work-codex-extra`; keep that plugin disabled unless needed.\n"
-        f"Generated at: {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}\n",
+        f"Generated at: {generated_at_jst()}\n",
         encoding="utf-8"
     )
 
@@ -216,7 +221,7 @@ def sync_extra(root: Path, clean: bool) -> None:
         "# dotfile-work Codex Extra Skills\n\n"
         "Optional explicit-use skills ported from Claude Code. Enable only when needed.\n\n"
         f"Optional skills: {', '.join(skills) if skills else '(none)'}\n\n"
-        f"Generated at: {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}\n",
+        f"Generated at: {generated_at_jst()}\n",
         encoding="utf-8"
     )
 

@@ -15,6 +15,7 @@ from pathlib import Path
 
 INSTALL_SH = Path(__file__).resolve().parent.parent / "install.sh"
 REPO_ROOT = INSTALL_SH.parent
+STOW_INSTALL_SH = REPO_ROOT / "scripts" / "stow-install.sh"
 
 
 def _run_install_sh(
@@ -31,6 +32,121 @@ def _run_install_sh(
     return subprocess.run(
         cmd, cwd=str(dotfiles), env=env, capture_output=True, text=True, timeout=30
     )
+
+
+def _create_fake_stow(tmp_path: Path) -> tuple[Path, Path]:
+    fake_bin = tmp_path / "bin"
+    log = tmp_path / "stow-args.log"
+    fake_bin.mkdir()
+    fake_stow = fake_bin / "stow"
+    fake_stow.write_text(
+        "#!/bin/sh\n"
+        "printf '%s\\n' \"$*\" > \"$STOW_LOG\"\n",
+        encoding="utf-8",
+    )
+    fake_stow.chmod(0o755)
+    return fake_bin, log
+
+
+def _run_stow_install_script(
+    repo: Path, home: Path, package_name: str, env: dict[str, str], *extra_args: str
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            "/bin/sh",
+            str(STOW_INSTALL_SH),
+            "--repo",
+            str(repo),
+            "--target",
+            str(home),
+            "--package",
+            package_name,
+            *extra_args,
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+
+def _symlink_target_path(link: Path) -> Path:
+    target = link.readlink()
+    if target.is_absolute():
+        return target
+    return Path(os.path.abspath(link.parent / target))
+
+
+def _has_generated_stow_ancestor(link: Path, generated: Path) -> bool:
+    candidate = link
+    while True:
+        if candidate.is_symlink():
+            tail = link.relative_to(candidate)
+            expected = generated
+            for _ in tail.parts:
+                expected = expected.parent
+            if _symlink_target_path(candidate) == expected:
+                return True
+
+        if candidate.parent == candidate:
+            return False
+        candidate = candidate.parent
+
+
+def _assert_generated_stow_link(link: Path, generated: Path, source: Path) -> None:
+    assert generated.is_symlink()
+    assert generated.resolve() == source
+    assert link.is_symlink()
+    assert link.resolve() == source
+    assert _has_generated_stow_ancestor(link, generated)
+
+
+def _assert_codex_core_links(codex_dir: Path) -> None:
+    assert (codex_dir / "AGENTS.md").is_symlink()
+    assert _symlink_target_path(codex_dir / "AGENTS.md") == (
+        REPO_ROOT / ".stow-work" / "codex" / ".codex" / "AGENTS.md"
+    )
+    assert (codex_dir / "SUBAGENTS.md").is_symlink()
+    assert _symlink_target_path(codex_dir / "SUBAGENTS.md") == (
+        REPO_ROOT / ".stow-work" / "codex" / ".codex" / "SUBAGENTS.md"
+    )
+    assert (codex_dir / "agents" / "code_reviewer.toml").is_symlink()
+
+
+def _assert_codex_bin_links(codex_dir: Path) -> None:
+    _assert_generated_stow_link(
+        codex_dir / "bin" / "model-context.sh",
+        REPO_ROOT / ".stow-work" / "codex" / ".codex" / "bin" / "model-context.sh",
+        REPO_ROOT / "codex" / "bin" / "model-context.sh",
+    )
+
+
+def _assert_codex_common_links(codex_dir: Path) -> None:
+    checklist = codex_dir / "agents" / "qa-nightmare" / "checklists" / "auth-bypass.md"
+    _assert_generated_stow_link(
+        checklist,
+        REPO_ROOT
+        / ".stow-work"
+        / "codex"
+        / ".codex"
+        / "agents"
+        / "qa-nightmare"
+        / "checklists"
+        / "auth-bypass.md",
+        REPO_ROOT / "common" / "qa-nightmare" / "checklists" / "auth-bypass.md",
+    )
+    assert (codex_dir / "hooks").is_dir()
+    destructive_hook = codex_dir / "hooks" / "destructive-command-block.sh"
+    assert destructive_hook.is_symlink()
+    assert destructive_hook.resolve() == (
+        REPO_ROOT / "common" / "hooks" / "destructive-command-block.sh"
+    )
+
+
+def _assert_codex_rule_links(codex_dir: Path) -> None:
+    assert (codex_dir / "rules" / "coding-conventions.md").is_symlink()
+    assert (codex_dir / "rules" / "natural-japanese.md").is_symlink()
 
 
 # ---------------------------------------------------------------------------
@@ -209,6 +325,299 @@ class TestScriptCli:
         assert "Claude -> Codex port complete" in result.stdout
 
 
+class TestStowInstallScript:
+    """GNU stow 移行用の薄い入口を検証するテスト"""
+
+    def test_script_is_executable(self) -> None:
+        """stow install script は直接実行できる"""
+        assert os.access(STOW_INSTALL_SH, os.X_OK)
+
+    def test_missing_stow_exits_with_clear_error(self, tmp_path: Path) -> None:
+        """stow が無い環境では fallback せず導入案内を出して終了する"""
+        home = tmp_path / "home"
+        home.mkdir()
+        empty_bin = tmp_path / "empty-bin"
+        empty_bin.mkdir()
+        env = os.environ.copy()
+        env["PATH"] = str(empty_bin)
+
+        result = _run_stow_install_script(REPO_ROOT, home, "claude", env, "--dry-run")
+
+        assert result.returncode == 127
+        assert "GNU stow is required" in result.stderr
+        assert "brew install stow" in result.stderr
+        assert "apt install stow" in result.stderr
+
+    def test_dry_run_invokes_stow_for_selected_package(self, tmp_path: Path) -> None:
+        """dry-run は stow を変更なしモードで選択 package に対して呼び出す"""
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        (repo / "stow" / "claude" / ".claude").mkdir(parents=True)
+        home.mkdir()
+        fake_bin, log = _create_fake_stow(tmp_path)
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+        env["STOW_LOG"] = str(log)
+
+        result = _run_stow_install_script(repo, home, "claude", env, "--dry-run")
+
+        assert result.returncode == 0, result.stderr
+        args = log.read_text(encoding="utf-8").split()
+        assert "--no" in args
+        assert "--verbose" in args
+        assert args[args.index("--dir") + 1] == str(repo / "stow")
+        assert args[args.index("--target") + 1] == str(home)
+        assert args[-1] == "claude"
+
+    def test_link_materializes_generated_package(self, tmp_path: Path) -> None:
+        """--link は install 時生成 package を作り、stow に渡す"""
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        source = repo / "config" / "vim" / ".vimrc"
+        source.parent.mkdir(parents=True)
+        source.write_text("set number\n", encoding="utf-8")
+        home.mkdir()
+        fake_bin, log = _create_fake_stow(tmp_path)
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+        env["STOW_LOG"] = str(log)
+
+        result = _run_stow_install_script(
+            repo,
+            home,
+            "vim",
+            env,
+            "--dry-run",
+            "--link",
+            "config/vim/.vimrc:.vimrc",
+        )
+
+        generated = repo / ".stow-work" / "vim" / ".vimrc"
+        assert result.returncode == 0, result.stderr
+        assert generated.is_symlink()
+        assert generated.resolve() == source
+        args = log.read_text(encoding="utf-8").split()
+        assert args[args.index("--dir") + 1] == str(repo / ".stow-work")
+        assert args[-1] == "vim"
+
+    def test_link_restows_existing_generated_package(self, tmp_path: Path) -> None:
+        """生成 package の内容変更時は外部 symlink に触れず旧リンクを張り直す"""
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        external = tmp_path / "external"
+        old_source = repo / "config" / "old.conf"
+        new_source = repo / "config" / "new.conf"
+        old_source.parent.mkdir(parents=True)
+        old_source.write_text("old\n", encoding="utf-8")
+        new_source.write_text("new\n", encoding="utf-8")
+        home.mkdir()
+        external.mkdir()
+        (home / ".aws").symlink_to(external)
+        env = os.environ.copy()
+
+        first = _run_stow_install_script(
+            repo,
+            home,
+            "demo",
+            env,
+            "--link",
+            "config/old.conf:.old-conf",
+        )
+        second = _run_stow_install_script(
+            repo,
+            home,
+            "demo",
+            env,
+            "--link",
+            "config/new.conf:.new-conf",
+        )
+
+        assert first.returncode == 0, first.stderr
+        assert second.returncode == 0, second.stderr
+        assert "BUG in find_stowed_path" not in second.stderr
+        assert not (home / ".old-conf").is_symlink()
+        assert (home / ".new-conf").is_symlink()
+
+    def test_link_restows_existing_folded_generated_package(
+        self, tmp_path: Path
+    ) -> None:
+        """stow が折りたたんだ directory symlink も package 再生成時に外す"""
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        attrs_source = repo / "config" / "git" / ".gitattributes"
+        prompt_source = repo / "config" / "git" / ".git-prompt.sh"
+        attrs_source.parent.mkdir(parents=True)
+        attrs_source.write_text("*.sh text eol=lf\n", encoding="utf-8")
+        prompt_source.write_text("__git_ps1\n", encoding="utf-8")
+        home.mkdir()
+        env = os.environ.copy()
+
+        first = _run_stow_install_script(
+            repo,
+            home,
+            "git",
+            env,
+            "--link",
+            "config/git/.gitattributes:.config/git/attributes",
+        )
+        second = _run_stow_install_script(
+            repo,
+            home,
+            "git",
+            env,
+            "--link",
+            "config/git/.git-prompt.sh:.git-prompt.sh",
+        )
+
+        assert first.returncode == 0, first.stderr
+        assert second.returncode == 0, second.stderr
+        assert "BUG in find_stowed_path" not in second.stderr
+        assert not (home / ".config").is_symlink()
+        assert not (home / ".config" / "git" / "attributes").exists()
+        assert (home / ".git-prompt.sh").is_symlink()
+
+    def test_link_regenerates_package_when_manifest_matches_but_entries_are_stale(
+        self, tmp_path: Path
+    ) -> None:
+        """manifest 一致でも package に古い entry が残れば再生成する"""
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        git_dir = repo / "config" / "git"
+        package_dir = repo / ".stow-work" / "git"
+        manifest = repo / ".stow-work" / ".manifests" / "git.links"
+        git_dir.mkdir(parents=True)
+        home_git = home / ".config" / "git"
+        home_git.mkdir(parents=True)
+
+        sources = {
+            "config/git/.git-completion.bash": git_dir / ".git-completion.bash",
+            "config/git/.git-prompt.sh": git_dir / ".git-prompt.sh",
+            "config/git/.gitattributes": git_dir / ".gitattributes",
+            "config/git/.gitignore.common": git_dir / ".gitignore.common",
+        }
+        for source in sources.values():
+            source.write_text(f"{source.name}\n", encoding="utf-8")
+
+        link_specs = (
+            "config/git/.git-completion.bash:.git-completion.bash",
+            "config/git/.git-prompt.sh:.git-prompt.sh",
+            "config/git/.git-prompt.sh:.config/git/.git-prompt.sh",
+            "config/git/.gitattributes:.config/git/attributes",
+        )
+
+        def write_package_link(source: Path, dest: str) -> None:
+            entry = package_dir / dest
+            entry.parent.mkdir(parents=True, exist_ok=True)
+            entry.symlink_to(os.path.relpath(source, start=entry.parent))
+
+        for spec in link_specs:
+            source_name, dest = spec.split(":", 1)
+            write_package_link(sources[source_name], dest)
+        write_package_link(sources["config/git/.gitignore.common"], ".config/git/ignore")
+        write_package_link(
+            sources["config/git/.gitignore.common"], ".config/git/ignore.bak"
+        )
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text("\n".join(link_specs) + "\n", encoding="utf-8")
+        (home_git / "ignore").write_text("local ignore\n", encoding="utf-8")
+        (home_git / "ignore.bak").write_text("local backup\n", encoding="utf-8")
+
+        args = []
+        for spec in link_specs:
+            args.extend(("--link", spec))
+        result = _run_stow_install_script(repo, home, "git", os.environ.copy(), *args)
+
+        assert result.returncode == 0, result.stderr
+        assert "would cause conflicts" not in result.stderr
+        assert not (package_dir / ".config" / "git" / "ignore").exists()
+        assert not (package_dir / ".config" / "git" / "ignore").is_symlink()
+        assert not (package_dir / ".config" / "git" / "ignore.bak").exists()
+        assert not (package_dir / ".config" / "git" / "ignore.bak").is_symlink()
+        assert (home_git / "ignore").is_file()
+        assert not (home_git / "ignore").is_symlink()
+        assert (home_git / "ignore.bak").is_file()
+        assert not (home_git / "ignore.bak").is_symlink()
+        _assert_generated_stow_link(
+            home / ".config" / "git" / "attributes",
+            package_dir / ".config" / "git" / "attributes",
+            sources["config/git/.gitattributes"],
+        )
+
+    def test_link_adopts_legacy_direct_symlink_before_stow(
+        self, tmp_path: Path
+    ) -> None:
+        """旧方式の直接リンクは stow 実行前に外し、GNU stow の BUG 表示を避ける"""
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        source = repo / "config" / "git" / ".gitconfig.common"
+        source.parent.mkdir(parents=True)
+        source.write_text("[include]\n", encoding="utf-8")
+        home.mkdir()
+        legacy_link = home / ".gitconfig.common"
+        legacy_link.symlink_to(source)
+        env = os.environ.copy()
+
+        result = _run_stow_install_script(
+            repo,
+            home,
+            "gitconfig",
+            env,
+            "--link",
+            "config/git/.gitconfig.common:.gitconfig.common",
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert "BUG in find_stowed_path" not in result.stderr
+        _assert_generated_stow_link(
+            legacy_link,
+            repo / ".stow-work" / "gitconfig" / ".gitconfig.common",
+            source,
+        )
+
+    def test_rejects_generated_link_path_traversal(self, tmp_path: Path) -> None:
+        """生成 package の link dest は repo 外へ抜けられない"""
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        source = repo / "config" / "vim" / ".vimrc"
+        source.parent.mkdir(parents=True)
+        source.write_text("set number\n", encoding="utf-8")
+        home.mkdir()
+        fake_bin, log = _create_fake_stow(tmp_path)
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+        env["STOW_LOG"] = str(log)
+
+        result = _run_stow_install_script(
+            repo,
+            home,
+            "vim",
+            env,
+            "--link",
+            "config/vim/.vimrc:../.vimrc",
+        )
+
+        assert result.returncode == 2
+        assert "invalid generated link dest" in result.stderr
+        assert not log.exists()
+
+    def test_rejects_package_path_traversal(self, tmp_path: Path) -> None:
+        """package 名は stow/ 配下の名前だけを受け取り、パス横断を拒否する"""
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        (repo / "claude").mkdir(parents=True)
+        home.mkdir()
+        fake_bin, log = _create_fake_stow(tmp_path)
+        env = os.environ.copy()
+        env["PATH"] = str(fake_bin)
+        env["STOW_LOG"] = str(log)
+
+        result = _run_stow_install_script(repo, home, "../claude", env, "--dry-run")
+
+        assert result.returncode == 2
+        assert "invalid stow package" in result.stderr
+        assert not log.exists()
+
+
 class TestIntegrationInstallUninstall:
     """実リポジトリ構造で install.sh -f / -u -f を実行するテスト"""
 
@@ -218,6 +627,113 @@ class TestIntegrationInstallUninstall:
         home.mkdir()
         result = _run_install_sh(REPO_ROOT, home)
         assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+
+    def test_install_creates_shell_symlinks_from_generated_stow_package(
+        self, tmp_path: Path
+    ) -> None:
+        """Shell フルセットは install 時生成 package 経由で配置される"""
+        home = tmp_path / "home"
+        home.mkdir()
+        result = _run_install_sh(REPO_ROOT, home)
+
+        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+        _assert_generated_stow_link(
+            home / ".bashrc",
+            REPO_ROOT / ".stow-work" / "shell" / ".bashrc",
+            REPO_ROOT / "config" / "shell" / "bash" / "bashrc",
+        )
+        _assert_generated_stow_link(
+            home / ".bash_profile",
+            REPO_ROOT / ".stow-work" / "shell" / ".bash_profile",
+            REPO_ROOT / "config" / "shell" / "bash" / "bash_profile",
+        )
+
+    def test_install_creates_git_symlinks_from_generated_stow_package(
+        self, tmp_path: Path
+    ) -> None:
+        """Git の単純 symlink は install 時生成 package 経由で配置される"""
+        home = tmp_path / "home"
+        home.mkdir()
+        result = _run_install_sh(REPO_ROOT, home)
+
+        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+        _assert_generated_stow_link(
+            home / ".git-completion.bash",
+            REPO_ROOT / ".stow-work" / "git" / ".git-completion.bash",
+            REPO_ROOT / "config" / "git" / ".git-completion.bash",
+        )
+        _assert_generated_stow_link(
+            home / ".config" / "git" / "attributes",
+            REPO_ROOT / ".stow-work" / "git" / ".config" / "git" / "attributes",
+            REPO_ROOT / "config" / "git" / ".gitattributes",
+        )
+
+    def test_install_creates_gitconfig_file_and_variant_symlink(
+        self, tmp_path: Path
+    ) -> None:
+        """gitconfig common は実体ファイル、variant は stow link で配置される"""
+        home = tmp_path / "home"
+        home.mkdir()
+        result = _run_install_sh(REPO_ROOT, home)
+
+        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+        common = home / ".gitconfig.common"
+        assert common.is_file()
+        assert not common.is_symlink()
+        assert common.read_text() == (
+            REPO_ROOT / "config" / "git" / ".gitconfig.common"
+        ).read_text()
+        _assert_generated_stow_link(
+            home / ".gitconfig",
+            REPO_ROOT / ".stow-work" / "gitconfig" / ".gitconfig",
+            REPO_ROOT / "config" / "git" / ".gitconfig.work",
+        )
+
+    def test_install_creates_vim_symlink_from_stow_package(
+        self, tmp_path: Path
+    ) -> None:
+        """Vim 設定は install 時生成 package 経由で ~/.vimrc に配置される"""
+        home = tmp_path / "home"
+        home.mkdir()
+        result = _run_install_sh(REPO_ROOT, home)
+        vimrc = home / ".vimrc"
+
+        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+        generated = REPO_ROOT / ".stow-work" / "vim" / ".vimrc"
+        assert generated.is_symlink()
+        assert generated.resolve() == REPO_ROOT / "config" / "vim" / ".vimrc"
+        assert vimrc.is_symlink()
+        assert _symlink_target_path(vimrc) == generated
+
+    def test_install_adopts_legacy_vim_symlink_to_stow_package(
+        self, tmp_path: Path
+    ) -> None:
+        """旧 Vim 直リンクは install 時生成 package のリンクへ張り替える"""
+        home = tmp_path / "home"
+        home.mkdir()
+        vimrc = home / ".vimrc"
+        vimrc.symlink_to(REPO_ROOT / "config" / "vim" / ".vimrc")
+
+        result = _run_install_sh(REPO_ROOT, home)
+
+        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+        assert vimrc.is_symlink()
+        assert _symlink_target_path(vimrc) == REPO_ROOT / ".stow-work" / "vim" / ".vimrc"
+
+    def test_install_creates_bin_symlinks_from_generated_stow_package(
+        self, tmp_path: Path
+    ) -> None:
+        """bin/ 配下の CLI は install 時生成 package 経由で配置される"""
+        home = tmp_path / "home"
+        home.mkdir()
+        result = _run_install_sh(REPO_ROOT, home)
+
+        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+        _assert_generated_stow_link(
+            home / ".local" / "bin" / "git-new-feature",
+            REPO_ROOT / ".stow-work" / "bin" / ".local" / "bin" / "git-new-feature",
+            REPO_ROOT / "bin" / "git-new-feature",
+        )
 
     def test_uninstall_succeeds(self, tmp_path: Path) -> None:
         """install → uninstall が正常終了する"""
@@ -244,18 +760,32 @@ class TestIntegrationInstallUninstall:
             REPO_ROOT / "common" / "hooks" / "destructive-command-block.sh"
         )
         assert (claude_dir / "settings.json").is_symlink()
+        assert _symlink_target_path(claude_dir / "settings.json") == (
+            REPO_ROOT / ".stow-work" / "claude" / ".claude" / "settings.json"
+        )
         assert (claude_dir / "CLAUDE.md").is_symlink()
+        assert _symlink_target_path(claude_dir / "CLAUDE.md") == (
+            REPO_ROOT / ".stow-work" / "claude" / ".claude" / "CLAUDE.md"
+        )
         assert (claude_dir / "rules" / "natural-japanese.md").is_symlink()
         checklist = (
             claude_dir / "skills" / "qa-nightmare" / "checklists" / "auth-bypass.md"
         )
-        assert checklist.is_symlink()
-        assert checklist.resolve() == (
-            REPO_ROOT / "common" / "qa-nightmare" / "checklists" / "auth-bypass.md"
+        _assert_generated_stow_link(
+            checklist,
+            REPO_ROOT
+            / ".stow-work"
+            / "claude"
+            / ".claude"
+            / "skills"
+            / "qa-nightmare"
+            / "checklists"
+            / "auth-bypass.md",
+            REPO_ROOT / "common" / "qa-nightmare" / "checklists" / "auth-bypass.md",
         )
 
     def test_install_creates_codex_symlinks(self, tmp_path: Path) -> None:
-        """install 後に ~/.codex/ 配下にCodex設定とリンクが作られる"""
+        """install 後に ~/.codex/ 配下に stow 管理リンクが作られる"""
         home = tmp_path / "home"
         home.mkdir()
         result = _run_install_sh(REPO_ROOT, home)
@@ -264,18 +794,21 @@ class TestIntegrationInstallUninstall:
         codex_dir = home / ".codex"
         assert codex_dir.is_dir()
 
-        assert (codex_dir / "AGENTS.md").is_symlink()
-        assert (codex_dir / "AGENTS.md").resolve() == REPO_ROOT / "codex" / "global_AGENTS.md"
-        assert (codex_dir / "SUBAGENTS.md").is_symlink()
-        assert (codex_dir / "SUBAGENTS.md").resolve() == REPO_ROOT / "codex" / "SUBAGENTS.md"
-        assert (codex_dir / "agents" / "code_reviewer.toml").is_symlink()
-        checklist = (
-            codex_dir / "agents" / "qa-nightmare" / "checklists" / "auth-bypass.md"
-        )
-        assert checklist.is_symlink()
-        assert checklist.resolve() == (
-            REPO_ROOT / "common" / "qa-nightmare" / "checklists" / "auth-bypass.md"
-        )
+        _assert_codex_core_links(codex_dir)
+        _assert_codex_bin_links(codex_dir)
+        _assert_codex_common_links(codex_dir)
+        _assert_codex_rule_links(codex_dir)
+
+    def test_install_creates_codex_config_and_excludes_non_targets(
+        self, tmp_path: Path
+    ) -> None:
+        """Codex config は通常ファイル生成し、除外対象は配置しない"""
+        home = tmp_path / "home"
+        home.mkdir()
+        result = _run_install_sh(REPO_ROOT, home)
+        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+
+        codex_dir = home / ".codex"
         config_toml = codex_dir / "config.toml"
         assert config_toml.is_file()
         assert not config_toml.is_symlink()
@@ -283,19 +816,11 @@ class TestIntegrationInstallUninstall:
             REPO_ROOT / "codex" / "config.toml.template"
         ).read_text(encoding="utf-8")
         assert not (codex_dir / "hooks.json").exists()
-        assert (codex_dir / "hooks").is_dir()
-        destructive_hook = codex_dir / "hooks" / "destructive-command-block.sh"
-        assert destructive_hook.is_symlink()
-        assert destructive_hook.resolve() == (
-            REPO_ROOT / "common" / "hooks" / "destructive-command-block.sh"
-        )
         assert not (codex_dir / "README.md").exists()
         assert not (codex_dir / "settings.json").exists()
         assert not (codex_dir / "skills" / "tdd" / "SKILL.md").exists()
         assert not (codex_dir / "skills" / "natural-japanese" / "SKILL.md").exists()
         assert not (home / ".agents" / "skills" / "tdd" / "SKILL.md").exists()
-        assert (codex_dir / "rules" / "coding-conventions.md").is_symlink()
-        assert (codex_dir / "rules" / "natural-japanese.md").is_symlink()
 
     def test_install_preserves_existing_codex_config(self, tmp_path: Path) -> None:
         """既存 ~/.codex/config.toml は install で上書きされない"""
@@ -518,6 +1043,9 @@ def _setup_dotfiles_repo(tmp_path: Path) -> Path:
     import shutil
 
     shutil.copy2(INSTALL_SH, dotfiles / "install.sh")
+    scripts_dir = dotfiles / "scripts"
+    scripts_dir.mkdir()
+    shutil.copy2(STOW_INSTALL_SH, scripts_dir / "stow-install.sh")
 
     # git 初期化 + コミット
     subprocess.run(["git", "init", str(dotfiles)], check=True, capture_output=True)
@@ -1166,6 +1694,27 @@ class TestGitInstall:
         # variant (.gitignore.work / .private) が結合されていること
         assert ("**/.codex/" in content) or ("Private-specific" in content)
 
+    def test_install_preserves_existing_gitignore_backup(
+        self, tmp_path: Path
+    ) -> None:
+        """既存 ~/.config/git/ignore.bak は install 時に上書きしない"""
+        home = tmp_path / "home"
+        home_git = home / ".config" / "git"
+        home_git.mkdir(parents=True)
+        ignore = home_git / "ignore"
+        backup = home_git / "ignore.bak"
+        ignore.write_text("current local ignore\n", encoding="utf-8")
+        backup.write_text("previous backup\n", encoding="utf-8")
+
+        result = _run_install_sh(REPO_ROOT, home)
+
+        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+        assert backup.read_text(encoding="utf-8") == "previous backup\n"
+        assert (home_git / "ignore.bak.1").read_text(encoding="utf-8") == (
+            "current local ignore\n"
+        )
+        assert ".DS_Store" in ignore.read_text(encoding="utf-8")
+
     def test_install_creates_xdg_gitattributes_symlink(self, tmp_path: Path) -> None:
         """install 後 ~/.config/git/attributes が repo の .gitattributes へのリンク"""
         home = tmp_path / "home"
@@ -1200,8 +1749,11 @@ class TestGitInstall:
         legacy_attr.symlink_to(REPO_ROOT / "config" / "git" / ".gitattributes")
         legacy_global = home / ".gitignore_global"
         legacy_global.symlink_to(REPO_ROOT / "config" / "git" / ".gitignore.common")
+        legacy_common = home / ".gitignore.common"
+        legacy_common.symlink_to(REPO_ROOT / "config" / "git" / ".gitignore.common")
 
         _run_install_sh(REPO_ROOT, home)
 
         assert not legacy_attr.is_symlink(), "ドット付き旧 gitattributes リンクが残存"
         assert not legacy_global.is_symlink(), "旧 gitignore_global リンクが残存"
+        assert not legacy_common.is_symlink(), "旧 gitignore.common リンクが残存"

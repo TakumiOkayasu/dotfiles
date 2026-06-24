@@ -115,7 +115,7 @@ print_info()    { printf "${COLOR_BLUE}→${COLOR_RESET} %s\n" "$1"; }
 print_header()  { printf "\n${COLOR_BOLD}${COLOR_CYAN}%s${COLOR_RESET}\n" "$1"; }
 
 check_requirements() {
-    for cmd in git ln mkdir rm mv cp; do
+    for cmd in git ln mkdir rm mv cp cmp; do
         command -v "$cmd" >/dev/null 2>&1 || die "必須コマンドが見つかりません: $cmd"
     done
 }
@@ -144,6 +144,254 @@ ensure_dir() {
         return 1
     fi
     return 0
+}
+
+absolute_path_without_following_leaf() {
+    _path="$1"
+    _base="$2"
+
+    case "$_path" in
+        /*) _abs_path="$_path" ;;
+        *)  _abs_path="${_base}/$_path" ;;
+    esac
+
+    _abs_dir=$(cd -P "$(dirname "$_abs_path")" 2>/dev/null && pwd -P) || {
+        printf '%s\n' "$_abs_path"
+        return 0
+    }
+    printf '%s/%s\n' "$_abs_dir" "$(basename "$_abs_path")"
+}
+
+link_points_to_repo_entry() {
+    _link="$1"
+    _repo_entry="$2"
+
+    [ -L "$_link" ] || return 1
+    _link_target=$(readlink "$_link" 2>/dev/null) || return 1
+    _link_target=$(absolute_path_without_following_leaf "$_link_target" "$(dirname "$_link")")
+    _expected_target=$(absolute_path_without_following_leaf "$_repo_entry" "$DOTFILES_DIR")
+    [ "$_link_target" = "$_expected_target" ]
+}
+
+next_backup_path() {
+    _target="$1"
+    _backup="${_target}.bak"
+
+    if [ ! -e "$_backup" ] && [ ! -L "$_backup" ]; then
+        printf '%s\n' "$_backup"
+        return 0
+    fi
+
+    _index=1
+    while :; do
+        _backup="${_target}.bak.${_index}"
+        if [ ! -e "$_backup" ] && [ ! -L "$_backup" ]; then
+            printf '%s\n' "$_backup"
+            return 0
+        fi
+        _index=$((_index + 1))
+    done
+}
+
+prepare_stow_target() {
+    _dest="$1"
+    _package="$2"
+    _stow_entry="$3"
+
+    [ -e "$_dest" ] || [ -L "$_dest" ] || return 0
+    link_points_to_repo_entry "$_dest" "$_stow_entry" && return 0
+
+    if [ "$MODE_DRY_RUN" = "true" ]; then
+        if [ -L "$_dest" ]; then
+            print_info "[ドライラン] 既存リンク削除: $_dest"
+        else
+            _backup=$(next_backup_path "$_dest")
+            print_info "[ドライラン] バックアップ: $_dest -> $_backup"
+            COUNT_BACKUP=$((COUNT_BACKUP + 1))
+        fi
+        print_info "[ドライラン] stow package 作成: $_package"
+        COUNT_CREATED=$((COUNT_CREATED + 1))
+        return 2
+    fi
+
+    if [ -L "$_dest" ]; then
+        if rm "$_dest" 2>/dev/null; then
+            print_info "既存リンク削除: $_dest"
+        else
+            print_error "既存リンク削除失敗: $_dest"
+            COUNT_ERROR=$((COUNT_ERROR + 1))
+            return 1
+        fi
+    elif [ -e "$_dest" ]; then
+        _backup=$(next_backup_path "$_dest")
+        print_info "バックアップ: $_dest -> $_backup"
+        if ! mv "$_dest" "$_backup" 2>/dev/null; then
+            print_error "バックアップ失敗: $_dest"
+            COUNT_ERROR=$((COUNT_ERROR + 1))
+            return 1
+        fi
+        COUNT_BACKUP=$((COUNT_BACKUP + 1))
+    fi
+
+    return 0
+}
+
+new_stow_specs_file() {
+    _stow_specs_file=$(mktemp)
+    _TMPFILES="$_TMPFILES $_stow_specs_file"
+}
+
+home_relative_path() {
+    case "$1" in
+        "$HOME"/*)
+            printf '%s\n' "${1#"$HOME"/}"
+            ;;
+        *)
+            print_error "stow target は HOME 配下に限ります: $1"
+            COUNT_ERROR=$((COUNT_ERROR + 1))
+            return 1
+            ;;
+    esac
+}
+
+stow_specs_add() {
+    _spec_file="$1"
+    _source="$2"
+    _dest="$3"
+
+    if [ ! -e "${DOTFILES_DIR}/${_source}" ] && [ ! -L "${DOTFILES_DIR}/${_source}" ]; then
+        print_skip "スキップ: ${DOTFILES_DIR}/${_source} (ファイルが存在しません)"
+        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+        return 0
+    fi
+
+    printf '%s:%s\n' "$_source" "$_dest" >> "$_spec_file"
+}
+
+stow_specs_add_dest() {
+    _spec_file="$1"
+    _source="$2"
+    _dest="$3"
+    _dest_rel=$(home_relative_path "$_dest") || return 1
+    stow_specs_add "$_spec_file" "$_source" "$_dest_rel"
+}
+
+prepare_stow_targets_from_file() {
+    _package="$1"
+    _spec_file="$2"
+    _prepare_status=0
+
+    while IFS= read -r _spec; do
+        [ -z "$_spec" ] && continue
+        _dest="${_spec#*:}"
+        if prepare_stow_target "${HOME}/${_dest}" "$_package" ".stow-work/${_package}/${_dest}"; then
+            continue
+        fi
+
+        _status=$?
+        if [ "$_status" -eq 2 ]; then
+            _prepare_status=2
+            continue
+        fi
+        return "$_status"
+    done < "$_spec_file"
+
+    return "$_prepare_status"
+}
+
+run_stow_link_specs_file() {
+    _package="$1"
+    _mode="$2"
+    _spec_file="$3"
+    _script="${DOTFILES_DIR}/scripts/stow-install.sh"
+
+    [ -s "$_spec_file" ] || return 0
+
+    case "$_mode" in
+        install|uninstall) ;;
+        *)
+            print_error "不明な stow mode: $_mode"
+            COUNT_ERROR=$((COUNT_ERROR + 1))
+            return 1
+            ;;
+    esac
+
+    if [ ! -x "$_script" ]; then
+        print_error "stow install script が見つからないか実行できません: $_script"
+        COUNT_ERROR=$((COUNT_ERROR + 1))
+        return 1
+    fi
+
+    set -- --repo "$DOTFILES_DIR" --target "$HOME" --package "$_package"
+    while IFS= read -r _spec; do
+        [ -z "$_spec" ] && continue
+        if [ "$MODE_DRY_RUN" = "true" ]; then
+            _source="${_spec%%:*}"
+            _dest="${_spec#*:}"
+            print_info "[ドライラン] stow link: ${HOME}/${_dest} <- ${DOTFILES_DIR}/${_source}"
+        fi
+        set -- "$@" --link "$_spec"
+    done < "$_spec_file"
+    [ "$MODE_DRY_RUN" = "true" ] && set -- "$@" --dry-run
+    [ "$_mode" = "uninstall" ] && set -- "$@" --uninstall
+
+    if "$_script" "$@"; then
+        if [ "$_mode" = "uninstall" ]; then
+            if [ "$MODE_DRY_RUN" = "true" ]; then
+                print_info "[ドライラン] stow package 削除: $_package"
+            else
+                print_success "stow package 削除: $_package"
+                COUNT_REMOVED=$((COUNT_REMOVED + 1))
+            fi
+        else
+            if [ "$MODE_DRY_RUN" = "true" ]; then
+                print_info "[ドライラン] stow package 作成: $_package"
+            else
+                print_success "stow package 作成: $_package"
+            fi
+            COUNT_CREATED=$((COUNT_CREATED + 1))
+        fi
+    else
+        _status=$?
+        print_error "stow package 処理失敗: $_package"
+        COUNT_ERROR=$((COUNT_ERROR + 1))
+        return "$_status"
+    fi
+}
+
+install_stow_specs_file() {
+    _package="$1"
+    _spec_file="$2"
+
+    [ -s "$_spec_file" ] || return 0
+
+    if prepare_stow_targets_from_file "$_package" "$_spec_file"; then
+        run_stow_link_specs_file "$_package" install "$_spec_file"
+    else
+        _status=$?
+        [ "$_status" -eq 2 ] && return 0
+        return "$_status"
+    fi
+}
+
+uninstall_stow_specs_file() {
+    _package="$1"
+    _spec_file="$2"
+
+    [ -s "$_spec_file" ] || return 0
+    run_stow_link_specs_file "$_package" uninstall "$_spec_file"
+}
+
+run_stow_link() {
+    _package="$1"
+    _source="$2"
+    _dest="$3"
+    _mode="${4:-install}"
+
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
+    stow_specs_add "$_spec_file" "$_source" "$_dest"
+    run_stow_link_specs_file "$_package" "$_mode" "$_spec_file"
 }
 
 detect_platform() {
@@ -181,55 +429,6 @@ get_shell_rc_display() {
 # ============================================================================
 # Link Primitives
 # ============================================================================
-
-create_link() {
-    _src="${DOTFILES_DIR}/$1"
-    _dest="$2"
-
-    if [ ! -e "$_src" ]; then
-        print_skip "スキップ: $_src (ファイルが存在しません)"
-        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
-        return 0
-    fi
-
-    if [ "$MODE_DRY_RUN" = "true" ]; then
-        print_info "[ドライラン] 作成: $_dest -> $_src"
-        COUNT_CREATED=$((COUNT_CREATED + 1))
-        if [ -e "$_dest" ] && [ ! -L "$_dest" ]; then
-            print_info "[ドライラン] バックアップ: $_dest -> ${_dest}.bak"
-            COUNT_BACKUP=$((COUNT_BACKUP + 1))
-        fi
-        return 0
-    fi
-
-    ensure_dir "$(dirname "$_dest")" || return 1
-
-    if [ -L "$_dest" ]; then
-        if ! rm "$_dest" 2>/dev/null; then
-            print_error "既存リンク削除失敗: $_dest"
-            COUNT_ERROR=$((COUNT_ERROR + 1))
-            return 1
-        fi
-    elif [ -e "$_dest" ]; then
-        print_info "バックアップ: $_dest -> ${_dest}.bak"
-        if ! mv "$_dest" "${_dest}.bak" 2>/dev/null; then
-            print_error "バックアップ失敗: $_dest"
-            COUNT_ERROR=$((COUNT_ERROR + 1))
-            return 1
-        fi
-        COUNT_BACKUP=$((COUNT_BACKUP + 1))
-    fi
-
-    if ln -s "$_src" "$_dest" 2>/dev/null; then
-        print_success "作成: $_dest"
-        echo "         -> $_src"
-        COUNT_CREATED=$((COUNT_CREATED + 1))
-    else
-        print_error "リンク作成失敗: $_dest"
-        COUNT_ERROR=$((COUNT_ERROR + 1))
-        return 1
-    fi
-}
 
 remove_link() {
     _src="${DOTFILES_DIR}/$1"
@@ -418,16 +617,25 @@ _remove_codex_skill_dir_if_all_dotfiles_links() {
 install_git_files() {
     cleanup_legacy_git_artifacts
 
-    create_link "config/git/.git-completion.bash" "${HOME}/.git-completion.bash"
-    create_link "config/git/.git-prompt.sh"        "${HOME}/.git-prompt.sh"
-
-    ensure_dir "${HOME}/.config/git"
-    create_link "config/git/.git-prompt.sh"   "${HOME}/.config/git/.git-prompt.sh"
-    create_link "config/git/.gitattributes"   "${HOME}/.config/git/attributes"
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
+    stow_specs_add "$_spec_file" "config/git/.git-completion.bash" ".git-completion.bash"
+    stow_specs_add "$_spec_file" "config/git/.git-prompt.sh" ".git-prompt.sh"
+    stow_specs_add "$_spec_file" "config/git/.git-prompt.sh" ".config/git/.git-prompt.sh"
+    stow_specs_add "$_spec_file" "config/git/.gitattributes" ".config/git/attributes"
+    install_stow_specs_file "git" "$_spec_file"
 }
 
 uninstall_git_files() {
     cleanup_legacy_git_artifacts
+
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
+    stow_specs_add "$_spec_file" "config/git/.git-completion.bash" ".git-completion.bash"
+    stow_specs_add "$_spec_file" "config/git/.git-prompt.sh" ".git-prompt.sh"
+    stow_specs_add "$_spec_file" "config/git/.git-prompt.sh" ".config/git/.git-prompt.sh"
+    stow_specs_add "$_spec_file" "config/git/.gitattributes" ".config/git/attributes"
+    uninstall_stow_specs_file "git" "$_spec_file"
 
     remove_link "config/git/.git-completion.bash" "${HOME}/.git-completion.bash"
     remove_link "config/git/.git-prompt.sh"        "${HOME}/.git-prompt.sh"
@@ -440,6 +648,7 @@ uninstall_git_files() {
 # 判定不能な実体 ~/.gitignore は誤削除を避け手動削除を案内する。
 cleanup_legacy_git_artifacts() {
     remove_dotfiles_link "${HOME}/.gitignore_global"        "旧gitignore_globalリンク"
+    remove_dotfiles_link "${HOME}/.gitignore.common"        "旧gitignore.commonリンク"
     remove_dotfiles_link "${HOME}/.config/git/.gitattributes" "旧gitattributesリンク (ドット付き)"
 
     _legacy_ignore="${HOME}/.gitignore"
@@ -464,6 +673,7 @@ install_gitignore() {
 
     _gitignore_validate_variant "$_variant" || return 1
     ensure_dir "${HOME}/.config/git" || return 1
+    _gitignore_target_matches_merged "$_base" "$_variant" "$_target" && return 0
     _gitignore_backup_existing "$_target"
     _gitignore_merge_and_write "$_base" "$_variant" "$_target"
 }
@@ -474,6 +684,19 @@ _gitignore_validate_variant() {
     return 1
 }
 
+_gitignore_target_matches_merged() {
+    _base="$1"
+    _variant="$2"
+    _target="$3"
+
+    [ -f "$_target" ] && [ ! -L "$_target" ] || return 1
+
+    _merged=$(mktemp)
+    _TMPFILES="$_TMPFILES $_merged"
+    cat "$_base" "$_variant" > "$_merged"
+    cmp -s "$_merged" "$_target"
+}
+
 _gitignore_backup_existing() {
     _target="$1"
     [ -f "$_target" ] || [ -L "$_target" ] || return 0
@@ -481,14 +704,58 @@ _gitignore_backup_existing() {
     if [ -L "$_target" ]; then
         rm "$_target"
     else
-        mv "$_target" "${_target}.bak"
-        printf "%s[BACKUP]%s %s -> %s.bak\n" "$COLOR_YELLOW" "$COLOR_RESET" "$_target" "$_target"
+        _backup=$(next_backup_path "$_target")
+        mv "$_target" "$_backup"
+        printf "%s[BACKUP]%s %s -> %s\n" "$COLOR_YELLOW" "$COLOR_RESET" "$_target" "$_backup"
     fi
 }
 
 _gitignore_merge_and_write() {
     cat "$1" "$2" > "$3"
     printf "%s[CREATE]%s %s (base + %s)\n" "$COLOR_GREEN" "$COLOR_RESET" "$3" "$GITCONFIG_VARIANT"
+}
+
+install_gitconfig_common() {
+    _target="${HOME}/.gitconfig.common"
+    _source="${DOTFILES_DIR}/config/git/.gitconfig.common"
+
+    if [ "$MODE_DRY_RUN" = "true" ]; then
+        printf "%s[DRY-RUN]%s Would create: %s (copy)\n" "$COLOR_YELLOW" "$COLOR_RESET" "$_target"
+        return 0
+    fi
+
+    ensure_dir "$(dirname "$_target")" || return 1
+    if [ -f "$_target" ] && [ ! -L "$_target" ] && cmp -s "$_source" "$_target"; then
+        return 0
+    fi
+
+    if [ -L "$_target" ]; then
+        rm "$_target"
+    elif [ -e "$_target" ]; then
+        _backup=$(next_backup_path "$_target")
+        mv "$_target" "$_backup"
+        printf "%s[BACKUP]%s %s -> %s\n" "$COLOR_YELLOW" "$COLOR_RESET" "$_target" "$_backup"
+    fi
+
+    cp "$_source" "$_target"
+    printf "%s[CREATE]%s %s (copy)\n" "$COLOR_GREEN" "$COLOR_RESET" "$_target"
+}
+
+uninstall_gitconfig_common() {
+    _target="${HOME}/.gitconfig.common"
+    _source="${DOTFILES_DIR}/config/git/.gitconfig.common"
+
+    if [ -f "$_target" ] && [ ! -L "$_target" ] && cmp -s "$_source" "$_target"; then
+        rm "$_target"
+        printf "%s[REMOVE]%s %s\n" "$COLOR_RED" "$COLOR_RESET" "$_target"
+    else
+        remove_link "config/git/.gitconfig.common" "$_target"
+    fi
+
+    if [ -f "${_target}.bak" ]; then
+        mv "${_target}.bak" "$_target"
+        printf "%s[RESTORE]%s %s.bak -> %s\n" "$COLOR_GREEN" "$COLOR_RESET" "$_target" "$_target"
+    fi
 }
 
 uninstall_gitignore() {
@@ -530,12 +797,22 @@ select_gitconfig_variant() {
 
 install_gitconfig() {
     [ -z "$GITCONFIG_VARIANT" ] && return 0
-    create_link "config/git/.gitconfig.common"                "${HOME}/.gitconfig.common"
-    create_link "config/git/.gitconfig.${GITCONFIG_VARIANT}"  "${HOME}/.gitconfig"
+    install_gitconfig_common || return 1
+
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
+    stow_specs_add "$_spec_file" "config/git/.gitconfig.${GITCONFIG_VARIANT}" ".gitconfig"
+    install_stow_specs_file "gitconfig" "$_spec_file"
 }
 
 uninstall_gitconfig() {
-    remove_link "config/git/.gitconfig.common" "${HOME}/.gitconfig.common"
+    _variant="${GITCONFIG_VARIANT:-work}"
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
+    stow_specs_add "$_spec_file" "config/git/.gitconfig.${_variant}" ".gitconfig"
+    uninstall_stow_specs_file "gitconfig" "$_spec_file"
+
+    uninstall_gitconfig_common
     _target=$(readlink "${HOME}/.gitconfig" 2>/dev/null) || true
     case "$_target" in
         */.gitconfig.work)    remove_link "config/git/.gitconfig.work"    "${HOME}/.gitconfig" ;;
@@ -547,8 +824,31 @@ uninstall_gitconfig() {
 # Vim
 # ============================================================================
 
-install_vim_files()   { create_link "config/vim/.vimrc" "${HOME}/.vimrc"; }
-uninstall_vim_files() { remove_link "config/vim/.vimrc" "${HOME}/.vimrc"; }
+install_vim_files() {
+    if prepare_stow_target "${HOME}/.vimrc" "vim" ".stow-work/vim/.vimrc"; then
+        run_stow_link "vim" "config/vim/.vimrc" ".vimrc"
+    else
+        _status=$?
+        [ "$_status" -eq 2 ] && return 0
+        return "$_status"
+    fi
+}
+
+uninstall_vim_files() {
+    _dest="${HOME}/.vimrc"
+    [ -e "$_dest" ] || [ -L "$_dest" ] || return 0
+
+    if link_points_to_repo_entry "$_dest" "config/vim/.vimrc"; then
+        remove_link "config/vim/.vimrc" "$_dest"
+    elif link_points_to_repo_entry "$_dest" "stow/vim/.vimrc"; then
+        remove_link "stow/vim/.vimrc" "$_dest"
+    elif link_points_to_repo_entry "$_dest" ".stow-work/vim/.vimrc"; then
+        run_stow_link "vim" "config/vim/.vimrc" ".vimrc" "uninstall"
+    else
+        print_skip "スキップ: $_dest (別の場所を指しています)"
+        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+    fi
+}
 
 # ============================================================================
 # Shell
@@ -618,26 +918,48 @@ install_shell_config() {
 }
 
 install_shell_full() {
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
+
     case "$SHELL_TYPE" in
         bash)
-            create_link "config/shell/bash/bashrc"        "${HOME}/.bashrc"
-            create_link "config/shell/bash/bash_profile"  "${HOME}/.bash_profile"
+            add_shell_full_stow_specs "$_spec_file" bash
             ;;
         zsh)
-            create_link "config/shell/zsh/zshrc"     "${HOME}/.zshrc"
-            create_link "config/shell/zsh/zprofile"  "${HOME}/.zprofile"
+            add_shell_full_stow_specs "$_spec_file" zsh
             ;;
         fish)
-            ensure_dir "${HOME}/.config/fish"
-            create_link "config/shell/fish/config.fish" "${HOME}/.config/fish/config.fish"
+            add_shell_full_stow_specs "$_spec_file" fish
             ;;
         all)
-            create_link "config/shell/bash/bashrc"        "${HOME}/.bashrc"
-            create_link "config/shell/bash/bash_profile"  "${HOME}/.bash_profile"
-            create_link "config/shell/zsh/zshrc"          "${HOME}/.zshrc"
-            create_link "config/shell/zsh/zprofile"       "${HOME}/.zprofile"
-            ensure_dir "${HOME}/.config/fish"
-            create_link "config/shell/fish/config.fish"   "${HOME}/.config/fish/config.fish"
+            add_shell_full_stow_specs "$_spec_file" all
+            ;;
+    esac
+
+    install_stow_specs_file "shell" "$_spec_file"
+}
+
+add_shell_full_stow_specs() {
+    _spec_file="$1"
+    _shell="$2"
+
+    case "$_shell" in
+        bash|all)
+            stow_specs_add "$_spec_file" "config/shell/bash/bashrc" ".bashrc"
+            stow_specs_add "$_spec_file" "config/shell/bash/bash_profile" ".bash_profile"
+            ;;
+    esac
+
+    case "$_shell" in
+        zsh|all)
+            stow_specs_add "$_spec_file" "config/shell/zsh/zshrc" ".zshrc"
+            stow_specs_add "$_spec_file" "config/shell/zsh/zprofile" ".zprofile"
+            ;;
+    esac
+
+    case "$_shell" in
+        fish|all)
+            stow_specs_add "$_spec_file" "config/shell/fish/config.fish" ".config/fish/config.fish"
             ;;
     esac
 }
@@ -717,7 +1039,10 @@ remove_source_block() {
 }
 
 install_shell_append() {
-    create_link "config/shell/common.sh" "${HOME}/.shell_common"
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
+    stow_specs_add "$_spec_file" "config/shell/common.sh" ".shell_common"
+    install_stow_specs_file "shell-common" "$_spec_file"
 
     case "$SHELL_TYPE" in
         bash) inject_source_block "${HOME}/.bashrc" ;;
@@ -737,6 +1062,16 @@ install_shell_append() {
 
 uninstall_shell_config() {
     print_header "シェル設定をアンインストール"
+
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
+    add_shell_full_stow_specs "$_spec_file" all
+    uninstall_stow_specs_file "shell" "$_spec_file"
+
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
+    stow_specs_add "$_spec_file" "config/shell/common.sh" ".shell_common"
+    uninstall_stow_specs_file "shell-common" "$_spec_file"
 
     remove_link "config/shell/bash/bashrc"       "${HOME}/.bashrc"
     remove_link "config/shell/bash/bash_profile" "${HOME}/.bash_profile"
@@ -758,16 +1093,30 @@ install_bin_files() {
     [ "$BIN_SELECTED" != "true" ] && return 0
     print_header "CLIツールをインストール"
 
-    ensure_dir "${HOME}/.local/bin"
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
 
     for _bin_file in "$DOTFILES_DIR"/bin/*; do
         [ -f "$_bin_file" ] || continue
         _name=$(basename "$_bin_file")
-        create_link "bin/$_name" "${HOME}/.local/bin/$_name"
+        stow_specs_add "$_spec_file" "bin/$_name" ".local/bin/$_name"
     done
+
+    install_stow_specs_file "bin" "$_spec_file"
 }
 
 uninstall_bin_files() {
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
+
+    for _bin_file in "$DOTFILES_DIR"/bin/*; do
+        [ -f "$_bin_file" ] || continue
+        _name=$(basename "$_bin_file")
+        stow_specs_add "$_spec_file" "bin/$_name" ".local/bin/$_name"
+    done
+
+    uninstall_stow_specs_file "bin" "$_spec_file"
+
     for _bin_file in "$DOTFILES_DIR"/bin/*; do
         [ -f "$_bin_file" ] || continue
         _name=$(basename "$_bin_file")
@@ -779,26 +1128,14 @@ uninstall_bin_files() {
 # Common shared assets
 # ============================================================================
 
-link_common_hooks() {
-    _dest_dir="$1"
+add_common_hooks_stow_specs() {
+    _spec_file="$1"
+    _dest_prefix="$2"
 
     for _file_path in "$DOTFILES_DIR"/"$COMMON_HOOKS"/*.sh; do
         [ -f "$_file_path" ] || continue
         _relative=$(basename "$_file_path")
-        _dest="${_dest_dir}/${_relative}"
-        ensure_dir "$(dirname "$_dest")"
-        create_link "${COMMON_HOOKS}/${_relative}" "$_dest"
-    done
-}
-
-unlink_common_hooks() {
-    _dest_dir="$1"
-
-    for _file_path in "$DOTFILES_DIR"/"$COMMON_HOOKS"/*.sh; do
-        [ -f "$_file_path" ] || continue
-        _relative=$(basename "$_file_path")
-        _dest="${_dest_dir}/${_relative}"
-        remove_link "${COMMON_HOOKS}/${_relative}" "$_dest"
+        stow_specs_add "$_spec_file" "${COMMON_HOOKS}/${_relative}" "${_dest_prefix}/${_relative}"
     done
 }
 
@@ -814,26 +1151,14 @@ remove_legacy_common_hook_links() {
     done
 }
 
-link_common_qa_nightmare_checklists() {
-    _dest_dir="$1"
+add_common_qa_nightmare_checklists_stow_specs() {
+    _spec_file="$1"
+    _dest_prefix="$2"
 
     for _file_path in "$DOTFILES_DIR"/"$COMMON_QA_NIGHTMARE_CHECKLISTS"/*.md; do
         [ -f "$_file_path" ] || continue
         _relative=$(basename "$_file_path")
-        _dest="${_dest_dir}/${_relative}"
-        ensure_dir "$(dirname "$_dest")"
-        create_link "${COMMON_QA_NIGHTMARE_CHECKLISTS}/${_relative}" "$_dest"
-    done
-}
-
-unlink_common_qa_nightmare_checklists() {
-    _dest_dir="$1"
-
-    for _file_path in "$DOTFILES_DIR"/"$COMMON_QA_NIGHTMARE_CHECKLISTS"/*.md; do
-        [ -f "$_file_path" ] || continue
-        _relative=$(basename "$_file_path")
-        _dest="${_dest_dir}/${_relative}"
-        remove_link "${COMMON_QA_NIGHTMARE_CHECKLISTS}/${_relative}" "$_dest"
+        stow_specs_add "$_spec_file" "${COMMON_QA_NIGHTMARE_CHECKLISTS}/${_relative}" "${_dest_prefix}/${_relative}"
     done
 }
 
@@ -857,9 +1182,7 @@ install_claude_config() {
 
     _claude_ensure_directories
     _claude_cleanup_stale
-    _claude_link_managed_files
-    link_common_hooks "${HOME}/.claude/hooks"
-    link_common_qa_nightmare_checklists "${HOME}/.claude/skills/qa-nightmare/checklists"
+    _claude_install_stow_package
     _claude_setup_vendor_skills
 }
 
@@ -876,7 +1199,26 @@ _claude_cleanup_stale() {
     cleanup_stale_links_in "Claude" "${HOME}/.claude" commands hooks skills rules
 }
 
-_claude_link_managed_files() {
+_claude_install_stow_package() {
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
+    _claude_add_managed_stow_specs "$_spec_file"
+    add_common_hooks_stow_specs "$_spec_file" ".claude/hooks"
+    add_common_qa_nightmare_checklists_stow_specs "$_spec_file" ".claude/skills/qa-nightmare/checklists"
+    install_stow_specs_file "claude" "$_spec_file"
+}
+
+_claude_uninstall_stow_package() {
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
+    _claude_add_managed_stow_specs "$_spec_file"
+    add_common_hooks_stow_specs "$_spec_file" ".claude/hooks"
+    add_common_qa_nightmare_checklists_stow_specs "$_spec_file" ".claude/skills/qa-nightmare/checklists"
+    uninstall_stow_specs_file "claude" "$_spec_file"
+}
+
+_claude_add_managed_stow_specs() {
+    _spec_file="$1"
     [ -d "${DOTFILES_DIR}/claude" ] || return 0
 
     _filelist=$(mktemp)
@@ -891,9 +1233,7 @@ _claude_link_managed_files() {
         case "$_relative" in CLAUDE.md) continue ;; esac  # プロジェクトローカル用
 
         _relative=$(strip_global_prefix "$_relative")
-        _dest="${HOME}/.claude/${_relative}"
-        ensure_dir "$(dirname "$_dest")"
-        create_link "$_file" "$_dest"
+        stow_specs_add "$_spec_file" "$_file" ".claude/${_relative}"
     done < "$_filelist"
 
     rm -f "$_filelist"
@@ -952,10 +1292,9 @@ uninstall_claude_config() {
     print_header "Claude設定をアンインストール"
 
     _claude_cleanup_stale
+    _claude_uninstall_stow_package
     _claude_unlink_managed_files
-    unlink_common_hooks "${HOME}/.claude/hooks"
     remove_legacy_common_hook_links "${HOME}/.claude/hooks"
-    unlink_common_qa_nightmare_checklists "${HOME}/.claude/skills/qa-nightmare/checklists"
     remove_legacy_qa_nightmare_checklist_links "${HOME}/.claude/skills/qa-nightmare/checklists"
     _claude_unlink_vendor_skills
     _claude_prune_empty_dirs
@@ -1043,9 +1382,7 @@ install_codex_config() {
 
     _codex_ensure_directories
     _codex_cleanup_all
-    _codex_link_managed_files
-    link_common_hooks "${HOME}/.codex/hooks"
-    link_common_qa_nightmare_checklists "${HOME}/.codex/agents/qa-nightmare/checklists"
+    _codex_install_stow_package
     _codex_generate_config_from_template
     _codex_warn_legacy_hooks_json
     _codex_verify_hooks_feature
@@ -1067,7 +1404,26 @@ _codex_cleanup_all() {
     cleanup_stale_links_in "Codex skill" "${HOME}/.agents" skills
 }
 
-_codex_link_managed_files() {
+_codex_install_stow_package() {
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
+    _codex_add_managed_stow_specs "$_spec_file"
+    add_common_hooks_stow_specs "$_spec_file" ".codex/hooks"
+    add_common_qa_nightmare_checklists_stow_specs "$_spec_file" ".codex/agents/qa-nightmare/checklists"
+    install_stow_specs_file "codex" "$_spec_file"
+}
+
+_codex_uninstall_stow_package() {
+    new_stow_specs_file
+    _spec_file="$_stow_specs_file"
+    _codex_add_managed_stow_specs "$_spec_file"
+    add_common_hooks_stow_specs "$_spec_file" ".codex/hooks"
+    add_common_qa_nightmare_checklists_stow_specs "$_spec_file" ".codex/agents/qa-nightmare/checklists"
+    uninstall_stow_specs_file "codex" "$_spec_file"
+}
+
+_codex_add_managed_stow_specs() {
+    _spec_file="$1"
     [ -d "${DOTFILES_DIR}/codex" ] || return 0
 
     _filelist=$(mktemp)
@@ -1080,8 +1436,7 @@ _codex_link_managed_files() {
 
         _relative="${_file#codex/}"
         _dest=$(codex_dest_for_relative "$_relative") || continue
-        ensure_dir "$(dirname "$_dest")"
-        create_link "$_file" "$_dest"
+        stow_specs_add_dest "$_spec_file" "$_file" "$_dest"
     done < "$_filelist"
 
     rm -f "$_filelist"
@@ -1141,10 +1496,9 @@ uninstall_codex_config() {
     print_header "Codex設定をアンインストール"
 
     _codex_cleanup_all
+    _codex_uninstall_stow_package
     _codex_unlink_managed_files
-    unlink_common_hooks "${HOME}/.codex/hooks"
     remove_legacy_common_hook_links "${HOME}/.codex/hooks"
-    unlink_common_qa_nightmare_checklists "${HOME}/.codex/agents/qa-nightmare/checklists"
     remove_legacy_qa_nightmare_checklist_links "${HOME}/.codex/agents/qa-nightmare/checklists"
     _codex_prune_empty_dirs
 }
@@ -1382,7 +1736,7 @@ _preview_git() {
     printf "    + config/git/.git-prompt.sh -> ~/.git-prompt.sh\n"
     printf "    + config/git/.gitattributes -> ~/.config/git/attributes\n"
     if [ -n "$GITCONFIG_VARIANT" ]; then
-        printf "    + config/git/.gitconfig.common -> ~/.gitconfig.common\n"
+        printf "    + config/git/.gitconfig.common => ~/.gitconfig.common (copy)\n"
         printf "    + config/git/.gitconfig.%s -> ~/.gitconfig\n" "$GITCONFIG_VARIANT"
         printf "    + config/git/.gitignore.common + .gitignore.%s -> ~/.config/git/ignore\n" "$GITCONFIG_VARIANT"
     fi
