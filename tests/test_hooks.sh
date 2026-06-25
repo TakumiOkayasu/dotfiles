@@ -380,6 +380,60 @@ run_context_monitor_test "hook context_window.max_tokens 128k → usable 102.4k 
 run_context_monitor_test "transcript message.model 100k → usable 80k 分母で 75%" '{}' '{"display_name":"Claude Test (100k)"}' "[Context 75%]"
 run_context_monitor_test "モデル不明時は 200k の usable 160k 分母 (37% で警告なし)" '{}' "" ""
 
+# --- statusline キャッシュ経路 (権威ある context_window) ---
+# cache を XDG_CACHE_HOME 配下に置き session_id で参照させる。transcript usage=60000 は
+# cache hit 時は context_length で上書きされるため fallback 判定にのみ影響する。
+run_cache_test() {
+    _desc="$1"; _sid="$2"; _cw="$3"; _cl="$4"; _age="$5"; _expect="$6"
+    TOTAL=$((TOTAL + 1))
+    _wd=$(mktemp -d); _tf="${_wd}/transcript.jsonl"; _cache="${_wd}/cache"
+    mkdir -p "${_cache}/claude-context"
+    jq -n '{timestamp:"2026-01-01T00:00:00Z", isSidechain:false, message:{usage:{input_tokens:60000, cache_read_input_tokens:0}}}' > "$_tf"
+    jq -n --arg sid "$_sid" --argjson cw "$_cw" --argjson cl "$_cl" \
+        '{session_id:$sid, context_window_size:$cw, context_length:$cl}' > "${_cache}/claude-context/context-${_sid}.json"
+    [ "$_age" = "stale" ] && touch -t 202001010000 "${_cache}/claude-context/context-${_sid}.json"
+    _input=$(jq -n --arg path "$_tf" --arg cwd "$_wd" --arg sid "$_sid" \
+        '{hook_event_name:"UserPromptSubmit", transcript_path:$path, cwd:$cwd, session_id:$sid}')
+    _out=$(printf '%s' "$_input" | XDG_CACHE_HOME="$_cache" "$CONTEXT_MONITOR" 2>/dev/null)
+    rm -rf "$_wd"
+    if [ -z "$_expect" ]; then
+        if [ -z "$_out" ]; then printf "  PASS: %s\n" "$_desc"; PASS=$((PASS + 1))
+        else printf "  FAIL: %s (expected empty, got: %s)\n" "$_desc" "$_out"; FAIL=$((FAIL + 1)); fi
+    else
+        case "$_out" in
+            *"$_expect"*) printf "  PASS: %s\n" "$_desc"; PASS=$((PASS + 1)) ;;
+            *) printf "  FAIL: %s (missing substr: %s)\n" "$_desc" "$_expect"; FAIL=$((FAIL + 1)) ;;
+        esac
+    fi
+}
+
+# 新鮮な 1M cache: 214344/800000=26% → WARN 50 未満で無出力 (本修正の核心: 誤 131% 解消)
+run_cache_test "fresh 1M cache 26% → 警告なし" "s1m26" 1000000 214344 fresh ""
+# 新鮮な 1M cache: 700000/800000=87% → critical
+run_cache_test "fresh 1M cache 87% → critical" "s1m87" 1000000 700000 fresh "[Context 87%]"
+# 100% cap: 200k cache 180000/160000=112% → 100% にキャップ
+run_cache_test "200k cache 112% → 100% cap" "s200" 200000 180000 fresh "[Context 100%]"
+# 古い cache は無視 → fallback (transcript 60000 / 200k usable 160k = 37% で無出力)。
+# cache が使われれば 60000/40000=100% critical になるはずなので、無出力 = 古さ判定が効いている証拠
+run_cache_test "stale cache は無視され fallback (警告なし)" "sstale" 50000 60000 stale ""
+
+# パストラバーサル対策: 悪意 session_id はサニタイズされ planted cache に一致しない → fallback
+TOTAL=$((TOTAL + 1))
+_pt_wd=$(mktemp -d); _pt_tf="${_pt_wd}/transcript.jsonl"; _pt_cache="${_pt_wd}/cache"
+mkdir -p "${_pt_cache}/claude-context"
+jq -n '{timestamp:"2026-01-01T00:00:00Z", isSidechain:false, message:{usage:{input_tokens:60000, cache_read_input_tokens:0}}}' > "$_pt_tf"
+_pt_input=$(jq -n --arg path "$_pt_tf" --arg cwd "$_pt_wd" \
+    '{hook_event_name:"UserPromptSubmit", transcript_path:$path, cwd:$cwd, session_id:"../../../../tmp/pwned"}')
+# サニタイズ後の session_id では planted cache に一致せず fallback (37% で無出力) になる。
+# 出力が空 = 悪意パスでファイル参照していない証拠
+_pt_out=$(printf '%s' "$_pt_input" | XDG_CACHE_HOME="$_pt_cache" "$CONTEXT_MONITOR" 2>/dev/null)
+if [ -z "$_pt_out" ]; then
+    printf "  PASS: %s\n" "悪意 session_id (パストラバーサル) はサニタイズされ fallback"; PASS=$((PASS + 1))
+else
+    printf "  FAIL: %s (out: %s)\n" "悪意 session_id サニタイズ" "$_pt_out"; FAIL=$((FAIL + 1))
+fi
+rm -rf "$_pt_wd"
+
 echo ""
 # ============================================================
 # Stop hooks: sycophancy-check.sh / completion-claim-check.sh

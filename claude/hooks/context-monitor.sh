@@ -27,14 +27,29 @@ if [ -z "$JQ" ]; then
     exit 0
 fi
 
-HOOK_EVENT=$(printf '%s\n' "$INPUT" | "$JQ" -r '.hook_event_name // ""' 2>/dev/null) || HOOK_EVENT=""
-TRANSCRIPT_PATH=$(printf '%s\n' "$INPUT" | "$JQ" -r '.transcript_path // ""' 2>/dev/null) || TRANSCRIPT_PATH=""
-CWD=$(printf '%s\n' "$INPUT" | "$JQ" -r '.cwd // ""' 2>/dev/null) || CWD=""
+# 入力フィールドを 1 回の jq で取得 (高頻度 hook のため fork を最小化)
+# jq は値ごとに改行出力するため、空フィールドも空行として位置を保てる
+{
+    read -r HOOK_EVENT
+    read -r TRANSCRIPT_PATH
+    read -r CWD
+    read -r SESSION_ID
+} <<EOF
+$(printf '%s\n' "$INPUT" | "$JQ" -r '.hook_event_name // "", .transcript_path // "", .cwd // "", .session_id // ""' 2>/dev/null)
+EOF
+
+# パストラバーサル対策: session_id は外部 (Claude Code) 由来。
+# キャッシュファイル名に使うため、パス要素として安全な文字のみ許容する
+SESSION_ID=$(printf '%s' "$SESSION_ID" | tr -cd 'A-Za-z0-9_-')
+[ "${#SESSION_ID}" -gt 128 ] && SESSION_ID=""
 
 DEFAULT_CONTEXT_WINDOW_SIZE=200000
 USABLE_CONTEXT_RATIO_NUM=4
 USABLE_CONTEXT_RATIO_DEN=5
 PERCENT_SCALE=100
+WARN_THRESHOLD=50
+CRITICAL_THRESHOLD=75
+CACHE_MAX_AGE_SEC=90
 
 # context-model-getter.sh は同一 hooks ディレクトリに symlink される兄弟スクリプト
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" 2>/dev/null && pwd) || SCRIPT_DIR=""
@@ -48,6 +63,10 @@ trim() {
     }'
 }
 
+# NOTE: PostToolUse / UserPromptSubmit hook の stdin には context_window も model も
+# 渡されない (公式仕様 https://code.claude.com/docs/en/hooks.md)。下記 2 関数は当該
+# イベントでは常に空文字を返すが、将来 API が hook へ model/context_window を渡す変更に
+# 備えて保持する。通常の使用率算出は statusline キャッシュ経由 (下記) が担う。
 hook_context_window_size() {
     # shellcheck disable=SC2016
     printf '%s\n' "$INPUT" | "$JQ" -r '
@@ -88,7 +107,7 @@ hook_model_identifier() {
 
 transcript_model_identifier() {
     # shellcheck disable=SC2016
-    tail -200 "$TRANSCRIPT_PATH" | "$JQ" -s -r '
+    tail -200 -- "$TRANSCRIPT_PATH" | "$JQ" -s -r '
         def model_text($m):
             if ($m | type) == "string" then $m
             elif ($m | type) == "object" then
@@ -148,6 +167,35 @@ resolve_model_limit() {
     printf '%s\n' "$((DEFAULT_CONTEXT_WINDOW_SIZE * USABLE_CONTEXT_RATIO_NUM / USABLE_CONTEXT_RATIO_DEN))"
 }
 
+# statusline wrapper が書いた権威あるキャッシュから "実効上限 使用トークン" を解決する。
+# 新鮮 (CACHE_MAX_AGE_SEC 以内) かつ context_window_size が有効な場合のみ 1 行出力する。
+# 出力なし (空) = キャッシュ無効 → 呼び出し側で resolve_model_limit にフォールバックさせる。
+resolve_from_cache() {
+    cache_file="${XDG_CACHE_HOME:-$HOME/.cache}/claude-context/context-${SESSION_ID}.json"
+    [ -n "$SESSION_ID" ] && [ -f "$cache_file" ] || return 0
+
+    # macOS の date は %s 非対応のケースあり。空なら新鮮さ判定をスキップ (安全側 = fallback)
+    now=$(date +%s 2>/dev/null || echo "")
+    mtime=$(stat -c %Y "$cache_file" 2>/dev/null || stat -f %m "$cache_file" 2>/dev/null || echo "")
+    [ -n "$now" ] && [ -n "$mtime" ] && [ "$((now - mtime))" -le "$CACHE_MAX_AGE_SEC" ] || return 0
+
+    # cache の 2 値を 1 回の jq で取得 (値ごと改行 → 空行で位置保持)
+    {
+        read -r cache_window
+        read -r cache_length
+    } <<EOF
+$("$JQ" -r '.context_window_size // "", .context_length // ""' "$cache_file" 2>/dev/null)
+EOF
+    [ -n "$cache_window" ] && [ "$cache_window" -gt 0 ] 2>/dev/null || return 0
+
+    usable=$((cache_window * USABLE_CONTEXT_RATIO_NUM / USABLE_CONTEXT_RATIO_DEN))
+    if [ -n "$cache_length" ] && [ "$cache_length" -gt 0 ] 2>/dev/null; then
+        printf '%s %s\n' "$usable" "$cache_length"
+    else
+        printf '%s %s\n' "$usable" "$USAGE_LINE"
+    fi
+}
+
 # transcript がなければスキップ
 if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
     exit 0
@@ -158,14 +206,14 @@ fi
 # timestamp 最大 (ISO 文字列の辞書順 = 時系列順) の usage を jq で抽出
 # jq変数 $latest をシェル展開させないため単一引用符で囲む (二重引用符だと空展開で常に0になる)
 # shellcheck disable=SC2016
-USAGE_LINE=$(tail -200 "$TRANSCRIPT_PATH" | "$JQ" -s -r '
+USAGE_LINE=$(tail -200 -- "$TRANSCRIPT_PATH" | "$JQ" -s -r '
     [ .[]
         | select((.isSidechain // false) == false)
         | select((.isApiErrorMessage // false) == false)
         | select(.message.usage != null) ]
         | (max_by(.timestamp // "") // null) as $latest
         | if $latest == null then 0
-      else (($latest.message.usage.input_tokens // 0) + ($latest.message.usage.cache_read_input_tokens // 0))
+      else (($latest.message.usage.input_tokens // 0) + ($latest.message.usage.cache_read_input_tokens // 0) + ($latest.message.usage.cache_creation_input_tokens // 0))
     end
 ' 2>/dev/null || echo "0")
 
@@ -173,16 +221,26 @@ if [ "$USAGE_LINE" -eq 0 ] 2>/dev/null; then
     exit 0
 fi
 
-# 分母は full window ではなく auto-compact が効く実効上限 (usableTokens)
-USABLE_LIMIT=$(resolve_model_limit)
+# --- 分母 (window) と分子 (使用トークン) の決定 ---
+# 優先: statusline wrapper が書いた権威あるキャッシュ (真の context_window_size)。
+# hook stdin には context_window/model が来ない (公式仕様) ため、これが唯一の正確な源。
+# フォールバック: model id 推定 (resolve_model_limit) + transcript 由来の使用トークン。
+cache_resolved=$(resolve_from_cache)
+if [ -n "$cache_resolved" ]; then
+    USABLE_LIMIT=${cache_resolved% *}
+    USED_TOKENS=${cache_resolved#* }
+else
+    USABLE_LIMIT=$(resolve_model_limit)
+    USED_TOKENS="$USAGE_LINE"
+fi
 
-# 使用率算出 (整数パーセント)
-USAGE_PCT=$((USAGE_LINE * PERCENT_SCALE / USABLE_LIMIT))
+# 使用率算出 (整数パーセント、100% でキャップ = ccstatusline 準拠)
+USAGE_PCT=$((USED_TOKENS * PERCENT_SCALE / USABLE_LIMIT))
+if [ "$USAGE_PCT" -gt "$PERCENT_SCALE" ]; then
+    USAGE_PCT="$PERCENT_SCALE"
+fi
 
 # --- 閾値判定 ---
-WARN_THRESHOLD=50
-CRITICAL_THRESHOLD=75
-
 if [ "$USAGE_PCT" -lt "$WARN_THRESHOLD" ]; then
     # 安全圏: 何もしない
     exit 0
@@ -205,16 +263,13 @@ case "$HOOK_EVENT" in
         echo "$MSG"
         ;;
     PostToolUse|PostToolUseFailure)
-        # PostToolUse hook: JSON で additionalContext
-        ESCAPED_MSG=$(printf '%s' "$MSG" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
-        cat <<EOF
-{
-    "hookSpecificOutput": {
-        "hookEventName": "PostToolUse",
-        "additionalContext": "${ESCAPED_MSG}"
-    }
-}
-EOF
+        # PostToolUse hook: JSON で additionalContext (jq でエスケープを確実化)
+        printf '%s' "$MSG" | "$JQ" -Rs '{
+            hookSpecificOutput: {
+                hookEventName: "PostToolUse",
+                additionalContext: .
+            }
+        }'
         ;;
     *)
         # 未知の呼び出し元: stderr に出力(verbose mode)
