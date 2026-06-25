@@ -352,9 +352,9 @@ run_context_monitor_test() {
     _wd=$(mktemp -d); _tf="${_wd}/transcript.jsonl"
     if [ -n "$_transcript_model" ]; then
         jq -n --argjson model "$_transcript_model" \
-            '{timestamp:"2026-01-01T00:00:00Z", isSidechain:false, message:{model:$model, usage:{input_tokens:96000, cache_read_input_tokens:0}}}' > "$_tf"
+            '{timestamp:"2026-01-01T00:00:00Z", isSidechain:false, message:{model:$model, usage:{input_tokens:60000, cache_read_input_tokens:0}}}' > "$_tf"
     else
-        jq -n '{timestamp:"2026-01-01T00:00:00Z", isSidechain:false, message:{usage:{input_tokens:96000, cache_read_input_tokens:0}}}' > "$_tf"
+        jq -n '{timestamp:"2026-01-01T00:00:00Z", isSidechain:false, message:{usage:{input_tokens:60000, cache_read_input_tokens:0}}}' > "$_tf"
     fi
     _input=$(jq -n --arg path "$_tf" --arg cwd "$_wd" --argjson extra "$_extra" \
         '$extra + {hook_event_name:"UserPromptSubmit", transcript_path:$path, cwd:$cwd}')
@@ -374,10 +374,11 @@ run_context_monitor_test() {
     fi
 }
 
-run_context_monitor_test "hook model display_name から 100k を推定" '{"model":{"display_name":"Claude Test [100k]"}}' "" "[Context 96%]"
-run_context_monitor_test "hook context_window.max_tokens を優先" '{"context_window":{"max_tokens":128000}}' "" "[Context 75%]"
-run_context_monitor_test "transcript message.model から 100k を推定" '{}' '{"display_name":"Claude Test (100k)"}' "[Context 96%]"
-run_context_monitor_test "モデル不明時は 200k fallback で警告なし" '{}' "" ""
+# 分母は getter の usableTokens (max * 0.8)。usage=60000 で算出する
+run_context_monitor_test "hook model display_name 100k → usable 80k 分母で 75%" '{"model":{"display_name":"Claude Test [100k]"}}' "" "[Context 75%]"
+run_context_monitor_test "hook context_window.max_tokens 128k → usable 102.4k 分母で 58%" '{"context_window":{"max_tokens":128000}}' "" "[Context 58%]"
+run_context_monitor_test "transcript message.model 100k → usable 80k 分母で 75%" '{}' '{"display_name":"Claude Test (100k)"}' "[Context 75%]"
+run_context_monitor_test "モデル不明時は 200k の usable 160k 分母 (37% で警告なし)" '{}' "" ""
 
 echo ""
 # ============================================================

@@ -32,7 +32,13 @@ TRANSCRIPT_PATH=$(printf '%s\n' "$INPUT" | "$JQ" -r '.transcript_path // ""' 2>/
 CWD=$(printf '%s\n' "$INPUT" | "$JQ" -r '.cwd // ""' 2>/dev/null) || CWD=""
 
 DEFAULT_CONTEXT_WINDOW_SIZE=200000
+USABLE_CONTEXT_RATIO_NUM=4
+USABLE_CONTEXT_RATIO_DEN=5
 PERCENT_SCALE=100
+
+# context-model-getter.sh は同一 hooks ディレクトリに symlink される兄弟スクリプト
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" 2>/dev/null && pwd) || SCRIPT_DIR=""
+GETTER="${SCRIPT_DIR}/context-model-getter.sh"
 
 trim() {
     awk '{
@@ -40,70 +46,6 @@ trim() {
         sub(/[[:space:]]+$/, "")
         print
     }'
-}
-
-valid_window_size() {
-    awk -v value="$1" '
-        BEGIN {
-            if (value !~ /^[[:space:]]*[+]?[0-9]+([.][0-9]+)?[[:space:]]*$/) {
-                exit 1
-            }
-            numeric = value + 0
-            if (numeric <= 0) {
-                exit 1
-            }
-            printf "%d\n", int(numeric)
-        }
-    '
-}
-
-round_context_tokens() {
-    value=$(printf '%s\n' "$1" | tr -d ',_')
-    unit=$(printf '%s\n' "$2" | tr '[:upper:]' '[:lower:]')
-
-    case "$unit" in
-        m) multiplier=1000000 ;;
-        k) multiplier=1000 ;;
-        *) return 1 ;;
-    esac
-
-    awk -v value="$value" -v multiplier="$multiplier" '
-        BEGIN {
-            numeric = value + 0
-            if (numeric <= 0) {
-                exit 1
-            }
-            printf "%d\n", int(numeric * multiplier + 0.5)
-        }
-    '
-}
-
-parse_context_window_size() {
-    model_identifier="$1"
-
-    delimited=$(printf '%s\n' "$model_identifier" \
-        | grep -Eio '[([][[:space:]]*[0-9][0-9,_]*([.][0-9]+)?[[:space:]]*[km][[:space:]]*[])]' \
-        | head -n 1 || true)
-    if [ -n "$delimited" ]; then
-        delimited=$(printf '%s\n' "$delimited" \
-            | sed -nE 's/^[([][[:space:]]*([0-9][0-9,_]*([.][0-9]+)?)[[:space:]]*([kKmM])[[:space:]]*[])]$/\1 \3/p')
-        delimited_value=${delimited% *}
-        delimited_unit=${delimited##* }
-        round_context_tokens "$delimited_value" "$delimited_unit" && return 0
-    fi
-
-    context=$(printf '%s\n' "$model_identifier" \
-        | grep -Eio '(^|[^[:alnum:]_])[0-9][0-9,_]*([.][0-9]+)?[[:space:]]*[km]([[:space:]]*(token[[:space:]]*)?context)?([^[:alnum:]_]|$)' \
-        | head -n 1 || true)
-    if [ -n "$context" ]; then
-        context=$(printf '%s\n' "$context" \
-            | sed -nE 's/^([^[:alnum:]_])?([0-9][0-9,_]*([.][0-9]+)?)[[:space:]]*([kKmM]).*$/\2 \4/p')
-        context_value=${context% *}
-        context_unit=${context##* }
-        round_context_tokens "$context_value" "$context_unit" && return 0
-    fi
-
-    return 1
 }
 
 hook_context_window_size() {
@@ -174,26 +116,36 @@ transcript_model_identifier() {
     ' 2>/dev/null | trim || true
 }
 
+# 使用率の分母として、auto-compact が実際に効く実効上限 (usableTokens) を
+# context-model-getter.sh から取得する。window size 算出ロジックは getter に集約し、
+# ここでは入力 (context window size / model identifier) の受け渡しだけを担う。
 resolve_model_limit() {
     context_window_size=$(hook_context_window_size)
-    if max_tokens=$(valid_window_size "$context_window_size"); then
-        printf '%s\n' "$max_tokens"
-        return 0
-    fi
-
     model_identifier=$(hook_model_identifier)
     if [ -z "$model_identifier" ]; then
         model_identifier=$(transcript_model_identifier)
     fi
 
-    if [ -n "$model_identifier" ]; then
-        if max_tokens=$(parse_context_window_size "$model_identifier"); then
-            printf '%s\n' "$max_tokens"
+    if [ -x "$GETTER" ]; then
+        set --
+        if [ -n "$context_window_size" ]; then
+            set -- "$@" --context-window-size "$context_window_size"
+        fi
+        if [ -n "$model_identifier" ]; then
+            set -- "$@" -- "$model_identifier"
+        fi
+
+        getter_json=$("$GETTER" "$@" 2>/dev/null) || getter_json=""
+        usable_tokens=$(printf '%s\n' "$getter_json" \
+            | "$JQ" -r '.usableTokens // ""' 2>/dev/null) || usable_tokens=""
+        if [ -n "$usable_tokens" ] && [ "$usable_tokens" -gt 0 ] 2>/dev/null; then
+            printf '%s\n' "$usable_tokens"
             return 0
         fi
     fi
 
-    printf '%s\n' "$DEFAULT_CONTEXT_WINDOW_SIZE"
+    # getter 不在時のフォールバック: 既定 window の実効上限 (0.8)
+    printf '%s\n' "$((DEFAULT_CONTEXT_WINDOW_SIZE * USABLE_CONTEXT_RATIO_NUM / USABLE_CONTEXT_RATIO_DEN))"
 }
 
 # transcript がなければスキップ
@@ -221,10 +173,11 @@ if [ "$USAGE_LINE" -eq 0 ] 2>/dev/null; then
     exit 0
 fi
 
-MODEL_LIMIT=$(resolve_model_limit)
+# 分母は full window ではなく auto-compact が効く実効上限 (usableTokens)
+USABLE_LIMIT=$(resolve_model_limit)
 
 # 使用率算出 (整数パーセント)
-USAGE_PCT=$((USAGE_LINE * PERCENT_SCALE / MODEL_LIMIT))
+USAGE_PCT=$((USAGE_LINE * PERCENT_SCALE / USABLE_LIMIT))
 
 # --- 閾値判定 ---
 WARN_THRESHOLD=50
