@@ -341,98 +341,71 @@ unset REMOTE_CONTAINERS
 export CLAUDE_HOOK_TEST_MODE=1
 
 echo ""
-echo "=== context-monitor.sh ==="
+echo "=== context-notifier.sh ==="
 echo ""
 
-CONTEXT_MONITOR="${HOOK_DIR}/context-monitor.sh"
+NOTIFIER="${HOOK_DIR}/context-notifier.sh"
 
-run_context_monitor_test() {
-    _desc="$1"; _extra="$2"; _transcript_model="$3"; _expect="$4"
+# used_percentage を持つ statusLine payload を渡し、推奨文 (substr) か無出力を検証する
+run_notifier_test() {
+    _desc="$1"; _val="$2"; _expect="$3"
     TOTAL=$((TOTAL + 1))
-    _wd=$(mktemp -d); _tf="${_wd}/transcript.jsonl"
-    if [ -n "$_transcript_model" ]; then
-        jq -n --argjson model "$_transcript_model" \
-            '{timestamp:"2026-01-01T00:00:00Z", isSidechain:false, message:{model:$model, usage:{input_tokens:60000, cache_read_input_tokens:0}}}' > "$_tf"
-    else
-        jq -n '{timestamp:"2026-01-01T00:00:00Z", isSidechain:false, message:{usage:{input_tokens:60000, cache_read_input_tokens:0}}}' > "$_tf"
-    fi
-    _input=$(jq -n --arg path "$_tf" --arg cwd "$_wd" --argjson extra "$_extra" \
-        '$extra + {hook_event_name:"UserPromptSubmit", transcript_path:$path, cwd:$cwd}')
-    _out=$(printf '%s' "$_input" | "$CONTEXT_MONITOR" 2>/dev/null)
-    rm -rf "$_wd"
-    if [ -z "$_expect" ]; then
-        if [ -z "$_out" ]; then
-            printf "  PASS: %s\n" "$_desc"; PASS=$((PASS + 1))
-        else
-            printf "  FAIL: %s (expected empty output)\n" "$_desc"; FAIL=$((FAIL + 1))
-        fi
-    else
-        case "$_out" in
-            *"$_expect"*) printf "  PASS: %s\n" "$_desc"; PASS=$((PASS + 1)) ;;
-            *) printf "  FAIL: %s (missing substr: %s)\n" "$_desc" "$_expect"; FAIL=$((FAIL + 1)) ;;
-        esac
-    fi
-}
-
-# 分母は getter の usableTokens (max * 0.8)。usage=60000 で算出する
-run_context_monitor_test "hook model display_name 100k → usable 80k 分母で 75%" '{"model":{"display_name":"Claude Test [100k]"}}' "" "[Context 75%]"
-run_context_monitor_test "hook context_window.max_tokens 128k → usable 102.4k 分母で 58%" '{"context_window":{"max_tokens":128000}}' "" "[Context 58%]"
-run_context_monitor_test "transcript message.model 100k → usable 80k 分母で 75%" '{}' '{"display_name":"Claude Test (100k)"}' "[Context 75%]"
-run_context_monitor_test "モデル不明時は 200k の usable 160k 分母 (37% で警告なし)" '{}' "" ""
-
-# --- statusline キャッシュ経路 (権威ある context_window) ---
-# cache を XDG_CACHE_HOME 配下に置き session_id で参照させる。transcript usage=60000 は
-# cache hit 時は context_length で上書きされるため fallback 判定にのみ影響する。
-run_cache_test() {
-    _desc="$1"; _sid="$2"; _cw="$3"; _cl="$4"; _age="$5"; _expect="$6"
-    TOTAL=$((TOTAL + 1))
-    _wd=$(mktemp -d); _tf="${_wd}/transcript.jsonl"; _cache="${_wd}/cache"
-    mkdir -p "${_cache}/claude-context"
-    jq -n '{timestamp:"2026-01-01T00:00:00Z", isSidechain:false, message:{usage:{input_tokens:60000, cache_read_input_tokens:0}}}' > "$_tf"
-    jq -n --arg sid "$_sid" --argjson cw "$_cw" --argjson cl "$_cl" \
-        '{session_id:$sid, context_window_size:$cw, context_length:$cl}' > "${_cache}/claude-context/context-${_sid}.json"
-    [ "$_age" = "stale" ] && touch -t 202001010000 "${_cache}/claude-context/context-${_sid}.json"
-    _input=$(jq -n --arg path "$_tf" --arg cwd "$_wd" --arg sid "$_sid" \
-        '{hook_event_name:"UserPromptSubmit", transcript_path:$path, cwd:$cwd, session_id:$sid}')
-    _out=$(printf '%s' "$_input" | XDG_CACHE_HOME="$_cache" "$CONTEXT_MONITOR" 2>/dev/null)
-    rm -rf "$_wd"
+    _in=$(jq -n --argjson v "$_val" '{context_window:{used_percentage:$v}}')
+    _out=$(printf '%s' "$_in" | "$NOTIFIER" 2>/dev/null)
     if [ -z "$_expect" ]; then
         if [ -z "$_out" ]; then printf "  PASS: %s\n" "$_desc"; PASS=$((PASS + 1))
         else printf "  FAIL: %s (expected empty, got: %s)\n" "$_desc" "$_out"; FAIL=$((FAIL + 1)); fi
     else
         case "$_out" in
             *"$_expect"*) printf "  PASS: %s\n" "$_desc"; PASS=$((PASS + 1)) ;;
-            *) printf "  FAIL: %s (missing substr: %s)\n" "$_desc" "$_expect"; FAIL=$((FAIL + 1)) ;;
+            *) printf "  FAIL: %s (missing substr: %s, got: %s)\n" "$_desc" "$_expect" "$_out"; FAIL=$((FAIL + 1)) ;;
         esac
     fi
 }
 
-# 新鮮な 1M cache: 214344/800000=26% → WARN 50 未満で無出力 (本修正の核心: 誤 131% 解消)
-run_cache_test "fresh 1M cache 26% → 警告なし" "s1m26" 1000000 214344 fresh ""
-# 新鮮な 1M cache: 700000/800000=87% → critical
-run_cache_test "fresh 1M cache 87% → critical" "s1m87" 1000000 700000 fresh "[Context 87%]"
-# 100% cap: 200k cache 180000/160000=112% → 100% にキャップ
-run_cache_test "200k cache 112% → 100% cap" "s200" 200000 180000 fresh "[Context 100%]"
-# 古い cache は無視 → fallback (transcript 60000 / 200k usable 160k = 37% で無出力)。
-# cache が使われれば 60000/40000=100% critical になるはずなので、無出力 = 古さ判定が効いている証拠
-run_cache_test "stale cache は無視され fallback (警告なし)" "sstale" 50000 60000 stale ""
+# 閾値: WARN 50 / COMPACT 75
+run_notifier_test "0% → 無出力" 0 ""
+run_notifier_test "25% → 無出力" 25 ""
+run_notifier_test "49% → WARN 未満で無出力" 49 ""
+run_notifier_test "50% → WARN" 50 "⚠️ 50%"
+run_notifier_test "74% → WARN" 74 "⚠️ 74%"
+run_notifier_test "75% → /compact 推奨" 75 "🚨 75% /compact 推奨"
+run_notifier_test "100% → /compact 推奨" 100 "🚨 100% /compact 推奨"
 
-# パストラバーサル対策: 悪意 session_id はサニタイズされ planted cache に一致しない → fallback
+# 小数は整数部で判定
+run_notifier_test "75.6% → 整数部 75 で /compact 推奨" 75.6 "🚨 75% /compact 推奨"
+# 100 超は 100 にクランプ (誤った >100% を出さない)
+run_notifier_test "101% → 100 にクランプ" 101 "🚨 100% /compact 推奨"
+run_notifier_test "150% → 100 にクランプ" 150 "🚨 100% /compact 推奨"
+# 先頭ゼロは 10 進固定
+run_notifier_test "先頭ゼロ 075 → 10進 75 で推奨" '"075"' "🚨 75%"
+# 不正値は誤通知せず無出力
+run_notifier_test "文字列 abc → 無出力" '"abc"' ""
+run_notifier_test "真偽値 true → 無出力" true ""
+run_notifier_test "配列 [50] → 無出力" '[50]' ""
+run_notifier_test "オブジェクト {} → 無出力" '{}' ""
+run_notifier_test "全角数字 ５０ → 無出力" '"５０"' ""
+run_notifier_test "符号付き +50 → 無出力" '"+50"' ""
+run_notifier_test "小数のみ .5 → 無出力" '".5"' ""
+run_notifier_test "負数 -5 → 無出力" -5 ""
+
+# context_window 不在は無出力
 TOTAL=$((TOTAL + 1))
-_pt_wd=$(mktemp -d); _pt_tf="${_pt_wd}/transcript.jsonl"; _pt_cache="${_pt_wd}/cache"
-mkdir -p "${_pt_cache}/claude-context"
-jq -n '{timestamp:"2026-01-01T00:00:00Z", isSidechain:false, message:{usage:{input_tokens:60000, cache_read_input_tokens:0}}}' > "$_pt_tf"
-_pt_input=$(jq -n --arg path "$_pt_tf" --arg cwd "$_pt_wd" \
-    '{hook_event_name:"UserPromptSubmit", transcript_path:$path, cwd:$cwd, session_id:"../../../../tmp/pwned"}')
-# サニタイズ後の session_id では planted cache に一致せず fallback (37% で無出力) になる。
-# 出力が空 = 悪意パスでファイル参照していない証拠
-_pt_out=$(printf '%s' "$_pt_input" | XDG_CACHE_HOME="$_pt_cache" "$CONTEXT_MONITOR" 2>/dev/null)
-if [ -z "$_pt_out" ]; then
-    printf "  PASS: %s\n" "悪意 session_id (パストラバーサル) はサニタイズされ fallback"; PASS=$((PASS + 1))
-else
-    printf "  FAIL: %s (out: %s)\n" "悪意 session_id サニタイズ" "$_pt_out"; FAIL=$((FAIL + 1))
-fi
-rm -rf "$_pt_wd"
+_nw_out=$(printf '%s' '{}' | "$NOTIFIER" 2>/dev/null)
+if [ -z "$_nw_out" ]; then printf "  PASS: %s\n" "context_window 不在で無出力"; PASS=$((PASS + 1))
+else printf "  FAIL: %s (out: %s)\n" "context_window 不在" "$_nw_out"; FAIL=$((FAIL + 1)); fi
+
+# 巨大整数は桁ガードで無出力 (生 JSON で plant し jq の float 化に依存しない)
+TOTAL=$((TOTAL + 1))
+_big_out=$(printf '%s' '{"context_window":{"used_percentage":99999999999999999999}}' | "$NOTIFIER" 2>/dev/null)
+if [ -z "$_big_out" ]; then printf "  PASS: %s\n" "巨大整数は桁ガードで無出力"; PASS=$((PASS + 1))
+else printf "  FAIL: %s (out: %s)\n" "巨大整数ガード" "$_big_out"; FAIL=$((FAIL + 1)); fi
+
+# 壊れた JSON (途中切れ) は jq 失敗で無出力
+TOTAL=$((TOTAL + 1))
+_brk_out=$(printf '%s' '{"context_window":{"used_percentage":' | "$NOTIFIER" 2>/dev/null)
+if [ -z "$_brk_out" ]; then printf "  PASS: %s\n" "壊れ JSON は無出力"; PASS=$((PASS + 1))
+else printf "  FAIL: %s (out: %s)\n" "壊れ JSON" "$_brk_out"; FAIL=$((FAIL + 1)); fi
 
 echo ""
 # ============================================================

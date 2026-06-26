@@ -180,7 +180,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "$HOME/.claude/hooks/statusline-context-cache.sh",
+    "command": "$HOME/.claude/hooks/statusline-wrapper.sh",
     "padding": 0,
     "refreshInterval": 10
   },
