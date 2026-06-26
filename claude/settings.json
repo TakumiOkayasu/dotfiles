@@ -88,10 +88,6 @@
           },
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/context-monitor.sh"
-          },
-          {
-            "type": "command",
             "command": "$HOME/.claude/hooks/gh-repo-auto-setup.sh"
           },
           {
@@ -105,10 +101,6 @@
     "UserPromptSubmit": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/context-monitor.sh"
-          },
           {
             "type": "command",
             "command": "$HOME/.claude/hooks/primary-source-check.sh"
