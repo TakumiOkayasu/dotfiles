@@ -162,20 +162,27 @@ _setup_oh_my_posh() {
     local cache_dir="$HOME/.cache/oh-my-posh"
     mkdir -p "$cache_dir"
 
-    # mise の shim 経由だと初期化に失敗する環境があるため、実体 path を優先する
-    local omp_path=""
+    local omp_cmd=""
     if command -v mise &>/dev/null; then
-        omp_path="$(mise which oh-my-posh 2>/dev/null || true)"
-    fi
-    if [[ -z "$omp_path" ]]; then
-        omp_path="$(command -v oh-my-posh)"
+        # `mise which` の結果（実体）ではなく、常に最新を指す `current` リンクのパスに変換する
+        local real_path
+        real_path="$(mise which oh-my-posh 2>/dev/null || true)"
+        if [[ -n "$real_path" ]]; then
+            # パスの中のバージョン番号（例: /installs/oh-my-posh/24.1.0/bin/...）を 'current' に置換
+            omp_cmd=$(echo "$real_path" | sed -E 's|/(oh-my-posh)/[^/]+/bin|/\1/current/bin|')
+        fi
     fi
 
-    # 初期化
-    if ! eval "$($omp_path init bash --config "$config")" 2>/dev/null; then
+    # mise を使っていない、または取得できなかった場合は通常のコマンド検索
+    if [[ -z "$omp_cmd" ]]; then
+        omp_cmd="$(command -v oh-my-posh)"
+    fi
+
+    # 初期化 (念のため eval 内の $omp_cmd 自体はエスケープせず展開して実行)
+    if ! eval "$($omp_cmd init bash --config "$config")" 2>/dev/null; then
         rm -rf "$cache_dir"
         mkdir -p "$cache_dir"
-        if ! eval "$($omp_path init bash --config "$config")" 2>/dev/null; then
+        if ! eval "$($omp_cmd init bash --config "$config")" 2>/dev/null; then
             return 1
         fi
     fi
