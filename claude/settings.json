@@ -180,7 +180,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "$HOME/.claude/hooks/statusline-wrapper.sh",
+    "command": "bunx -y ccstatusline@latest",
     "padding": 0,
     "refreshInterval": 10
   },
