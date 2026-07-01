@@ -1,6 +1,6 @@
 # SUBAGENTS.md
 
-サブエージェント (subagent) の**起動 mechanics** (dispatch 形式 / 並列起動 / 集約 / 制約) を集約する。**起動用途** (どんなときに subagent を立てるか) は `global_CLAUDE.md` 「🤖 サブエージェント」節を参照。両者は棲み分け関係にあり、各 skill / command は本ファイル + global_CLAUDE.md を参照することで重複記述を避ける。
+サブエージェント (subagent) の**起動 mechanics** (dispatch 形式 / 並列起動 / 集約 / 制約) を集約する。**起動用途** (どんなときに subagent を立てるか) は ``$HOME/.claude/CLAUDE.md`` 「🤖 サブエージェント」節を参照。両者は棲み分け関係にあり、各 skill / command は本ファイル + `$HOME/.claude/CLAUDE.md` を参照することで重複記述を避ける。
 
 ## 並列起動の作法
 
@@ -51,7 +51,7 @@ dispatch 不能環境 (既に subagent として動作している / Task tool �
 
 ## 種別の使い分け
 
-種別 (`Explore` / `general-purpose` / `Plan` / `qa-nightmare` / `test-writer` 等) と用途の対応 / 起動しないケースは `global_CLAUDE.md`「🤖 サブエージェント」節を参照。本ファイルでは mechanics のみ扱う。
+種別 (`Explore` / `general-purpose` / `Plan` / `qa-nightmare` / `test-writer` 等) と用途の対応 / 起動しないケースは ``$HOME/.claude/CLAUDE.md``「🤖 サブエージェント」節を参照。本ファイルでは mechanics のみ扱う。
 
 ## skill / command 固有の起動契約
 

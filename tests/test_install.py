@@ -237,9 +237,7 @@ class TestRuleDistribution:
 
     def test_natural_japanese_is_rule_not_stale_codex_skill(self) -> None:
         """natural-japanese は skill ではなく Claude/Codex 両方の rule として配布される"""
-        claude_global = (REPO_ROOT / "claude" / "global_CLAUDE.md").read_text(
-            encoding="utf-8"
-        )
+        claude_global = (REPO_ROOT / "claude" / "CLAUDE.md").read_text(encoding="utf-8")
         codex_index = (REPO_ROOT / "codex" / "rules" / "RULES_INDEX.md").read_text(
             encoding="utf-8"
         )
