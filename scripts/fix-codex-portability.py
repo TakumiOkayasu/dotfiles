@@ -17,7 +17,7 @@ REPLACEMENTS = (
     ("~/.claude", "~/.codex"),
     (".claude/progress.md", ".codex/progress.md"),
     ("claude_tmp", "codex_tmp"),
-    ("global_CLAUDE.md", "~/.codex/AGENTS.md"),
+    ("~/.claude/CLAUDE.md", "~/.codex/AGENTS.md"),
     ("CLAUDE.md", "AGENTS.md"),
     ("Claude Code セッション", "Codex セッション"),
     ("Claude セッション", "Codex セッション"),

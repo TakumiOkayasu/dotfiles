@@ -129,7 +129,7 @@ tool contract 上どうしても起動できない場合は、レビューを実
 
 ## 方針検証発動跡の確認 (保守性 subagent)
 
-差分が `global_CLAUDE.md` の「着手前の方針検証」発動条件 (100 行以上の変更 / 外部依存の増減 / DB スキーマ・公開 API 変更 / 根本原因への修正 / UI 機能 5 個以上 等) に該当する場合、premise-questioning / feature-pruning の発動跡を確認する。
+差分が ``$HOME/.claude/CLAUDE.md`` の「着手前の方針検証」発動条件 (100 行以上の変更 / 外部依存の増減 / DB スキーマ・公開 API 変更 / 根本原因への修正 / UI 機能 5 個以上 等) に該当する場合、premise-questioning / feature-pruning の発動跡を確認する。
 
 発動跡と認める記述 (いずれか 1 つ以上): PR 本文・コミットメッセージ・`.claude/progress.md` の判断ログ・差分内コメントに、検証結果 (✅ 採用 / skipped 等) が読み取れること。跡がない、または結論ラベルが読めない場合は Critical として指摘する。
 

@@ -46,7 +46,7 @@ $ARGUMENTS にバグの現象・状況が渡されます。
 
 ### Phase 2.5: 方針検証 (Phase 3 前に判定)
 
-`global_CLAUDE.md` 「着手前の方針検証 (2 段階)」と整合する。Phase 2 で確定した修正方針が以下のいずれかに該当する場合は **premise-questioning skill のワークフロー全体を実行**し、✅ 採用判定が出るまで Phase 3 へ進まない:
+`$HOME/.claude/CLAUDE.md` 「着手前の方針検証 (2 段階)」と整合する。Phase 2 で確定した修正方針が以下のいずれかに該当する場合は **premise-questioning skill のワークフロー全体を実行**し、✅ 採用判定が出るまで Phase 3 へ進まない:
 
 - 根本原因の修正がアーキテクチャ変更を伴う
 - 公開 API I/F 変更を伴う
