@@ -2,9 +2,8 @@
 """install.sh テスト — uninstall 時の stale リンク削除・空ディレクトリ集約
 
 テスト構成:
-  - TestIntegration*: 実リポジトリ (/workspace) で install.sh を実際に実行
-  - TestUninstallStaleLinks, TestEmptyDir*, TestNested*, TestRoundTrip:
-    疑似リポジトリで個別機能をテスト
+    - TestIntegration*: 実リポジトリ (/workspace) で install.sh を実際に実行
+    - TestUninstallStaleLinks, TestEmptyDir*, TestNested*, TestRoundTrip: 疑似リポジトリで個別機能をテスト
 """
 
 import os

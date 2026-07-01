@@ -36,16 +36,16 @@ fi
 HEAD=$(tail -200 "$TRANSCRIPT_PATH" | "$JQ" -s -r '
     [ .[] | select(.isSidechain != true) ] as $rows
     | ( [ $rows | to_entries[]
-          | select(.value.type == "user"
-              and (.value.isMeta != true)
-              and (.value.message.content as $c | ($c | type) as $ct
-                   | ($ct == "string"
-                      and (($c | (startswith("<task-notification>")
-                                  or startswith("Stop hook feedback:")
-                                  or startswith("Your tool call was malformed")
-                                  or startswith("[Request interrupted"))) | not))
-                     or ($ct == "array" and ($c | map(.type) | any(. == "text")))))
-          | .key ] | (.[-1]) ) as $u
+        | select(.value.type == "user"
+            and (.value.isMeta != true)
+            and (.value.message.content as $c | ($c | type) as $ct
+                | ($ct == "string"
+                    and (($c | (startswith("<task-notification>")
+                        or startswith("Stop hook feedback:")
+                        or startswith("Your tool call was malformed")
+                        or startswith("[Request interrupted"))) | not))
+                    or ($ct == "array" and ($c | map(.type) | any(. == "text")))))
+        | .key ] | (.[-1]) ) as $u
     | (($u // -1) + 1) as $start
     | [ $rows[$start:][]
         | select(.type == "assistant")
@@ -72,9 +72,9 @@ for kw in "you're right" "you are right" "you're absolutely right" "good questio
     esac
 done
 
-# 日本語の追従句 (原文で部分一致)
+# 日本語の追従句(部分一致)
 if [ -z "$HIT" ]; then
-    for kw in "おっしゃる通り" "仰る通り" "いい質問" "良い質問" "鋭いご指摘" "鋭い指摘" "素晴らしいご質問" "さすが"; do
+    for kw in "*通り" "*質問" "鋭い*" "*指摘" "素晴らしい" "さすが" "その通り"; do
         case "$HEAD" in
             *"$kw"*) HIT="$kw"; break ;;
         esac
@@ -86,7 +86,7 @@ if [ -z "$HIT" ]; then
 fi
 
 # --- 警告のみ (停止はブロックしない) ---
-MSG="⚠️ [おべっか検出] 応答冒頭に追従句「${HIT}」を検出しました。global_CLAUDE.md の方針: 同意は根拠とセットでのみ示し、追従句で応答を始めない。次の応答から是正してください。"
+MSG="⚠️ [おべっか検出] 応答冒頭に追従句「${HIT}」を検出しました。global CLAUDE.md の方針: 同意は根拠とセットでのみ示し、追従句で応答を始めない。次の応答から是正してください。"
 
 # jq で安全に JSON 化 (systemMessage はユーザーに表示される)
 printf '%s' "$MSG" | "$JQ" -R -s '{systemMessage: .}' 2>/dev/null || exit 0
