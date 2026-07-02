@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     coreutils \
     git \
     bash \
+    shellcheck \
+    zsh \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git config --global user.email "test@test.com" && \

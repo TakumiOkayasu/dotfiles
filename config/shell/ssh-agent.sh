@@ -24,8 +24,8 @@ fi
 _setup_ssh_agent() {
     _ssa_env="$HOME/.ssh/agent.env"
 
-    # .sshディレクトリがなければ作成 (パーミッションは作成後に付与)
-    [ -d "$HOME/.ssh" ] || { mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"; }
+    # .sshディレクトリがなければ 700 で作成 ($HOME は常在するため -p 不要、作成と権限設定を原子的に行う)
+    [ -d "$HOME/.ssh" ] || mkdir -m 700 "$HOME/.ssh"
 
     # 既存のagentに接続を試みる
     if [ -f "$_ssa_env" ]; then

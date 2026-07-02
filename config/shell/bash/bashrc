@@ -61,7 +61,7 @@ fi
 
 # mise (ランタイムバージョン管理)
 if command -v mise &>/dev/null; then
-    eval "$(command -v mise) activate bash"
+    eval "$(mise activate bash)"
 fi
 
 # ============================================================================
@@ -164,8 +164,19 @@ _setup_oh_my_posh() {
     local cache_dir="$HOME/.cache/oh-my-posh"
     mkdir -p "$cache_dir"
     # oh-my-posh の path
-    local omp_cmd
-    omp_cmd="$(command -v oh-my-posh)"
+    # mise 管理下では版数付き実体パスではなく latest リンク経由に正規化する
+    # (mise up でバージョンディレクトリが変わっても prompt 初期化が壊れないようにするため)
+    local omp_cmd=""
+    if command -v mise &>/dev/null; then
+        local real_path
+        real_path="$(mise which oh-my-posh 2>/dev/null || true)"
+        if [[ -n "$real_path" ]]; then
+            omp_cmd="$(echo "$real_path" | sed -E 's|(/oh-my-posh)/[^/]+/|\1/latest/|')"
+        fi
+    fi
+    if [[ -z "$omp_cmd" ]]; then
+        omp_cmd="$(command -v oh-my-posh)"
+    fi
 
     # 初期化 (念のため eval 内の $omp_cmd 自体はエスケープせず展開して実行)
     if ! eval "$($omp_cmd init bash --config "$config")" 2>/dev/null; then

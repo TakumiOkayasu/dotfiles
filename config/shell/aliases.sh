@@ -5,9 +5,8 @@
 # 注意: シェル固有のエイリアスは各シェルの設定ファイルに記述
 
 # SC1091: 外部 aliases.local の source は追跡不可を許容
-# SC2139: コンテナ CLI を定義時に確定させる意図 (直後に unset するため使用時展開は不可)
-# SC2262/SC2263: ls 系は機能検出のため実コマンドを呼ぶ (エイリアス解決前提でない)
-# shellcheck disable=SC1091,SC2139,SC2262,SC2263
+# (SC2139 / SC2262 / SC2263 は意図的動作のため該当ブロック直前で個別に抑制する)
+# shellcheck disable=SC1091
 
 # ============================================================================
 # 一番大切
@@ -31,6 +30,8 @@ alias rd='rmdir'
 # ============================================================================
 
 # eza > GNU ls > BSD ls の優先順位で設定
+# SC2262/SC2263: elif の ls は機能検出のため実コマンドを呼ぶ (エイリアス解決前提でない)
+# shellcheck disable=SC2262,SC2263
 if command -v eza >/dev/null 2>&1; then
     alias ls='eza --group-directories-first --sort=name'
     alias ll='eza -alF --git --group-directories-first --sort=name'
@@ -102,16 +103,20 @@ alias glog='git log --oneline --graph --decorate'
 # ============================================================================
 
 _dotfiles_container_cli='docker'
-alias d="$_dotfiles_container_cli"
-alias dc="$_dotfiles_container_cli compose"
-alias dp="$_dotfiles_container_cli ps"
-alias dpa="$_dotfiles_container_cli ps -a"
-alias dps="$_dotfiles_container_cli ps"
-alias dpsa="$_dotfiles_container_cli ps -a"
-alias di="$_dotfiles_container_cli images"
-alias dls="$_dotfiles_container_cli logs"
-alias dex="$_dotfiles_container_cli exec -it"
-alias dlog="$_dotfiles_container_cli logs -f"
+# SC2139: コンテナ CLI を定義時に確定させる意図 (直後に unset するため使用時展開は不可)
+# shellcheck disable=SC2139
+{
+    alias d="$_dotfiles_container_cli"
+    alias dc="$_dotfiles_container_cli compose"
+    alias dp="$_dotfiles_container_cli ps"
+    alias dpa="$_dotfiles_container_cli ps -a"
+    alias dps="$_dotfiles_container_cli ps"
+    alias dpsa="$_dotfiles_container_cli ps -a"
+    alias di="$_dotfiles_container_cli images"
+    alias dls="$_dotfiles_container_cli logs"
+    alias dex="$_dotfiles_container_cli exec -it"
+    alias dlog="$_dotfiles_container_cli logs -f"
+}
 unset _dotfiles_container_cli
 
 # ============================================================================

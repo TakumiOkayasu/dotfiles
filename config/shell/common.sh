@@ -8,6 +8,7 @@
 #   - [[ ]] ではなく [ ] を使用
 #   - 配列を使用しない
 #   - function キーワードを使用しない
+#   - local は source 元 (bash/zsh) 専用の許容例外 (POSIX sh 単独実行は想定しない)
 
 # SC1090/SC1091: 動的パス/外部ファイルの source は追跡不可を許容
 # SC3043: local は source 元 (bash/zsh) が対応するため使用 (POSIX sh 単独実行はしない)
@@ -111,8 +112,9 @@ export DOTFILES_PLATFORM
 # ============================================================================
 
 # Windowsホームディレクトリ検出 (Unix形式パスを返す)
-# SC2329: local/windows.sh, local/wsl.sh から呼ばれる (静的解析では未検出)
-# shellcheck disable=SC2329
+# local/windows.sh, local/wsl.sh から呼ばれる (静的解析では未検出)
+# SC2329 (>=0.10) / SC2317 (0.9 は本体を到達不能と誤検出) の両方を抑制する
+# shellcheck disable=SC2317,SC2329
 _dotfiles_detect_win_home() {
     # 既に設定済みならそのまま返す
     [ -n "${WIN_HOME:-}" ] && echo "$WIN_HOME" && return 0
