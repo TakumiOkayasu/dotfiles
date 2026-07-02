@@ -4,6 +4,11 @@
 # 読み込み元: common.sh
 # 注意: シェル固有のエイリアスは各シェルの設定ファイルに記述
 
+# SC1091: 外部 aliases.local の source は追跡不可を許容
+# SC2139: コンテナ CLI を定義時に確定させる意図 (直後に unset するため使用時展開は不可)
+# SC2262/SC2263: ls 系は機能検出のため実コマンドを呼ぶ (エイリアス解決前提でない)
+# shellcheck disable=SC1091,SC2139,SC2262,SC2263
+
 # ============================================================================
 # 一番大切
 # ============================================================================
@@ -208,8 +213,10 @@ alias weather='curl -s "wttr.in?format=3"'
 # グローバルIP
 alias myip='curl -s ifconfig.me'
 
-# ローカルIP
-alias localip="ip route get 1 2>/dev/null | awk '{print \$7}' || ipconfig getifaddr en0 2>/dev/null"
+# ローカルIP (awk の $7 を使うため alias ではなく関数で定義)
+localip() {
+    ip route get 1 2>/dev/null | awk '{print $7}' || ipconfig getifaddr en0 2>/dev/null
+}
 
 # ============================================================================
 # ローカルエイリアス

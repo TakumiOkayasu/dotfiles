@@ -70,7 +70,9 @@ if [ "${USE_VCXSRV:-0}" = "1" ]; then
 elif [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ]; then
     # WSLg が無効な場合のフォールバック
     if grep -qi "microsoft.*WSL2" /proc/version 2>/dev/null; then
-        export DISPLAY="$(grep nameserver /etc/resolv.conf | awk '{print $2}'):0"
+        _wsl_ns_ip="$(grep nameserver /etc/resolv.conf | awk '{print $2}')"
+        export DISPLAY="${_wsl_ns_ip}:0"
+        unset _wsl_ns_ip
     else
         # WSL1
         export DISPLAY=":0"

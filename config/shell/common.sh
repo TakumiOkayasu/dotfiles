@@ -9,11 +9,17 @@
 #   - 配列を使用しない
 #   - function キーワードを使用しない
 
+# SC1090/SC1091: 動的パス/外部ファイルの source は追跡不可を許容
+# SC3043: local は source 元 (bash/zsh) が対応するため使用 (POSIX sh 単独実行はしない)
+# shellcheck disable=SC1090,SC1091,SC3043
+
 # ============================================================================
 # 二重読み込み防止
 # ============================================================================
 
 if [ -n "$DOTFILES_LOADED" ]; then
+    # source されていれば return、直接実行なら exit (静的解析は後者を到達不能と誤検出)
+    # shellcheck disable=SC2317
     return 0 2>/dev/null || exit 0
 fi
 DOTFILES_LOADED=1
@@ -28,7 +34,8 @@ _dotfiles_detect_root() {
 
     # シンボリックリンクを解決
     while [ -L "$this_file" ]; do
-        local dir="$(cd -P "$(dirname "$this_file")" && pwd)"
+        local dir
+        dir="$(cd -P "$(dirname "$this_file")" && pwd)"
         this_file="$(readlink "$this_file")"
         case "$this_file" in
             /*) ;;
@@ -37,16 +44,21 @@ _dotfiles_detect_root() {
     done
 
     # config/shell/ の親の親ディレクトリが dotfiles ルート
-    local shell_dir="$(cd -P "$(dirname "$this_file")" && pwd)"
+    local shell_dir
+    shell_dir="$(cd -P "$(dirname "$this_file")" && pwd)"
     dirname "$(dirname "$shell_dir")"
 }
 
 # DOTFILES_DIR が未設定なら検出
 if [ -z "$DOTFILES_DIR" ]; then
     # 呼び出し元によって検出方法を変える
+    # SC2128: bash では $BASH_SOURCE 先頭要素 (=このファイル) で十分
+    # shellcheck disable=SC2128
     if [ -n "$BASH_SOURCE" ]; then
         DOTFILES_DIR="$(_dotfiles_detect_root "$BASH_SOURCE")"
     elif [ -n "$ZSH_VERSION" ]; then
+        # SC2296: ${(%):-%x} は zsh 固有 (このパスは zsh でのみ実行される)
+        # shellcheck disable=SC2296
         DOTFILES_DIR="$(_dotfiles_detect_root "${(%):-%x}")"
     else
         # フォールバック: よくある場所を探す
@@ -99,6 +111,8 @@ export DOTFILES_PLATFORM
 # ============================================================================
 
 # Windowsホームディレクトリ検出 (Unix形式パスを返す)
+# SC2329: local/windows.sh, local/wsl.sh から呼ばれる (静的解析では未検出)
+# shellcheck disable=SC2329
 _dotfiles_detect_win_home() {
     # 既に設定済みならそのまま返す
     [ -n "${WIN_HOME:-}" ] && echo "$WIN_HOME" && return 0
