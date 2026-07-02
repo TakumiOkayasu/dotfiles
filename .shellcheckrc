@@ -1,0 +1,7 @@
+# shellcheck プロジェクト設定
+#
+# SC1071: shellcheck は zsh を解析できない (config/shell/zsh/* は #!/bin/zsh)。
+#   このエラーを無効化すると zsh ファイルは検査対象から外れ (exit 0)、
+#   bash/sh ファイルの通常検出には影響しない。
+#   CLI・エディタ統合とも、対象ファイルの階層から上方向に本ファイルを探索して読む。
+disable=SC1071
