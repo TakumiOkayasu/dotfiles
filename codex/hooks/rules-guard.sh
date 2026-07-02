@@ -3,10 +3,13 @@
 
 INPUT=""
 [ ! -t 0 ] && INPUT=$(cat)
-SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P || dirname "$0")
+SCRIPT_DIR=$(dirname "$0")
+SCRIPT_DIR=$(cd "$SCRIPT_DIR" 2>/dev/null && pwd -P) || SCRIPT_DIR=$(dirname "$0")
 CODEX_ROOT=$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || echo "")
 RULES_LIB="${SCRIPT_DIR}/rules-lib.sh"
 if [ -f "$RULES_LIB" ]; then
+    # SC1090: RULES_LIB は実行時に解決する動的パス
+    # shellcheck disable=SC1090
     . "$RULES_LIB"
 else
     echo "[rules-guard] ERROR: rules-lib.sh not found" >&2

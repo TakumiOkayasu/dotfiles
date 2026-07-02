@@ -238,7 +238,7 @@ print_skills_text() {
     echo "  ${count} skill(s) in ${HOME}/.claude/skills/"
 
     # 最大10個まで表示
-    echo -n "  "
+    printf '%s' "  "
     echo "$skills" | head -10 | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g'
     echo ""
 
@@ -324,14 +324,14 @@ main() {
 
         if [ "$SHOW_SKILLS" = "true" ]; then
             [ "$first" = "false" ] && echo ","
-            echo -n '  "skills": '
+            printf '%s' '  "skills": '
             print_skills_json
             first=false
         fi
 
         if [ "$SHOW_FAILURES" = "true" ]; then
             [ "$first" = "false" ] && echo ","
-            echo -n '  "failures": '
+            printf '%s' '  "failures": '
             print_failures_json
             echo ""
         fi
