@@ -6,6 +6,10 @@
 #
 # 注意: keychain があれば優先使用。既にSSH_AUTH_SOCKが有効なら何もしない
 
+# SC1090: 動的パス ($_ssa_env) の source は追跡不可を許容
+# SC2317: source されていれば return、直接実行なら : (静的解析は後者を到達不能と誤検出)
+# shellcheck disable=SC1090,SC2317
+
 # keychain があれば優先使用 (パスフレーズキャッシュ機能付き)
 if command -v keychain >/dev/null 2>&1; then
     eval "$(keychain --eval --quiet id_ed25519 id_rsa 2>/dev/null)"
@@ -20,8 +24,8 @@ fi
 _setup_ssh_agent() {
     _ssa_env="$HOME/.ssh/agent.env"
 
-    # .sshディレクトリがなければ作成
-    [ -d "$HOME/.ssh" ] || mkdir -p -m 700 "$HOME/.ssh"
+    # .sshディレクトリがなければ 700 で作成 ($HOME は常在するため -p 不要、作成と権限設定を原子的に行う)
+    [ -d "$HOME/.ssh" ] || mkdir -m 700 "$HOME/.ssh"
 
     # 既存のagentに接続を試みる
     if [ -f "$_ssa_env" ]; then

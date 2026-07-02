@@ -4,6 +4,10 @@
 # 配置先: ~/.bashrc (シンボリックリンク)
 # 読み込み: 対話シェル起動時
 
+# SC1091: 任意の外部/環境依存ファイルを source するため追跡不可を許容
+# SC2034: GIT_PS1_* は source した git-prompt.sh の __git_ps1 が参照する
+# shellcheck disable=SC1091,SC2034
+
 # Git Bashのとき
 if [[ -n "$MSYSTEM" ]]; then
     export MSYS=winsymlinks:nativestrict
@@ -58,8 +62,6 @@ fi
 # mise (ランタイムバージョン管理)
 if command -v mise &>/dev/null; then
     eval "$(mise activate bash)"
-elif [[ -x "$HOME/.local/bin/mise" ]]; then
-    eval "$("${HOME}/.local/bin/mise" activate bash)"
 fi
 
 # ============================================================================
@@ -161,19 +163,17 @@ _setup_oh_my_posh() {
     # キャッシュディレクトリ
     local cache_dir="$HOME/.cache/oh-my-posh"
     mkdir -p "$cache_dir"
-
+    # oh-my-posh の path
+    # mise 管理下では版数付き実体パスではなく latest リンク経由に正規化する
+    # (mise up でバージョンディレクトリが変わっても prompt 初期化が壊れないようにするため)
     local omp_cmd=""
     if command -v mise &>/dev/null; then
-        # `mise which` の結果（実体）ではなく、常に最新を指す `current` リンクのパスに変換する
         local real_path
         real_path="$(mise which oh-my-posh 2>/dev/null || true)"
         if [[ -n "$real_path" ]]; then
-            # パスの中のバージョン番号（例: /installs/oh-my-posh/24.1.0/bin/...）を 'current' に置換
-            omp_cmd=$(echo "$real_path" | sed -E 's|/(oh-my-posh)/[^/]+/bin|/\1/current/bin|')
+            omp_cmd="$(echo "$real_path" | sed -E 's|(/oh-my-posh)/[^/]+/|\1/latest/|')"
         fi
     fi
-
-    # mise を使っていない、または取得できなかった場合は通常のコマンド検索
     if [[ -z "$omp_cmd" ]]; then
         omp_cmd="$(command -v oh-my-posh)"
     fi
@@ -195,6 +195,7 @@ _setup_oh_my_posh() {
 if [[ -z "$MSYSTEM" ]] && ! _setup_oh_my_posh; then
     # Git ブランチ付きのシンプルなプロンプト
     if declare -f __git_ps1 &>/dev/null; then
+        # 以下は source した git-prompt.sh の __git_ps1 が参照する (同一シェル内利用のため export 不要)
         GIT_PS1_SHOWDIRTYSTATE=1
         GIT_PS1_SHOWSTASHSTATE=1
         GIT_PS1_SHOWUNTRACKEDFILES=1
@@ -233,7 +234,7 @@ alias please='sudo $(fc -ln -1)'
 
 # ディレクトリ作成して移動
 mkcd() {
-    mkdir -p "$1" && cd "$1"
+    mkdir -p "$1" && cd "$1" || return
 }
 
 # ディレクトリスタック操作

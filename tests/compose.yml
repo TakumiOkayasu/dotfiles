@@ -42,6 +42,13 @@ services:
     volumes:
       - ../bin:/workspace/bin:ro
       - ./test_bin.sh:/workspace/test_bin.sh:ro
+  shell-lint-test:
+    build:
+      context: ..
+      dockerfile: tests/Dockerfile
+    entrypoint: ["sh", "/workspace/tests/test_shell_lint.sh"]
+    volumes:
+      - ..:/workspace:ro
   install-test:
     build:
       context: ..

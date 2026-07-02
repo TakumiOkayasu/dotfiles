@@ -5,10 +5,13 @@
 
 INPUT=""
 [ ! -t 0 ] && INPUT=$(cat)
-SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P || dirname "$0")
+SCRIPT_DIR=$(dirname "$0")
+SCRIPT_DIR=$(cd "$SCRIPT_DIR" 2>/dev/null && pwd -P) || SCRIPT_DIR=$(dirname "$0")
 CODEX_ROOT=$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || echo "")
 RULES_LIB="${SCRIPT_DIR}/rules-lib.sh"
 if [ -f "$RULES_LIB" ]; then
+    # SC1090: RULES_LIB は実行時に解決する動的パス
+    # shellcheck disable=SC1090
     . "$RULES_LIB"
 else
     echo "[rules-inject] ERROR: rules-lib.sh not found" >&2
@@ -29,6 +32,8 @@ fi
 
 needs_enforcement() {
     _p=$(printf '%s\n' "$PROMPT" | tr '[:upper:]' '[:lower:]')
+    # SC2016: $feat 等はリテラル文字列として一致させるため単一引用符が正しい
+    # shellcheck disable=SC2016
     case "$_p" in
         *'@feat'*|*'$feat'*|*'@fix'*|*'$fix'*|*'@review'*|*'$review'*|*'@deep-review'*|*'$deep-review'*|*'@security-review'*|*'$security-review'*|*'@test'*|*'$test'*|*'@refactor'*|*'$refactor'*|*'@rules-required'*|*'$rules-required'*|*'@rules-compliance-review'*|*'$rules-compliance-review'*) return 0 ;;
         *実装*|*修正*|*変更*|*追加*|*削除*|*作成*|*更新*|*レビュー*|*テスト*|*リファクタ*|*バグ*|*障害*|*fix*|*feat*|*add*|*update*|*delete*|*remove*|*create*|*review*|*test*|*refactor*|*patch*) return 0 ;;
