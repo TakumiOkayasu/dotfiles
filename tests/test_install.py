@@ -143,6 +143,46 @@ def _assert_codex_common_links(codex_dir: Path) -> None:
     )
 
 
+def _assert_claude_core_links(claude_dir: Path) -> None:
+    assert (claude_dir / "hooks").is_dir()
+    destructive_hook = claude_dir / "hooks" / "destructive-command-block.sh"
+    assert destructive_hook.is_symlink()
+    assert destructive_hook.resolve() == (
+        REPO_ROOT / "common" / "hooks" / "destructive-command-block.sh"
+    )
+    assert (claude_dir / "settings.json").is_symlink()
+    assert _symlink_target_path(claude_dir / "settings.json") == (
+        REPO_ROOT / ".stow-work" / "claude" / ".claude" / "settings.json"
+    )
+    assert (claude_dir / "CLAUDE.md").is_symlink()
+    assert _symlink_target_path(claude_dir / "CLAUDE.md") == (
+        REPO_ROOT / ".stow-work" / "claude" / ".claude" / "CLAUDE.md"
+    )
+    _assert_generated_stow_link(
+        claude_dir / "statusline.json",
+        REPO_ROOT / ".stow-work" / "claude" / ".claude" / "statusline.json",
+        REPO_ROOT / "claude" / "statusline.settings.json",
+    )
+    assert not (claude_dir / "statusline.settings.json").is_symlink()
+
+
+def _assert_claude_common_links(claude_dir: Path) -> None:
+    assert (claude_dir / "rules" / "natural-japanese.md").is_symlink()
+    checklist = claude_dir / "skills" / "qa-nightmare" / "checklists" / "auth-bypass.md"
+    _assert_generated_stow_link(
+        checklist,
+        REPO_ROOT
+        / ".stow-work"
+        / "claude"
+        / ".claude"
+        / "skills"
+        / "qa-nightmare"
+        / "checklists"
+        / "auth-bypass.md",
+        REPO_ROOT / "common" / "qa-nightmare" / "checklists" / "auth-bypass.md",
+    )
+
+
 def _assert_codex_rule_links(codex_dir: Path) -> None:
     assert (codex_dir / "rules" / "coding-conventions.md").is_symlink()
     assert (codex_dir / "rules" / "natural-japanese.md").is_symlink()
@@ -737,8 +777,10 @@ class TestIntegrationInstallUninstall:
         home = tmp_path / "home"
         home.mkdir()
         _run_install_sh(REPO_ROOT, home)
+        assert (home / ".claude" / "statusline.json").is_symlink()
         result = _run_install_sh(REPO_ROOT, home, uninstall=True)
         assert result.returncode == 0, f"uninstall failed:\n{result.stdout}"
+        assert not (home / ".claude" / "statusline.json").is_symlink()
 
     def test_install_creates_claude_symlinks(self, tmp_path: Path) -> None:
         """install 後に ~/.claude/ 配下にシンボリックリンクが作られる"""
@@ -749,37 +791,8 @@ class TestIntegrationInstallUninstall:
         claude_dir = home / ".claude"
         assert claude_dir.is_dir()
 
-        # 代表的なファイルの存在確認
-        assert (claude_dir / "hooks").is_dir()
-        destructive_hook = claude_dir / "hooks" / "destructive-command-block.sh"
-        assert destructive_hook.is_symlink()
-        assert destructive_hook.resolve() == (
-            REPO_ROOT / "common" / "hooks" / "destructive-command-block.sh"
-        )
-        assert (claude_dir / "settings.json").is_symlink()
-        assert _symlink_target_path(claude_dir / "settings.json") == (
-            REPO_ROOT / ".stow-work" / "claude" / ".claude" / "settings.json"
-        )
-        assert (claude_dir / "CLAUDE.md").is_symlink()
-        assert _symlink_target_path(claude_dir / "CLAUDE.md") == (
-            REPO_ROOT / ".stow-work" / "claude" / ".claude" / "CLAUDE.md"
-        )
-        assert (claude_dir / "rules" / "natural-japanese.md").is_symlink()
-        checklist = (
-            claude_dir / "skills" / "qa-nightmare" / "checklists" / "auth-bypass.md"
-        )
-        _assert_generated_stow_link(
-            checklist,
-            REPO_ROOT
-            / ".stow-work"
-            / "claude"
-            / ".claude"
-            / "skills"
-            / "qa-nightmare"
-            / "checklists"
-            / "auth-bypass.md",
-            REPO_ROOT / "common" / "qa-nightmare" / "checklists" / "auth-bypass.md",
-        )
+        _assert_claude_core_links(claude_dir)
+        _assert_claude_common_links(claude_dir)
 
     def test_install_creates_codex_symlinks(self, tmp_path: Path) -> None:
         """install 後に ~/.codex/ 配下に stow 管理リンクが作られる"""

@@ -61,7 +61,9 @@ fi
 
 # mise (ランタイムバージョン管理)
 if command -v mise &>/dev/null; then
-    eval "$(mise activate bash)"
+    MISE_PATH="$(command -v mise)"
+    eval "$(${MISE_PATH} activate bash)"
+    shopt -s checkhash
 fi
 
 # ============================================================================
@@ -179,10 +181,10 @@ _setup_oh_my_posh() {
     fi
 
     # 初期化 (念のため eval 内の $omp_cmd 自体はエスケープせず展開して実行)
-    if ! eval "$($omp_cmd init bash --config "$config")" 2>/dev/null; then
+    if ! eval "$($omp_cmd init bash --strict --config "$config")" 2>/dev/null; then
         rm -rf "$cache_dir"
         mkdir -p "$cache_dir"
-        if ! eval "$($omp_cmd init bash --config "$config")" 2>/dev/null; then
+        if ! eval "$($omp_cmd init bash --strict --config "$config")" 2>/dev/null; then
             return 1
         fi
     fi

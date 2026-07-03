@@ -103,6 +103,13 @@ strip_global_prefix() {
     esac
 }
 
+claude_target_relative() {
+    case "$1" in
+        statusline.settings.json) printf '%s\n' "statusline.json" ;;
+        *)                        strip_global_prefix "$1" ;;
+    esac
+}
+
 die() {
     printf "${COLOR_RED}エラー:${COLOR_RESET} %s\n" "$1" >&2
     exit "${2:-1}"
@@ -1232,8 +1239,8 @@ _claude_add_managed_stow_specs() {
         _relative="${_file#claude/}"
         case "$_relative" in CLAUDE.md) continue ;; esac  # プロジェクトローカル用
 
-        _relative=$(strip_global_prefix "$_relative")
-        stow_specs_add "$_spec_file" "$_file" ".claude/${_relative}"
+        _dest_relative=$(claude_target_relative "$_relative")
+        stow_specs_add "$_spec_file" "$_file" ".claude/${_dest_relative}"
     done < "$_filelist"
 
     rm -f "$_filelist"
@@ -1313,8 +1320,8 @@ _claude_unlink_managed_files() {
         _relative="${_file#claude/}"
         case "$_relative" in CLAUDE.md) continue ;; esac
 
-        _relative=$(strip_global_prefix "$_relative")
-        _dest="${HOME}/.claude/${_relative}"
+        _dest_relative=$(claude_target_relative "$_relative")
+        _dest="${HOME}/.claude/${_dest_relative}"
         remove_link "$_file" "$_dest"
     done < "$_filelist"
 
@@ -1757,7 +1764,7 @@ _preview_bin() {
 
 _preview_claude() {
     printf "  ${COLOR_CYAN}Claude Code設定:${COLOR_RESET}\n"
-    printf "    + claude/* -> ~/.claude/* (global_* prefix は自動除去)\n"
+    printf "    + claude/* -> ~/.claude/* (global_* prefix と statusline.settings.json は配置名を変換)\n"
     echo ""
 }
 
@@ -1850,7 +1857,7 @@ dotfiles インストーラー - dotfilesのシンボリックリンクを作成
     git     Git設定(.gitconfig.work/private, .git-completion.bash等)
     vim     Vim設定(.vimrc)
     bin     CLIツール (git-new-feature等 → ~/.local/bin/)
-    claude  Claude Code設定 (claude/, global_* prefix は自動除去)
+    claude  Claude Code設定 (claude/, global_* prefix と statusline.settings.json は配置名を変換)
     codex   Codex設定 (codex/)
 
 例:
