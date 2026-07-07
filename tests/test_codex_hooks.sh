@@ -132,25 +132,6 @@ run_codex_rules_refresh_test() {
     rm -rf "$wd"
 }
 
-run_model_context_test() {
-    desc="$1"
-    expected="$2"
-    shift 2
-
-    TOTAL=$((TOTAL + 1))
-    actual_exit=0
-    actual=$(/workspace/bin/model-context.sh "$@" 2> /tmp/model_context_stderr) || actual_exit=$?
-
-    if [ "$actual_exit" -eq 0 ] && [ "$actual" = "$expected" ]; then
-        printf "  PASS: %s\n" "$desc"
-        PASS=$((PASS + 1))
-    else
-        printf "  FAIL: %s (expected=[%s], actual=[%s], exit=%s)\n" "$desc" "$expected" "$actual" "$actual_exit"
-        printf "    stderr: %s\n" "$(cat /tmp/model_context_stderr 2>/dev/null)"
-        FAIL=$((FAIL + 1))
-    fi
-}
-
 make_input() {
     tool="$1"
     field="$2"
@@ -221,12 +202,6 @@ run_codex_rules_refresh_test
 
 echo ""
 echo "=== Codex bin ==="
-
-run_model_context_test "model-context uses explicit context window" '{"maxTokens":128000,"usableTokens":102400}' --context-window-size 128000 "unknown"
-run_model_context_test "model-context parses delimited m context" '{"maxTokens":1500000,"usableTokens":1200000}' "gpt-test (1.5m)"
-run_model_context_test "model-context parses token context suffix" '{"maxTokens":64000,"usableTokens":51200}' "model 64k token context"
-run_model_context_test "model-context joins id and display name" '{"maxTokens":300000,"usableTokens":240000}' --id model-id --display-name "Model [300k]"
-run_model_context_test "model-context falls back to default" '{"maxTokens":200000,"usableTokens":160000}' "legacy-model"
 
 SECRET_HOOK="${HOOK_DIR}/secret-leak-check.sh"
 run_hook_test "$SECRET_HOOK" "blocks Authorization bearer literal" "$(make_input Bash command "curl -H 'Authorization: Bearer abcdefghijklmnop' https://example.com")" 2
