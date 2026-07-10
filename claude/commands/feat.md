@@ -18,16 +18,18 @@ $ARGUMENTS に実装する機能の説明が渡されます。
 ### Phase 0: スキル読み込み
 
 - **方針検証スキル (戦略 → 戦術の順)**:
-  - `${HOME}/.claude/skills/premise-questioning/SKILL.md` ← 戦略 (方針自体)
-  - `${HOME}/.claude/skills/feature-pruning/SKILL.md` ← 戦術 (個別機能)
+  - view `${HOME}/.claude/skills/premise-questioning/SKILL.md` ← 戦略 (方針自体)
+  - view `${HOME}/.claude/skills/feature-pruning/SKILL.md` ← 戦術 (個別機能)
 - **実装スキル**:
-  - `${HOME}/.claude/skills/tdd/SKILL.md`
-  - `${HOME}/.claude/skills/systematic-debugging/SKILL.md`
-  - `${HOME}/.claude/skills/optimize/SKILL.md`
+  - view `${HOME}/.claude/skills/tdd/SKILL.md`
+  - view `${HOME}/.claude/skills/systematic-debugging/SKILL.md`
+  - view `${HOME}/.claude/skills/optimize/SKILL.md`
 
 ### Phase 0.5: 方針検証 (Phase 1 前に必須)
 
-`$HOME/.claude/CLAUDE.md` 「着手前の方針検証 (2 段階)」と整合する。
+view `$HOME/.claude/CLAUDE.md`
+
+> 「着手前の方針検証 (2 段階)」と整合する。
 
 #### 1. premise-questioning (戦略レベル)
 
@@ -68,6 +70,7 @@ premise-questioning で ✅ 採用後、または以下のいずれかに該当�
 ### Phase 2: テスト設計 (RED)
 
 - **読み込んだスキルを活用**
+- qa-nightmare を**必ず**使用して嫌なテストを作成
 - 期待する振る舞いをテストで表現
 - 正常系 + 異常系 + 境界値を網羅
 - 境界値の観点: null / 空文字 / 0 / 負値 / 最大値 / 型違い / エンコード境界 のうち**対象機能に該当するものを最低 2 件**含める
