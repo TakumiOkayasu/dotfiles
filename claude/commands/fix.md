@@ -18,9 +18,9 @@ $ARGUMENTS にバグの現象・状況が渡されます。
 ### Phase 0: スキル読み込み
 
 - **実装スキル** (Phase 1 以降で活用):
-  - `${HOME}/.claude/skills/tdd/SKILL.md`
-  - `${HOME}/.claude/skills/systematic-debugging/SKILL.md`
-  - `${HOME}/.claude/skills/optimize/SKILL.md`
+  - view `${HOME}/.claude/skills/tdd/SKILL.md`
+  - view  `${HOME}/.claude/skills/systematic-debugging/SKILL.md`
+  - view `${HOME}/.claude/skills/optimize/SKILL.md`
 - **方針検証スキル**: Phase 2.5 で発動条件に該当した場合に `${HOME}/.claude/skills/premise-questioning/SKILL.md` を読み込む (利用直前に読む)
 
 ### Phase 1: 現象確認
@@ -63,6 +63,7 @@ feature-pruning は通常不要 (機能追加でないため)。既存機能の�
 - バグを再現するテストを書く
 - テストが失敗することを確認(バグの証明)
 - リグレッション防止のためのテストも検討
+- qa-nightmare を**必ず**使用して嫌なテストを作成
 
 ### Phase 4: 修正 (GREEN)
 
