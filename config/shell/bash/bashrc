@@ -1,26 +1,70 @@
 #!/bin/bash
+# shellcheck shell=bash
+# shellcheck disable=SC1091
+
 # config/shell/bash/bashrc - bash固有設定
 #
 # 配置先: ~/.bashrc (シンボリックリンク)
 # 読み込み: 対話シェル起動時
 
-# SC1091: 任意の外部/環境依存ファイルを source するため追跡不可を許容
-# SC2034: GIT_PS1_* は source した git-prompt.sh の __git_ps1 が参照する
-# shellcheck disable=SC1091,SC2034
+# ============================================================================
+# 共通ヘルパ
+# ============================================================================
 
+__bashrc_eval_output() {
+    local output
+    output="$("$@" 2>/dev/null)" || return
+    eval "$output"
+}
+
+__bashrc_shopt() {
+    local opt
+    for opt in "$@"; do
+        shopt -s "$opt" 2>/dev/null || true
+    done
+}
+
+__bashrc_bind() {
+    bind "$1" 2>/dev/null || true
+}
+
+__bashrc_add_prompt_command() {
+    local cmd="$1"
+    local existing=""
+    local current=""
+
+    if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
+        if [[ ${PROMPT_COMMAND+x} ]]; then
+            for existing in "${PROMPT_COMMAND[@]}"; do
+                [[ "$existing" == "$cmd" ]] && return
+            done
+        fi
+        PROMPT_COMMAND+=("$cmd")
+    else
+        current="${PROMPT_COMMAND-}"
+        case ";$current;" in
+            *";$cmd;"*) return ;;
+        esac
+
+        # Bash 5.1 未満では PROMPT_COMMAND は scalar として扱う
+        # shellcheck disable=SC2178
+        PROMPT_COMMAND="${current:+$current; }$cmd"
+    fi
+}
+
+# ============================================================================
 # Git Bashのとき
-if [[ -n "$MSYSTEM" ]]; then
-    export MSYS=winsymlinks:nativestrict
+# ============================================================================
+
+if [[ -n "${MSYSTEM:-}" && "${MSYS:-}" != *winsymlinks:* ]]; then
+    export MSYS="${MSYS:+$MSYS }winsymlinks:nativestrict"
 fi
 
 # ============================================================================
 # 非対話シェルは即終了
 # ============================================================================
 
-case $- in
-    *i*) ;;
-    *) return ;;
-esac
+[[ $- == *i* ]] || return 0 2>/dev/null || exit 0
 
 # ============================================================================
 # DOTFILES_DIR 検出
@@ -54,16 +98,21 @@ fi
 # ============================================================================
 # プロンプト設定 (oh-my-posh) と補完 ($HOMEBREW_PREFIX) が PATH に依存するため、それらより先に初期化する
 
-# Homebrew (Linux/WSL環境のみ)
-if [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+# Homebrew
+if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+    __bashrc_eval_output /home/linuxbrew/.linuxbrew/bin/brew shellenv
+elif [[ -x /opt/homebrew/bin/brew ]]; then
+    __bashrc_eval_output /opt/homebrew/bin/brew shellenv
+elif [[ -x /usr/local/bin/brew ]]; then
+    __bashrc_eval_output /usr/local/bin/brew shellenv
+elif command -v brew >/dev/null 2>&1; then
+    __bashrc_eval_output brew shellenv
 fi
 
-# mise (ランタイムバージョン管理)
-if command -v mise &>/dev/null; then
-    MISE_PATH="$(command -v mise)"
-    eval "$(${MISE_PATH} activate bash)"
-    shopt -s checkhash
+# mise
+if command -v mise >/dev/null 2>&1; then
+    __bashrc_eval_output mise activate bash
+    shopt -s checkhash 2>/dev/null || true
 fi
 
 # ============================================================================
@@ -77,39 +126,31 @@ HISTFILESIZE=100000
 HISTTIMEFORMAT="%Y-%m-%d %H:%M:%S "
 HISTIGNORE="ls:cd:pwd:exit:clear:history"
 
-shopt -s histappend      # ヒストリを追記
-shopt -s cmdhist         # 複数行コマンドを1行で保存
-shopt -s lithist         # 複数行コマンドの改行を保持
-
 # プロンプト表示ごとに履歴を即時追記 (複数端末間で履歴を失わない)
 PROMPT_COMMAND+=("history -a")
 
+__bashrc_shopt histappend cmdhist lithist # ヒストリを追記, 複数行コマンドを1行で保存, 複数行コマンドの改行を保持
+
 # ディレクトリ
-shopt -s autocd          # ディレクトリ名だけで cd
-shopt -s cdspell         # cd のタイプミスを修正
-shopt -s dirspell        # 補完時のディレクトリ名タイプミスを修正
-shopt -s direxpand       # Tab補完で変数を展開
+__bashrc_shopt autocd cdspell dirspell direxpand # ディレクトリ名だけで cd, cd のタイプミスを修正, 補完時のディレクトリ名タイプミスを修正, Tab補完で変数を展開
 
 # グロブ
-shopt -s globstar        # ** で再帰マッチ
-shopt -s nocaseglob      # 大文字小文字を無視
-shopt -s extglob         # !(pattern) 等の拡張グロブ
+__bashrc_shopt globstar nocaseglob extglob # ** で再帰マッチ, 大文字小文字を無視, !(pattern) 等の拡張グロブ
 
 # その他
-shopt -s checkwinsize    # ウィンドウサイズを更新
-shopt -s no_empty_cmd_completion  # 空行Tab補完防止
+__bashrc_shopt checkwinsize no_empty_cmd_completion # ウィンドウサイズを更新, 空行Tab補完防止
 
 # ============================================================================
 # 補完
 # ============================================================================
 
 # bash-completion
-if [[ -f /usr/share/bash-completion/bash_completion ]]; then
+if [[ -n "${HOMEBREW_PREFIX:-}" && -f "$HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh" ]]; then
+    source "$HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh"
+elif [[ -f /usr/share/bash-completion/bash_completion ]]; then
     source /usr/share/bash-completion/bash_completion
 elif [[ -f /etc/bash_completion ]]; then
     source /etc/bash_completion
-elif [[ -n "$HOMEBREW_PREFIX" && -f "$HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh" ]]; then
-    source "$HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh"
 fi
 
 # Git 補完
@@ -126,10 +167,10 @@ elif [[ -f "$DOTFILES_DIR/.git-prompt.sh" ]]; then
 fi
 
 # readline 補完強化
-bind 'set show-all-if-ambiguous on'         # 1回Tab で候補表示
-bind 'set completion-ignore-case on'        # 大文字小文字無視
-bind 'set mark-symlinked-directories on'    # symlink に / 付与
-bind 'set colored-stats on'                 # 補完候補に色
+__bashrc_bind 'set show-all-if-ambiguous on'      # 1回Tab で候補表示
+__bashrc_bind 'set completion-ignore-case on'     # 大文字小文字無視
+__bashrc_bind 'set mark-symlinked-directories on' # symlink に / 付与
+__bashrc_bind 'set colored-stats on'              # 補完候補に色
 
 # ============================================================================
 # プロンプト
@@ -137,80 +178,58 @@ bind 'set colored-stats on'                 # 補完候補に色
 
 # oh-my-posh (インストールされていれば使用)
 _setup_oh_my_posh() {
-    if ! command -v oh-my-posh &>/dev/null; then
-        return 1
-    fi
+    command -v oh-my-posh >/dev/null 2>&1 || return 1
 
-    # ここは気分によって変えてもよい
-    # markbull
-    # gruvbox
     local theme="${OH_MY_POSH_THEME:-sim-web}"
-    local config=""
-
-    # テーマファイルの検索 (拡張子なしの短い名前にも対応)
-    for dir in "$HOME/.poshthemes" "$DOTFILES_DIR/poshthemes" "/usr/share/oh-my-posh/themes"; do
-        if [[ -f "$dir/$theme.omp.json" ]]; then
-            config="$dir/$theme.omp.json"
-            break
-        elif [[ -f "$dir/$theme" ]]; then
-            config="$dir/$theme"
-            break
-        fi
-    done
+    local config="${OH_MY_POSH_CONFIG:-}"
+    local dir=""
 
     if [[ -z "$config" ]]; then
-        return 1
+        config="$theme"
+
+        for dir in "$HOME/.poshthemes" "$DOTFILES_DIR/poshthemes" "/usr/share/oh-my-posh/themes"; do
+            if [[ -f "$dir/$theme.omp.json" ]]; then
+                config="$dir/$theme.omp.json"
+                break
+            elif [[ -f "$dir/$theme" ]]; then
+                config="$dir/$theme"
+                break
+            fi
+        done
     fi
 
-    # キャッシュディレクトリ
-    local cache_dir="$HOME/.cache/oh-my-posh"
-    mkdir -p "$cache_dir"
-    # oh-my-posh の path
-    # mise 管理下では版数付き実体パスではなく latest リンク経由に正規化する
-    # (mise up でバージョンディレクトリが変わっても prompt 初期化が壊れないようにするため)
-    local omp_cmd=""
-    if command -v mise &>/dev/null; then
-        local real_path
-        real_path="$(mise which oh-my-posh 2>/dev/null || true)"
-        if [[ -n "$real_path" ]]; then
-            omp_cmd="$(echo "$real_path" | sed -E 's|(/oh-my-posh)/[^/]+/|\1/latest/|')"
-        fi
-    fi
-    if [[ -z "$omp_cmd" ]]; then
-        omp_cmd="$(command -v oh-my-posh)"
+    local omp_cmd init
+    omp_cmd="$(command -v oh-my-posh)" || return 1
+
+    if ! init="$("$omp_cmd" init bash --strict --config "$config" 2>/dev/null)"; then
+        init="$("$omp_cmd" init bash --config "$config" 2>/dev/null)" || return 1
     fi
 
-    # 初期化 (念のため eval 内の $omp_cmd 自体はエスケープせず展開して実行)
-    if ! eval "$($omp_cmd init bash --strict --config "$config")" 2>/dev/null; then
-        rm -rf "$cache_dir"
-        mkdir -p "$cache_dir"
-        if ! eval "$($omp_cmd init bash --strict --config "$config")" 2>/dev/null; then
-            return 1
-        fi
-    fi
-
-    return 0
+    eval "$init" || return 1
 }
 
 # oh-my-posh を試行、失敗したらシンプルなプロンプト
 # Git for Windows環境では ~/.config/git/.git-prompt.sh が使われるのでスキップ
-if [[ -z "$MSYSTEM" ]] && ! _setup_oh_my_posh; then
+if [[ -n "${MSYSTEM:-}" ]] || ! _setup_oh_my_posh; then
     # Git ブランチ付きのシンプルなプロンプト
     if declare -f __git_ps1 &>/dev/null; then
-        # 以下は source した git-prompt.sh の __git_ps1 が参照する (同一シェル内利用のため export 不要)
-        GIT_PS1_SHOWDIRTYSTATE=1
-        GIT_PS1_SHOWSTASHSTATE=1
-        GIT_PS1_SHOWUNTRACKEDFILES=1
-        GIT_PS1_SHOWUPSTREAM="auto"
-        GIT_PS1_SHOWCONFLICTSTATE="yes"
         # 形式: user@host:path (branch)\n$ (青Bold、rootは赤Bold #)
-        if [[ "$(id -u)" -eq 0 ]]; then
+        # 以下は source した git-prompt.sh の __git_ps1 が参照する
+        # shellcheck disable=SC2034
+        {
+            GIT_PS1_SHOWDIRTYSTATE=1
+            GIT_PS1_SHOWSTASHSTATE=1
+            GIT_PS1_SHOWUNTRACKEDFILES=1
+            GIT_PS1_SHOWUPSTREAM="auto"
+            GIT_PS1_SHOWCONFLICTSTATE="yes"
+        }
+        if (( EUID == 0 )); then
             PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[33m\]$(__git_ps1 " (%s)")\[\033[00m\]\n\[\033[01;31m\]#\[\033[00m\] '
         else
             PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[33m\]$(__git_ps1 " (%s)")\[\033[00m\]\n\[\033[01;34m\]$\[\033[00m\] '
         fi
     else
-        if [[ "$(id -u)" -eq 0 ]]; then
+        if (( EUID == 0 )); then
             PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\n\[\033[01;31m\]#\[\033[00m\] '
         else
             PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\n\[\033[01;34m\]$\[\033[00m\] '
@@ -219,29 +238,6 @@ if [[ -z "$MSYSTEM" ]] && ! _setup_oh_my_posh; then
 fi
 
 unset -f _setup_oh_my_posh
-
-# ============================================================================
-# bash固有エイリアス
-# ============================================================================
-
-# ヒストリ再読み込み
-alias hr='history -r'
-
-# 直前のコマンドを sudo で再実行
-alias please='sudo $(fc -ln -1)'
-
-# ============================================================================
-# bash固有関数
-# ============================================================================
-
-# ディレクトリ作成して移動
-mkcd() {
-    mkdir -p "$1" && cd "$1" || return
-}
-
-# ディレクトリスタック操作
-pd() { pushd "$@" >/dev/null && dirs -v; }
-pp() { popd >/dev/null && dirs -v; }
 
 # ============================================================================
 # ローカル設定 (bash固有、Git管理外)
@@ -256,13 +252,13 @@ fi
 # ============================================================================
 
 # fzf: Ctrl+R 履歴検索, Ctrl+T ファイル検索
-if command -v fzf &>/dev/null; then
-    eval "$(fzf --bash 2>/dev/null)"
+if command -v fzf >/dev/null 2>&1; then
+    __bashrc_eval_output fzf --bash
 fi
 
 # zoxide: スマート cd (z コマンド)
-if command -v zoxide &>/dev/null; then
-    eval "$(zoxide init bash)"
+if command -v zoxide >/dev/null 2>&1; then
+    __bashrc_eval_output zoxide init bash
 fi
 
 # ============================================================================
@@ -276,4 +272,52 @@ case "${DOTFILES_PLATFORM:-}" in
         export CLAUDE_CODE_SKIP_WINDOWS_PROFILE=1
         ;;
 esac
+
+# ============================================================================
+# bash固有エイリアス
+# ============================================================================
+
+__bashrc_add_prompt_command 'history -a; history -n'
+
+# ヒストリ再読み込み
+alias hr='history -n'
+alias hrr='history -c; history -r'
+
+# ============================================================================
+# bash固有関数
+# ============================================================================
+
+# 直前のコマンドを sudo で再実行
+please() {
+    local cmd=""
+    cmd="$(fc -ln -1)" || return
+    cmd="${cmd#"${cmd%%[![:space:]]*}"}"
+    printf 'sudo %s\n' "$cmd" >&2
+    eval "sudo $cmd"
+}
+
+# ディレクトリ作成して移動
+mkcd() {
+    [[ $# -eq 1 && -n "$1" ]] || { printf 'usage: mkcd DIR\n' >&2; return 2; }
+    mkdir -p -- "$1" || return
+    cd -- "$1" || return
+}
+
+# ディレクトリスタック操作
+pd() { pushd "$@" >/dev/null && dirs -v; }
+pp() { popd >/dev/null && dirs -v; }
+
+# ============================================================================
+# ヘルパ掃除
+# ============================================================================
+
+unset -f __bashrc_eval_output
+unset -f __bashrc_shopt
+unset -f __bashrc_bind
+unset -f __bashrc_add_prompt_command
+
+# ============================================================================
+# PATH 
+# ============================================================================
+export PATH="/home/okayasu/.bun/bin:$PATH"
 

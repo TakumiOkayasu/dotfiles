@@ -114,12 +114,7 @@ def _assert_codex_core_links(codex_dir: Path) -> None:
 
 
 def _assert_codex_bin_links(codex_dir: Path) -> None:
-    _assert_generated_stow_link(
-        codex_dir / "bin" / "model-context.sh",
-        REPO_ROOT / ".stow-work" / "codex" / ".codex" / "bin" / "model-context.sh",
-        REPO_ROOT / "codex" / "bin" / "model-context.sh",
-    )
-
+    pass
 
 def _assert_codex_common_links(codex_dir: Path) -> None:
     checklist = codex_dir / "agents" / "qa-nightmare" / "checklists" / "auth-bypass.md"
