@@ -18,9 +18,9 @@ $ARGUMENTS にバグの現象・状況が渡されます。
 ### Phase 0: スキル読み込み
 
 - **実装スキル** (Phase 1 以降で活用):
-  - view `${HOME}/.claude/skills/tdd/SKILL.md`
-  - view  `${HOME}/.claude/skills/systematic-debugging/SKILL.md`
-  - view `${HOME}/.claude/skills/optimize/SKILL.md`
+  - @ `${HOME}/.claude/skills/tdd/SKILL.md`
+  - @ `${HOME}/.claude/skills/systematic-debugging/SKILL.md`
+  - @ `${HOME}/.claude/skills/optimize/SKILL.md`
 - **方針検証スキル**: Phase 2.5 で発動条件に該当した場合に `${HOME}/.claude/skills/premise-questioning/SKILL.md` を読み込む (利用直前に読む)
 
 ### Phase 1: 現象確認
@@ -32,7 +32,7 @@ $ARGUMENTS にバグの現象・状況が渡されます。
 
 ### Phase 2: 根本原因分析
 
-- **読み込んだスキルを活用** (Phase 2 は `systematic-debugging` が主、`tdd` は Phase 3 以降で主)
+- **読み込んだスキルを活用** (Phase 2 は `systematic-debugging` が主、`TDD` は Phase 3 以降で主)
 - `systematic-debugging` skill の 4 フェーズを順に実施:
   1. **再現** — Phase 1 の再現手順が成立していることを確認
   2. **境界トレース** — どの層 (クライアント / API / Service / DB / 環境) で問題が発生しているか特定

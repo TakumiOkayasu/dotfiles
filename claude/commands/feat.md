@@ -18,16 +18,16 @@ $ARGUMENTS に実装する機能の説明が渡されます。
 ### Phase 0: スキル読み込み
 
 - **方針検証スキル (戦略 → 戦術の順)**:
-  - view `${HOME}/.claude/skills/premise-questioning/SKILL.md` ← 戦略 (方針自体)
-  - view `${HOME}/.claude/skills/feature-pruning/SKILL.md` ← 戦術 (個別機能)
+  - @ `${HOME}/.claude/skills/premise-questioning/SKILL.md` ← 戦略 (方針自体)
+  - @ `${HOME}/.claude/skills/feature-pruning/SKILL.md` ← 戦術 (個別機能)
 - **実装スキル**:
-  - view `${HOME}/.claude/skills/tdd/SKILL.md`
-  - view `${HOME}/.claude/skills/systematic-debugging/SKILL.md`
-  - view `${HOME}/.claude/skills/optimize/SKILL.md`
+  - @ `${HOME}/.claude/skills/tdd/SKILL.md`
+  - @ `${HOME}/.claude/skills/systematic-debugging/SKILL.md`
+  - @ `${HOME}/.claude/skills/optimize/SKILL.md`
 
 ### Phase 0.5: 方針検証 (Phase 1 前に必須)
 
-view `$HOME/.claude/CLAUDE.md`
+@ `$HOME/.claude/CLAUDE.md`
 
 > 「着手前の方針検証 (2 段階)」と整合する。
 
