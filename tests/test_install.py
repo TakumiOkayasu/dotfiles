@@ -14,6 +14,7 @@ import tomllib
 from pathlib import Path
 
 INSTALL_SH = Path(__file__).resolve().parent.parent / "install.sh"
+BASHRC = INSTALL_SH.parent / "config" / "shell" / "bash" / "bashrc"
 REPO_ROOT = INSTALL_SH.parent
 STOW_INSTALL_SH = REPO_ROOT / "scripts" / "stow-install.sh"
 MODEL_PROFILE_PATHS = (
@@ -21,6 +22,75 @@ MODEL_PROFILE_PATHS = (
     "codex/fast.config.toml",
     "codex/deep-review.config.toml",
 )
+
+
+def _write_executable(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    path.chmod(0o755)
+
+
+def _create_fake_mise_shell_runtime(tmp_path: Path) -> tuple[Path, Path, Path]:
+    home = tmp_path / "home"
+    fake_bin = home / ".local" / "bin"
+    eza_bin = tmp_path / "mise-eza-bin"
+
+    _write_executable(
+        fake_bin / "mise",
+        "#!/bin/sh\n"
+        'if [ "$1" = activate ] && [ "$2" = bash ]; then\n'
+        "    printf 'export PATH=\"%s:$PATH\"\\n' "
+        '"$FAKE_MISE_EZA_BIN"\n'
+        "fi\n",
+    )
+    _write_executable(
+        fake_bin / "ssh-agent",
+        "#!/bin/sh\n"
+        "printf '%s\\n' "
+        "'SSH_AUTH_SOCK=/tmp/fake-agent.sock; export SSH_AUTH_SOCK;' "
+        "'SSH_AGENT_PID=1; export SSH_AGENT_PID;'\n",
+    )
+    _write_executable(fake_bin / "ssh-add", "#!/bin/sh\nexit 0\n")
+    _write_executable(eza_bin / "eza", "#!/bin/sh\nexit 0\n")
+    return home, fake_bin, eza_bin
+
+
+def _run_bashrc(
+    home: Path, fake_bin: Path, eza_bin: Path
+) -> subprocess.CompletedProcess[str]:
+    env = {
+        "DOTFILES_DIR": str(REPO_ROOT),
+        "FAKE_MISE_EZA_BIN": str(eza_bin),
+        "HOME": str(home),
+        "PATH": f"{fake_bin}:/usr/bin:/bin",
+        "TERM": "xterm-256color",
+        "USER": "test",
+    }
+    return subprocess.run(
+        [
+            "/bin/bash",
+            "--noprofile",
+            "--norc",
+            "-ic",
+            f'source "{BASHRC}"; alias lla',
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+
+class TestShellInitialization:
+    def test_bash_selects_mise_eza_on_first_start(self, tmp_path: Path) -> None:
+        home, fake_bin, eza_bin = _create_fake_mise_shell_runtime(tmp_path)
+        result = _run_bashrc(home, fake_bin, eza_bin)
+
+        assert result.returncode == 0, result.stderr
+        assert (
+            "alias lla='eza -la --git --group-directories-first --sort=name'"
+            in result.stdout
+        )
 
 
 def _run_install_sh(

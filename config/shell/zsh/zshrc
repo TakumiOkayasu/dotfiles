@@ -27,6 +27,7 @@ export GIT_SSH_COMMAND="ssh"
 
 # 共通設定を読み込み
 # ~/.shell_common があれば優先 (install.sh --shell-common でインストール)
+DOTFILES_DEFER_ALIASES=1
 if [[ -f "$HOME/.shell_common" ]]; then
     source "$HOME/.shell_common"
 elif [[ -f "$DOTFILES_DIR/config/shell/common.sh" ]]; then
@@ -49,6 +50,15 @@ if command -v mise &>/dev/null; then
 elif [[ -x "$HOME/.local/bin/mise" ]]; then
     eval "$("${HOME}/.local/bin/mise" activate zsh)"
 fi
+
+# ============================================================================
+# エイリアス
+# ============================================================================
+
+if [[ -f "$DOTFILES_DIR/config/shell/aliases.sh" ]]; then
+    source "$DOTFILES_DIR/config/shell/aliases.sh"
+fi
+unset DOTFILES_DEFER_ALIASES
 
 # ============================================================================
 # zsh オプション
