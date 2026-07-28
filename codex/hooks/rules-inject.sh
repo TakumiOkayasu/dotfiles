@@ -28,6 +28,18 @@ else
     HOOK_EVENT=""
     PROMPT=""
 fi
+
+if [ "${1:-}" = "--skip-if-inline" ]; then
+    case "$HOOK_EVENT" in
+        UserPromptSubmit|user-prompt-submit) INLINE_EVENT="user-prompt-submit" ;;
+        SessionStart|session-start) INLINE_EVENT="session-start" ;;
+        *) INLINE_EVENT="" ;;
+    esac
+    if [ -n "$INLINE_EVENT" ] && rules_inline_dispatcher_registered "$INLINE_EVENT"; then
+        exit 0
+    fi
+fi
+
 [ -n "$CWD" ] || CWD=$(pwd 2>/dev/null || echo "$HOME")
 
 needs_enforcement() {

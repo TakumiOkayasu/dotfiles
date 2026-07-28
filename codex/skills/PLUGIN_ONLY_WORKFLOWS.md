@@ -6,7 +6,6 @@ Generated at: 2026-05-27T10:15:49+09:00 JST
 
 - `codex/skills/codex-handoff/SKILL.md`
 - `codex/skills/commit-msg/SKILL.md`
-- `codex/skills/consultation/SKILL.md`
 - `codex/skills/deep-review/SKILL.md`
 - `codex/skills/explain/SKILL.md`
 - `codex/skills/feat/SKILL.md`

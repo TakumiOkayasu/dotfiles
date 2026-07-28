@@ -7,7 +7,7 @@ Optional skills are packaged in `dotfile-work-codex-extra` and should usually be
 
 - `codex-handoff`
 - `commit-msg`
-- `consultation`
+- `consult`
 - `deep-review`
 - `explain`
 - `feat`
@@ -26,17 +26,21 @@ Optional skills are packaged in `dotfile-work-codex-extra` and should usually be
 
 ## Optional skills
 
-- `architecture-design`
+- `arch`
+- `design-team`
 - `empirical-prompt-tuning`
 - `failure-logging`
 - `feature-pruning`
 - `handoff`
 - `interface-first-design`
+- `measure`
 - `optimize`
-- `performance-optimization`
+- `orchestrate`
 - `plugin-migration`
 - `premise-questioning`
+- `probe`
 - `prompt-tune`
 - `refactoring`
+- `rules-compliance-review`
 - `rules`
 - `test-coverage-guard`

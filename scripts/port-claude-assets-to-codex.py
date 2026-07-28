@@ -83,11 +83,57 @@ COMMON_REPLACEMENTS: tuple[tuple[str, str], ...] = (
     ("claude", "codex"),
 )
 
+SKILL_RUNTIME_REPLACEMENTS: tuple[tuple[str, str], ...] = (
+    (
+        "呼び出し側はレポートから自己申告部分を抽出し、`tool_uses` / `duration_ms` を Agent tool の usage メタから取得して評価軸表を埋める。",
+        "呼び出し側はレポートから自己申告部分を抽出し、観測可能な tool call 数と経過時間を評価軸表へ記録する。",
+    ),
+    (
+        "Task tool の戻り値に付く usage メタの `tool_uses` をそのまま使う。Read / Grep も含める、除外しない",
+        "親が観測できる tool call 数を記録する。取得できない場合は未計測とする",
+    ),
+    (
+        "Task tool の usage メタの `duration_ms`",
+        "親が dispatch の開始から終了まで計測した経過時間。取得できない場合は未計測とする",
+    ),
+    ("実行者の duration_ms", "親が計測した経過時間"),
+    ("Agent tool の usage メタから取得して", "親が観測できる範囲で記録して"),
+    ("`tool_uses` / `duration_ms`", "`tool call 数` / `経過時間`"),
+    ("tool_uses", "tool call 数"),
+    ("duration_ms", "経過時間"),
+    ("複数 Agent 呼び出し", "複数の `spawn_agent` 呼び出し"),
+    ("Task / Agent tool", "`spawn_agent`"),
+    ("Task tool", "`spawn_agent`"),
+    ("Agent tool", "`spawn_agent`"),
+    ("subagent_type:", "agent_type:"),
+    ("$ARGUMENTS", "ユーザー指定の保存先"),
+    (
+        "上位 model に昇格して再 dispatch (Haiku→Sonnet→Opus)",
+        "reasoning_effort を1段階上げて再 dispatch",
+    ),
+    ("Opus でも解けない場合", "最大の reasoning_effort でも解けない場合"),
+    (
+        "driver は最強 model (Opus)、worker は task 複雑度に応じて Haiku/Sonnet",
+        "driver は高い reasoning_effort、worker は task 複雑度に応じた reasoning_effort",
+    ),
+    ("Haiku/Codex worker", "低い reasoning_effort の worker"),
+    ("Sonnet に上げる", "reasoning_effort を上げる"),
+)
+
+UNSUPPORTED_SKILL_FRAGMENTS = tuple(old for old, _new in SKILL_RUNTIME_REPLACEMENTS)
+
 
 def transform_body(body: str, *, source: Path, kind: str) -> str:
     out = body
     for old, new in COMMON_REPLACEMENTS:
         out = out.replace(old, new)
+    if kind == "skill":
+        for old, new in SKILL_RUNTIME_REPLACEMENTS:
+            out = out.replace(old, new)
+
+        remaining = [fragment for fragment in UNSUPPORTED_SKILL_FRAGMENTS if fragment in out]
+        if remaining:
+            raise ValueError(f"{source}: unsupported Codex runtime fragments: {remaining}")
 
     # Convert common Claude slash command references to Codex plugin/local skill invocations.
     out = re.sub(r"`/([a-zA-Z0-9_.-]+)`", r"`@\1`", out)

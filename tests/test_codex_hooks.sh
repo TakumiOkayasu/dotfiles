@@ -132,6 +132,49 @@ run_codex_rules_refresh_test() {
     rm -rf "$wd"
 }
 
+run_plugin_rule_hook_inline_fallback_test() {
+    TOTAL=$((TOTAL + 1))
+    wd=$(mktemp -d)
+    write_test_rules "$wd/codex/rules"
+    mkdir -p "$wd/home/.codex"
+    cat > "$wd/home/.codex/config.toml" <<'EOF_CONFIG'
+[[hooks.PreToolUse.hooks]]
+command = "$HOME/.codex/hooks/hook-dispatcher.sh pre-tool-use"
+[[hooks.UserPromptSubmit.hooks]]
+command = "$HOME/.codex/hooks/hook-dispatcher.sh user-prompt-submit"
+[[hooks.SessionStart.hooks]]
+command = "$HOME/.codex/hooks/hook-dispatcher.sh session-start"
+EOF_CONFIG
+    tool_input=$(jq -n --arg cwd "$wd" '{
+        tool_name: "apply_patch",
+        cwd: $cwd,
+        tool_input: {patch: "*** Begin Patch\n*** Add File: src/app.py\n+ok\n*** End Patch"}
+    }')
+    prompt_input=$(jq -n --arg cwd "$wd" '{
+        hook_event_name: "UserPromptSubmit",
+        cwd: $cwd,
+        prompt: "修正して"
+    }')
+
+    guard_exit=0
+    inject_exit=0
+    printf '%s\n' "$tool_input" | env HOME="$wd/home" \
+        "$HOOK_DIR/rules-guard.sh" --skip-if-inline >/dev/null || guard_exit=$?
+    printf '%s\n' "$prompt_input" | env HOME="$wd/home" \
+        "$HOOK_DIR/rules-inject.sh" --skip-if-inline >/dev/null || inject_exit=$?
+
+    if [ "$guard_exit" -eq 0 ] && [ "$inject_exit" -eq 0 ] && \
+        [ ! -e "$wd/codex_tmp/.codex_rules_loaded" ]; then
+        printf "  PASS: plugin rule hooks defer to inline dispatcher\n"
+        PASS=$((PASS + 1))
+    else
+        printf "  FAIL: plugin rule hooks defer to inline dispatcher (guard=%s inject=%s)\n" \
+            "$guard_exit" "$inject_exit"
+        FAIL=$((FAIL + 1))
+    fi
+    rm -rf "$wd"
+}
+
 make_input() {
     tool="$1"
     field="$2"
@@ -199,6 +242,7 @@ run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks rtk proxy runtime co
 run_hook_stdout_empty_test "$DISPATCHER user-prompt-submit" "dispatcher suppresses prompt reminder output" "$(make_prompt_input "修正して")" 0
 run_rules_checksum_stability_test
 run_codex_rules_refresh_test
+run_plugin_rule_hook_inline_fallback_test
 
 echo ""
 echo "=== Codex bin ==="

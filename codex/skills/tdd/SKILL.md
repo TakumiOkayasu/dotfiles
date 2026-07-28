@@ -51,7 +51,7 @@ effort: high
 
 ### qa_nightmare 起動
 
-Task tool で `subagent_type: qa_nightmare` を起動する。プロンプトには対象機能名と画面 URL / API パスを渡す。
+`spawn_agent` で `agent_type: qa_nightmare` を起動する。プロンプトには対象機能名と画面 URL / API パスを渡す。
 
 ```
 対象機能: <機能名>

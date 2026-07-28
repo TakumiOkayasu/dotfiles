@@ -8,6 +8,7 @@
 
 import os
 import re
+import runpy
 import subprocess
 import tomllib
 from pathlib import Path
@@ -15,13 +16,23 @@ from pathlib import Path
 INSTALL_SH = Path(__file__).resolve().parent.parent / "install.sh"
 REPO_ROOT = INSTALL_SH.parent
 STOW_INSTALL_SH = REPO_ROOT / "scripts" / "stow-install.sh"
+MODEL_PROFILE_PATHS = (
+    "codex/balanced.config.toml",
+    "codex/fast.config.toml",
+    "codex/deep-review.config.toml",
+)
 
 
 def _run_install_sh(
-    dotfiles: Path, home: Path, *, uninstall: bool = False
+    dotfiles: Path,
+    home: Path,
+    *,
+    uninstall: bool = False,
+    env_overrides: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """install.sh を指定 HOME で実行"""
     env = os.environ.copy()
+    env.update(env_overrides or {})
     env["HOME"] = str(home)
 
     cmd = ["sh", str(dotfiles / "install.sh"), "-f"]
@@ -31,6 +42,26 @@ def _run_install_sh(
     return subprocess.run(
         cmd, cwd=str(dotfiles), env=env, capture_output=True, text=True, timeout=30
     )
+
+
+def _create_tracked_paths_index_env(
+    git_index: Path, paths: tuple[str, ...]
+) -> dict[str, str]:
+    git_env = os.environ.copy()
+    git_env["GIT_INDEX_FILE"] = str(git_index)
+    commands = (
+        ["git", "read-tree", "HEAD"],
+        ["git", "add", "--", *paths],
+    )
+    for command in commands:
+        subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            env=git_env,
+            check=True,
+        )
+
+    return {"GIT_INDEX_FILE": str(git_index)}
 
 
 def _create_fake_stow(tmp_path: Path) -> tuple[Path, Path]:
@@ -237,19 +268,85 @@ class TestCodexConfigTemplate:
 
     TEMPLATE = REPO_ROOT / "codex" / "config.toml.template"
 
+    def test_config_template_declares_official_schema(self) -> None:
+        """config.toml.template が公式 schema を宣言する"""
+        content = self.TEMPLATE.read_text(encoding="utf-8")
+
+        assert content.startswith(
+            "#:schema https://developers.openai.com/codex/config-schema.json\n"
+        )
+
+    def test_config_template_uses_canonical_agent_thread_limit(self) -> None:
+        """agent thread 上限に現行の正式キーを使う"""
+        data = tomllib.loads(self.TEMPLATE.read_text(encoding="utf-8"))
+
+        assert data["agents"]["max_concurrent_threads_per_session"] == 8
+        assert "max_threads" not in data["agents"]
+
+    def test_config_template_excludes_removed_feature_flags(self) -> None:
+        """削除済み feature flag をテンプレートに残さない"""
+        data = tomllib.loads(self.TEMPLATE.read_text(encoding="utf-8"))
+
+        assert "terminal_resize_reflow" not in data["features"]
+
+    def test_config_template_excludes_redundant_feature_pins(self) -> None:
+        """既定有効または管理者向けのfeatureを個人設定で固定しない"""
+        data = tomllib.loads(self.TEMPLATE.read_text(encoding="utf-8"))
+
+        assert "goals" not in data["features"]
+        assert "plugins" not in data["features"]
+
     def test_config_template_is_valid_toml_with_inline_hooks(self) -> None:
-        """config.toml.template が inline hook と plugin feature を含む"""
+        """config.toml.template が inline hook と明示的なopt-inを含む"""
         content = self.TEMPLATE.read_text(encoding="utf-8")
         data = tomllib.loads(content)
 
-        assert data["model"] == "gpt-5.5"
+        assert data["model"] == "gpt-5.6-sol"
+        assert data["model_reasoning_effort"] == "xhigh"
         assert "hooks = true" in content
-        assert data["features"]["plugins"] is True
+        assert data["features"]["memories"] is True
         assert "mcp_servers" not in data
         assert (
             data["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
             == "$HOME/.codex/hooks/hook-dispatcher.sh pre-tool-use"
         )
+
+    def test_model_profiles_override_only_model_and_effort(self) -> None:
+        """用途別profileはモデルと推論強度だけを上書きする"""
+        expected_profiles = {
+            "balanced.config.toml": {
+                "model": "gpt-5.6-terra",
+                "model_reasoning_effort": "high",
+            },
+            "fast.config.toml": {
+                "model": "gpt-5.6-luna",
+                "model_reasoning_effort": "medium",
+            },
+            "deep-review.config.toml": {
+                "model": "gpt-5.6-sol",
+                "model_reasoning_effort": "max",
+            },
+        }
+
+        for filename, expected in expected_profiles.items():
+            profile = REPO_ROOT / "codex" / filename
+            assert tomllib.loads(profile.read_text(encoding="utf-8")) == expected
+
+    def test_plugin_rule_hooks_defer_to_inline_dispatcher(self) -> None:
+        """inline fallbackがある場合にplugin rule hookを重複実行しない"""
+        data = tomllib.loads(self.TEMPLATE.read_text(encoding="utf-8"))
+
+        for event in ("PreToolUse", "UserPromptSubmit", "SessionStart"):
+            command = data["hooks"][event][0]["hooks"][0]["command"]
+            assert "hook-dispatcher.sh" in command
+
+        module = runpy.run_path(
+            str(REPO_ROOT / "scripts" / "sync-codex-plugin.py")
+        )
+        plugin_hooks = module["hooks"]()["hooks"]
+        for event in ("PreToolUse", "UserPromptSubmit", "SessionStart"):
+            command = plugin_hooks[event][0]["hooks"][0]["command"]
+            assert command.endswith(" --skip-if-inline")
 
     def test_config_template_excludes_local_state_and_secrets(self) -> None:
         """config.toml.template に環境固有 state や secret 実値を含めない"""
@@ -261,6 +358,8 @@ class TestCodexConfigTemplate:
             "trusted_hash",
             "bearer_token =",
             "/home/okayasu/",
+            "[notice.external_config_migration_prompts]",
+            "home_last_prompted_at",
         )
         for fragment in forbidden_fragments:
             assert fragment not in content
@@ -269,9 +368,63 @@ class TestCodexConfigTemplate:
 class TestRuleDistribution:
     """Claude/Codex の常時 rule 配布境界を検証するテスト"""
 
+    def test_claude_skill_ports_use_codex_runtime_contract(self) -> None:
+        """Claude由来skillに未対応runtime contractを残さない"""
+        forbidden_fragments = (
+            "Task tool",
+            "Agent tool",
+            "subagent_type:",
+            "$ARGUMENTS",
+            "Haiku",
+            "Sonnet",
+            "Opus",
+            "tool_uses",
+            "duration_ms",
+        )
+
+        for source in sorted((REPO_ROOT / "claude" / "skills").glob("*/SKILL.md")):
+            port = REPO_ROOT / "codex" / "skills" / source.parent.name / "SKILL.md"
+            content = port.read_text(encoding="utf-8")
+            for fragment in forbidden_fragments:
+                assert fragment not in content, f"{port}: unsupported {fragment!r}"
+
+    def test_codex_skill_catalog_uses_canonical_names(self) -> None:
+        """旧skill名を配布対象やruntime参照に残さない"""
+        aliases = {
+            "architecture-design": "arch",
+            "consultation": "consult",
+            "performance-optimization": "measure",
+            "plan-and-review": "orchestrate",
+        }
+        skills_dir = REPO_ROOT / "codex" / "skills"
+        skill_policy = (skills_dir / "SKILL_POLICY.md").read_text(encoding="utf-8")
+        for legacy_name, canonical_name in aliases.items():
+            assert (skills_dir / canonical_name / "SKILL.md").is_file()
+            assert not (skills_dir / legacy_name).exists()
+            assert f"- `{canonical_name}`" in skill_policy
+
+        runtime_files = (
+            REPO_ROOT / "scripts" / "generate-standard-workflow-skills.py",
+            REPO_ROOT / "scripts" / "apply-codex-performance-profile.py",
+            REPO_ROOT / "scripts" / "sync-codex-plugin.py",
+            REPO_ROOT / "codex" / "skills" / "SKILL_POLICY.md",
+            REPO_ROOT / "codex" / "skills" / "PLUGIN_ONLY_WORKFLOWS.md",
+            REPO_ROOT / "codex" / "skills" / "RECOMMENDATIONS.md",
+            REPO_ROOT / "codex" / "skills" / "implementation-router" / "SKILL.md",
+            REPO_ROOT / "codex" / "skills" / "plan" / "SKILL.md",
+            REPO_ROOT / "claude" / "skills" / "design-team" / "SKILL.md",
+        )
+        runtime_contract = "\n".join(
+            path.read_text(encoding="utf-8") for path in runtime_files
+        )
+        for legacy_name in aliases:
+            assert legacy_name not in runtime_contract
+
     def test_natural_japanese_is_rule_not_stale_codex_skill(self) -> None:
         """natural-japanese は skill ではなく Claude/Codex 両方の rule として配布される"""
-        claude_global = (REPO_ROOT / "claude" / "CLAUDE.md").read_text(encoding="utf-8")
+        claude_global = (REPO_ROOT / "claude" / "global_CLAUDE.md").read_text(
+            encoding="utf-8"
+        )
         codex_index = (REPO_ROOT / "codex" / "rules" / "RULES_INDEX.md").read_text(
             encoding="utf-8"
         )
@@ -291,13 +444,13 @@ class TestRuleDistribution:
             REPO_ROOT / "codex" / "skills" / "natural-japanese" / "agents" / "openai.yaml"
         ).exists()
 
-    def test_plan_and_review_is_ported_to_codex_skill(self) -> None:
-        """Claude に追加した plan-and-review は Codex skill としても port される"""
-        skill_path = REPO_ROOT / "codex" / "skills" / "plan-and-review" / "SKILL.md"
+    def test_orchestrate_is_ported_to_codex_skill(self) -> None:
+        """Claude の orchestrate は Codex skill としても port される"""
+        skill_path = REPO_ROOT / "codex" / "skills" / "orchestrate" / "SKILL.md"
         content = skill_path.read_text(encoding="utf-8")
 
-        assert "name: plan-and-review" in content
-        assert "codex_port_source: claude/skills/plan-and-review/SKILL.md" in content
+        assert "name: orchestrate" in content
+        assert "codex_port_source: claude/skills/orchestrate/SKILL.md" in content
         assert "Codex/Codex" not in content
         assert "| task 種別 / 役割 | 複雑度シグナル | Driver | Worker |" in content
         assert "task ごとの commit" not in content
@@ -355,6 +508,27 @@ class TestScriptCli:
         assert result.returncode == 0, result.stderr
         assert "NameError: name 'HOME' is not defined" not in result.stderr
         assert "Claude -> Codex port complete" in result.stdout
+
+    def test_verify_codex_plugin_rejects_skill_sync_drift(
+        self, tmp_path: Path
+    ) -> None:
+        """plugin verifierがCodex source未反映のskillを検出する"""
+        module = runpy.run_path(
+            str(REPO_ROOT / "scripts" / "verify-codex-plugin.py")
+        )
+        check_skill_sync = module["check_skill_sync"]
+
+        source = tmp_path / "codex" / "skills" / "sample"
+        source.mkdir(parents=True)
+        (source / "SKILL.md").write_text("# sample\n", encoding="utf-8")
+        (tmp_path / "plugins" / "dotfile-work-codex" / "skills").mkdir(
+            parents=True
+        )
+        (tmp_path / "plugins" / "dotfile-work-codex-extra" / "skills").mkdir(
+            parents=True
+        )
+
+        assert check_skill_sync(tmp_path) != 0
 
 
 class TestStowInstallScript:
@@ -843,22 +1017,53 @@ class TestIntegrationInstallUninstall:
         assert "既存の ~/.codex/config.toml は上書きしません" in first_result.stdout
         assert "既存の ~/.codex/config.toml は上書きしません" in second_result.stdout
 
+    def test_install_and_uninstall_model_profiles_preserve_base_config(
+        self, tmp_path: Path
+    ) -> None:
+        """profileはtracked sourceから配置し、既存configとは別に管理する"""
+        env_overrides = _create_tracked_paths_index_env(
+            tmp_path / "git-index", MODEL_PROFILE_PATHS
+        )
+        home = tmp_path / "home"
+        codex_dir = home / ".codex"
+        codex_dir.mkdir(parents=True)
+        config_toml = codex_dir / "config.toml"
+        config_toml.write_text('model = "local-only"\n', encoding="utf-8")
+
+        result = _run_install_sh(REPO_ROOT, home, env_overrides=env_overrides)
+        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+        assert config_toml.read_text(encoding="utf-8") == 'model = "local-only"\n'
+        for profile_path in MODEL_PROFILE_PATHS:
+            filename = Path(profile_path).name
+            profile = codex_dir / filename
+            assert profile.is_symlink()
+            assert profile.resolve() == REPO_ROOT / profile_path
+
+        _run_install_sh(REPO_ROOT, home, uninstall=True, env_overrides=env_overrides)
+        assert config_toml.is_file()
+        for profile_path in MODEL_PROFILE_PATHS:
+            assert not (codex_dir / Path(profile_path).name).exists()
+
     def test_codex_install_excludes_untracked_files(self, tmp_path: Path) -> None:
         """codex/ 配下の untracked file はallowlist形状でも配置されない"""
         home = tmp_path / "home"
         home.mkdir()
         scratch = REPO_ROOT / "codex" / "scratch.tmp"
+        scratch_profile = REPO_ROOT / "codex" / "scratch.config.toml"
         scratch_hook = REPO_ROOT / "codex" / "hooks" / "scratch-hook.sh"
         scratch.write_text("temporary", encoding="utf-8")
+        scratch_profile.write_text('model = "untracked"\n', encoding="utf-8")
         scratch_hook.write_text("#!/bin/sh\n", encoding="utf-8")
         try:
             result = _run_install_sh(REPO_ROOT, home)
         finally:
             scratch.unlink(missing_ok=True)
+            scratch_profile.unlink(missing_ok=True)
             scratch_hook.unlink(missing_ok=True)
 
         assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
         assert not (home / ".codex" / "scratch.tmp").exists()
+        assert not (home / ".codex" / "scratch.config.toml").exists()
         assert not (home / ".codex" / "hooks" / "scratch-hook.sh").exists()
 
     def test_uninstall_removes_claude_symlinks(self, tmp_path: Path) -> None:

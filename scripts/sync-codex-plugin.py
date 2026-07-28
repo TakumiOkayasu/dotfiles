@@ -24,7 +24,7 @@ CORE_SKILLS = {
     "tdd",
     "systematic-debugging",
     "rules-required",
-    "consultation",
+    "consult",
     "codex-handoff",
     "implementation-router",
     "plan",
@@ -143,13 +143,13 @@ def hooks() -> dict:
     return {
         "hooks": {
             "SessionStart": [
-                {"hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/hooks/rules-inject.sh", "timeout": 30, "statusMessage": "Loading core dotfile-work rules"}]}
+                {"hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/hooks/rules-inject.sh --skip-if-inline", "timeout": 30, "statusMessage": "Loading core dotfile-work rules"}]}
             ],
             "UserPromptSubmit": [
-                {"hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/hooks/rules-inject.sh", "timeout": 30, "statusMessage": "Checking rule scope"}]}
+                {"hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/hooks/rules-inject.sh --skip-if-inline", "timeout": 30, "statusMessage": "Checking rule scope"}]}
             ],
             "PreToolUse": [
-                {"matcher": "Bash|Edit|Write|MultiEdit|apply_patch|ApplyPatch", "hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/hooks/rules-guard.sh", "timeout": 30, "statusMessage": "Checking mandatory rules"}]}
+                {"matcher": "Bash|Edit|Write|MultiEdit|apply_patch|ApplyPatch", "hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/hooks/rules-guard.sh --skip-if-inline", "timeout": 30, "statusMessage": "Checking mandatory rules"}]}
             ]
         }
     }

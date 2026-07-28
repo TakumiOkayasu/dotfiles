@@ -1,6 +1,14 @@
 #!/bin/sh
 # Shared helpers for Codex markdown rule discovery and checksum calculation.
 
+rules_inline_dispatcher_registered() {
+    _event="$1"
+    _codex_dir="${CODEX_HOME:-$HOME/.codex}"
+    _config="${_codex_dir}/config.toml"
+    [ -f "$_config" ] || return 1
+    grep -Fq "hook-dispatcher.sh ${_event}" "$_config"
+}
+
 rules_hash_cmd() {
     if command -v sha256sum >/dev/null 2>&1; then sha256sum | awk '{print $1}'
     elif command -v shasum >/dev/null 2>&1; then shasum -a 256 | awk '{print $1}'

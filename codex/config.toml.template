@@ -1,8 +1,9 @@
-model = "gpt-5.5"
+#:schema https://developers.openai.com/codex/config-schema.json
+model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
 
 [agents]
-max_threads = 8
+max_concurrent_threads_per_session = 8
 max_depth = 3
 
 [tui]
@@ -19,10 +20,7 @@ status_line_use_colors = true
 
 [features]
 hooks = true
-plugins = true
-terminal_resize_reflow = true
 memories = true
-goals = true
 
 #[mcp_servers.github]
 #bearer_token_env_var = "CODEX_GITHUB_PERSONAL_ACCESS_TOKEN"
@@ -114,9 +112,6 @@ surface = "#0b0e14"
 diffAdded = "#7fd962"
 diffRemoved = "#ea6c73"
 skill = "#cda1fa"
-
-[notice.external_config_migration_prompts]
-home_last_prompted_at = 1780546225
 
 [shell_environment_policy]
 inherit = "core"

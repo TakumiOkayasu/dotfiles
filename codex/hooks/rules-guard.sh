@@ -16,6 +16,10 @@ else
     exit 1
 fi
 
+if [ "${1:-}" = "--skip-if-inline" ] && rules_inline_dispatcher_registered "pre-tool-use"; then
+    exit 0
+fi
+
 JQ=$(command -v jaq 2>/dev/null || command -v jq 2>/dev/null || echo "")
 if [ -n "$JQ" ] && [ -n "$INPUT" ]; then
     CWD=$(printf '%s\n' "$INPUT" | "$JQ" -r '.cwd // empty' 2>/dev/null) || CWD=""

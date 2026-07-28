@@ -1370,6 +1370,12 @@ codex_dest_for_relative() {
         agents/*.toml|agents/*/checklists/*.md|bin/*|hooks/*.sh|rules/*.md|rules/*.rules)
             printf '%s/.codex/%s\n' "$HOME" "$1"
             ;;
+        */*.config.toml)
+            return 1
+            ;;
+        *.config.toml)
+            printf '%s/.codex/%s\n' "$HOME" "$1"
+            ;;
         config.toml|config.toml.template|hooks.json)
             return 1
             ;;
@@ -1772,6 +1778,7 @@ _preview_codex() {
     printf "  ${COLOR_CYAN}Codex設定:${COLOR_RESET}\n"
     printf "    + codex/AGENTS, agents, hooks, rules, prompts -> ~/.codex/*\n"
     printf "    + codex/config.toml.template -> ~/.codex/config.toml (存在しない場合のみ生成)\n"
+    printf "    + codex/*.config.toml -> ~/.codex/*.config.toml (profile)\n"
     printf "    - codex/skills/* は plugin 配布のため install 対象外\n"
     printf "    - codex/hooks.json は作成しない (hooks は config.toml inline TOML)\n"
     echo ""

@@ -5,7 +5,7 @@ description: Planning-only mode for 2-3 options and a recommendation. Do not edi
 
 # Plan
 
-Use `consultation`. File edits are forbidden. Output options, comparison, recommendation, and handoff.
+Use `consult`. File edits are forbidden. Output options, comparison, recommendation, and handoff.
 
 ## Common contract
 

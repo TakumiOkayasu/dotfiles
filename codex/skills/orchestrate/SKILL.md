@@ -55,7 +55,7 @@ description: 仕様が固まった複数 task の実装を、計画 → subagent
 | 入力 | 内容 |
 | --- | --- |
 | 確定済み仕様 | `docs/specs/*` または会話中の合意済み設計 |
-| `$ARGUMENTS` | 計画の保存先パス (省略時は `.codex/plans/YYYY-MM-DD-<topic>.md`) |
+| `ユーザー指定の保存先` | 計画の保存先パス (省略時は `.codex/plans/YYYY-MM-DD-<topic>.md`) |
 | ロード済み rules | `${HOME}/.codex/rules/*` は @import 済みで context にある |
 
 | 出力 | 内容 |
@@ -145,7 +145,7 @@ task を 1 つずつ処理する。**並列 dispatch しない** (差分競合�
 | BLOCK 種別 | 自力リカバリ | エスカレーション |
 | --- | --- | --- |
 | 文脈不足 (情報が足りない) | 周辺コード・rules・既存実装を自分で調査し、補足して再 dispatch | 調査しても不明な外部仕様のみ |
-| 推論力不足 (task が難しい) | 上位 model に昇格して再 dispatch (Haiku→Sonnet→Opus) | Opus でも解けない場合 |
+| 推論力不足 (task が難しい) | reasoning_effort を1段階上げて再 dispatch | 最大の reasoning_effort でも解けない場合 |
 | task 過大 (1 task に収まらない) | task をその場で分割し、順に dispatch | 分割しても各片が依然過大な場合 |
 | 計画の誤り (spec/計画が矛盾) | — (自力修正しない) | **即エスカレーション**。計画はユーザー資産 |
 | 副作用承認待ち (commit/依存/DB 等) | — (越えない) | **即停止して承認を仰ぐ** (鉄則) |
@@ -204,8 +204,8 @@ task の複雑度と driver/worker の役割を掛け合わせて割り当てる
 
 - **Driver (司令塔)**: 計画・dispatch・レビュー統合・ユーザー対話
 - **Worker (実装担当)**: 機械的〜中程度の実装 task を委譲
-- driver は最強 model (Opus)、worker は task 複雑度に応じて Haiku/Sonnet
-- 1 task が 1〜2 ファイル + 完全な spec なら Haiku/Codex worker で十分。多ファイル結合は Sonnet に上げる
+- driver は高い reasoning_effort、worker は task 複雑度に応じた reasoning_effort
+- 1 task が 1〜2 ファイル + 完全な spec なら 低い reasoning_effort の worker で十分。多ファイル結合は reasoning_effort を上げる
 
 ## アンチパターン
 
