@@ -1,7 +1,7 @@
 #!/bin/sh
 # shell/aliases.sh - 共通エイリアス (POSIX互換)
 #
-# 読み込み元: common.sh
+# 読み込み元: common.sh、またはランタイム初期化後のbashrc/zshrc
 # 注意: シェル固有のエイリアスは各シェルの設定ファイルに記述
 
 # SC1091: 外部 aliases.local の source は追跡不可を許容

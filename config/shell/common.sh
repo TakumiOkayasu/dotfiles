@@ -248,7 +248,8 @@ _dotfiles_load_platform
 # エイリアス読み込み
 # ============================================================================
 
-if [ -f "$DOTFILES_DIR/config/shell/aliases.sh" ]; then
+if [ -z "${DOTFILES_DEFER_ALIASES:-}" ] &&
+    [ -f "$DOTFILES_DIR/config/shell/aliases.sh" ]; then
     . "$DOTFILES_DIR/config/shell/aliases.sh"
 fi
 
