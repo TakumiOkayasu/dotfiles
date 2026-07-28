@@ -19,7 +19,7 @@
 | `failure-logging` | `codex_tmp/failure_log/` と単一 markdown の path 不整合を解消する |
 | `test-coverage-guard` | `tdd` という実 skill 名へ表記を統一する |
 | `refactoring` | 判定不能な「デッドライン直前」ではなく risk gate を使う |
-| `performance-optimization` | 明白な N+1 / O(n^2) は計測前に設計バグとして扱う例外を定義する |
+| `measure` | 明白な N+1 / O(n^2) は計測前に設計バグとして扱う例外を定義する |
 
 ## Done when
 

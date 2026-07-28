@@ -1,6 +1,6 @@
 ---
 name: implementation-router
-description: Classify implementation tasks by risk and route to feat, fix, refactor, test, review, or consultation. Front-load this description for Codex implicit matching; explicit invocation via $implementation-router always works.
+description: Classify implementation tasks by risk and route to feat, fix, refactor, test, review, or consult. Front-load this description for Codex implicit matching; explicit invocation via $implementation-router always works.
 ---
 
 # Implementation Router
@@ -10,7 +10,7 @@ description: Classify implementation tasks by risk and route to feat, fix, refac
 - Bug/failing test/runtime error -> `fix`
 - Behavior-preserving cleanup -> `refactor`
 - Test-only -> `test`
-- Planning/no edit -> `consultation`
+- Planning/no edit -> `consult`
 - Code review -> `review` / `deep-review`
 
 Always apply rules first and escalate high-risk tasks.

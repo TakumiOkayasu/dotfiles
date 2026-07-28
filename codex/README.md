@@ -37,12 +37,35 @@ Claude Code 用の `agents/`、`commands/`、`hooks/`、`rules/`、`skills/` を
 | `~/.codex/AGENTS.md` | `codex/global_AGENTS.md` |
 | `~/.codex/SUBAGENTS.md` | `codex/SUBAGENTS.md` |
 | `~/.codex/config.toml` | `codex/config.toml.template` から初回生成 |
+| `~/.codex/{balanced,fast,deep-review}.config.toml` | `codex/*.config.toml` |
 | `~/.codex/agents/` | `codex/agents/` |
 | `~/.codex/hooks/` | `codex/hooks/` |
 | `~/.codex/rules/` | `codex/rules/` |
 | `~/.codex/prompts/commands/` | `codex/prompts/commands/` |
 
 `codex/README.md`、`codex/reference/`、`codex/config.toml.template` はリポジトリ内の参照資料であり、`~/.codex/` にはリンク配置しない。`~/.codex/config.toml` が存在しない場合のみ template から通常ファイルとして生成する。
+
+`codex/*.config.toml` は選択可能なprofileであり、`~/.codex/*.config.toml` へsymlink配置する。
+
+### モデルprofile
+
+基準設定は `gpt-5.6-sol` と `xhigh` を使う。
+
+用途に応じて次のprofileを選択できる。
+
+| profile | model | reasoning | 用途 |
+| --- | --- | --- | --- |
+| `balanced` | `gpt-5.6-terra` | `high` | 品質と応答時間の均衡を取る通常作業 |
+| `fast` | `gpt-5.6-luna` | `medium` | 軽量で応答時間を優先する作業 |
+| `deep-review` | `gpt-5.6-sol` | `max` | 難しいレビューや品質優先の調査 |
+
+profileは基準設定へモデルと推論強度だけを上書きする。
+
+```bash
+codex --profile balanced
+codex --profile fast
+codex --profile deep-review
+```
 
 ### 補助スクリプト
 
@@ -92,6 +115,9 @@ cp codex/global_AGENTS.md AGENTS.md
 
 - `codex/skills/` は plugin 配布用 source。plugin-only mode では `install.sh` で `~/.agents/skills/` に重複配置しない。
 - `plugins/dotfile-work-codex*` は `codex/skills` / `codex/rules` / `codex/hooks` / `codex/bin` から生成するローカル bundle。Git 管理しない。
+- Claude由来skillは `port-claude-assets-to-codex.py` でCodexのruntime contractへ変換してから配布する。
+- `verify-codex-plugin.py` はsourceとpluginのskill集合、重複、ファイル内容を検証する。
+- core pluginのrule hookはinline dispatcherを検出した場合に処理を譲り、plugin未導入時はinline hookをfallbackとして使う。
 - `codex/rules/` は参照資料。Codex が自動的に常時ロードする前提にはしない。
 - 常時必要な運用ルールは `codex/global_AGENTS.md` に直接集約する。
 - vendor skill の更新は自動実行しない。必要な場合のみ `~/.codex/bin/vendor-skills-update-manual.sh` を手動実行する。
@@ -105,6 +131,14 @@ python3 scripts/verify-codex-plugin.py --repo .
 ```
 
 既存の `codex/skills/` を bundle に反映するだけなら、`generate-standard-workflow-skills.py` は省略してよい。
+
+Claude側のskillを再移植する場合は次を実行する。
+
+```bash
+python3 scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup
+python3 scripts/sync-codex-plugin.py --repo .
+python3 scripts/verify-codex-plugin.py --repo .
+```
 
 個人環境の `~/.codex/plugins/` と `~/.agents/plugins/marketplace.json` に配置する場合は次を実行する。
 

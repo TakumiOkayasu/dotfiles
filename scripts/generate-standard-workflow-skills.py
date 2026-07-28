@@ -49,25 +49,20 @@ WORKFLOWS: dict[str, tuple[str, str, str]] = {
         "Rules Required",
         """## Goal\nEnsure applicable markdown rules are read and applied.\n\n## Steps\n1. Confirm `RULES_CORE.md` and `RULES_INDEX.md` are available.\n2. For implementation/review/test/refactor, require full rule injection before any mutating tool.\n3. Identify relevant rule files for the task.\n4. Summarize applicable constraints.\n5. If rules conflict, follow nearest/project-specific rule and report conflict.\n\n## Output\n- Rules applied\n- Conflicts\n- Task-specific checklist\n""",
     ),
-    "consultation": (
-        "Planning and policy decision mode. Use when comparing approaches, designing implementation strategy, or preparing Codex handoff. No file edits.",
-        "Consultation",
-        """## Goal\nDecide a direction without changing files.\n\n## Steps\n1. Clarify problem and constraints.\n2. Present 2-3 options.\n3. Compare tradeoffs in a table when useful.\n4. Recommend one option with rationale.\n5. Produce Codex handoff if implementation follows.\n\n## Output\n- Options\n- Comparison\n- Recommendation\n- Handoff\n""",
-    ),
     "codex-handoff": (
         "Create a compact continuation handoff for Codex sessions, compaction, or task transfer.",
         "Codex Handoff",
         """## Output format\n\n```md\n🎯 Context\n- 背景:\n- 制約:\n- 決定:\n\n📌 Tasks\n1. [task] - [purpose] - [notes]\n\n📁 Files\n- 変更:\n- 参考:\n\n✅ Done when\n- ...\n\n⚠️ Risks\n- ...\n```\n""",
     ),
     "implementation-router": (
-        "Classify implementation tasks by risk and route to feat, fix, refactor, test, review, or consultation.",
+        "Classify implementation tasks by risk and route to feat, fix, refactor, test, review, or consult.",
         "Implementation Router",
-        """## Routing\n- New behavior -> `feat`\n- Bug/failing test/runtime error -> `fix`\n- Behavior-preserving cleanup -> `refactor`\n- Test-only -> `test`\n- Planning/no edit -> `consultation`\n- Code review -> `review` / `deep-review`\n\nAlways apply rules first and escalate high-risk tasks.\n""",
+        """## Routing\n- New behavior -> `feat`\n- Bug/failing test/runtime error -> `fix`\n- Behavior-preserving cleanup -> `refactor`\n- Test-only -> `test`\n- Planning/no edit -> `consult`\n- Code review -> `review` / `deep-review`\n\nAlways apply rules first and escalate high-risk tasks.\n""",
     ),
     "plan": (
         "Planning-only mode for 2-3 options and a recommendation. Do not edit files.",
         "Plan",
-        """Use `consultation`. File edits are forbidden. Output options, comparison, recommendation, and handoff.\n""",
+        """Use `consult`. File edits are forbidden. Output options, comparison, recommendation, and handoff.\n""",
     ),
     "explain": (
         "Explain code structure, data flow, dependencies, and change points. Do not edit files.",

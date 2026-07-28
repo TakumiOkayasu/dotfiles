@@ -99,6 +99,51 @@ def check_hook_commands(root: Path) -> int:
     return 0
 
 
+def _skill_names(skills_dir: Path) -> set[str]:
+    if not skills_dir.exists():
+        return set()
+    return {
+        path.name
+        for path in skills_dir.iterdir()
+        if path.is_dir() and (path / "SKILL.md").is_file()
+    }
+
+
+def _skill_files(skill_dir: Path) -> dict[Path, bytes]:
+    return {
+        path.relative_to(skill_dir): path.read_bytes()
+        for path in skill_dir.rglob("*")
+        if path.is_file() and not path.name.endswith(".bak")
+    }
+
+
+def check_skill_sync(root: Path) -> int:
+    source_dir = root / "codex" / "skills"
+    core_dir = root / "plugins" / CORE_PLUGIN / "skills"
+    extra_dir = root / "plugins" / EXTRA_PLUGIN / "skills"
+    source_skills = _skill_names(source_dir)
+    core_skills = _skill_names(core_dir)
+    extra_skills = _skill_names(extra_dir)
+
+    duplicates = core_skills & extra_skills
+    distributed = core_skills | extra_skills
+    if duplicates or distributed != source_skills:
+        print(
+            f"SKILL_SET_DRIFT: missing={sorted(source_skills - distributed)} "
+            f"unexpected={sorted(distributed - source_skills)} "
+            f"duplicates={sorted(duplicates)}",
+            file=sys.stderr,
+        )
+        return 8
+
+    for name in sorted(source_skills):
+        plugin_dir = core_dir / name if name in core_skills else extra_dir / name
+        if _skill_files(source_dir / name) != _skill_files(plugin_dir):
+            print(f"SKILL_CONTENT_DRIFT: {name}", file=sys.stderr)
+            return 8
+    return 0
+
+
 def report_skill_counts(root: Path) -> None:
     core_skills = [p.name for p in (root / "plugins/dotfile-work-codex/skills").iterdir() if p.is_dir()]
     extra_skills_dir = root / "plugins/dotfile-work-codex-extra/skills"
@@ -121,6 +166,7 @@ def main() -> int:
         check_extra_manifest,
         check_marketplace,
         check_hook_commands,
+        check_skill_sync,
     ]:
         result = check(root)
         if result != 0:

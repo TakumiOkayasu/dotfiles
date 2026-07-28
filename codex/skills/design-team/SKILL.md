@@ -1,7 +1,7 @@
 ---
 codex_port_source: claude/skills/design-team/SKILL.md
 name: design-team
-description: ちょっと大きめのタスクの設計段階で、Architect (構築役) と Devil's advocate (反対役) を独立 subagent として並行起動し、自分の指示では抜けた視点/選択肢/死角を炙り出してから設計を確定する skill。Architect は設計+代替案を、Devil's advocate は同じ仕様を独立に読んで死角/見落とし/リスク/見送った選択肢を出す (互いの出力を見せずアンカリングを防ぐ)。本体が両者を突合して統合設計を作り、2nd round で Devil's advocate に統合案を再レビューさせる。「設計チーム」「Architect と反対役」「死角を洗い出して設計」「devil's advocate」「見落とし視点をカバー」で起動。方針自体の go/no-go は premise-questioning、単一視点の設計手順は architecture-design を使う。
+description: ちょっと大きめのタスクの設計段階で、Architect (構築役) と Devil's advocate (反対役) を独立 subagent として並行起動し、自分の指示では抜けた視点/選択肢/死角を炙り出してから設計を確定する skill。Architect は設計+代替案を、Devil's advocate は同じ仕様を独立に読んで死角/見落とし/リスク/見送った選択肢を出す (互いの出力を見せずアンカリングを防ぐ)。本体が両者を突合して統合設計を作り、2nd round で Devil's advocate に統合案を再レビューさせる。「設計チーム」「Architect と反対役」「死角を洗い出して設計」「devil's advocate」「見落とし視点をカバー」で起動。方針自体の go/no-go は premise-questioning、単一視点の設計手順は arch を使う。
 ---
 
 # Design Team (Architect + Devil's advocate)
@@ -25,9 +25,9 @@ description: ちょっと大きめのタスクの設計段階で、Architect (�
 | skill | 守備範囲 | 本 skill との違い |
 | --- | --- | --- |
 | `premise-questioning` | 方針そのものの go/no-go (戦略) | 本 skill は「やる」前提で**設計の中身**を広げる |
-| `architecture-design` | 単一視点の設計手順 (レイヤー/責務) | 本 skill は**複数視点を並行**で当てて死角を潰す |
+| `arch` | 単一視点の設計手順 (レイヤー/責務) | 本 skill は**複数視点を並行**で当てて死角を潰す |
 | `feature-pruning` | 個別機能/UI/API の要否 (機能粒度) | 本 skill は設計案/選択肢の**視点網羅** |
-| `consultation` | ユーザーへの構造化相談 | 本 skill は subagent 間で先に煮詰める |
+| `consult` | ユーザーへの構造化相談 | 本 skill は subagent 間で先に煮詰める |
 
 go/no-go が未確定なら先に `premise-questioning`。本 skill は方針確定後の設計段階に入る。
 
@@ -42,7 +42,7 @@ go/no-go が未確定なら先に `premise-questioning`。本 skill は方針確
 
 - 1 ファイル/30 行未満の局所変更 (起動オーバーヘッドが上回る)
 - 方針自体が未確定 (→ `premise-questioning`)
-- 仕様が固まり実装するだけ (→ `plan-and-review` / `tdd`)
+- 仕様が固まり実装するだけ (→ `orchestrate` / `tdd`)
 
 ## トリガー語
 
@@ -141,5 +141,5 @@ No が 1 つでもあれば設計へ戻る:
 
 - `$HOME/.codex/SUBAGENTS.md`: 並列起動の上限/観点独立条件/dispatch 契約
 - `premise-questioning`: 方針自体の go/no-go (本 skill の前段)
-- `architecture-design`: 確定した設計のレイヤー/責務への落とし込み
-- `plan-and-review`: 確定設計の task 分解 → subagent 実装 → 2 段階レビュー
+- `arch`: 確定した設計のレイヤー/責務への落とし込み
+- `orchestrate`: 確定設計の task 分解 → subagent 実装 → 2 段階レビュー
