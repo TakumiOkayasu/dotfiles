@@ -18,7 +18,7 @@
 
 ## subagent 出力
 
-> phase-gate-framework.md「subagent 出力の永続化」規約に従う。subagent を起動した場合に追記する。
+> SUBAGENTS.md「集約は親 (発動主体) が行う」規約に従う。subagent を起動した場合に追記する。
 
 ### subagent: {name} (YYYY-MM-DD HH:MM)
 - 役割:

@@ -1,44 +1,8 @@
-# Opus 4.7 Policy
+# Session Memory Policy
 
-Claude Opus 4.7 の以下強化点を運用に反映する:
-
-- 計画段階での self-checking 能力向上
-- `xhigh` thinking レベル追加と Adaptive thinking
-- ファイルシステムベースのメモリ強化
-- 長時間 / マルチステップタスクの信頼性向上
-
-本ポリシーは `${HOME}/.claude/rules/` 配下にあるため、CLAUDE.md の `@import` 経由で常時適用される。premise-questioning / feature-pruning より**軽量・常時適用**。
-
-## 🧠 Thinking Budget Policy
-
-タスク性質に応じて推論深度を引き上げる。Claude Code 内では `think` 系キーワードを内省的に発動する (公式推奨)。
-
-| タスク性質 | 推論レベル | キーワード例 |
-| --- | --- | --- |
-| 軽量編集・typo・単純な置換 | default | (即実装) |
-| 複数ファイル変更・新機能追加・設計判断 | high | `think` |
-| 難解なバグ・並行処理・型パズル | xhigh | `think hard` |
-| アーキテクチャ設計・セキュリティ監査・長時間エージェント | max | `ultrathink` |
-
-判定が曖昧な場合は**1 段上**を選ぶ。軽量で済むタスクに重いレベルを当てるコストより、難問を軽量で誤る損失の方が大きい。
-
-## ✅ Self-Review Gate (常時)
-
-実装着手前に**必ず**以下を内省する。No が 1 つでもあれば 1 段上の thinking レベルで再検討する。
-
-| # | 自問 |
-| --- | --- |
-| 1 | 入出力の型と契約を 1 文で言えるか |
-| 2 | エッジケースを 3 つ以上挙げられるか |
-| 3 | 既存パターン (skills / rules) と整合するか |
-| 4 | テスト可能な単位に分割されているか |
-| 5 | 失敗した場合の rollback 手順があるか |
-
-本 gate は premise-questioning / feature-pruning の**前段**に位置する常時適用ゲート。100 行未満の変更にも適用する。重い検証への昇格条件は CLAUDE.md「着手前の方針検証」節を参照。
+長時間 / マルチセッションタスクの継続性を、ファイルシステム上の 3 層で担保する。
 
 ## 📂 File-System Memory (3 層構造)
-
-長時間 / マルチセッションタスクの継続性を担保するため、以下 3 層で運用する。
 
 ```text
 .claude/
@@ -63,9 +27,25 @@ Claude Opus 4.7 の以下強化点を運用に反映する:
 - `scratch/` は `.gitignore` 必須。コミットしない
 - 新規ディレクトリ作成時は `.claude/notes/.gitkeep` を置く
 
-### Adaptive thinking との連携
+### progress.md のフォーマット
 
-`notes/` を読み戻すことで前提コンテキストの量を減らせるため、その分の thinking budget を実装側に振り向けられる。長時間タスクではこれを意識する。
+```markdown
+# PROGRESS
+
+## 現在のタスク
+- [ ] タスク名 — 目的: xxx
+
+## 判断ログ
+- YYYY-MM-DD: 判断内容。理由: ...
+
+## 完了
+- [x] 完了したタスク (最新 5 件のみ)
+
+## 既読ファイル (セッション内)
+- path/to/file (read: HH:MM)
+```
+
+`## 完了` は最新 5 件のみ残す。古い分は `progress-archive.md` へ YYYY-MM-DD ヘッダ付きで追記する。`progress-archive.md` はセッション開始時に読まない。
 
 ### failure-logging との接続
 
