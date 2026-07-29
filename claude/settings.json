@@ -201,7 +201,8 @@
     }
   },
   "effortLevel": "high",
-  "fastMode": true,
+  "fallbackModel": [],
+  "switchModelsOnFlag": false,
   "theme": "auto",
   "preferredNotifChannel": "ghostty",
   "remoteControlAtStartup": true,
