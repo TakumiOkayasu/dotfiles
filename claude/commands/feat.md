@@ -29,7 +29,7 @@ $ARGUMENTS に実装する機能の説明が渡されます。
 
 @ `$HOME/.claude/CLAUDE.md`
 
-> 「着手前の方針検証 (2 段階)」と整合する。
+> 「着手前の方針検証」と整合する。
 
 #### 1. premise-questioning (戦略レベル)
 

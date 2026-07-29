@@ -1,6 +1,6 @@
 # SUBAGENTS.md
 
-サブエージェント (subagent) の**起動 mechanics** (dispatch 形式 / 並列起動 / 集約 / 制約) を集約する。**起動用途** (どんなときに subagent を立てるか) は ``$HOME/.claude/CLAUDE.md`` 「🤖 サブエージェント」節を参照。両者は棲み分け関係にあり、各 skill / command は本ファイル + `$HOME/.claude/CLAUDE.md` を参照することで重複記述を避ける。
+サブエージェント (subagent) の**起動 mechanics** (dispatch 形式 / 並列起動 / 集約 / 制約) を集約する。**起動用途** (どんなときに subagent を立てるか) は ``$HOME/.claude/CLAUDE.md`` 「サブエージェント」節を参照。両者は棲み分け関係にあり、各 skill / command は本ファイル + `$HOME/.claude/CLAUDE.md` を参照することで重複記述を避ける。
 
 ## 並列起動の作法
 
@@ -20,7 +20,7 @@
 | 入力データ | 検証対象のコード / 仮説 / 機能リスト (固定: subagent が勝手に分割・集約しない) |
 | 出力フォーマット | 親が機械的に集約できる形式 (3 軸スコア / リスト / マトリクス等) |
 | 環境制約 | dispatch 不能環境では skip し理由報告 |
-| thinking_budget | `default` (定型実装・既知パターン) / `high` (設計判断・複数案比較・バグ調査) / `xhigh` (アーキテクチャ変更・セキュリティ審査) / `max` (新規ドメイン設計・全体影響調査、乱用禁止)。迷ったときの方向は `opus-47-policy.md`「Thinking Budget Policy」に従う。未指定時は呼び出し元スキルの推奨レベル |
+| thinking_budget | `low` (定型実装・既知パターン・機械的作業) / `high` (設計判断・複数案比較・バグ調査) / `xhigh` (アーキテクチャ変更・セキュリティ審査) / `max` (新規ドメイン設計・全体影響調査、乱用禁止)。未指定時は呼び出し元スキルの推奨レベル |
 
 ## dispatch 出力契約
 
@@ -35,7 +35,22 @@ subagent は以下を返す:
 - subagent 個別レポートを**親が事後集約**する。subagent 側ではラウンド間集約・拡張モード発動判定は行わない
 - **nested dispatch (subagent から subagent を呼ぶ) は Claude Code 標準 harness で許可されない**。1 段 dispatch で完結する設計にする
 - 同じ subagent を再利用しない (前回の出力を学習している)。毎回新規 dispatch する
-- subagent 出力は親側で `.claude/notes/{task-id}.md` へ追記する (構造は `phase-gate-framework.md`「subagent 出力の永続化」参照)。これにより複数 subagent 結果が単一ファイルに集約され、後続セッション / 他 skill から参照可能になる
+- subagent 出力は親側で `.claude/notes/{task-id}.md` へ追記する。複数 subagent 結果が単一ファイルに集約され、後続セッション / 他 skill から参照可能になる。構造は以下:
+
+```markdown
+## subagent: {name} ({YYYY-MM-DD HH:MM})
+- 役割: ...
+- thinking_budget: high
+
+### 結論
+採用 / 棄却 / 要確認
+
+### 根拠
+- ...
+
+### 自己申告
+- 詰まった箇所 / 裁量補完 / 再試行回数
+```
 
 ## 再 dispatch 条件
 
@@ -51,7 +66,7 @@ dispatch 不能環境 (既に subagent として動作している / Task tool �
 
 ## 種別の使い分け
 
-種別 (`Explore` / `general-purpose` / `Plan` / `qa-nightmare` / `test-writer` 等) と用途の対応 / 起動しないケースは ``$HOME/.claude/CLAUDE.md``「🤖 サブエージェント」節を参照。本ファイルでは mechanics のみ扱う。
+種別 (`Explore` / `general-purpose` / `Plan` / `qa-nightmare` / `test-writer` 等) と用途の対応 / 起動しないケースは ``$HOME/.claude/CLAUDE.md``「サブエージェント」節を参照。本ファイルでは mechanics のみ扱う。
 
 ## skill / command 固有の起動契約
 

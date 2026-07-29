@@ -1,6 +1,6 @@
 ---
 name: design-team
-description: ちょっと大きめのタスクの設計段階で、Architect (構築役) と Devil's advocate (反対役) を独立 subagent として並行起動し、自分の指示では抜けた視点/選択肢/死角を炙り出してから設計を確定する skill。Architect は設計+代替案を、Devil's advocate は同じ仕様を独立に読んで死角/見落とし/リスク/見送った選択肢を出す (互いの出力を見せずアンカリングを防ぐ)。本体が両者を突合して統合設計を作り、2nd round で Devil's advocate に統合案を再レビューさせる。「設計チーム」「Architect と反対役」「死角を洗い出して設計」「devil's advocate」「見落とし視点をカバー」で起動。方針自体の go/no-go は premise-questioning、単一視点の設計手順は arch を使う。
+description: 規模の大きいタスクの設計段階で、Architect (構築役) と Devil's advocate (反対役) を独立 subagent として並行起動し、指示から抜けた視点/選択肢/死角を炙り出してから設計を確定する。互いの出力を見せずアンカリングを防ぎ、本体が突合して統合設計を作り 2nd round で再レビューさせる。「設計チーム」「死角を洗い出して設計」「devil's advocate」で起動。方針自体の go/no-go は premise-questioning、単一視点の設計手順は arch を使う。
 ---
 
 # Design Team (Architect + Devil's advocate)
@@ -53,7 +53,7 @@ Devil's advocate は Architect の出力を**受け取らない**。同じタス
 
 Architect と Devil's advocate を**同一メッセージ内**で並行起動する (逐次は並列性を失う)。独立タスクなので互いの出力は渡さない。並列起動の作法は `$HOME/.claude/SUBAGENTS.md` を参照。
 
-dispatch 入力契約 (phase-gate-framework に準拠):
+dispatch 入力契約 (`$HOME/.claude/SUBAGENTS.md` に準拠):
 
 | 項目 | Architect | Devil's advocate |
 | --- | --- | --- |
@@ -103,20 +103,9 @@ S/A の死角で未対応のものが残る間は、設計を確定しない。
 - ...
 ```
 
-## Gate
+## 実装着手の条件
 
-### Plan Gate (設計確定 → 実装着手)
-
-No が 1 つでもあれば設計へ戻る:
-
-- [ ] 入出力の型と契約を 1 文で言える
-- [ ] エッジケースを 3 つ以上挙げた
-- [ ] 既存パターン (skills / rules) との整合を確認した
-- [ ] テスト可能な単位に分割されている
-- [ ] 失敗時の rollback 手順がある
-- [ ] (skill 固有) Architect の代替案を最低 2 案検討した
-- [ ] (skill 固有) Devil's advocate の S/A 死角がすべて対応済み or 許容理由を明記した
-- [ ] (skill 固有) Round 2 の再レビューを通した
+Architect の代替案を最低 2 案検討し、Devil's advocate の S/A 死角はすべて対応するか許容理由を明記する。Round 2 の再レビューを通してから着手する。
 
 ## アンチパターン
 

@@ -53,17 +53,7 @@
 
 プロジェクト固有の `CLAUDE.md` / `.claude/rules/` があれば追加で読み、同様に振り分ける。
 
-### Plan Gate (Step 3 → Step 4)
-
-3 並列 subagent dispatch に進む前に内省する:
-
-- [ ] 差分の全体把握ができている (Step 2 完了)
-- [ ] 観点別のルール振り分けが完了している
-- [ ] **deep-review固有**: subagent 起動可能性を確認した (不可なら BLOCK)
-- [ ] 各 subagent への入力フォーマットが固定されている
-- [ ] **subagent dispatch 入力契約**: thinking_budget を明示している (security=xhigh / performance=high / maintainability=high)
-
-詳細規約: `${HOME}/.claude/rules/phase-gate-framework.md`
+dispatch 時は各 subagent の入力フォーマットを固定し、thinking_budget を明示する (security=xhigh / performance=high / maintainability=high)。subagent が起動不能な環境では BLOCK とする。
 
 ### Step 4: 3 並列 subagent dispatch
 
@@ -98,30 +88,9 @@ tool contract 上どうしても起動できない場合は、レビューを実
 3. Critical → Warning → Suggestion の順、各内は file:line 昇順でソートする
 4. 全件が単一観点に偏る場合は当該 subagent の出力品質を疑う
 
-### Step 6: Verify Gate (自己検証)
+### Step 6: 出力基準
 
-統合済みリストの出力前に内省する。No が 1 つでもあれば該当 subagent を再 dispatch する:
-
-- [ ] 推測指摘がない (実コードで確認できるもののみ)
-- [ ] 修正案の構文が正しい
-- [ ] 既存テストを壊さない
-- [ ] 存在しない API を使っていない (`hallucination-prevention` 違反なし)
-- [ ] 重要度が基準表に準拠
-- [ ] スコープが目的に対し過不足ない
-- [ ] **deep-review固有**: 3 観点全てに findings が分散している (単一観点偏重なら subagent 出力品質を疑い再 dispatch)
-- [ ] **deep-review固有**: 全指摘に修正コードが添えられている
-- [ ] **deep-review固有**: 方針検証発動跡の確認が完了している (該当差分の場合)
-
-詳細規約: `${HOME}/.claude/rules/phase-gate-framework.md`
-
-### Handoff Gate (Step 7 直前)
-
-最終出力前に確認する:
-
-- [ ] 3 subagent の出力を `.claude/notes/{task-id}.md` に集約済み (`## subagent: security/performance/maintainability` 形式)
-- [ ] 同一 file:line の重複指摘が集約済み
-- [ ] BLOCK 判定の場合、理由が明示されている (`subagent dispatch unavailable` 等)
-- [ ] レビュー後の次ステップ (該当スキルへの引き継ぎ) が「レビュー後」セクションに沿って明示できる
+指摘は実コードで確認できるものだけを載せ、全件に構文の通った修正コードを添える。存在しない API を使わない (`hallucination-prevention`)。重要度は基準表に従い、同一 file:line の重複は集約する。3 subagent の出力は `.claude/notes/{task-id}.md` へ `## subagent: security/performance/maintainability` 形式で集約する。BLOCK 判定なら理由 (`subagent dispatch unavailable` 等) を明示する。
 
 ### Step 7: 出力
 
