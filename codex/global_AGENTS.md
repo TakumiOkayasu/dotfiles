@@ -57,12 +57,6 @@ Skill routing:
 - `rules-enforce.sh` scans changed code after edits and at turn stop; if it reports `BLOCK`, fix the violations before final output.
 - For semantic rules that cannot be fully scanned, use `$rules-compliance-review`; for large/high-risk diffs, dispatch one rules-only review subagent and then parent session makes the final decision.
 
-## RTK
-
-- `rtk` が利用可能な環境では、Bash コマンドは原則 `rtk <command>` で実行して出力を圧縮する。
-- `rtk gain`, `rtk gain --history`, `rtk proxy <command>` は必要時のみ使う。
-- safety hooks は `rtk` wrapper の内側コマンドを検査する。禁止されるローカル実行や破壊的操作を `rtk` で迂回しない。
-
 ## WebFetch fallback
 
 - If built-in WebFetch fails or returns incomplete/noisy content, use `r.jina.ai` first for public URLs.

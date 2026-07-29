@@ -234,11 +234,6 @@ DISPATCHER="${HOOK_DIR}/hook-dispatcher.sh"
 export CODEX_HOOK_TEST_MODE=1
 run_hook_test "$DISPATCHER pre-tool-use" "dispatcher allows runner build command" "$(make_input Bash command "npm run build")" 0
 run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks package install command" "$(make_input Bash command "npm install")" 2
-run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks rtk git commit command" "$(make_input Bash command "rtk git commit -m test")" 2
-run_hook_test "$DISPATCHER pre-tool-use" "dispatcher allows rtk runner build command" "$(make_input Bash command "rtk npm run build")" 0
-run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks rtk package install command" "$(make_input Bash command "rtk npm install")" 2
-run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks rtk runtime command" "$(make_input Bash command "rtk python3 script.py")" 2
-run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks rtk proxy runtime command" "$(make_input Bash command "rtk proxy python3 script.py")" 2
 run_hook_stdout_empty_test "$DISPATCHER user-prompt-submit" "dispatcher suppresses prompt reminder output" "$(make_prompt_input "修正して")" 0
 run_rules_checksum_stability_test
 run_codex_rules_refresh_test
