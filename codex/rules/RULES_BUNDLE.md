@@ -1,10 +1,10 @@
-# Codex Rules Bundle
+# RULES_BUNDLE
 
-このファイルは hook/context injection 用の連結 rules bundle です。直接編集せず、元 rule を編集して再生成してください。
+Generated at: 2026-07-30T16:42:54+09:00 JST
+
+This file is generated from `codex/rules/*.md`. Do not edit it directly.
 
 ---
-
-## Source: `codex/rules/RULES_CORE.md`
 
 # RULES_CORE
 
@@ -41,9 +41,10 @@ When instructions conflict, follow the higher-priority source and report the con
 
 Treat as high-risk: DB schema, public API/SDK/CLI contract, auth/authorization, secrets, payments, dependency add/remove/update, data migration/destructive change, 100+ changed lines, multiple services, or unclear requirements.
 
+
 ---
 
-## Source: `codex/rules/coding-conventions.md`
+# RULE FILE: coding-conventions.md
 
 # Coding Conventions
 
@@ -136,16 +137,17 @@ Treat as high-risk: DB schema, public API/SDK/CLI contract, auth/authorization, 
 
 ## テスト
 
-アサーションは具体値を検証し、振る舞いを実際に判定するテストだけを書く。トートロジー・`toBeDefined()` のみ・カバレッジ稼ぎは書かない。書く前に「何を検証するか」を 1 行で言語化できること。AAA 構造 (Arrange/Act/Assert)、1 テスト 1 概念、テスト間の状態共有・順序依存をなしにする。命名は `should_<expected>_when_<condition>`。詳細は `${HOME}/.agents/skills/tdd/SKILL.md` を参照。
+アサーションは具体値を検証し、振る舞いを実際に判定するテストだけを書く。トートロジー・`toBeDefined()` のみ・カバレッジ稼ぎは書かない。書く前に「何を検証するか」を 1 行で言語化できること。AAA 構造 (Arrange/Act/Assert)、1 テスト 1 概念、テスト間の状態共有・順序依存をなしにする。命名は `should_<expected>_when_<condition>`。詳細は `$tdd` を参照。
 
 
 ## Codex rule loading
 
 This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
+
 ---
 
-## Source: `codex/rules/hallucination-prevention.md`
+# RULE FILE: hallucination-prevention.md
 
 # Hallucination Prevention
 
@@ -189,9 +191,10 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 
 This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
+
 ---
 
-## Source: `codex/rules/hierarchical-architecture.md`
+# RULE FILE: hierarchical-architecture.md
 
 # Architecture Invariants
 
@@ -246,9 +249,10 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 
 This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
+
 ---
 
-## Source: `codex/rules/implementation-policy.md`
+# RULE FILE: implementation-policy.md
 
 # Implementation Policy
 
@@ -304,9 +308,10 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 
 This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
+
 ---
 
-## Source: `codex/rules/natural-japanese.md`
+# RULE FILE: natural-japanese.md
 
 # Natural Japanese
 
@@ -334,25 +339,7 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 - 引用/通称はダブルクォート "" を使う。かぎかっこ 「」 は使わない。"" も多用しない。
 - 太字 (`**`) による強調を使わない。際立たせたい語は文の順序と構造で立たせる。
 - 見出しに区切り線 (罫線 ─ やダッシュ類) で "種別──主題" のように二要素を詰め込まない。見出しは単一の自然な句にする。
-- 段落番号/見出し番号をハードコードしない。後の編集で順番や増減が起き、ずれるため。番号を振らず、標準のリスト記法で書く。
-
-  悪い例:
-
-  ```text
-  1. 物理層の違いを検討する。
-  2. データリンク層の実現方法を比べる。
-
-  ## 1. 課題1: 有線と無線の比較
-  ### 1.1 物理層の違い
-  ```
-
-  良い例:
-
-  ```text
-  * 物理層の違いを検討する。
-  * データリンク層の実現方法を比べる。
-  ```
-
+- 段落番号/見出し番号をハードコードしない (`1.` や `## 1.` `### 1.1` を振らない)。後の編集で順番や増減が起きてずれるため、標準のリスト記法で書く。
 - アスキーアートで構造を描かない。人間はまず書かない。図が要るなら mermaid などコードで図を表記できる手段を使う。
 - 既出の語をカッコで言い換え補足するのは冗長。"共通化 (抽象化)" のような並べ方をしない。ただし指示対象が一意に決まらないときに、丸括弧の同格挿入でその場で特定するのは可。
 - 文書/原稿を書くときは一文ごとに改行し、段落の区切りを空行で示す。コード/差分/ログ/設定の断片はコードブロックに入れる。本筋から一段外れる補足は本文に並べず脚注に降ろす。(会話の応答までは一文改行しなくてよい)
@@ -437,12 +424,10 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 
 無駄な文章をなるべく残さない。
 
-- 同じ主張を言い換えて繰り返さない。一つの主張は一度だけ書く。
-- 隣接する節が同じことを別の角度で述べているなら、片方に吸収して一つにまとめる。
+- 同じ主張を言い換えて繰り返さない。一つの主張は一度だけ書く。隣接する節が同じことを別角度で述べているなら片方に吸収する。
 - 場面を描写した直後に、その内容を要約し直さない。意味づけの一文だけを置く。
-- 同じ論理的役割を持つ並列の事実は、文を分けて重ねず一文にまとめる。
+- 同じ論理的役割を持つ並列の事実は、文を分けて重ねず一文にまとめる。数文の議論を一文に圧縮できるなら圧縮した一文だけを残す。
 - 読者が自力で補える中間段階の説明は書かない。
-- 数文の議論を一文に圧縮できるなら、圧縮した一文だけを残す。
 - 接続や評価のためだけの文 (それ自体はよいことである、など) を置かない。
 - 想像上の読者との問答を修辞として使わない。読者の反応を演じて応答する形 (〜と感じたかもしれない。そのとおりである) も避け、譲歩は地の文で簡潔に行う。
 - 著者の立場の弁明や断り (本書もそれを否定しない、など) を書かない。事実の記述だけ置く。
@@ -467,11 +452,12 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 
 This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
+
 ---
 
-## Source: `codex/rules/opus-47-policy.md`
+# RULE FILE: opus-47-policy.md
 
-# Opus 4.7 Policy
+# Session Memory Policy
 
 <!-- codex-port: managed; source=claude/rules/opus-47-policy.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
@@ -483,45 +469,9 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
-Codex Opus 4.7 の以下強化点を運用に反映する:
-
-- 計画段階での self-checking 能力向上
-- `xhigh` thinking レベル追加と Adaptive thinking
-- ファイルシステムベースのメモリ強化
-- 長時間 / マルチステップタスクの信頼性向上
-
-本ポリシーは `${HOME}/.codex/rules/` 配下にあるため、AGENTS.md の `@import` 経由で常時適用される。premise-questioning / feature-pruning より**軽量・常時適用**。
-
-## 🧠 Thinking Budget Policy
-
-タスク性質に応じて推論深度を引き上げる。Codex 内では `think` 系キーワードを内省的に発動する (公式推奨)。
-
-| タスク性質 | 推論レベル | キーワード例 |
-| --- | --- | --- |
-| 軽量編集・typo・単純な置換 | default | (即実装) |
-| 複数ファイル変更・新機能追加・設計判断 | high | `think` |
-| 難解なバグ・並行処理・型パズル | xhigh | `think hard` |
-| アーキテクチャ設計・セキュリティ監査・長時間エージェント | max | `ultrathink` |
-
-判定が曖昧な場合は**1 段上**を選ぶ。軽量で済むタスクに重いレベルを当てるコストより、難問を軽量で誤る損失の方が大きい。
-
-## ✅ Self-Review Gate (常時)
-
-実装着手前に**必ず**以下を内省する。No が 1 つでもあれば 1 段上の thinking レベルで再検討する。
-
-| # | 自問 |
-| --- | --- |
-| 1 | 入出力の型と契約を 1 文で言えるか |
-| 2 | エッジケースを 3 つ以上挙げられるか |
-| 3 | 既存パターン (skills / rules) と整合するか |
-| 4 | テスト可能な単位に分割されているか |
-| 5 | 失敗した場合の rollback 手順があるか |
-
-本 gate は premise-questioning / feature-pruning の**前段**に位置する常時適用ゲート。100 行未満の変更にも適用する。重い検証への昇格条件は AGENTS.md「着手前の方針検証」節を参照。
+長時間 / マルチセッションタスクの継続性を、ファイルシステム上の 3 層で担保する。
 
 ## 📂 File-System Memory (3 層構造)
-
-長時間 / マルチセッションタスクの継続性を担保するため、以下 3 層で運用する。
 
 ```text
 .codex/
@@ -546,9 +496,25 @@ Codex Opus 4.7 の以下強化点を運用に反映する:
 - `scratch/` は `.gitignore` 必須。コミットしない
 - 新規ディレクトリ作成時は `.codex/notes/.gitkeep` を置く
 
-### Adaptive thinking との連携
+### progress.md のフォーマット
 
-`notes/` を読み戻すことで前提コンテキストの量を減らせるため、その分の thinking budget を実装側に振り向けられる。長時間タスクではこれを意識する。
+```markdown
+# PROGRESS
+
+## 現在のタスク
+- [ ] タスク名 — 目的: xxx
+
+## 判断ログ
+- YYYY-MM-DD: 判断内容。理由: ...
+
+## 完了
+- [x] 完了したタスク (最新 5 件のみ)
+
+## 既読ファイル (セッション内)
+- path/to/file (read: HH:MM)
+```
+
+`## 完了` は最新 5 件のみ残す。古い分は `progress-archive.md` へ YYYY-MM-DD ヘッダ付きで追記する。`progress-archive.md` はセッション開始時に読まない。
 
 ### failure-logging との接続
 
@@ -584,141 +550,60 @@ Codex Opus 4.7 の以下強化点を運用に反映する:
 
 This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
+
 ---
 
-## Source: `codex/rules/phase-gate-framework.md`
+# RULE FILE: referent-before-label.md
 
-# Phase Gate Framework
+# 語より先に指示対象を固定する
 
-<!-- codex-port: managed; source=claude/rules/phase-gate-framework.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=claude/rules/referent-before-label.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/rules/phase-gate-framework.md`.
+- This file was ported from `claude/rules/referent-before-label.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
-スキル / 長時間タスクのフェーズ遷移時に置く**ゲート** (gate) の標準規約。Opus 4.7 の self-checking 能力を構造化された check point として活かす。
+<!-- codex-runtime-summary -->
+- IMPORTANT: 対象文書 (設計文・調査報告・対策案・命名・推論順序の要約) では、対応表を独立提出してから本文を書く。対応表なしの本文提出は禁止。表なしで書き始めたら本文を破棄し、対応表から作り直す。
+- IMPORTANT: 骨組み・見出しに作業ラベル (未整理の作業を抽象名詞で包んだ句) を使わない。新語・造語は初出定義を書けなければ導入せず、指す対象を具体記述に分解する。
+- IMPORTANT: 対象文書の着手時は semantic-generation skill を発火する。skill が使えない場合も、最低 6 列 (出典・目的・具体対象・役割・前後関係・候補語) の対応表を独立成果物として先に保存する。
+<!-- /codex-runtime-summary -->
 
-opus-47-policy.md の Self-Review Gate (常時適用) が**点**のゲートだとすれば、本 framework は**スキル内フェーズ間に置く線**のゲート。両者は併存し、後者が前者を内包する。
+対象が曖昧なまま語 (しばしばその場の造語) を先に置き、その語を土台に思考を進めると、指示対象とのずれが訂正されないまま設計文・状態名・条件名・メソッド名・型名まで波及する(TASK-52 の「圧縮時点」「観測を一つに集める」事例)。
+本 rule はこの生成の進め方そのものを止める。誤用語のリストとの照合 (言葉狩り) は対策にしない。造語は列挙できないためである。
+本 rule は、語の揺れを判定する基準ではなく「語を置く前の手順」を持つ。
 
-## 🎯 Gate の役割
+## 適用範囲 (対象文書)
 
-- フェーズ遷移時に**前提が満たされていることを検証**する
-- 検証失敗時は前フェーズへ差し戻す (前進しない)
-- 検証結果を `.codex/notes/{task-id}.md` に記録する (4.7 のファイルメモリ強化に対応)
+次のいずれかに該当する作業だけに適用する。該当するか判断できない場合は適用する。
 
-## 🚪 Gate 種別 (3 種)
+1. 設計資料、要求からの設計、調査報告、原因切り分け案、対策案を書く。
+2. 命名する (公開仕様・状態名・条件名・事象名・値や記録の型名・メソッド名・boolean 名)。
+3. ユーザーが与えた推論順序を短い作業ラベルへ要約しようとしている。
 
-スキルは以下から必要なものを採用する。**全部置く必要はない**。
+ユーザー原文の引用、単純な機械編集、既存名の再利用、定型出力、雑談、確立した用語だけで書ける短文には適用しない。
 
-### 1. Plan Gate (計画 → 実装)
+## 常時適用 (3 禁則)
 
-実装へ進む前に検証する。失敗したら計画フェーズへ戻す。
+- IMPORTANT: 対象文書で、対応表 (referent table) を独立提出せずに本文を提出しない。対応表は本文とは別のファイルまたは別の turn で先に保存し、本文はその後に書く(完成文書の先頭に表を置くだけでは「先に作った」ことの証明にならない)。
+- IMPORTANT: 骨組み・見出し・結論に作業ラベルを使わない。作業ラベルとは、目的・対象・判断を省いたまま未整理の作業を抽象名詞で包んだ句を指す (例: 「観測をまとめる」)。
+  - 使いたくなったら、その句が指す対象を対応表に書けるか試し、書けなければ句を捨てて具体文で書く。
+- IMPORTANT: ユーザーの用語・確立した用語以外の新語を導入する時は、初出に「X とは〜を指す」の定義文を書く。定義文が書けない語は導入せず、指す対象をそのまま文で書き下す。
 
-| # | チェック項目 |
-| --- | --- |
-| 1 | 入出力の型と契約を 1 文で言える |
-| 2 | エッジケースを 3 つ以上挙げた |
-| 3 | 既存パターン (skills / rules) との整合を確認した |
-| 4 | テスト可能な単位に分割されている |
-| 5 | 失敗時の rollback 手順がある |
+## 通常の流れ
 
-(opus-47-policy.md の Self-Review Gate と同一項目。Plan Gate はその**フェーズ末への明示配置**版)
+1. 対象文書に該当するか判定する (迷ったら該当扱い)。
+2. `$semantic-generation` skill を発火し、対応表を独立成果物として先に保存する。
+3. 本文は対応表に載った語だけを中心語彙として書き、日本語文・設計要素・コード識別子の三層で同じ対応を保つ。
 
-### 2. Verify Gate (実装 → 完了)
+## 問題時の予備動作
 
-完了報告へ進む前に検証する。失敗したら実装フェーズへ戻す。
-
-| # | チェック項目 |
-| --- | --- |
-| 1 | 該当スキル固有の成功基準を全て満たした |
-| 2 | 全テストが pass している (未確認での pass 報告は禁止) |
-| 3 | 既存テストを破壊していない |
-| 4 | hook block が出ていない |
-| 5 | スキル固有の品質基準 (security / performance / accessibility 等) を満たした |
-
-### 3. Handoff Gate (skill 完了 → ユーザー報告 / 次タスク)
-
-ユーザーへの完了報告前に検証する。失敗したら記録漏れを補完してから報告する。
-
-| # | チェック項目 |
-| --- | --- |
-| 1 | `.codex/progress.md` を更新した (完了マーク + 次タスク) |
-| 2 | `.codex/notes/{task-id}.md` の要点を progress.md の判断ログへ反映した |
-| 3 | subagent 出力 (あれば) を notes へ集約した |
-| 4 | 残課題 / 未確認事項を明示した |
-
-## 📝 Gate の記述形式
-
-スキル内では gate を以下の形式で明示する:
-
-```markdown
-### Plan Gate
-進めて良いかを次の項目で自己検証する。No が 1 つでもあれば計画へ戻る:
-
-- [ ] 入出力の型と契約を 1 文で言える
-- [ ] エッジケースを 3 つ以上挙げた
-- [ ] 既存パターンとの整合を確認した
-- [ ] テスト可能な単位に分割されている
-- [ ] 失敗時の rollback 手順がある
-- [ ] (skill 固有項目を追記可)
-```
-
-## ➕ カスタム項目
-
-各スキルは標準項目に**追加項目**を持てる (削除は不可)。例:
-
-- `tdd`: RED が本当に失敗しているか / GREEN は最小実装か / REFACTOR で振る舞いが変わっていないか
-- `code-review`: 3 観点 (security / performance / maintainability) を網羅したか
-- `systematic-debugging`: 仮説の検証手段が具体的か / 再現条件が記録されているか
-
-## 🤖 Subagent 連携
-
-### dispatch 入力契約 (SUBAGENTS.md と同期)
-
-subagent 呼び出し時、以下を入力契約に含める:
-
-| 項目 | 内容 |
-| --- | --- |
-| 役割 | 何を判断・調査・出力するか (1 文) |
-| スコープ | 担当外観点に踏み込まない明示制約 |
-| 入力データ | 検証対象 (固定) |
-| 出力フォーマット | 親が機械的に集約できる形式 |
-| 環境制約 | dispatch 不能環境では skip し理由報告 |
-| **thinking_budget** | **default / high / xhigh / max のいずれか (opus-47-policy 参照)** |
-
-`thinking_budget` 未指定時の既定値は呼び出し元スキルの推奨レベル。
-
-### subagent 出力の永続化
-
-subagent 復帰後、出力を `.codex/notes/{task-id}.md` の以下構造へ追記する:
-
-```markdown
-## subagent: {name} ({YYYY-MM-DD HH:MM})
-- 役割: ...
-- thinking_budget: high
-
-### 結論
-採用 / 棄却 / 要確認
-
-### 根拠
-- ...
-
-### 自己申告
-- 詰まった箇所 / 裁量補完 / 再試行回数
-```
-
-これにより、後続セッションや別 skill から subagent 結果を参照可能になる (4.7 のファイルメモリ強化の活用)。
-
-## 🚫 Gate を**置かない**ケース
-
-- 軽量編集 (1 ファイル / 30 行未満 / typo) → gate は省略可
-- skill を読まずに済む単純タスク → そもそも skill 適用外
-- gate を**機械的にチェックリスト消化するだけ**で意味のある内省が伴わない場合 → 失敗。1 段上の thinking レベルで再実施
-
+- 対象文書なのに対応表を提出せず本文を書き始めたことに気づいたら、後付けで表を追記して継続しない。本文を破棄し、対応表を独立提出し直してから本文を再生成する。
+- skill が利用できない環境では、最低 6 列 (出典・目的・具体対象・役割・前後関係・候補語)の対応表を作業ディレクトリに独立ファイルとして保存してから本文に着手する。
 
 
 ## Codex rule loading

@@ -1,5 +1,5 @@
 ---
-codex_port_source: claude/skills/orchestrate/SKILL.md
+# codex_port_source: claude/skills/orchestrate/SKILL.md
 name: orchestrate
 description: 仕様が固まった複数 task の実装を、計画 → subagent 実装 → 2 段階レビュー (仕様適合 → 品質) で一気通貫に回す。task に分解できる機能追加・改修をまとめて自走実装したいときに使う。「実装計画」「計画立てて」「plan して」「まとめて実装」「全部作って」「順番に実装」「タスク分解」「subagent で回す」「2 段階レビュー」で起動。単発の小修正 (→ feat/fix) や設計未確定 (→ consult) では使わない。
 ---
@@ -56,7 +56,7 @@ description: 仕様が固まった複数 task の実装を、計画 → subagent
 | --- | --- |
 | 確定済み仕様 | `docs/specs/*` または会話中の合意済み設計 |
 | `ユーザー指定の保存先` | 計画の保存先パス (省略時は `.codex/plans/YYYY-MM-DD-<topic>.md`) |
-| ロード済み rules | `${HOME}/.codex/rules/*` は @import 済みで context にある |
+| ロード済み rules | `${HOME}/.codex/rules/*` は rules-inject hook で context に注入済みである |
 
 | 出力 | 内容 |
 | --- | --- |
@@ -100,17 +100,7 @@ Files:
 - テスト: tests/exact/path/to/file.test.ts
 ```
 
-### Plan Gate (Step 3 → Step 4)
-
-subagent dispatch に進む前に内省する。No が 1 つでもあれば計画に戻る:
-
-- [ ] 全 task が単体で意味を成す変更になっている (task 間の依存が最小)
-- [ ] **プレースホルダ皆無** (下表の禁止パターンが計画内に 1 つもない)
-- [ ] 型・関数名・プロパティ名が task 間で一貫している (Task 3 の `clearLayers()` が Task 7 で `clearFullLayers()` になっていない)
-- [ ] 各 task の model 割当を決めた (→ model 選択)
-- [ ] subagent への入力契約が固定されている (task 全文 + 周辺文脈 + 担当範囲)
-
-詳細規約: `${HOME}/.codex/rules/phase-gate-framework.md`
+dispatch 前に、全 task が単体で意味を成すこと・型と関数名が task 間で一貫していること (Task 3 の `clearLayers()` が Task 7 で `clearFullLayers()` になっていない) を揃える。計画にプレースホルダを残さない。
 
 #### 禁止プレースホルダ
 
@@ -179,14 +169,8 @@ BLOCK/WARN とも、修正が副作用承認ゲートに触れない限り止ま
 ### Step 7: 全 task 完了後
 
 全 task が PASS したら、実装全体に対し最終 `deep-review` を一度かける。
-完了報告は `verification-before-completion` 相当の確認 (テスト緑・スコープ過不足なし) を経てから行う。
-
-### Handoff Gate (Step 7 直前)
-
-- [ ] 全 task が仕様適合 ✅ かつ品質 PASS
-- [ ] 各 subagent の成果を `.codex/notes/{task-id}.md` に集約済み
-- [ ] BLOCK で止めた task があれば理由が明示されている
-- [ ] 次ステップ (commit message/PR/マージ判断) が示せる
+完了報告の前に、全 task のテストが緑であることとスコープに過不足がないことを確認する。
+報告には各 subagent の成果 (`.codex/notes/{task-id}.md` に集約) と、BLOCK で止めた task があればその理由を含める。
 
 ## model 選択
 
@@ -227,6 +211,5 @@ task の複雑度と driver/worker の役割を掛け合わせて割り当てる
 - 前段 (設計未確定時): `consult` / `arch`
 - 実装単位: `tdd` (subagent が各 task で従う) / `feat` / `fix`
 - 品質レビュー (2 段目): `deep-review`
-- 完了確認: `verification-before-completion` 相当
 - 詰まり対処: `systematic-debugging` (BLOCKED task の根本原因調査)
 - Codex 連携: `implementation-router` / `codex-handoff`

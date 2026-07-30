@@ -1,5 +1,5 @@
 ---
-codex_port_source: claude/skills/test-coverage-guard/SKILL.md
+# codex_port_source: claude/skills/test-coverage-guard/SKILL.md
 name: test-coverage-guard
 description: 既存テストの信頼性を検証し、偽陽性を検出・排除するガードレール。テストがGREENになった後に発動する。「このテスト信頼できる?」「偽陽性」「カバレッジ稼ぎ検出」で発動。
 ---

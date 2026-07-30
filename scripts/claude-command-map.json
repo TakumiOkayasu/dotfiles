@@ -1,0 +1,27 @@
+{
+  "commands": [
+    {
+      "source": "claude/commands/commit.md",
+      "skill": "commit-msg",
+      "reference": "references/claude-command.md"
+    },
+    {
+      "source": "claude/commands/deep-review.md",
+      "skill": "deep-review",
+      "reference": "references/claude-command.md"
+    },
+    {
+      "source": "claude/commands/feat.md",
+      "skill": "feat",
+      "reference": "references/claude-command.md"
+    },
+    {
+      "source": "claude/commands/fix.md",
+      "skill": "fix",
+      "reference": "references/claude-command.md"
+    }
+  ],
+  "allowed_skill_files": [
+    "SKILL.md"
+  ]
+}

@@ -41,6 +41,7 @@ Optional skills are packaged in `dotfile-work-codex-extra` and should usually be
 - `probe`
 - `prompt-tune`
 - `refactoring`
-- `rules-compliance-review`
 - `rules`
+- `rules-compliance-review`
+- `semantic-generation`
 - `test-coverage-guard`

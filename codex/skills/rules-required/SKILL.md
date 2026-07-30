@@ -1,41 +1,29 @@
 ---
 name: rules-required
-description: Use when rules, coding conventions, implementation policy, architecture invariants, or safety constraints may affect the task. Checks that Codex rules are available without printing full rule contents. Do not use to dump rules unless explicitly requested.
+description: Mandatory rule application before edits, tests, reviews, or implementation conclusions. Use when rules are unclear or before any mutating tool. Front-load this description for Codex implicit matching; explicit invocation via $rules-required always works.
 ---
 
 # Rules Required
 
-Use this skill when rules may affect editing, reviewing, testing, or implementation conclusions.
+## Goal
+Ensure applicable markdown rules are read and applied.
 
-## Quiet mode policy
+## Steps
+1. Confirm `RULES_CORE.md` and `RULES_INDEX.md` are available.
+2. For implementation/review/test/refactor, require full rule injection before any mutating tool.
+3. Identify relevant rule files for the task.
+4. Summarize applicable constraints.
+5. If rules conflict, follow nearest/project-specific rule and report conflict.
 
-Do not print full rules into the user-visible transcript unless the user explicitly asks for the rule text.
+## Output
+- Rules applied
+- Conflicts
+- Task-specific checklist
 
-Default behavior:
+## Common contract
 
-1. Confirm that rules exist.
-2. Summarize only the rule names and the specific constraints relevant to the current task.
-3. Before editing, rely on `rules-guard.sh` to verify that the rules marker checksum is current.
-4. If the guard blocks because the marker is missing or stale, start a new turn or run the quiet marker refresh hook, then continue.
-
-## Required checks
-
-- Determine the task category: implementation / bug fix / review / refactor / test / investigation.
-- Identify applicable rule files by name.
-- Apply the relevant constraints silently.
-- Report only conflicts, blockers, and verification risks.
-
-## Output format
-
-```text
-Rules:
-- applied: <rule file names only>
-- conflicts: <none or concise description>
-- risk: <none or concise description>
-```
-
-## Do not
-
-- Do not paste `RULES_BUNDLE.md` or full rule file contents.
-- Do not produce hook-style context dumps.
-- Do not use custom `/prompt:*` commands.
+- Plugin-only operation: use `$skill` / `@skill` or `/skills`; no `/prompt:*` or `prompt:*`.
+- Apply mandatory rules before editing, reviewing, testing, or implementation conclusions.
+- Keep diffs minimal and scoped.
+- Report unverified items and skipped checks.
+- Destructive operations, dependency changes, DB/API contract changes, commit, push, deploy, privileged commands, and external writes require explicit user approval.

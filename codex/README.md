@@ -11,7 +11,7 @@ Claude Code 用の `agents/`、`commands/`、`hooks/`、`rules/`、`skills/` を
 | `claude/agents/*.md` | `codex/agents/*.toml` | `~/.codex/agents/*.toml` に配置する Codex custom agent 定義 |
 | `claude/rules/` | `codex/rules/` | 参照用の設計・実装ルール |
 | `claude/skills/` | `codex/skills/` | plugin 配布用 source。plugin-only mode では `install.sh` の配置対象外 |
-| `claude/commands/` | `codex/prompts/commands/` | slash command 代替のプロンプト集 |
+| `claude/commands/` | `codex/skills/*/references/claude-command.md` | Codex-native skill が必要時に読む詳細手順 |
 | `claude/hooks/` | `codex/hooks/` | `config.toml.template` の inline hook から呼ばれる Codex hook 実体 |
 | `claude/bin/` | `codex/bin/` | 補助スクリプト |
 | `claude/settings.json` | `codex/reference/claude-settings.reference.json` | 参照用。install対象外 |
@@ -126,17 +126,21 @@ plugin bundle を更新する場合は次を実行する。
 
 ```bash
 python3 scripts/generate-standard-workflow-skills.py --repo . --overwrite
+python3 scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup --prune
+python3 scripts/apply-codex-performance-profile.py --repo .
 python3 scripts/sync-codex-plugin.py --repo . --clean
 python3 scripts/verify-codex-plugin.py --repo .
 ```
 
 既存の `codex/skills/` を bundle に反映するだけなら、`generate-standard-workflow-skills.py` は省略してよい。
 
-Claude側のskillを再移植する場合は次を実行する。
+Claude側のskill/command/ruleを再移植する場合は次を実行する。
 
 ```bash
-python3 scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup
-python3 scripts/sync-codex-plugin.py --repo .
+python3 scripts/generate-standard-workflow-skills.py --repo . --overwrite
+python3 scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup --prune
+python3 scripts/apply-codex-performance-profile.py --repo .
+python3 scripts/sync-codex-plugin.py --repo . --clean
 python3 scripts/verify-codex-plugin.py --repo .
 ```
 
@@ -159,55 +163,20 @@ python3 scripts/install-codex-plugin-personal.py --repo .
 
 Codex custom agent 定義は `codex/agents/*.toml` として管理し、`install.sh` で `~/.codex/agents/*.toml` にリンクされる。Codex の custom agent 仕様は standalone TOML を前提にしているため、Claude Code の `claude/agents/*.md` は本文を `developer_instructions` に移植する。
 
-## commands の代替
+## commands の変換
 
-Codex には Claude Code の slash command と同じプロジェクトローカル command 機構がないため、`codex/prompts/commands/*.md` はプロンプト断片として使う。
+Claude command は独立した Codex skill にせず、対応する Codex-native skill の `references/claude-command.md` へ変換する。
+これにより、Codex の入口と共通契約を `SKILL.md` に保ち、Claude 側の詳細手順を必要時だけ読み込める。
 
-- `feat.md`: 新機能実装
-- `fix.md`: バグ修正
-- `commit.md`: コミットメッセージ案作成
-- `deep-review.md`: 並列観点の差分レビュー。`code-review` は alias として扱う
+| Claude command | Codex skill |
+| --- | --- |
+| `/commit` | `$commit-msg` |
+| `/deep-review` | `$deep-review` |
+| `/feat` | `$feat` |
+| `/fix` | `$fix` |
 
-インストール後は `~/.codex/prompts/commands/` から参照できる。
-
-Claude Code の `/feat` や `/fix` に近い操作感で起動する場合は、`bin/` もインストールして `~/.local/bin` を PATH に入れる。
-
-```bash
-codex-feat "ユーザー検索機能を追加"
-codex-fix "ログイン時に500になる問題を修正"
-codex-code-review HEAD
-codex-deep-review HEAD
-codex-commit
-
-# 汎用形式
-codex-cmd feat "ユーザー検索機能を追加"
-codex-cmd --exec code-review HEAD
-codex-cmd --print fix "再現手順だけ確認したい"
-```
-
-既存の Codex セッションで使う場合は、該当ファイルの内容を入力欄に貼り付け、続けて依頼内容を書く。
-
-```text
-<~/.codex/prompts/commands/fix.md の内容>
-
-対象: ログイン時に500になる問題を修正して
-```
-
-新しい Codex セッションをコマンドラインから開始する場合は、プロンプトファイルを初期入力として渡す。
-
-```bash
-codex "$(cat ~/.codex/prompts/commands/feat.md)"
-codex "$(cat ~/.codex/prompts/commands/fix.md)"
-codex "$(cat ~/.codex/prompts/commands/deep-review.md)"
-```
-
-非対話で実行する場合は `codex exec` に渡す。
-
-```bash
-codex exec "$(cat ~/.codex/prompts/commands/deep-review.md)"
-```
-
-Codex 本体が `/feat` や `/fix` をプロジェクトローカル command として自動展開するわけではない。対話起動は `codex-feat` / `codex-code-review` などの補助コマンド、既存セッションではプロンプト本文の貼り付けで代替する。
+対応関係の正本は `scripts/claude-command-map.json` とする。
+command の追加/削除時は manifest を更新し、`$plugin-sync` の手順で変換/生成/plugin 同期/検証を続けて実行する。
 
 ## hooks
 

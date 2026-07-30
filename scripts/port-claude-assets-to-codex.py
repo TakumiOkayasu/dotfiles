@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Port Claude skills/rules into Codex layout.
+"""Port Claude skills, commands, and rules into Codex layout.
 
 This script intentionally runs inside the user's dotfile-work checkout.
 It reads every tracked or untracked `claude/skills/*/SKILL.md` and
-`claude/rules/*.md`, converts Claude-specific paths/phrasing to Codex
-conventions, and writes the result under `codex/`.
+`claude/rules/*.md`, plus the explicitly mapped `claude/commands/*.md`,
+converts Claude-specific paths/phrasing to Codex conventions, and writes
+the result under `codex/`.
 """
 
 from __future__ import annotations
@@ -12,14 +13,60 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import hashlib
+import json
 from pathlib import Path
 import re
 import shutil
-import sys
 
 MANAGED_MARKER = "codex-port: managed"
 RULE_BUNDLE_NAME = "RULES_BUNDLE.md"
 RULE_INDEX_NAME = "RULES_INDEX.md"
+ASSET_MANIFEST_PATH = Path(__file__).with_name("claude-command-map.json")
+MANAGED_SOURCE_PATTERN = re.compile(
+    rf"<!-- {re.escape(MANAGED_MARKER)}; source=([^;]+); "
+    r"generated-by=scripts/port-claude-assets-to-codex\.py -->"
+)
+
+
+def load_asset_manifest() -> tuple[dict[str, str], dict[str, Path], frozenset[str]]:
+    data = json.loads(ASSET_MANIFEST_PATH.read_text(encoding="utf-8"))
+    commands = data.get("commands")
+    allowed_skill_files = data.get("allowed_skill_files")
+    if not isinstance(commands, list) or not isinstance(allowed_skill_files, list):
+        raise ValueError(f"invalid asset manifest: {ASSET_MANIFEST_PATH}")
+
+    destinations: dict[str, str] = {}
+    references: dict[str, Path] = {}
+    used_skills: set[str] = set()
+    for entry in commands:
+        if not isinstance(entry, dict):
+            raise ValueError(f"invalid command entry: {entry!r}")
+        source = Path(str(entry.get("source", "")))
+        skill = str(entry.get("skill", ""))
+        reference = Path(str(entry.get("reference", "")))
+        if (
+            len(source.parts) != 3
+            or source.parts[:2] != ("claude", "commands")
+            or source.suffix != ".md"
+            or not re.fullmatch(r"[a-z0-9-]+", skill)
+            or reference.is_absolute()
+            or ".." in reference.parts
+            or reference.name != "claude-command.md"
+        ):
+            raise ValueError(f"invalid command mapping: {entry!r}")
+        if source.stem in destinations or skill in used_skills:
+            raise ValueError(f"duplicate command mapping: {entry!r}")
+        destinations[source.stem] = skill
+        references[source.stem] = reference
+        used_skills.add(skill)
+
+    allowed = frozenset(str(path) for path in allowed_skill_files)
+    if not allowed or any(Path(path).is_absolute() or ".." in Path(path).parts for path in allowed):
+        raise ValueError(f"invalid allowed_skill_files: {allowed_skill_files!r}")
+    return destinations, references, allowed
+
+
+COMMAND_DESTINATIONS, COMMAND_REFERENCES, ALLOWED_SKILL_FILES = load_asset_manifest()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -38,6 +85,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-existing", action="store_true", help="skip files that already exist")
     parser.add_argument("--dry-run", action="store_true", help="print planned changes without writing")
     parser.add_argument("--no-backup", action="store_true", help="do not create .pre-claude-port.bak backups")
+    parser.add_argument(
+        "--prune",
+        action="store_true",
+        help="remove stale files with an exact managed-source marker and expected destination",
+    )
     return parser.parse_args()
 
 
@@ -57,10 +109,16 @@ def transform_frontmatter(frontmatter: str | None, source: Path) -> str | None:
     # Keep the skill name stable. Adjust only Claude-specific wording/paths.
     for old, new in COMMON_REPLACEMENTS:
         fm = fm.replace(old, new)
-    # Add source metadata as a comment-like yaml field only if absent.
+    # Keep source provenance without adding an unsupported skill frontmatter key.
+    fm = re.sub(
+        r"^codex_port_source:",
+        "# codex_port_source:",
+        fm,
+        flags=re.MULTILINE,
+    )
     if "codex_port_source:" not in fm:
         source_str = str(source).replace("\\", "/")
-        fm = fm.replace("---\n", f"---\ncodex_port_source: {source_str}\n", 1)
+        fm = fm.replace("---\n", f"---\n# codex_port_source: {source_str}\n", 1)
     return fm
 
 
@@ -121,24 +179,83 @@ SKILL_RUNTIME_REPLACEMENTS: tuple[tuple[str, str], ...] = (
 )
 
 UNSUPPORTED_SKILL_FRAGMENTS = tuple(old for old, _new in SKILL_RUNTIME_REPLACEMENTS)
+COMMAND_RUNTIME_REPLACEMENTS = tuple(
+    (old, "ユーザー指定の対象" if old == "$ARGUMENTS" else new)
+    for old, new in SKILL_RUNTIME_REPLACEMENTS
+)
 
 
-def transform_body(body: str, *, source: Path, kind: str) -> str:
+def replace_runtime_fragments(body: str, *, source: Path, kind: str) -> str:
     out = body
     for old, new in COMMON_REPLACEMENTS:
         out = out.replace(old, new)
-    if kind == "skill":
-        for old, new in SKILL_RUNTIME_REPLACEMENTS:
+    out = out.replace("[[semantic-generation]]", "`$semantic-generation`")
+    out = out.replace("[[referent-before-label]]", "`referent-before-label`")
+    out = re.sub(r"\[\[([^\]]+)\]\]", r"`\1`", out)
+    if kind in {"skill", "command"}:
+        replacements = (
+            SKILL_RUNTIME_REPLACEMENTS if kind == "skill" else COMMAND_RUNTIME_REPLACEMENTS
+        )
+        for old, new in replacements:
             out = out.replace(old, new)
 
         remaining = [fragment for fragment in UNSUPPORTED_SKILL_FRAGMENTS if fragment in out]
         if remaining:
             raise ValueError(f"{source}: unsupported Codex runtime fragments: {remaining}")
+    return out
 
-    # Convert common Claude slash command references to Codex plugin/local skill invocations.
-    out = re.sub(r"`/([a-zA-Z0-9_.-]+)`", r"`@\1`", out)
-    out = re.sub(r"(?<![\w`])/(feat|fix|review|deep-review|commit|commit-msg|test|refactor|plan|explain)(?![\w`:-])", r"@\1", out)
 
+def replace_codex_paths(body: str) -> str:
+    out = body
+    out = re.sub(
+        r"@\s+`?\$(?:\{HOME\}|HOME)/\.agents/skills/([^/]+)/SKILL\.md`?",
+        r"`$\1`",
+        out,
+    )
+    out = re.sub(
+        r"`\$(?:\{HOME\}|HOME)/\.agents/skills/([^/]+)/SKILL\.md`",
+        r"`$\1`",
+        out,
+    )
+    out = re.sub(
+        r"@\s+`?\$(?:\{HOME\}|HOME)/\.codex/AGENTS\.md`?",
+        r"`${HOME}/.codex/AGENTS.md` を読む",
+        out,
+    )
+    out = out.replace(
+        "`${HOME}/.codex/rules/*` は @import 済みで既に context にある",
+        "`${HOME}/.codex/rules/*` は rules-inject hook で既に context に注入済みである",
+    )
+    out = out.replace(
+        "`${HOME}/.codex/rules/*` は @import 済みで context にある",
+        "`${HOME}/.codex/rules/*` は rules-inject hook で context に注入済みである",
+    )
+    out = out.replace(
+        "`code-reviewer` は読み取り専用・sonnet モデルで安定した出力形式を持つため、",
+        "`code-reviewer` は読み取り専用で安定した出力形式を持つため、",
+    )
+    out = out.replace(
+        "`code-reviewer` は読み取り専用・sonnet モデルで安定している。",
+        "`code-reviewer` は読み取り専用で安定している。",
+    )
+    return out
+
+
+def replace_command_invocations(body: str) -> str:
+    out = re.sub(
+        r"`/([a-zA-Z0-9_.-]+)`",
+        lambda match: f"`@{COMMAND_DESTINATIONS.get(match.group(1), match.group(1))}`",
+        body,
+    )
+    return re.sub(
+        r"(?<![\w`])/(feat|fix|review|deep-review|commit|commit-msg|test|refactor|plan|explain)(?![\w`:-])",
+        lambda match: f"@{COMMAND_DESTINATIONS.get(match.group(1), match.group(1))}",
+        out,
+    )
+
+
+def add_portability_notes(body: str, *, source: Path, kind: str) -> str:
+    out = body
     source_str = str(source).replace("\\", "/")
     note = f"""\n<!-- {MANAGED_MARKER}; source={source_str}; generated-by=scripts/port-claude-assets-to-codex.py -->\n\n## Codex portability notes\n\n- This file was ported from `{source_str}`.\n- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${{HOME}}/.agents/skills` in plugin-only mode.\n- Global and project rules live under `${{HOME}}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.\n- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.\n- Subagent usage must follow `${{HOME}}/.codex/SUBAGENTS.md` and the current Codex tool contract.\n"""
     if MANAGED_MARKER not in out:
@@ -154,6 +271,13 @@ def transform_body(body: str, *, source: Path, kind: str) -> str:
         out += """\n\n## Codex rule loading\n\nThis rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.\n"""
 
     return out
+
+
+def transform_body(body: str, *, source: Path, kind: str) -> str:
+    out = replace_runtime_fragments(body, source=source, kind=kind)
+    out = replace_codex_paths(out)
+    out = replace_command_invocations(out)
+    return add_portability_notes(out, source=source, kind=kind)
 
 
 def transform_text(text: str, *, source: Path, kind: str) -> str:
@@ -224,6 +348,73 @@ def iter_rule_sources(repo: Path) -> list[Path]:
     return sorted((repo / "claude" / "rules").glob("*.md"))
 
 
+def iter_command_sources(repo: Path) -> list[Path]:
+    return sorted((repo / "claude" / "commands").glob("*.md"))
+
+
+def validate_command_manifest(command_sources: list[Path]) -> None:
+    command_names = {source.stem for source in command_sources}
+    unknown_commands = [
+        source.stem
+        for source in command_sources
+        if source.stem not in COMMAND_DESTINATIONS
+    ]
+    if unknown_commands:
+        raise ValueError(f"unknown Claude command: {', '.join(unknown_commands)}")
+    missing_commands = sorted(set(COMMAND_DESTINATIONS) - command_names)
+    if missing_commands:
+        raise ValueError(f"missing Claude command: {', '.join(missing_commands)}")
+
+
+def validate_skill_resources(repo: Path) -> None:
+    unexpected_skill_files = [
+        f"{source.parent.name}/{path.relative_to(source.parent).as_posix()}"
+        for source in iter_skill_sources(repo)
+        for path in source.parent.rglob("*")
+        if path.is_file()
+        and path.relative_to(source.parent).as_posix() not in ALLOWED_SKILL_FILES
+    ]
+    if unexpected_skill_files:
+        raise ValueError(
+            "unsupported Claude skill resource: " + ", ".join(sorted(unexpected_skill_files))
+        )
+
+
+def validate_transformability(repo: Path, command_sources: list[Path]) -> None:
+    for source in iter_skill_sources(repo):
+        transform_text(
+            source.read_text(encoding="utf-8"),
+            source=source.relative_to(repo),
+            kind="skill",
+        )
+    for source in iter_rule_sources(repo):
+        transform_text(
+            source.read_text(encoding="utf-8"),
+            source=source.relative_to(repo),
+            kind="rule",
+        )
+    for source in command_sources:
+        skill_name = COMMAND_DESTINATIONS[source.stem]
+        native_skill = repo / "codex" / "skills" / skill_name / "SKILL.md"
+        if not native_skill.is_file():
+            raise ValueError(
+                f"{source.relative_to(repo)}: missing Codex-native entrypoint "
+                f"codex/skills/{skill_name}/SKILL.md"
+            )
+        transform_text(
+            source.read_text(encoding="utf-8"),
+            source=source.relative_to(repo),
+            kind="command",
+        )
+
+
+def validate_sources(repo: Path) -> None:
+    command_sources = iter_command_sources(repo)
+    validate_command_manifest(command_sources)
+    validate_skill_resources(repo)
+    validate_transformability(repo, command_sources)
+
+
 def port_skills(repo: Path, args: argparse.Namespace) -> list[PortedFile]:
     result: list[PortedFile] = []
     for source in iter_skill_sources(repo):
@@ -245,6 +436,71 @@ def port_rules(repo: Path, args: argparse.Namespace) -> list[PortedFile]:
         changed, backed_up = write_file(dest, out, args=args)
         result.append(PortedFile(source, dest, "rule", changed, backed_up))
     return result
+
+
+def port_commands(repo: Path, args: argparse.Namespace) -> list[PortedFile]:
+    result: list[PortedFile] = []
+    for source in iter_command_sources(repo):
+        skill_name = COMMAND_DESTINATIONS[source.stem]
+        dest = repo / "codex" / "skills" / skill_name / COMMAND_REFERENCES[source.stem]
+        text = source.read_text(encoding="utf-8")
+        out = transform_text(text, source=source.relative_to(repo), kind="command")
+        changed, backed_up = write_file(dest, out, args=args)
+        result.append(PortedFile(source, dest, "command", changed, backed_up))
+    return result
+
+
+def managed_source(dest: Path) -> Path | None:
+    if not dest.is_file():
+        return None
+    match = MANAGED_SOURCE_PATTERN.search(dest.read_text(encoding="utf-8"))
+    if match is None:
+        return None
+    source = Path(match.group(1))
+    if source.is_absolute() or ".." in source.parts:
+        return None
+    return source
+
+
+def expected_managed_destination(repo: Path, source: Path) -> Path | None:
+    parts = source.parts
+    if len(parts) == 3 and parts[:2] == ("claude", "rules") and source.suffix == ".md":
+        return repo / "codex" / "rules" / source.name
+    if (
+        len(parts) == 4
+        and parts[:2] == ("claude", "skills")
+        and parts[3] == "SKILL.md"
+    ):
+        return repo / "codex" / "skills" / parts[2] / "SKILL.md"
+    if len(parts) == 3 and parts[:2] == ("claude", "commands") and source.suffix == ".md":
+        skill_name = COMMAND_DESTINATIONS.get(source.stem)
+        if skill_name is not None:
+            return repo / "codex" / "skills" / skill_name / COMMAND_REFERENCES[source.stem]
+    return None
+
+
+def prune_stale_outputs(repo: Path, args: argparse.Namespace) -> list[Path]:
+    candidates = list((repo / "codex" / "rules").glob("*.md"))
+    candidates.extend((repo / "codex" / "skills").glob("*/SKILL.md"))
+    candidates.extend(
+        repo / "codex" / "skills" / skill_name / COMMAND_REFERENCES[command_name]
+        for command_name, skill_name in COMMAND_DESTINATIONS.items()
+    )
+
+    pruned: list[Path] = []
+    for dest in sorted(set(candidates)):
+        source = managed_source(dest)
+        if source is None:
+            continue
+        if expected_managed_destination(repo, source) != dest:
+            continue
+        if (repo / source).exists():
+            continue
+        pruned.append(dest)
+        print(f"PRUNE stale managed file: {dest.relative_to(repo)}")
+        if not args.dry_run:
+            dest.unlink()
+    return pruned
 
 
 def generate_rule_index(repo: Path, args: argparse.Namespace) -> None:
@@ -288,7 +544,12 @@ def generate_rule_bundle(repo: Path, args: argparse.Namespace) -> None:
         (rules_dir / RULE_BUNDLE_NAME).write_text(content.rstrip() + "\n", encoding="utf-8")
 
 
-def generate_report(repo: Path, ported: list[PortedFile], args: argparse.Namespace) -> None:
+def generate_report(
+    repo: Path,
+    ported: list[PortedFile],
+    pruned: list[Path],
+    args: argparse.Namespace,
+) -> None:
     report = repo / "codex" / "skills" / "CLAUDE_PORT_REPORT.md"
     lines = [
         "# Claude to Codex Port Report",
@@ -298,9 +559,11 @@ def generate_report(repo: Path, ported: list[PortedFile], args: argparse.Namespa
         "## Summary",
         "",
         f"- Skills: {sum(1 for p in ported if p.kind == 'skill')}",
+        f"- Commands: {sum(1 for p in ported if p.kind == 'command')}",
         f"- Rules: {sum(1 for p in ported if p.kind == 'rule')}",
         f"- Changed: {sum(1 for p in ported if p.changed)}",
         f"- Backups: {sum(1 for p in ported if p.backed_up)}",
+        f"- Pruned: {len(pruned)}",
         "",
         "## Files",
         "",
@@ -311,6 +574,9 @@ def generate_report(repo: Path, ported: list[PortedFile], args: argparse.Namespa
         lines.append(
             f"| {p.kind} | `{p.source.relative_to(repo).as_posix()}` | `{p.dest.relative_to(repo).as_posix()}` | {p.changed} | {p.backed_up} |"
         )
+    if pruned:
+        lines += ["", "## Pruned files", ""]
+        lines.extend(f"- `{path.relative_to(repo).as_posix()}`" for path in pruned)
     lines += [
         "",
         "## Follow-up checks",
@@ -335,17 +601,23 @@ def main() -> int:
         print(f"ERROR: missing claude/rules under {repo}", file=sys.stderr)
         return 2
 
+    validate_sources(repo)
+
     ported: list[PortedFile] = []
     ported.extend(port_skills(repo, args))
+    ported.extend(port_commands(repo, args))
     ported.extend(port_rules(repo, args))
+    pruned = prune_stale_outputs(repo, args) if args.prune else []
     generate_rule_index(repo, args)
     generate_rule_bundle(repo, args)
-    generate_report(repo, ported, args)
+    generate_report(repo, ported, pruned, args)
 
     print("Claude -> Codex port complete")
     print(f"skills: {sum(1 for p in ported if p.kind == 'skill')}")
+    print(f"commands: {sum(1 for p in ported if p.kind == 'command')}")
     print(f"rules:  {sum(1 for p in ported if p.kind == 'rule')}")
     print(f"changed:{sum(1 for p in ported if p.changed)}")
+    print(f"pruned: {len(pruned)}")
     print("report: codex/skills/CLAUDE_PORT_REPORT.md")
     return 0
 

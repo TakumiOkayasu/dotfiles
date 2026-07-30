@@ -1,5 +1,5 @@
 ---
-codex_port_source: claude/skills/failure-logging/SKILL.md
+# codex_port_source: claude/skills/failure-logging/SKILL.md
 name: failure-logging
 description: アプローチ失敗時・同じ問題で繰り返しつまずいた時に使用。失敗の履歴を構築し同じ失敗を繰り返さない。コマンドの実行エラーは failure-log フックが自動記録するため、本スキルは判断を要する記録・分析・参照を担当する。「また失敗した」「同じエラーを繰り返す」「前も詰まった」で発動。
 ---

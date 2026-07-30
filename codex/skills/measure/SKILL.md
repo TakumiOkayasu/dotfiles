@@ -1,5 +1,5 @@
 ---
-codex_port_source: claude/skills/measure/SKILL.md
+# codex_port_source: claude/skills/measure/SKILL.md
 name: measure
 description: 【計測実務】パフォーマンス最適化やプロファイリング時に使用。計測手法、プロファイラ/APM でのボトルネック特定、負荷テスト、レポート出力をカバー。
 ---

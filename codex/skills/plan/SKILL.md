@@ -14,4 +14,3 @@ Use `consult`. File edits are forbidden. Output options, comparison, recommendat
 - Keep diffs minimal and scoped.
 - Report unverified items and skipped checks.
 - Destructive operations, dependency changes, DB/API contract changes, commit, push, deploy, privileged commands, and external writes require explicit user approval.
-

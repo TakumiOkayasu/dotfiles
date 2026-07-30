@@ -14,4 +14,3 @@ Read relevant files and explain: overview, entry points, data flow, dependencies
 - Keep diffs minimal and scoped.
 - Report unverified items and skipped checks.
 - Destructive operations, dependency changes, DB/API contract changes, commit, push, deploy, privileged commands, and external writes require explicit user approval.
-

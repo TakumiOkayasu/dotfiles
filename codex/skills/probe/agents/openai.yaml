@@ -1,0 +1,6 @@
+interface:
+  display_name: "Probe"
+  short_description: "Optional workflow skill. Explicit invocation recommended."
+  default_prompt: "Use $probe for this task."
+policy:
+  allow_implicit_invocation: false
