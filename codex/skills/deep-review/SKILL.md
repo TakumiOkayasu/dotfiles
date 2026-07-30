@@ -22,6 +22,11 @@ Run a multi-perspective review and synthesize into one severity-ordered result.
 - Counts by severity and perspective
 - Findings with file:line, evidence, fix proposal
 
+## Claude command reference
+
+- `claude/commands/deep-review.md` から変換された詳細手順は `references/claude-command.md` を読む。
+- 内容が競合する場合は、この Codex-native `SKILL.md` と `Common contract` を優先する。
+
 ## Common contract
 
 - Plugin-only operation: use `$skill` / `@skill` or `/skills`; no `/prompt:*` or `prompt:*`.
@@ -29,4 +34,3 @@ Run a multi-perspective review and synthesize into one severity-ordered result.
 - Keep diffs minimal and scoped.
 - Report unverified items and skipped checks.
 - Destructive operations, dependency changes, DB/API contract changes, commit, push, deploy, privileged commands, and external writes require explicit user approval.
-

@@ -1,5 +1,5 @@
 ---
-codex_port_source: claude/skills/feature-pruning/SKILL.md
+# codex_port_source: claude/skills/feature-pruning/SKILL.md
 name: feature-pruning
 description: 個別機能 / UI 要素 / API エンドポイント / データ列の要否を機能名レベルで検証する skill。「このページネーション要らない」「この保存ボタン要らない」「この確認ダイアログ要らない」「この検索ボックスはブラウザ Cmd+F で済む」級の具体指摘を出す。3 手法 (YAGNI Probe / Convention Audit / Existing Substitute) を独立 subagent に投げて 3 ラウンド以上検証し、機能ごとに採点して過剰機能 / 代替可能機能リストを出す。premise-questioning が方針自体の妥当性を扱うのに対し、本 skill は **方針が採用された後の機能粒度の棚卸し専用**。empirical-prompt-tuning のバイアス排除手法を踏襲。
 effort: high

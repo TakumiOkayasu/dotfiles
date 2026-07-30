@@ -1,5 +1,5 @@
 ---
-codex_port_source: claude/skills/consult/SKILL.md
+# codex_port_source: claude/skills/consult/SKILL.md
 name: consult
 description: 実装中に判断が必要になった時、技術選定・設計相談が必要な時に使用。相談テンプレートで構造化された問題提示を強制。「どっちがいい」「どう設計するか」「迷ってる」「技術選定」「比較して」もトリガー。
 ---

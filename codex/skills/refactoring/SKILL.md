@@ -1,5 +1,5 @@
 ---
-codex_port_source: claude/skills/refactoring/SKILL.md
+# codex_port_source: claude/skills/refactoring/SKILL.md
 name: refactoring
 description: 振る舞いを変えずにコード構造を改善する際に使用。「リファクタ」「整理して」「きれいにして」「重複を消す」「関数を分割」で発動。
 ---
@@ -76,19 +76,7 @@ description: 振る舞いを変えずにコード構造を改善する際に使�
   10. 変更前後でインターフェース（入出力・シグネチャ）が同一であることを確認
 ```
 
-### Verify Gate
-
-完了報告に進む前に以下を内省する。No が 1 つでもあれば実装へ戻る:
-
-- [ ] 全テストが PASS している (実行ログで確認、未確認 PASS 報告は禁止)
-- [ ] 既存テストを破壊していない
-- [ ] hook block が出ていない
-- [ ] **refactoring固有**: 変更前後で公開インターフェース (入出力・シグネチャ) が不変
-- [ ] **refactoring固有**: 振る舞いが変わっていない (テスト緑のまま完了)
-- [ ] **refactoring固有**: 1 コミット = 1 つのスメル変更に分割されている
-- [ ] **refactoring固有**: 無関係なコード・スコープ外への変更が混入していない
-
-詳細規約: `${HOME}/.codex/rules/phase-gate-framework.md`
+1 コミット = 1 つのスメル変更に分割する。無関係なコード・スコープ外への変更を混ぜない。
 
 ## コードスメル
 

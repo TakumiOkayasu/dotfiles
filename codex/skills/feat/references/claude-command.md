@@ -1,0 +1,108 @@
+# 機能実装ガイド
+
+<!-- codex-port: managed; source=claude/commands/feat.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `claude/commands/feat.md`.
+- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
+- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
+
+新機能を実装する(TDD + 要件整理)
+
+## 引数
+
+ユーザー指定の対象 に実装する機能の説明が渡されます。
+
+## 入出力
+
+| 項目 | 内容 |
+| ------ | ------ |
+| 入力 | `ユーザー指定の対象`: 実装する機能の説明（例: "ユーザー検索機能"） |
+| 出力 | 実装済みコード・テスト・実装サマリーレポート |
+
+## 実行手順
+
+### Phase 0: スキル読み込み
+
+- **方針検証スキル (戦略 → 戦術の順)**:
+  - `$premise-questioning` ← 戦略 (方針自体)
+  - `$feature-pruning` ← 戦術 (個別機能)
+- **実装スキル**:
+  - `$tdd`
+  - `$systematic-debugging`
+  - `$optimize`
+
+### Phase 0.5: 方針検証 (Phase 1 前に必須)
+
+`${HOME}/.codex/AGENTS.md` を読む
+
+> 「着手前の方針検証」と整合する。
+
+#### 1. premise-questioning (戦略レベル)
+
+以下のいずれかに該当する場合は **premise-questioning skill のワークフロー全体を実行**し、✅ 採用判定が出るまで Phase 1 へ進まない:
+
+- 100 行以上の変更見込み
+- 外部依存 (ライブラリ / API / SDK) の追加・削除
+- DB スキーマ / 公開 API I/F 変更
+- 「設計レビューして」「方針確認して」と要求された
+
+該当しない場合は `premise-questioning: skipped (理由: ...)` を 1 行明示してスキップ。
+
+#### 2. feature-pruning (戦術レベル)
+
+premise-questioning で ✅ 採用後、または以下のいずれかに該当する場合は **feature-pruning skill のワークフローを実行**:
+
+- UI 機能リスト 5 個以上
+- API エンドポイント複数新設
+- DB テーブル 5 列以上新設
+- 既存画面 / API の削減レビュー
+
+該当しない場合は `feature-pruning: skipped (理由: ...)` を 1 行明示してスキップ。
+
+### Phase 1: 要件整理
+
+- 機能の目的・ゴールを明確化
+- 入出力の仕様を箇条書きで整理
+- 影響範囲の特定: 下記観点のうち該当項目を列挙する
+  - コード (変更ファイル・新規ファイル)
+  - 既存テスト (回帰対象)
+  - DB スキーマ (テーブル・カラム変更有無)
+  - 設定ファイル (環境変数・フレームワーク設定)
+  - 依存ライブラリ (追加/更新)
+  - API 契約 (エンドポイント・リクエスト/レスポンス)
+- 影響範囲調査: **`impl-planner` subagent** に機能説明とコードベースパスを渡し、変更ファイル・実装順序・インターフェース疑似コード・テスト方針を受け取る。1 ファイル以下の局所変更は親 context の Glob/Grep で処理する (起動オーバーヘッドが上回るため)。dispatch 形式・並列起動の作法は `${HOME}/.codex/SUBAGENTS.md` を参照。
+- 不明点があればユーザーに確認(**推測で実装しない**)
+
+### Phase 2: テスト設計 (RED)
+
+- **読み込んだスキルを活用**
+- qa_nightmare を**必ず**使用して嫌なテストを作成
+- 期待する振る舞いをテストで表現
+- 正常系 + 異常系 + 境界値を網羅
+- 境界値の観点: null / 空文字 / 0 / 負値 / 最大値 / 型違い / エンコード境界 のうち**対象機能に該当するものを最低 2 件**含める
+- テストが失敗することを確認 (実プロジェクトで RED 確認できない場合は想定 FAIL 理由を明示)
+- **テスト設計をユーザーに提示し、承認を得てから次へ**
+  - 承認の定義: ユーザーから明示的な OK（「承認」「このまま進めて」等の文言）が返るまで Phase 3 に進まない。**自己承認・暗黙の承認は禁止**
+  - 情報不足時は `## 承認要求` 節に **確認項目を箇条書きで列挙** して提示する (推測で埋めない)
+
+### Phase 3: 実装 (GREEN)
+
+- テストを通す最小限の実装
+- シンプルさを優先(過度な抽象化禁止)
+- 全テストが通ることを確認
+
+### Phase 4: リファクタリング (REFACTOR)
+
+- テストが通ったまま改善
+- 重複排除、命名改善、構造整理
+- hierarchical-architecture ルールに準拠しているか確認
+
+### Phase 5: 報告
+
+- 実装サマリー(変更内容・変更ファイル)
+- テスト結果
+- 次のステップ提案(あれば)

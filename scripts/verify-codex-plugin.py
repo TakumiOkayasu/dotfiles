@@ -144,6 +144,39 @@ def check_skill_sync(root: Path) -> int:
     return 0
 
 
+def _tree_files(root: Path) -> dict[Path, bytes]:
+    if not root.exists():
+        return {}
+    return {
+        path.relative_to(root): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file() and not path.name.endswith(".bak")
+    }
+
+
+def check_rule_sync(root: Path) -> int:
+    source_dir = root / "codex" / "rules"
+    plugin_dir = root / "plugins" / CORE_PLUGIN / "rules"
+    source_files = _tree_files(source_dir)
+    plugin_files = _tree_files(plugin_dir)
+    if source_files != plugin_files:
+        source_paths = set(source_files)
+        plugin_paths = set(plugin_files)
+        changed = sorted(
+            str(path)
+            for path in source_paths & plugin_paths
+            if source_files[path] != plugin_files[path]
+        )
+        print(
+            f"RULE_CONTENT_DRIFT: missing={sorted(map(str, source_paths - plugin_paths))} "
+            f"unexpected={sorted(map(str, plugin_paths - source_paths))} "
+            f"changed={changed}",
+            file=sys.stderr,
+        )
+        return 9
+    return 0
+
+
 def report_skill_counts(root: Path) -> None:
     core_skills = [p.name for p in (root / "plugins/dotfile-work-codex/skills").iterdir() if p.is_dir()]
     extra_skills_dir = root / "plugins/dotfile-work-codex-extra/skills"
@@ -167,6 +200,7 @@ def main() -> int:
         check_marketplace,
         check_hook_commands,
         check_skill_sync,
+        check_rule_sync,
     ]:
         result = check(root)
         if result != 0:

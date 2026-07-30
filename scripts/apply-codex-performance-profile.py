@@ -226,6 +226,11 @@ CORE_SHORT = {
     "commit-msg": "Generate commit message proposal without committing.",
     "plugin-sync": "Sync codex assets into plugin bundle.",
     "plugin-install": "Install local plugin marketplace for this user.",
+    "semantic-generation": "Build a referent table before drafting or naming.",
+}
+
+DEFAULT_PROMPTS = {
+    "semantic-generation": "Use $semantic-generation to create a referent table before drafting.",
 }
 
 
@@ -335,7 +340,7 @@ def add_openai_yaml(root: Path) -> None:
         implicit = "true" if name in CORE_SKILLS else "false"
         short = CORE_SHORT.get(name, "Optional workflow skill. Explicit invocation recommended.")
         display = name.replace("-", " ").title()
-        prompt = f"Use ${name} for this task."
+        prompt = DEFAULT_PROMPTS.get(name, f"Use ${name} for this task.")
         write_text(skill / "agents" / "openai.yaml", OPENAI_YAML_TEMPLATE.format(
             display=display,
             short=short.replace('"', "'"),

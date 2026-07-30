@@ -2,11 +2,24 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 JST = timezone(timedelta(hours=9), "JST")
+ASSET_MANIFEST_PATH = Path(__file__).with_name("claude-command-map.json")
+
+
+def load_claude_command_references() -> dict[str, str]:
+    data = json.loads(ASSET_MANIFEST_PATH.read_text(encoding="utf-8"))
+    return {
+        str(entry["skill"]): str(entry["source"])
+        for entry in data["commands"]
+    }
+
+
+CLAUDE_COMMAND_REFERENCES = load_claude_command_references()
 
 WORKFLOWS: dict[str, tuple[str, str, str]] = {
     "feat": (
@@ -77,7 +90,7 @@ WORKFLOWS: dict[str, tuple[str, str, str]] = {
     "plugin-sync": (
         "Synchronize codex assets into the local plugin bundle and verify plugin packaging.",
         "Plugin Sync",
-        """Run `python3 scripts/apply-codex-performance-profile.py --repo .`, then `python3 scripts/sync-codex-plugin.py --repo . --clean`, then `python3 scripts/verify-codex-plugin.py --repo .`.\n""",
+        """Run `python3 scripts/generate-standard-workflow-skills.py --repo . --overwrite`, then `python3 scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup --prune`, then `python3 scripts/apply-codex-performance-profile.py --repo .`, then `python3 scripts/sync-codex-plugin.py --repo . --clean`, then `python3 scripts/verify-codex-plugin.py --repo .`. Stop on the first failure.\n""",
     ),
     "plugin-install": (
         "Install the local dotfile-work Codex plugins into the personal marketplace source.",
@@ -94,7 +107,18 @@ def generated_at_jst() -> str:
 
 
 def skill_body(name: str, desc: str, title: str, content: str) -> str:
-    return f"""---\nname: {name}\ndescription: {desc} Front-load this description for Codex implicit matching; explicit invocation via ${name} always works.\n---\n\n# {title}\n\n{content.strip()}\n{COMMON}\n"""
+    command_reference = ""
+    if name in CLAUDE_COMMAND_REFERENCES:
+        command_reference = (
+            "\n## Claude command reference\n\n"
+            f"- `{CLAUDE_COMMAND_REFERENCES[name]}` から変換された詳細手順は "
+            "`references/claude-command.md` を読む。\n"
+            "- 内容が競合する場合は、この Codex-native `SKILL.md` と "
+            "`Common contract` を優先する。\n"
+        )
+    return (
+        f"""---\nname: {name}\ndescription: {desc} Front-load this description for Codex implicit matching; explicit invocation via ${name} always works.\n---\n\n# {title}\n\n{content.strip()}\n{command_reference}{COMMON}"""
+    ).rstrip() + "\n"
 
 
 def main() -> int:

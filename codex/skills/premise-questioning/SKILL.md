@@ -1,5 +1,5 @@
 ---
-codex_port_source: claude/skills/premise-questioning/SKILL.md
+# codex_port_source: claude/skills/premise-questioning/SKILL.md
 name: premise-questioning
 description: 設計判断・新規実装・バグ修正に着手する直前に、その方針そのものを「そもそも論」で問い直す skill。「本当に解くべき問題か」「その実装は本当に要るか」「隠れた前提が崩れたら何が起きるか」を、毎回違う手法 (第一原理 / Inversion / 5 Whys) を独立 subagent に投げて 3 ラウンド以上検証し、3 軸スコアで採用可否を判定する。**戦略レベルの方針妥当性専用**。個別機能 / UI 要素 / API の要否検証は feature-pruning skill を使う。empirical-prompt-tuning のバイアス排除手法を踏襲。
 effort: high

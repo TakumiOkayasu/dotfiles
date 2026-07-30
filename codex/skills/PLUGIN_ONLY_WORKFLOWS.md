@@ -2,7 +2,7 @@
 
 Generated optimized core @skill workflow entrypoints. Legacy prompt compatibility is intentionally not generated.
 
-Generated at: 2026-05-27T10:15:49+09:00 JST
+Generated at: 2026-07-30T16:42:38+09:00 JST
 
 - `codex/skills/codex-handoff/SKILL.md`
 - `codex/skills/commit-msg/SKILL.md`

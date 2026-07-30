@@ -1,5 +1,6 @@
 interface:
   display_name: "Rules Compliance Review"
-  short_description: "Deterministic + semantic audit of codex/rules/*.md against the current diff."
+  short_description: "Optional workflow skill. Explicit invocation recommended."
+  default_prompt: "Use $rules-compliance-review for this task."
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false
