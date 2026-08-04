@@ -13,6 +13,26 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PORT_SCRIPT = REPO_ROOT / "scripts" / "port-claude-assets-to-codex.py"
 GENERATOR_SCRIPT = REPO_ROOT / "scripts" / "generate-standard-workflow-skills.py"
 VERIFY_SCRIPT = REPO_ROOT / "scripts" / "verify-codex-plugin.py"
+CLAUDE_TDD_QA_FIXTURE = """# Test-Driven Development
+
+| 機能単位 (画面 / API / エンドポイント / ジョブ) | ユーザー登録画面、決済 API、夜間バッチ | qa-nightmare subagent を起動する |
+
+機能単位と判定したら、テストリスト作成に進む前に qa-nightmare subagent を起動して悪夢テストケースを先に列挙する。
+
+### qa-nightmare 起動
+
+Task tool で `subagent_type: qa-nightmare` を起動する。
+
+`qa-nightmare-preflight` を使う。
+
+### 結果の扱い
+
+<!-- qa-continuation:start -->
+Claude runtime continuation contract.
+<!-- qa-continuation:end -->
+
+機能単位の場合は `qa-nightmare` subagent の出力を反映する。
+"""
 
 
 def load_script(path: Path, module_name: str):
@@ -61,6 +81,18 @@ class PortClaudeAssetsTest(unittest.TestCase):
             capture_output=True,
             check=False,
             text=True,
+        )
+
+    def port_codex_tdd_fixture(self) -> str:
+        skill = self.repo / "claude" / "skills" / "tdd" / "SKILL.md"
+        skill.parent.mkdir()
+        skill.write_text(CLAUDE_TDD_QA_FIXTURE, encoding="utf-8")
+
+        result = self.run_port()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return (self.repo / "codex" / "skills" / "tdd" / "SKILL.md").read_text(
+            encoding="utf-8"
         )
 
     def write_native_skill(self, name: str) -> Path:
@@ -145,6 +177,46 @@ class PortClaudeAssetsTest(unittest.TestCase):
         self.assertIn("`$semantic-generation`", output)
         self.assertIn("`referent-before-label`", output)
         self.assertIn("`terminology`", output)
+
+    def test_should_fail_closed_when_codex_tdd_lacks_empty_tool_surface(self) -> None:
+        output = self.port_codex_tdd_fixture()
+
+        self.assertIn(
+            "現行Codex custom-agentには構造的なempty tool surfaceがない", output
+        )
+        self.assertIn("`agent_type: qa_nightmare` をdispatchしない", output)
+        self.assertIn("現行Codex: 未実行を明示 (dispatch禁止)", output)
+        self.assertIn("### qa_nightmare の将来有効化仕様", output)
+        self.assertIn("### 将来有効化時の結果の扱い", output)
+        self.assertIn("`qa-nightmare-preflight`", output)
+        self.assertNotIn(
+            "`spawn_agent` で `agent_type: qa_nightmare` を起動する", output
+        )
+
+    def test_should_sync_continuation_when_porting_codex_tdd(self) -> None:
+        output = self.port_codex_tdd_fixture()
+
+        self.assertIn("followup_taskでledger digestとrequested_rankだけ", output)
+        self.assertIn("compact continuation_ledger", output)
+        self.assertIn("各代表ケースを再構成できるredacted事実", output)
+        self.assertIn("ledger_upper_bound_tokens <= output_reserve_tokens", output)
+        self.assertIn("機能単位の場合はqa_nightmare未実行を明示", output)
+        self.assertIn("通常TDD候補を親が作る", output)
+        self.assertEqual(output.count("<!-- qa-continuation:start -->"), 1)
+        self.assertEqual(output.count("<!-- qa-continuation:end -->"), 1)
+
+    def test_should_apply_tdd_surface_contract_when_role_is_tdd_skill(self) -> None:
+        porter = load_script(PORT_SCRIPT, "port_claude_assets_role_test")
+
+        output = porter.transform_text(
+            CLAUDE_TDD_QA_FIXTURE,
+            source=Path("renamed/artifact.md"),
+            kind="skill",
+            role=porter.ArtifactRole.TDD_SKILL,
+        )
+
+        self.assertIn("`agent_type: qa_nightmare` をdispatchしない", output)
+        self.assertIn("followup_taskでledger digestとrequested_rankだけ", output)
 
     def test_unknown_command_fails_preflight_before_any_write(self) -> None:
         self.write_native_skill("feat")

@@ -40,11 +40,40 @@ effort: high
 
 ### qa-nightmare 起動
 
-Task tool で `subagent_type: qa-nightmare` を起動する。プロンプトには対象機能名と画面 URL / API パスを渡す。
+親はversion管理された `qa-nightmare-preflight` helperだけを使い、最初に `qa-nightmare-preflight --runtime claude --repo <canonical-repo> --source-only --source <relative-file>` を実行する。
+helperはcanonical repo rootを確認し、relative regular fileのみを許可する。
+directory/absolute/./../external symlink/sibling-prefix/gitignored/credential/secret-bearingを拒否し、component-aware配下判定、source個数/size上限、秘密候補scanを行い、`accepted_sources` のpath/digest/sizeだけを返す。
+いずれかを検証できなければ起動しない。
+
+親はaccepted sourceだけを読み、読取前後digestを照合する。
+秘密値をfactへ含めない。
+source_evidenceを作り、schema/auth/state各core slotが確認済みfactまたは根拠付き非該当かを先に検査する。
+不足slotがあれば確認質問を返し、full preflightとchecklist_snapshotを構築せず子agentを起動しない。
+
+親はsource selectionの選択理由と依存観点を `repo_provenance` へ記録し、entrypoint、主要依存、状態境界、認可、外部副作用、既存テストをsource_evidenceで確認する。
+どれかが不足し、根拠付き非該当にもできなければsource_evidence不足としてdispatchせず、対象追加を要求する。
+
+core gate通過後、`qa-nightmare-preflight --runtime claude --repo <canonical-repo> --source <relative-file>` のfull preflightを実行する。
+source-onlyとfullの `repo_provenance` が完全一致しなければ停止する。
+helperはruntime rootをユーザー入力から取らずClaude既知pathから導出し、machine-readable manifestに基づく期待file名/canonical target/digest/ID集合/構造をdispatch直前に検証する。
+helperのprovenanceはopaqueなrepository identity、相対file名、digest、検証結果だけを返し、absolute pathを出力しない。
+
+Task tool で `subagent_type: qa-nightmare` を起動する。
+子agentへabsolute filesystem pathを渡さず、親が検証したsnapshotだけを渡す。
+
+親は選択model/runtimeの一次情報から `context_limit_tokens` と `output_reserve_tokens` を取得し、agent固定指示、対象機能、URL / パス、4 fieldを直列化したUTF-8 byte数をtoken数の保守的上限 `input_upper_bound_tokens` として計測する。
+いずれかを取得できなければ起動しない。
+3値をrepo_provenanceへ記録し、値を含むpayloadを再直列化して固定点になるまで `input_upper_bound_tokens` を更新する。
+`input_upper_bound_tokens + output_reserve_tokens <= context_limit_tokens` のときだけdispatchする。
+超過時は対象を絞ってpreflightからやり直す。
 
 ```
 対象機能: <機能名>
 URL / パス: <画面 URL or API パス>
+repo_provenance: <親がcanonical repo rootを確認した情報>
+source_evidence: <relative regular fileから抽出し、secret redaction済みの相対file:line付き事実>
+checklist_snapshot: <Claude既知pathから導出し、期待file名/canonical target/ID集合/構造を検証した全データ>
+checklist_provenance: <snapshotの導出/検証結果>
 悪夢テストケースを生成してランク付き一覧で返してください。
 ```
 
@@ -53,6 +82,15 @@ URL / パス: <画面 URL or API パス>
 subagent から返ってきたランク付き一覧 (NM-001, NM-002, ...) をユーザーに提示し、実装対象範囲 (S のみ / S+A / 全部) を確認する。
 
 合意した範囲の各ケースに対して以降の TDD サイクル (RED → GREEN → REFACTOR) を 1 つずつ回す。実装順は S ランク → A → B → C。
+
+<!-- qa-continuation:start -->
+長大出力で継続が必要な場合、Claude parent は完全性索引、`snapshot_digest`、未返却rankを持つcompact continuation_ledgerを受け取る。
+未返却rankについてのみ、各代表ケースを再構成できるredacted事実 (事前条件/操作/期待結果/観測点/根拠/score) を保持し、表示済みrank本文を含めない。
+ledger全体を含む初回出力のUTF-8 byte数から保守的な`ledger_upper_bound_tokens`を算出し、埋込み後の再直列化が固定点に達して`ledger_upper_bound_tokens <= output_reserve_tokens`を満たすことを検証する。
+超過時は対象絞り込みを要求して停止する。
+digest検証後、continuation_ledger+requested_rankだけで再dispatchする。
+snapshotを再送せず、未返却 S を除外しない。
+<!-- qa-continuation:end -->
 
 ---
 
@@ -138,7 +176,9 @@ subagent から返ってきたランク付き一覧 (NM-001, NM-002, ...) をユ
 // [ ]  0円の購入ではポイント0（境界値）
 ```
 
-テストリストにはエッジケース (null / 空 / 0 / 負数 / 境界値) を 3 つ以上含める。優先順位はユーザーに確認する。機能単位の場合は `qa-nightmare` subagent の出力を反映する。
+テストリストにはエッジケース (null / 空 / 0 / 負数 / 境界値) を 3 つ以上含める。
+優先順位はユーザーに確認する。
+機能単位の場合は `qa-nightmare` subagent の出力を反映する。
 
 ### 順序の決め方
 
@@ -412,4 +452,3 @@ RED（FAILするテスト）単独ではコミットしない。RED+GREENをセ�
 | モックの戻り値をインターフェース確認なしに推測で決める | ハルシネーション |
 | 「探索的」かどうかをAIが勝手に判断する | ユーザー申告制 |
 | テストと実装を同一レスポンスで同時出力する | RED確認の迂回 |
-

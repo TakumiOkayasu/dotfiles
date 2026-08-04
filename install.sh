@@ -57,6 +57,7 @@ UNINSTALL_CODEX=false
 VENDOR_SKILLS="composition-patterns react-best-practices web-design-guidelines"
 COMMON_HOOKS="common/hooks"
 COMMON_QA_NIGHTMARE_CHECKLISTS="common/qa-nightmare/checklists"
+COMMON_QA_NIGHTMARE_MANIFEST="common/qa-nightmare/manifest.json"
 
 DOTWORK_MARKER_BEGIN="# === dotfile-work: BEGIN ==="
 DOTWORK_MARKER_END="# === dotfile-work: END ==="
@@ -1169,6 +1170,13 @@ add_common_qa_nightmare_checklists_stow_specs() {
     done
 }
 
+add_common_qa_nightmare_manifest_stow_spec() {
+    _spec_file="$1"
+    _dest_prefix="$2"
+
+    stow_specs_add "$_spec_file" "$COMMON_QA_NIGHTMARE_MANIFEST" "${_dest_prefix}/manifest.json"
+}
+
 remove_legacy_qa_nightmare_checklist_links() {
     _dest_dir="$1"
     [ -d "$_dest_dir" ] || return 0
@@ -1212,6 +1220,7 @@ _claude_install_stow_package() {
     _claude_add_managed_stow_specs "$_spec_file"
     add_common_hooks_stow_specs "$_spec_file" ".claude/hooks"
     add_common_qa_nightmare_checklists_stow_specs "$_spec_file" ".claude/skills/qa-nightmare/checklists"
+    add_common_qa_nightmare_manifest_stow_spec "$_spec_file" ".claude/skills/qa-nightmare"
     install_stow_specs_file "claude" "$_spec_file"
 }
 
@@ -1221,6 +1230,7 @@ _claude_uninstall_stow_package() {
     _claude_add_managed_stow_specs "$_spec_file"
     add_common_hooks_stow_specs "$_spec_file" ".claude/hooks"
     add_common_qa_nightmare_checklists_stow_specs "$_spec_file" ".claude/skills/qa-nightmare/checklists"
+    add_common_qa_nightmare_manifest_stow_spec "$_spec_file" ".claude/skills/qa-nightmare"
     uninstall_stow_specs_file "claude" "$_spec_file"
 }
 
@@ -1423,6 +1433,7 @@ _codex_install_stow_package() {
     _codex_add_managed_stow_specs "$_spec_file"
     add_common_hooks_stow_specs "$_spec_file" ".codex/hooks"
     add_common_qa_nightmare_checklists_stow_specs "$_spec_file" ".codex/agents/qa-nightmare/checklists"
+    add_common_qa_nightmare_manifest_stow_spec "$_spec_file" ".codex/agents/qa-nightmare"
     install_stow_specs_file "codex" "$_spec_file"
 }
 
@@ -1432,6 +1443,7 @@ _codex_uninstall_stow_package() {
     _codex_add_managed_stow_specs "$_spec_file"
     add_common_hooks_stow_specs "$_spec_file" ".codex/hooks"
     add_common_qa_nightmare_checklists_stow_specs "$_spec_file" ".codex/agents/qa-nightmare/checklists"
+    add_common_qa_nightmare_manifest_stow_spec "$_spec_file" ".codex/agents/qa-nightmare"
     uninstall_stow_specs_file "codex" "$_spec_file"
 }
 

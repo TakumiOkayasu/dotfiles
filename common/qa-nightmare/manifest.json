@@ -1,0 +1,278 @@
+{
+  "schema_version": 1,
+  "digest_algorithm": "sha256",
+  "max_source_files": 64,
+  "max_source_bytes": 1048576,
+  "max_total_source_bytes": 8388608,
+  "max_total_checklist_bytes": 65536,
+  "canonical_checklist_root": "common/qa-nightmare/checklists",
+  "runtimes": {
+    "claude": {
+      "home_relative_root": ".claude/skills/qa-nightmare",
+      "manifest_file": "manifest.json",
+      "checklist_directory": "checklists"
+    },
+    "codex": {
+      "home_relative_root": ".codex/agents/qa-nightmare",
+      "manifest_file": "manifest.json",
+      "checklist_directory": "checklists"
+    }
+  },
+  "checklists": [
+    {
+      "file": "auth-bypass.md",
+      "ids": [
+        "AB-01",
+        "AB-02",
+        "AB-03",
+        "AB-04",
+        "AB-05",
+        "AB-06",
+        "AB-07",
+        "AB-08",
+        "AB-09",
+        "AB-10"
+      ],
+      "required_fields": [
+        "攻撃",
+        "検証",
+        "壊れ方",
+        "嫌度"
+      ],
+      "size_bytes": 2934,
+      "sha256": "7870da1aa48be123e5d13719d1f75875e7576f9a8874f8a53bf55e9524169d06"
+    },
+    {
+      "file": "boundary-hell.md",
+      "ids": [
+        "BH-01",
+        "BH-02",
+        "BH-03",
+        "BH-04",
+        "BH-05",
+        "BH-06",
+        "BH-07",
+        "BH-08",
+        "BH-09",
+        "BH-10",
+        "BH-11"
+      ],
+      "required_fields": [
+        "攻撃",
+        "検証",
+        "壊れ方",
+        "嫌度"
+      ],
+      "size_bytes": 3503,
+      "sha256": "c6e4b45f55c234f3dc863b62a11cddf62f97f32ae3c2f98e398585870c463d18"
+    },
+    {
+      "file": "data-io.md",
+      "ids": [
+        "DI-01",
+        "DI-02",
+        "DI-03",
+        "DI-04",
+        "DI-05",
+        "DI-06",
+        "DI-07",
+        "DI-08",
+        "DI-09",
+        "DI-10"
+      ],
+      "required_fields": [
+        "攻撃",
+        "検証",
+        "壊れ方",
+        "嫌度"
+      ],
+      "size_bytes": 3571,
+      "sha256": "87a1a25a8678ca132c25ab747c1f086fbfbef07a13ff3e2a8d6752b4677ed8ac"
+    },
+    {
+      "file": "domain-specific.md",
+      "ids": [
+        "DS-01",
+        "DS-02",
+        "DS-03",
+        "DS-04",
+        "DS-05",
+        "DS-06",
+        "DS-07",
+        "DS-08",
+        "DS-09",
+        "DS-10"
+      ],
+      "required_fields": [
+        "攻撃",
+        "検証",
+        "壊れ方",
+        "嫌度"
+      ],
+      "size_bytes": 4570,
+      "sha256": "50544ed310f096248be31cdd24717a68b845bdaa1a01f586d4815b259c85eebd"
+    },
+    {
+      "file": "error-recovery.md",
+      "ids": [
+        "ER-01",
+        "ER-02",
+        "ER-03",
+        "ER-04",
+        "ER-05",
+        "ER-06",
+        "ER-07",
+        "ER-08",
+        "ER-09",
+        "ER-10"
+      ],
+      "required_fields": [
+        "攻撃",
+        "検証",
+        "壊れ方",
+        "嫌度"
+      ],
+      "size_bytes": 3869,
+      "sha256": "406faf2fa6098e43e64d5910f3794322b585bdd8d6f9d03b75ad0e7794c7200a"
+    },
+    {
+      "file": "silent-corruption.md",
+      "ids": [
+        "SC-01",
+        "SC-02",
+        "SC-03",
+        "SC-04",
+        "SC-05",
+        "SC-06",
+        "SC-07",
+        "SC-08",
+        "SC-09",
+        "SC-10"
+      ],
+      "required_fields": [
+        "攻撃",
+        "検証",
+        "壊れ方",
+        "嫌度"
+      ],
+      "size_bytes": 3207,
+      "sha256": "b5ea253b798906a72db3d374b4244a64399f61e24a85082773a9a427c1fdbefa"
+    },
+    {
+      "file": "state-transition.md",
+      "ids": [
+        "ST-01",
+        "ST-02",
+        "ST-03",
+        "ST-04",
+        "ST-05",
+        "ST-06",
+        "ST-07",
+        "ST-08"
+      ],
+      "required_fields": [
+        "攻撃",
+        "検証",
+        "壊れ方",
+        "嫌度"
+      ],
+      "size_bytes": 2627,
+      "sha256": "7f32bb5f7d0c0f6379ac12621c91485d04092cf3eb6dcbffd54d53a9ba4e6cbe"
+    },
+    {
+      "file": "timing-chaos.md",
+      "ids": [
+        "TC-01",
+        "TC-02",
+        "TC-03",
+        "TC-04",
+        "TC-05",
+        "TC-06",
+        "TC-07",
+        "TC-08",
+        "TC-09",
+        "TC-10"
+      ],
+      "required_fields": [
+        "攻撃",
+        "検証",
+        "壊れ方",
+        "嫌度"
+      ],
+      "size_bytes": 2985,
+      "sha256": "cd315d28846854a1bb5bd852c292be47a4249193d224e507a8e1811d1a7ac810"
+    },
+    {
+      "file": "ui-destruction.md",
+      "ids": [
+        "UD-01",
+        "UD-02",
+        "UD-03",
+        "UD-04",
+        "UD-05",
+        "UD-06",
+        "UD-07",
+        "UD-08",
+        "UD-09",
+        "UD-10"
+      ],
+      "required_fields": [
+        "攻撃",
+        "検証",
+        "壊れ方",
+        "スクショ箇所",
+        "嫌度"
+      ],
+      "size_bytes": 3932,
+      "sha256": "c6d722ebdbe65c7a5b6cb1de219c68f0193976ec702efb48561f13fcc219b753"
+    },
+    {
+      "file": "ui-operation.md",
+      "ids": [
+        "UO-01",
+        "UO-02",
+        "UO-03",
+        "UO-04",
+        "UO-05",
+        "UO-06",
+        "UO-07",
+        "UO-08",
+        "UO-09",
+        "UO-10"
+      ],
+      "required_fields": [
+        "攻撃",
+        "検証",
+        "壊れ方",
+        "スクショ箇所",
+        "嫌度"
+      ],
+      "size_bytes": 3945,
+      "sha256": "9341b9399edd8302b5f81dca8a38c960d4a2a659d3a0cc604dbae34df86627fb"
+    },
+    {
+      "file": "ui-state.md",
+      "ids": [
+        "US-01",
+        "US-02",
+        "US-03",
+        "US-04",
+        "US-05",
+        "US-06",
+        "US-07",
+        "US-08",
+        "US-09",
+        "US-10"
+      ],
+      "required_fields": [
+        "攻撃",
+        "検証",
+        "壊れ方",
+        "スクショ箇所",
+        "嫌度"
+      ],
+      "size_bytes": 3830,
+      "sha256": "783d29f9875988243d8a1d9552415fed9c9440ef151feaf457d0af2d5ddad9e5"
+    }
+  ]
+}
