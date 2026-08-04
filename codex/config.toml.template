@@ -21,6 +21,7 @@ status_line_use_colors = true
 [features]
 hooks = true
 memories = true
+default_mode_request_user_input = true
 
 #[mcp_servers.github]
 #bearer_token_env_var = "CODEX_GITHUB_PERSONAL_ACCESS_TOKEN"
