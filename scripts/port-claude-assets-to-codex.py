@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import enum
 import hashlib
 import json
 from pathlib import Path
@@ -19,6 +20,51 @@ import re
 import shutil
 
 MANAGED_MARKER = "codex-port: managed"
+TDD_SKILL_SOURCE = Path("claude/skills/tdd/SKILL.md")
+QA_CONTINUATION_START = "<!-- qa-continuation:start -->"
+QA_CONTINUATION_END = "<!-- qa-continuation:end -->"
+CODEX_QA_CONTINUATION_OVERLAY = (
+    "長大出力で継続が必要な場合、Codex parent は完全性索引、`snapshot_digest`、未返却rankを"
+    "持つcompact continuation_ledgerを受け取る。\n"
+    "未返却rankについてのみ、各代表ケースを"
+    "再構成できるredacted事実 (事前条件/操作/期待結果/観測点/根拠/score) を保持し、"
+    "表示済みrank本文を含めない。\n"
+    "ledger全体を含む初回出力のUTF-8 byte数から保守的な"
+    "`ledger_upper_bound_tokens`を算出し、埋込み後の"
+    "再直列化が固定点に達して`ledger_upper_bound_tokens <= output_reserve_tokens`を満たす"
+    "ことを検証する。\n"
+    "超過時は対象絞り込みを要求して停止する。\n"
+    "digest検証後、followup_taskでledger digestとrequested_rankだけを指定する。\n"
+    "既存contextを使い、snapshotを再送しない。\n"
+    "未返却 S を除外しない。"
+)
+CODEX_QA_DISPATCH_INSTRUCTION = "`spawn_agent` で `agent_type: qa_nightmare` を起動する。"
+CODEX_QA_FAIL_CLOSED_INSTRUCTION = (
+    "現行Codex custom-agentには構造的なempty tool surfaceがない。\n"
+    "`sandbox_mode = \"read-only\"` はtoolを非公開化しないため、実運用では "
+    "`agent_type: qa_nightmare` をdispatchしない。\n"
+    "悪夢テストケース生成は未実行としてユーザーへ明示する。\n"
+    "将来、実行surfaceが全toolを構造的に除外できることを"
+    "一次情報と実tool eventで確認できた場合だけ、以下のpreflightとdispatchを有効化する。"
+    "\n\n"
+)
+CODEX_QA_SURFACE_REPLACEMENTS = (
+    (
+        "| 機能単位 (画面 / API / エンドポイント / ジョブ) | ユーザー登録画面、決済 API、夜間バッチ | qa_nightmare subagent を起動する |",
+        "| 機能単位 (画面 / API / エンドポイント / ジョブ) | ユーザー登録画面、決済 API、夜間バッチ | 現行Codex: 未実行を明示 (dispatch禁止) |",
+    ),
+    (
+        "機能単位と判定したら、テストリスト作成に進む前に qa_nightmare subagent を起動して悪夢テストケースを先に列挙する。",
+        "機能単位と判定しても、現行Codexではqa_nightmareをdispatchせず、悪夢テストケース生成が未実行であることを先に明示する。",
+    ),
+    (
+        "機能単位の場合は `qa_nightmare` subagent の出力を反映する。",
+        "機能単位の場合はqa_nightmare未実行を明示し、通常TDD候補を親が作る。\n"
+        "将来有効化後だけ `qa_nightmare` subagent の出力を反映する。",
+    ),
+    ("### qa_nightmare 起動", "### qa_nightmare の将来有効化仕様"),
+    ("### 結果の扱い", "### 将来有効化時の結果の扱い"),
+)
 RULE_BUNDLE_NAME = "RULES_BUNDLE.md"
 RULE_INDEX_NAME = "RULES_INDEX.md"
 ASSET_MANIFEST_PATH = Path(__file__).with_name("claude-command-map.json")
@@ -69,11 +115,32 @@ def load_asset_manifest() -> tuple[dict[str, str], dict[str, Path], frozenset[st
 COMMAND_DESTINATIONS, COMMAND_REFERENCES, ALLOWED_SKILL_FILES = load_asset_manifest()
 
 
+class ArtifactRole(enum.Enum):
+    GENERIC = "generic"
+    TDD_SKILL = "tdd_skill"
+
+
+def classify_artifact_role(source: Path, *, kind: str) -> ArtifactRole:
+    if kind == "skill" and source == TDD_SKILL_SOURCE:
+        return ArtifactRole.TDD_SKILL
+    return ArtifactRole.GENERIC
+
+
+def replace_marked_section(body: str, start: str, end: str, overlay: str) -> str:
+    start_at = body.find(start)
+    end_at = body.find(end)
+    if start_at < 0 or end_at < 0 or end_at <= start_at:
+        raise ValueError(f"missing or invalid marker section: {start} ... {end}")
+    content_start = start_at + len(start)
+    return body[:content_start] + "\n" + overlay + "\n" + body[end_at:]
+
+
 @dataclasses.dataclass(frozen=True)
 class PortedFile:
     source: Path
     dest: Path
     kind: str
+    role: ArtifactRole
     changed: bool
     backed_up: bool
 
@@ -241,6 +308,38 @@ def replace_codex_paths(body: str) -> str:
     return out
 
 
+def replace_codex_surface_contracts(body: str, *, role: ArtifactRole) -> str:
+    if role is not ArtifactRole.TDD_SKILL:
+        return body
+
+    if CODEX_QA_DISPATCH_INSTRUCTION not in body:
+        raise ValueError("TDD_SKILL: missing qa_nightmare dispatch instruction")
+    out = body.replace(
+        CODEX_QA_DISPATCH_INSTRUCTION,
+        CODEX_QA_FAIL_CLOSED_INSTRUCTION,
+        1,
+    )
+    for old, new in CODEX_QA_SURFACE_REPLACEMENTS:
+        if old not in out:
+            raise ValueError(f"TDD_SKILL: missing Codex qa_nightmare contract: {old}")
+        out = out.replace(old, new, 1)
+    future_heading = "### qa_nightmare の将来有効化仕様\n\n"
+    out = out.replace(CODEX_QA_FAIL_CLOSED_INSTRUCTION, "", 1)
+    out = out.replace(
+        future_heading,
+        future_heading + CODEX_QA_FAIL_CLOSED_INSTRUCTION,
+        1,
+    )
+    out = out.replace("qa_nightmare-preflight", "qa-nightmare-preflight")
+    out = replace_marked_section(
+        out,
+        QA_CONTINUATION_START,
+        QA_CONTINUATION_END,
+        CODEX_QA_CONTINUATION_OVERLAY,
+    )
+    return out
+
+
 def replace_command_invocations(body: str) -> str:
     out = re.sub(
         r"`/([a-zA-Z0-9_.-]+)`",
@@ -273,18 +372,37 @@ def add_portability_notes(body: str, *, source: Path, kind: str) -> str:
     return out
 
 
-def transform_body(body: str, *, source: Path, kind: str) -> str:
+def transform_body(
+    body: str, *, source: Path, kind: str, role: ArtifactRole
+) -> str:
     out = replace_runtime_fragments(body, source=source, kind=kind)
     out = replace_codex_paths(out)
+    out = replace_codex_surface_contracts(out, role=role)
     out = replace_command_invocations(out)
     return add_portability_notes(out, source=source, kind=kind)
 
 
-def transform_text(text: str, *, source: Path, kind: str) -> str:
+def transform_text(
+    text: str, *, source: Path, kind: str, role: ArtifactRole
+) -> str:
     frontmatter, body = split_frontmatter(text)
     fm = transform_frontmatter(frontmatter, source)
-    new_body = transform_body(body, source=source, kind=kind)
+    new_body = transform_body(body, source=source, kind=kind, role=role)
     return (fm or "") + new_body
+
+
+def transform_source(
+    source: Path, *, repo: Path, kind: str
+) -> tuple[str, ArtifactRole]:
+    relative_source = source.relative_to(repo)
+    role = classify_artifact_role(relative_source, kind=kind)
+    output = transform_text(
+        source.read_text(encoding="utf-8"),
+        source=relative_source,
+        kind=kind,
+        role=role,
+    )
+    return output, role
 
 
 def sha256_text(text: str) -> str:
@@ -382,17 +500,9 @@ def validate_skill_resources(repo: Path) -> None:
 
 def validate_transformability(repo: Path, command_sources: list[Path]) -> None:
     for source in iter_skill_sources(repo):
-        transform_text(
-            source.read_text(encoding="utf-8"),
-            source=source.relative_to(repo),
-            kind="skill",
-        )
+        transform_source(source, repo=repo, kind="skill")
     for source in iter_rule_sources(repo):
-        transform_text(
-            source.read_text(encoding="utf-8"),
-            source=source.relative_to(repo),
-            kind="rule",
-        )
+        transform_source(source, repo=repo, kind="rule")
     for source in command_sources:
         skill_name = COMMAND_DESTINATIONS[source.stem]
         native_skill = repo / "codex" / "skills" / skill_name / "SKILL.md"
@@ -401,11 +511,7 @@ def validate_transformability(repo: Path, command_sources: list[Path]) -> None:
                 f"{source.relative_to(repo)}: missing Codex-native entrypoint "
                 f"codex/skills/{skill_name}/SKILL.md"
             )
-        transform_text(
-            source.read_text(encoding="utf-8"),
-            source=source.relative_to(repo),
-            kind="command",
-        )
+        transform_source(source, repo=repo, kind="command")
 
 
 def validate_sources(repo: Path) -> None:
@@ -420,10 +526,11 @@ def port_skills(repo: Path, args: argparse.Namespace) -> list[PortedFile]:
     for source in iter_skill_sources(repo):
         skill_name = source.parent.name
         dest = repo / "codex" / "skills" / skill_name / "SKILL.md"
-        text = source.read_text(encoding="utf-8")
-        out = transform_text(text, source=source.relative_to(repo), kind="skill")
+        out, role = transform_source(source, repo=repo, kind="skill")
         changed, backed_up = write_file(dest, out, args=args)
-        result.append(PortedFile(source, dest, "skill", changed, backed_up))
+        result.append(
+            PortedFile(source, dest, "skill", role, changed, backed_up)
+        )
     return result
 
 
@@ -431,10 +538,11 @@ def port_rules(repo: Path, args: argparse.Namespace) -> list[PortedFile]:
     result: list[PortedFile] = []
     for source in iter_rule_sources(repo):
         dest = repo / "codex" / "rules" / source.name
-        text = source.read_text(encoding="utf-8")
-        out = transform_text(text, source=source.relative_to(repo), kind="rule")
+        out, role = transform_source(source, repo=repo, kind="rule")
         changed, backed_up = write_file(dest, out, args=args)
-        result.append(PortedFile(source, dest, "rule", changed, backed_up))
+        result.append(
+            PortedFile(source, dest, "rule", role, changed, backed_up)
+        )
     return result
 
 
@@ -443,10 +551,11 @@ def port_commands(repo: Path, args: argparse.Namespace) -> list[PortedFile]:
     for source in iter_command_sources(repo):
         skill_name = COMMAND_DESTINATIONS[source.stem]
         dest = repo / "codex" / "skills" / skill_name / COMMAND_REFERENCES[source.stem]
-        text = source.read_text(encoding="utf-8")
-        out = transform_text(text, source=source.relative_to(repo), kind="command")
+        out, role = transform_source(source, repo=repo, kind="command")
         changed, backed_up = write_file(dest, out, args=args)
-        result.append(PortedFile(source, dest, "command", changed, backed_up))
+        result.append(
+            PortedFile(source, dest, "command", role, changed, backed_up)
+        )
     return result
 
 

@@ -6,6 +6,7 @@
     - TestUninstallStaleLinks, TestEmptyDir*, TestNested*, TestRoundTrip: 疑似リポジトリで個別機能をテスト
 """
 
+import json
 import os
 import re
 import runpy
@@ -13,10 +14,14 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+import pytest
+
 INSTALL_SH = Path(__file__).resolve().parent.parent / "install.sh"
 BASHRC = INSTALL_SH.parent / "config" / "shell" / "bash" / "bashrc"
 REPO_ROOT = INSTALL_SH.parent
 STOW_INSTALL_SH = REPO_ROOT / "scripts" / "stow-install.sh"
+INSTALL_TEST_DOCKERFILE = REPO_ROOT / "tests" / "Dockerfile.install"
+QA_NIGHTMARE_MANIFEST = REPO_ROOT / "common" / "qa-nightmare" / "manifest.json"
 MODEL_PROFILE_PATHS = (
     "codex/balanced.config.toml",
     "codex/fast.config.toml",
@@ -202,6 +207,98 @@ def _assert_generated_stow_link(link: Path, generated: Path, source: Path) -> No
     assert _has_generated_stow_ancestor(link, generated)
 
 
+def _assert_qa_nightmare_checklists(
+    runtime_dir: Path, generated_dir: Path
+) -> None:
+    source_dir = REPO_ROOT / "common" / "qa-nightmare" / "checklists"
+    manifest = json.loads(QA_NIGHTMARE_MANIFEST.read_text(encoding="utf-8"))
+    manifest_names = [entry["file"] for entry in manifest["checklists"]]
+    source_files = {name: source_dir / name for name in manifest_names}
+    runtime_files = {path.name: path for path in runtime_dir.glob("*.md")}
+    generated_files = {path.name: path for path in generated_dir.glob("*.md")}
+    source_names = set(path.name for path in source_dir.glob("*.md"))
+
+    assert list(source_files) == manifest_names
+    assert source_names == set(manifest_names), (
+        "canonical checklist filenames must match manifest"
+    )
+    assert set(runtime_files) == set(manifest_names), (
+        "runtime checklist filenames must match manifest"
+    )
+    assert set(generated_files) == set(manifest_names), (
+        "generated checklist filenames must match manifest"
+    )
+
+    _assert_generated_stow_link(
+        runtime_dir.parent / "manifest.json",
+        generated_dir.parent / "manifest.json",
+        QA_NIGHTMARE_MANIFEST,
+    )
+
+    for name in manifest_names:
+        source = source_files[name]
+        runtime = runtime_files[name]
+        generated = generated_files[name]
+        _assert_generated_stow_link(runtime, generated, source)
+
+
+def _create_qa_nightmare_checklist_links(tmp_path: Path) -> tuple[Path, Path]:
+    source_dir = REPO_ROOT / "common" / "qa-nightmare" / "checklists"
+    generated_dir = tmp_path / "generated" / "checklists"
+    runtime_dir = tmp_path / "runtime" / "checklists"
+    generated_dir.mkdir(parents=True)
+    runtime_dir.mkdir(parents=True)
+    generated_manifest = generated_dir.parent / "manifest.json"
+    generated_manifest.symlink_to(QA_NIGHTMARE_MANIFEST)
+    (runtime_dir.parent / "manifest.json").symlink_to(generated_manifest)
+
+    manifest = json.loads(QA_NIGHTMARE_MANIFEST.read_text(encoding="utf-8"))
+    for entry in manifest["checklists"]:
+        source = source_dir / entry["file"]
+        generated = generated_dir / source.name
+        generated.symlink_to(source)
+        (runtime_dir / source.name).symlink_to(generated)
+
+    return runtime_dir, generated_dir
+
+
+class TestQaNightmareChecklistAssertions:
+    def test_should_reject_missing_checklist_when_runtime_set_is_incomplete(
+        self, tmp_path: Path
+    ) -> None:
+        runtime_dir, generated_dir = _create_qa_nightmare_checklist_links(tmp_path)
+        next(runtime_dir.glob("*.md")).unlink()
+
+        with pytest.raises(AssertionError):
+            _assert_qa_nightmare_checklists(runtime_dir, generated_dir)
+
+    def test_should_reject_extra_checklist_when_generated_set_differs(
+        self, tmp_path: Path
+    ) -> None:
+        runtime_dir, generated_dir = _create_qa_nightmare_checklist_links(tmp_path)
+        extra_source = tmp_path / "extra.md"
+        extra_source.write_text("unexpected", encoding="utf-8")
+        (generated_dir / extra_source.name).symlink_to(extra_source)
+
+        with pytest.raises(
+            AssertionError, match="generated checklist filenames"
+        ):
+            _assert_qa_nightmare_checklists(runtime_dir, generated_dir)
+
+    def test_should_reject_generated_checklist_when_link_targets_stale_source(
+        self, tmp_path: Path
+    ) -> None:
+        runtime_dir, generated_dir = _create_qa_nightmare_checklist_links(tmp_path)
+        generated = next(generated_dir.glob("*.md"))
+        stale_source = tmp_path / generated.name
+        stale_source.write_text("stale", encoding="utf-8")
+        generated.unlink()
+        generated.symlink_to(stale_source)
+
+        with pytest.raises(AssertionError):
+            _assert_qa_nightmare_checklists(runtime_dir, generated_dir)
+
+
 def _assert_codex_core_links(codex_dir: Path) -> None:
     assert (codex_dir / "AGENTS.md").is_symlink()
     assert _symlink_target_path(codex_dir / "AGENTS.md") == (
@@ -217,10 +314,10 @@ def _assert_codex_core_links(codex_dir: Path) -> None:
 def _assert_codex_bin_links(codex_dir: Path) -> None:
     pass
 
+
 def _assert_codex_common_links(codex_dir: Path) -> None:
-    checklist = codex_dir / "agents" / "qa-nightmare" / "checklists" / "auth-bypass.md"
-    _assert_generated_stow_link(
-        checklist,
+    _assert_qa_nightmare_checklists(
+        codex_dir / "agents" / "qa-nightmare" / "checklists",
         REPO_ROOT
         / ".stow-work"
         / "codex"
@@ -228,8 +325,6 @@ def _assert_codex_common_links(codex_dir: Path) -> None:
         / "agents"
         / "qa-nightmare"
         / "checklists"
-        / "auth-bypass.md",
-        REPO_ROOT / "common" / "qa-nightmare" / "checklists" / "auth-bypass.md",
     )
     assert (codex_dir / "hooks").is_dir()
     destructive_hook = codex_dir / "hooks" / "destructive-command-block.sh"
@@ -264,9 +359,8 @@ def _assert_claude_core_links(claude_dir: Path) -> None:
 
 def _assert_claude_common_links(claude_dir: Path) -> None:
     assert (claude_dir / "rules" / "natural-japanese.md").is_symlink()
-    checklist = claude_dir / "skills" / "qa-nightmare" / "checklists" / "auth-bypass.md"
-    _assert_generated_stow_link(
-        checklist,
+    _assert_qa_nightmare_checklists(
+        claude_dir / "skills" / "qa-nightmare" / "checklists",
         REPO_ROOT
         / ".stow-work"
         / "claude"
@@ -274,8 +368,6 @@ def _assert_claude_common_links(claude_dir: Path) -> None:
         / "skills"
         / "qa-nightmare"
         / "checklists"
-        / "auth-bypass.md",
-        REPO_ROOT / "common" / "qa-nightmare" / "checklists" / "auth-bypass.md",
     )
 
 
@@ -301,6 +393,16 @@ class TestCodexAgentDefinitions:
             for agent_file in agent_files
         }
 
+    def _claude_agent_names(self) -> set[str]:
+        agent_names = set()
+        agent_files = sorted((REPO_ROOT / "claude" / "agents").glob("*.md"))
+        for agent_file in agent_files:
+            content = agent_file.read_text(encoding="utf-8")
+            match = re.search(r"^name:\s*([A-Za-z0-9_-]+)\s*$", content, re.MULTILINE)
+            assert match is not None, f"{agent_file}: frontmatter name is required"
+            agent_names.add(match.group(1))
+        return agent_names
+
     def test_agent_toml_files_are_valid(self) -> None:
         """codex/agents/*.toml が Codex custom agent の必須キーを満たす"""
         agent_files = sorted((REPO_ROOT / "codex" / "agents").glob("*.toml"))
@@ -317,20 +419,53 @@ class TestCodexAgentDefinitions:
                 f"{agent_file}: name should match file stem"
             )
 
-    def test_skill_subagent_type_references_existing_agents(self) -> None:
-        """Codex skill 内の subagent_type 指定が実在する agent 名を参照する"""
-        agent_names = self._agent_names()
-        skill_files = [
-            REPO_ROOT / "codex" / "skills" / "tdd" / "SKILL.md",
-        ]
+    def test_should_resolve_agent_references_when_tdd_skills_dispatch(self) -> None:
+        """各 TDD skill の agent 参照が対応する実在 agent を指す"""
+        reference_specs = (
+            (
+                "agent_type",
+                REPO_ROOT / "codex" / "skills" / "tdd" / "SKILL.md",
+                self._agent_names(),
+            ),
+            (
+                "subagent_type",
+                REPO_ROOT / "claude" / "skills" / "tdd" / "SKILL.md",
+                self._claude_agent_names(),
+            ),
+        )
 
-        for skill_file in skill_files:
+        for reference_key, skill_file, agent_names in reference_specs:
             content = skill_file.read_text(encoding="utf-8")
-            for subagent_type in re.findall(r"subagent_type:\s*([A-Za-z0-9_-]+)", content):
-                assert subagent_type in agent_names, (
-                    f"{skill_file}: subagent_type {subagent_type!r} must match a "
-                    "codex/agents/*.toml name"
+            references = re.findall(
+                rf"{reference_key}:\s*([A-Za-z0-9_-]+)", content
+            )
+            assert references, (
+                f"{skill_file}: {reference_key} must reference an agent"
+            )
+            for agent_name in references:
+                assert agent_name in agent_names, (
+                    f"{skill_file}: {reference_key} {agent_name!r} must match "
+                    "an agent definition"
                 )
+
+
+class TestInstallTestDockerfile:
+    def test_should_run_all_regression_suites_when_using_default_entrypoint(
+        self,
+    ) -> None:
+        """標準 install-test が関連する全回帰 suite を収集する"""
+        entrypoint = next(
+            line
+            for line in INSTALL_TEST_DOCKERFILE.read_text(
+                encoding="utf-8"
+            ).splitlines()
+            if line.startswith("ENTRYPOINT ")
+        )
+
+        assert "tests/test_install.py" in entrypoint
+        assert "tests/test_qa_nightmare.py" in entrypoint
+        assert "tests/test_qa_nightmare_preflight.py" in entrypoint
+        assert "tests/test_port_claude_assets.py" in entrypoint
 
 
 class TestCodexConfigTemplate:
@@ -1010,6 +1145,17 @@ class TestIntegrationInstallUninstall:
             REPO_ROOT / ".stow-work" / "bin" / ".local" / "bin" / "git-new-feature",
             REPO_ROOT / "bin" / "git-new-feature",
         )
+        _assert_generated_stow_link(
+            home / ".local" / "bin" / "qa-nightmare-preflight",
+            REPO_ROOT
+            / ".stow-work"
+            / "bin"
+            / ".local"
+            / "bin"
+            / "qa-nightmare-preflight",
+            REPO_ROOT / "bin" / "qa-nightmare-preflight",
+        )
+        assert os.access(REPO_ROOT / "bin" / "qa-nightmare-preflight", os.X_OK)
 
     def test_uninstall_succeeds(self, tmp_path: Path) -> None:
         """install → uninstall が正常終了する"""
@@ -1155,11 +1301,14 @@ class TestIntegrationInstallUninstall:
             / "auth-bypass.md"
         )
         assert checklist.is_symlink()
+        manifest = checklist.parent.parent / "manifest.json"
+        assert manifest.is_symlink()
 
         _run_install_sh(REPO_ROOT, home, uninstall=True)
         assert not (home / ".claude" / "settings.json").exists()
         assert not destructive_hook.exists()
         assert not checklist.exists()
+        assert not manifest.exists()
 
     def test_uninstall_removes_codex_symlinks(self, tmp_path: Path) -> None:
         """uninstall 後に dotfiles 由来のCodexリンクが削除される"""
@@ -1182,6 +1331,8 @@ class TestIntegrationInstallUninstall:
             / "auth-bypass.md"
         )
         assert checklist.is_symlink()
+        manifest = checklist.parent.parent / "manifest.json"
+        assert manifest.is_symlink()
         assert not (home / ".agents" / "skills" / "tdd" / "SKILL.md").exists()
 
         _run_install_sh(REPO_ROOT, home, uninstall=True)
@@ -1189,6 +1340,7 @@ class TestIntegrationInstallUninstall:
         assert not (home / ".codex" / "agents" / "code_reviewer.toml").exists()
         assert not destructive_hook.exists()
         assert not checklist.exists()
+        assert not manifest.exists()
 
     def test_uninstall_removes_legacy_common_hooks(self, tmp_path: Path) -> None:
         """common化前の hook リンクが uninstall で削除される"""

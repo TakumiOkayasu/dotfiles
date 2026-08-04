@@ -1,0 +1,951 @@
+#!/usr/bin/env python3
+"""Build a verified qa-nightmare checklist snapshot for a parent workflow."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import stat
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import BinaryIO, NoReturn
+
+
+SCRIPT_REPOSITORY = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(SCRIPT_REPOSITORY / "scripts"))
+
+from qa_nightmare_manifest import (  # noqa: E402
+    MANIFEST_SPEC,
+    ChecklistSpec,
+    ManifestSpec,
+    serialized_manifest,
+)
+
+
+TRUSTED_MANIFEST = SCRIPT_REPOSITORY / "common" / "qa-nightmare" / "manifest.json"
+MAX_TRUSTED_MANIFEST_BYTES = 64 * 1024
+BOUNDED_READ_CHUNK_BYTES = 16 * 1024
+CASE_HEADING = re.compile(r"^### (?P<case_id>[A-Z]+-[0-9]+):", re.MULTILINE)
+FIELD = re.compile(r"^- (?P<field>[^:\n]+):", re.MULTILINE)
+SECRET_PATH_COMPONENT = re.compile(
+    r"(?:^\.(?:aws|azure|git|gnupg|ssh)$|^\.(?:netrc|npmrc|pypirc)$|"
+    r"^\.env(?:\..*)?$|"
+    r"^(?:credentials?|secrets?)(?:\..+)?$|"
+    r"^(?:api[-_]?key|api[-_]?token|access[-_]?token|auth[-_]?token|"
+    r"refresh[-_]?token)(?:\..+)?$|"
+    r"^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.pub)?$|"
+    r"\.(?:key|p12|pem|pfx)$)",
+    re.IGNORECASE,
+)
+AUTHORIZATION_VALUE = re.compile(
+    rb"\bauthorization\s*:\s*(?:basic|bearer)\s+(?P<value>\S+)",
+    re.IGNORECASE,
+)
+SECRET_ASSIGNMENT = re.compile(
+    rb"[\"']?(?:api[-_]?key|credential|password|passwd|secret|token)"
+    rb"[\"']?\s*[:=]\s*"
+    rb"(?P<value>\"[^\"\r\n]*\"|'[^'\r\n]*'|[^\s,;#]+)",
+    re.IGNORECASE,
+)
+KNOWN_SECRET_VALUE = re.compile(
+    rb"(?:\bAKIA[0-9A-Z]{16}\b|\bAIza[0-9A-Za-z_-]{20,}\b|"
+    rb"\bgithub_pat_[0-9A-Za-z_]{20,}\b|\bghp_[0-9A-Za-z]{20,}\b|"
+    rb"\bsk-[0-9A-Za-z_-]{16,}\b|\bxox[baprs]-[0-9A-Za-z-]{10,}\b|"
+    rb"\beyJ[0-9A-Za-z_-]{10,}\.[0-9A-Za-z_-]{10,}\.[0-9A-Za-z_-]{10,}\b)",
+    re.IGNORECASE,
+)
+PRIVATE_KEY_HEADER = re.compile(rb"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----")
+PLACEHOLDER_VALUES = {
+    b"boolean",
+    b"dummy",
+    b"dummy-password",
+    b"example",
+    b"fake",
+    b"fake-token",
+    b"fixture",
+    b"fixture-token",
+    b"invalid",
+    b"jwt",
+    b"none",
+    b"null",
+    b"number",
+    b"optional",
+    b"password",
+    b"placeholder",
+    b"redacted",
+    b"required",
+    b"secret",
+    b"string",
+    b"test",
+    b"test-password",
+    b"token",
+    b"value",
+}
+SAFE_SECRET_EXPRESSION = re.compile(
+    rb"(?:(?:[A-Za-z_][A-Za-z0-9_]*\.)+[A-Za-z_][A-Za-z0-9_]*|"
+    rb"[A-Za-z_][A-Za-z0-9_.]*\([^)]*\))\Z"
+)
+LOWER_SNAKE_SECRET_REFERENCE = re.compile(
+    rb"(?:_[a-z0-9_]+|[a-z][a-z0-9]*_[a-z0-9_]+)\Z"
+)
+SIMPLE_SECRET_IDENTIFIER = re.compile(rb"[A-Za-z_][A-Za-z0-9_]*\Z")
+SECRET_VALUE_CHARACTER_CLASSES = tuple(
+    re.compile(pattern)
+    for pattern in (rb"[a-z]", rb"[A-Z]", rb"[0-9]", rb"[^0-9A-Za-z]")
+)
+
+
+class PreflightError(Exception):
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+@dataclass(frozen=True)
+class ValidatedSourcePath:
+    requested: str
+    source: Path
+    metadata: os.stat_result
+    canonical_relative: str
+
+
+def fail(code: str, message: str) -> NoReturn:
+    raise PreflightError(code, message)
+
+
+def sha256(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
+
+
+def repository_identity_sha256(repository: Path) -> str:
+    return sha256(os.fsencode(str(repository)))
+
+
+def read_bounded_descriptor(descriptor: int, max_bytes: int) -> bytes:
+    content = bytearray()
+    while len(content) <= max_bytes:
+        remaining = max_bytes - len(content) + 1
+        chunk = os.read(
+            descriptor,
+            min(BOUNDED_READ_CHUNK_BYTES, remaining),
+        )
+        if not chunk:
+            break
+        content.extend(chunk)
+    return bytes(content)
+
+
+def has_matching_metadata(left: os.stat_result, right: os.stat_result) -> bool:
+    return (
+        left.st_dev == right.st_dev
+        and left.st_ino == right.st_ino
+        and left.st_size == right.st_size
+        and left.st_mtime_ns == right.st_mtime_ns
+        and left.st_ctime_ns == right.st_ctime_ns
+    )
+
+
+def read_manifest_descriptor(descriptor: int) -> bytes:
+    initial_metadata = os.fstat(descriptor)
+    if not stat.S_ISREG(initial_metadata.st_mode):
+        fail("trusted_manifest_invalid", "trusted manifest must be a regular file")
+    if initial_metadata.st_size > MAX_TRUSTED_MANIFEST_BYTES:
+        fail("trusted_manifest_too_large", "trusted manifest exceeds code limit")
+    content = read_bounded_descriptor(descriptor, MAX_TRUSTED_MANIFEST_BYTES)
+    final_metadata = os.fstat(descriptor)
+    if len(content) > MAX_TRUSTED_MANIFEST_BYTES:
+        fail("trusted_manifest_too_large", "trusted manifest exceeds code limit")
+    if not has_matching_metadata(initial_metadata, final_metadata):
+        fail("trusted_manifest_changed", "trusted manifest changed during read")
+    return content
+
+
+def read_trusted_manifest_content() -> bytes:
+    descriptor = -1
+    try:
+        descriptor = os.open(
+            TRUSTED_MANIFEST,
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+        )
+        return read_manifest_descriptor(descriptor)
+    except OSError as error:
+        fail("trusted_manifest_invalid", f"trusted manifest unavailable: {error}")
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def load_trusted_manifest() -> tuple[ManifestSpec, bytes]:
+    expected_content = serialized_manifest()
+    if len(expected_content) > MAX_TRUSTED_MANIFEST_BYTES:
+        fail("trusted_manifest_too_large", "trusted manifest exceeds code limit")
+    content = read_trusted_manifest_content()
+    if content != expected_content:
+        fail(
+            "trusted_manifest_mismatch",
+            "trusted manifest does not match typed canonical source",
+        )
+    return MANIFEST_SPEC, content
+
+
+def resolve_repository(candidate: str) -> Path:
+    try:
+        repository = Path(candidate).resolve(strict=True)
+    except OSError as error:
+        fail("repository_invalid", f"repository cannot be resolved: {error}")
+    if not repository.is_dir():
+        fail("repository_invalid", "repository must be a canonical directory")
+
+    result = subprocess.run(
+        ["git", "-C", str(repository), "rev-parse", "--show-toplevel"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        fail("repository_invalid", "repository must be a Git worktree root")
+    try:
+        git_root = Path(result.stdout.strip()).resolve(strict=True)
+    except OSError as error:
+        fail("repository_invalid", f"Git worktree root cannot be resolved: {error}")
+    if git_root != repository:
+        fail("repository_invalid", "repository must be the canonical Git worktree root")
+    return repository
+
+
+def is_placeholder_value(raw_value: bytes) -> bool:
+    value = raw_value.strip().rstrip(b",;.")
+    if len(value) >= 2 and (
+        (value.startswith(b"<") and value.endswith(b">"))
+        or (value.startswith(b"[") and value.endswith(b"]"))
+    ):
+        return True
+    unquoted = value.strip(b"\"'").lower()
+    return unquoted in PLACEHOLDER_VALUES
+
+
+def is_high_risk_assignment(raw_value: bytes) -> bool:
+    value = raw_value.strip().rstrip(b",;")
+    if KNOWN_SECRET_VALUE.search(value):
+        return True
+    if is_placeholder_value(value):
+        return False
+    if (
+        len(value) >= 2
+        and value[:1] in {b'"', b"'"}
+        and value[-1:] == value[:1]
+    ):
+        return True
+    if SAFE_SECRET_EXPRESSION.fullmatch(value):
+        return False
+    unquoted = value.strip(b"\"'")
+    character_classes = sum(
+        bool(pattern.search(unquoted))
+        for pattern in SECRET_VALUE_CHARACTER_CLASSES
+    )
+    if len(unquoted) >= 20 and character_classes >= 2:
+        return True
+    if LOWER_SNAKE_SECRET_REFERENCE.fullmatch(value):
+        return False
+    return bool(SIMPLE_SECRET_IDENTIFIER.fullmatch(value))
+
+
+def has_secret_value(line: bytes) -> bool:
+    if PRIVATE_KEY_HEADER.search(line) or KNOWN_SECRET_VALUE.search(line):
+        return True
+    authorization = AUTHORIZATION_VALUE.search(line)
+    if authorization and not is_placeholder_value(authorization.group("value")):
+        return True
+    return any(
+        is_high_risk_assignment(match.group("value"))
+        for match in SECRET_ASSIGNMENT.finditer(line)
+    )
+
+
+def fail_source_changed(requested: str) -> NoReturn:
+    fail("source_changed", f"source changed during validation: {requested}")
+
+
+def validate_source_metadata(
+    metadata: os.stat_result,
+    expected_metadata: os.stat_result,
+    requested: str,
+) -> None:
+    if not stat.S_ISREG(metadata.st_mode) or not has_matching_metadata(
+        metadata, expected_metadata
+    ):
+        fail_source_changed(requested)
+
+
+def scan_source_lines(
+    source_file: BinaryIO,
+    requested: str,
+    max_file_bytes: int,
+) -> tuple[str, int]:
+    digest = hashlib.sha256()
+    bytes_read = 0
+    while True:
+        line = source_file.readline(max_file_bytes - bytes_read + 1)
+        if not line:
+            break
+        bytes_read += len(line)
+        if bytes_read > max_file_bytes:
+            fail(
+                "source_too_large",
+                f"source exceeds manifest size limit: {requested}",
+            )
+        digest.update(line)
+        if has_secret_value(line):
+            fail(
+                "source_secret_content",
+                f"secret-bearing source content rejected: {requested}",
+            )
+    return digest.hexdigest(), bytes_read
+
+
+def reject_secret_content(
+    source: Path,
+    requested: str,
+    expected_metadata: os.stat_result,
+    max_file_bytes: int,
+) -> tuple[str, int]:
+    descriptor = -1
+    try:
+        descriptor = os.open(
+            source,
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+        )
+        opened_metadata = os.fstat(descriptor)
+        validate_source_metadata(opened_metadata, expected_metadata, requested)
+        with os.fdopen(descriptor, "rb") as source_file:
+            descriptor = -1
+            digest, bytes_read = scan_source_lines(
+                source_file, requested, max_file_bytes
+            )
+            final_metadata = os.fstat(source_file.fileno())
+            validate_source_metadata(final_metadata, expected_metadata, requested)
+            if final_metadata.st_size != bytes_read:
+                fail_source_changed(requested)
+    except OSError:
+        fail("source_invalid", f"source cannot be scanned safely: {requested}")
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    return digest, bytes_read
+
+
+def validated_source_components(requested: str) -> list[str]:
+    if not requested:
+        fail("source_invalid", "source path must not be empty")
+    if Path(requested).is_absolute():
+        fail("source_absolute", f"source path must be relative: {requested}")
+
+    components = requested.split("/")
+    if any(component in {"", ".", ".."} for component in components):
+        fail("source_component", f"source path contains forbidden component: {requested}")
+    if any(SECRET_PATH_COMPONENT.search(component) for component in components):
+        fail(
+            "source_secret_bearing",
+            f"credential or secret-bearing source rejected: {requested}",
+        )
+    return components
+
+
+def validated_source_metadata(
+    repository: Path, source: Path, requested: str
+) -> os.stat_result:
+    try:
+        metadata = source.lstat()
+    except OSError as error:
+        fail("source_invalid", f"source is unavailable: {requested}: {error}")
+    if stat.S_ISLNK(metadata.st_mode):
+        try:
+            target = source.resolve(strict=True)
+        except OSError:
+            fail("source_symlink", f"source symlink is invalid: {requested}")
+        if not target.is_relative_to(repository):
+            fail("source_external_symlink", f"external source symlink rejected: {requested}")
+        fail("source_symlink", f"source must be a regular file, not a symlink: {requested}")
+    if not stat.S_ISREG(metadata.st_mode):
+        fail("source_not_regular", f"source must be a regular file: {requested}")
+    return metadata
+
+
+def canonical_source_path(
+    repository: Path, source: Path, requested: str
+) -> Path:
+    try:
+        canonical_source = source.resolve(strict=True)
+    except OSError as error:
+        fail("source_invalid", f"source cannot be resolved: {requested}: {error}")
+    if not canonical_source.is_relative_to(repository):
+        fail("source_outside_repository", f"source is outside repository: {requested}")
+    return canonical_source
+
+
+def validate_source_path(repository: Path, requested: str) -> ValidatedSourcePath:
+    components = validated_source_components(requested)
+    source = repository.joinpath(*components)
+    metadata = validated_source_metadata(repository, source, requested)
+    canonical_source = canonical_source_path(repository, source, requested)
+    canonical_relative = canonical_source.relative_to(repository).as_posix()
+    return ValidatedSourcePath(
+        requested,
+        source,
+        metadata,
+        canonical_relative,
+    )
+
+
+def gitignore_candidates_by_path(
+    validated: list[ValidatedSourcePath],
+) -> dict[bytes, ValidatedSourcePath]:
+    candidate_sources: dict[bytes, ValidatedSourcePath] = {}
+    for source in validated:
+        candidates = [source.canonical_relative]
+        # Git rejects paths below a symlink, so aliases use their canonical path.
+        if source.requested == source.canonical_relative:
+            candidates.append(source.requested)
+        for candidate in dict.fromkeys(candidates):
+            candidate_sources.setdefault(os.fsencode(candidate), source)
+    return candidate_sources
+
+
+def fail_gitignore_check(requested: str) -> NoReturn:
+    fail(
+        "source_git_check_failed",
+        f"cannot verify gitignore status: {requested}",
+    )
+
+
+def parse_gitignored_candidates(
+    result: subprocess.CompletedProcess[bytes],
+    candidate_sources: dict[bytes, ValidatedSourcePath],
+    requested: str,
+) -> set[bytes]:
+    if not isinstance(result.stdout, bytes):
+        fail_gitignore_check(requested)
+    if result.returncode == 1 and result.stdout == b"":
+        return set()
+    if result.returncode != 0:
+        fail_gitignore_check(requested)
+
+    ignored_candidates = {
+        candidate for candidate in result.stdout.split(b"\0") if candidate
+    }
+    if not ignored_candidates or not ignored_candidates.issubset(candidate_sources):
+        fail_gitignore_check(requested)
+    return ignored_candidates
+
+
+def read_gitignored_candidates(
+    repository: Path,
+    candidate_sources: dict[bytes, ValidatedSourcePath],
+    requested: str,
+) -> set[bytes]:
+    candidates = b"\0".join(candidate_sources) + b"\0"
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repository),
+                "check-ignore",
+                "--stdin",
+                "-z",
+            ],
+            input=candidates,
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        fail_gitignore_check(requested)
+    return parse_gitignored_candidates(result, candidate_sources, requested)
+
+
+def reject_gitignored_sources(
+    repository: Path, validated: list[ValidatedSourcePath]
+) -> None:
+    if not validated:
+        return
+
+    candidate_sources = gitignore_candidates_by_path(validated)
+    ignored_candidates = read_gitignored_candidates(
+        repository,
+        candidate_sources,
+        validated[0].requested,
+    )
+
+    for source in validated:
+        if os.fsencode(source.canonical_relative) in ignored_candidates:
+            fail(
+                "source_gitignored",
+                f"gitignored source rejected: {source.requested}",
+            )
+        if source.requested != source.canonical_relative:
+            fail_gitignore_check(source.requested)
+
+
+def validate_source_size_limits(
+    validated: list[ValidatedSourcePath],
+    max_file_bytes: int,
+    max_total_bytes: int,
+) -> None:
+    total_bytes = 0
+    for source in validated:
+        if source.metadata.st_size > max_file_bytes:
+            fail(
+                "source_too_large",
+                f"source exceeds manifest size limit: {source.requested}",
+            )
+        total_bytes += source.metadata.st_size
+        if total_bytes > max_total_bytes:
+            fail("source_total_too_large", "total source size exceeds manifest limit")
+
+
+def source_provenance(
+    validated: list[ValidatedSourcePath], max_file_bytes: int
+) -> list[dict[str, object]]:
+    provenance: list[dict[str, object]] = []
+    for source in validated:
+        digest, bytes_read = reject_secret_content(
+            source.source,
+            source.requested,
+            source.metadata,
+            max_file_bytes,
+        )
+        provenance.append(
+            {
+                "path": source.requested,
+                "sha256": digest,
+                "size_bytes": bytes_read,
+            }
+        )
+    return provenance
+
+
+def validate_sources(
+    manifest: ManifestSpec, repository: Path, requested_sources: list[str]
+) -> list[dict[str, object]]:
+    if len(requested_sources) != len(set(requested_sources)):
+        fail("source_duplicate", "duplicate source path rejected")
+    max_files = manifest.max_source_files
+    if len(requested_sources) > max_files:
+        fail("source_too_many", "source count exceeds manifest limit")
+
+    max_file_bytes = manifest.max_source_bytes
+    max_total_bytes = manifest.max_total_source_bytes
+    validated = [
+        validate_source_path(repository, requested)
+        for requested in requested_sources
+    ]
+    reject_gitignored_sources(repository, validated)
+    validate_source_size_limits(validated, max_file_bytes, max_total_bytes)
+    return source_provenance(validated, max_file_bytes)
+
+
+def validate_case_structure(
+    checklist_name: str,
+    text: str,
+    expected_ids: tuple[str, ...],
+    required_fields: tuple[str, ...],
+) -> None:
+    matches = list(CASE_HEADING.finditer(text))
+    actual_ids = tuple(match.group("case_id") for match in matches)
+    if len(actual_ids) != len(set(actual_ids)):
+        fail("checklist_duplicate_id", f"runtime checklist duplicate ID: {checklist_name}")
+    if actual_ids != expected_ids:
+        fail("checklist_id_order", f"runtime checklist ID order mismatch: {checklist_name}")
+
+    for index, match in enumerate(matches):
+        block_end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        fields = FIELD.findall(text[match.end() : block_end])
+        field_names = set(fields)
+        if len(fields) != len(field_names):
+            fail(
+                "checklist_duplicate_field",
+                f"runtime checklist duplicate field: {checklist_name}:{actual_ids[index]}",
+            )
+        missing_fields = [
+            field for field in required_fields if field not in field_names
+        ]
+        if missing_fields:
+            fail(
+                "checklist_missing_field",
+                f"runtime checklist missing field: {checklist_name}:{actual_ids[index]}:"
+                f"{','.join(missing_fields)}",
+            )
+
+
+def trusted_checklist_root(manifest: ManifestSpec) -> Path:
+    relative = manifest.canonical_checklist_root
+    path = SCRIPT_REPOSITORY / relative
+    try:
+        canonical = path.resolve(strict=True)
+    except OSError as error:
+        fail("trusted_manifest_invalid", f"canonical checklist root unavailable: {error}")
+    if not canonical.is_dir() or not canonical.is_relative_to(SCRIPT_REPOSITORY):
+        fail("trusted_manifest_invalid", "canonical checklist root is not trusted")
+    return canonical
+
+
+def runtime_paths(
+    manifest: ManifestSpec, runtime: str
+) -> tuple[Path, Path, Path]:
+    runtime_entry = next(
+        entry for entry in manifest.runtimes if entry.name == runtime
+    )
+    root_relative = runtime_entry.home_relative_root
+    manifest_file = runtime_entry.manifest_file
+    checklist_directory = runtime_entry.checklist_directory
+    runtime_root = Path.home() / root_relative
+    return runtime_root, runtime_root / manifest_file, runtime_root / checklist_directory
+
+
+def validate_runtime_manifest(runtime_manifest: Path) -> None:
+    if not runtime_manifest.exists():
+        fail("runtime_manifest_missing", "runtime manifest missing: manifest.json")
+    try:
+        target = runtime_manifest.resolve(strict=True)
+        trusted_target = TRUSTED_MANIFEST.resolve(strict=True)
+    except OSError as error:
+        fail("runtime_manifest_invalid", f"runtime manifest cannot be resolved: {error}")
+    if target != trusted_target:
+        fail("runtime_manifest_target", "runtime manifest canonical target mismatch: manifest.json")
+
+
+def resolved_checklist_path(
+    path: Path, name: str, is_revalidation: bool = False
+) -> Path:
+    try:
+        return path.resolve(strict=True)
+    except OSError as error:
+        action = "revalidated" if is_revalidation else "resolved"
+        fail(
+            "runtime_checklist_invalid",
+            f"runtime checklist cannot be {action}: {name}: {error}",
+        )
+
+
+def validate_runtime_checklist_target(
+    runtime_target: Path,
+    canonical_target: Path,
+    name: str,
+    is_changed: bool = False,
+) -> None:
+    if runtime_target == canonical_target:
+        return
+    detail = "changed" if is_changed else "mismatch"
+    fail(
+        "runtime_checklist_target",
+        f"runtime checklist canonical target {detail}: {name}",
+    )
+
+
+def read_checklist_descriptor(
+    descriptor: int, name: str, expected_size: int
+) -> bytes:
+    initial_metadata = os.fstat(descriptor)
+    if not stat.S_ISREG(initial_metadata.st_mode):
+        fail(
+            "canonical_checklist_invalid",
+            f"canonical checklist must be a regular file: {name}",
+        )
+    if initial_metadata.st_size != expected_size:
+        fail(
+            "canonical_checklist_size",
+            f"canonical checklist size mismatch: {name}",
+        )
+    content = read_bounded_descriptor(descriptor, expected_size)
+    final_metadata = os.fstat(descriptor)
+    if len(content) != expected_size:
+        fail(
+            "canonical_checklist_size",
+            f"canonical checklist size mismatch: {name}",
+        )
+    if not has_matching_metadata(initial_metadata, final_metadata):
+        fail(
+            "canonical_checklist_changed",
+            f"canonical checklist changed during read: {name}",
+        )
+    return content
+
+
+def read_canonical_checklist(
+    canonical_target: Path, name: str, expected_size: int
+) -> bytes:
+    descriptor = -1
+    try:
+        descriptor = os.open(
+            canonical_target,
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+        )
+        return read_checklist_descriptor(descriptor, name, expected_size)
+    except OSError as error:
+        fail(
+            "runtime_checklist_invalid",
+            f"runtime checklist cannot be read: {name}: {error}",
+        )
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def read_trusted_checklist(
+    runtime_path: Path,
+    canonical_source: Path,
+    name: str,
+    expected_size: int,
+) -> tuple[bytes, Path]:
+    if canonical_source.is_symlink() or not canonical_source.is_file():
+        fail(
+            "canonical_checklist_invalid",
+            f"canonical checklist must be a regular file: {name}",
+        )
+    canonical_target = resolved_checklist_path(canonical_source, name)
+    runtime_target = resolved_checklist_path(runtime_path, name)
+    validate_runtime_checklist_target(runtime_target, canonical_target, name)
+
+    content = read_canonical_checklist(canonical_target, name, expected_size)
+    final_runtime_target = resolved_checklist_path(
+        runtime_path, name, is_revalidation=True
+    )
+    validate_runtime_checklist_target(
+        final_runtime_target,
+        canonical_target,
+        name,
+        is_changed=True,
+    )
+    return content, canonical_target
+
+
+def runtime_checklist_names(
+    runtime_checklists: Path, expected_names: list[str]
+) -> set[str]:
+    expected = set(expected_names)
+    runtime_names: set[str] = set()
+    try:
+        with os.scandir(runtime_checklists) as entries:
+            for entry in entries:
+                name = entry.name
+                if name == ".DS_Store":
+                    continue
+                if name not in expected or len(runtime_names) >= len(expected):
+                    fail(
+                        "runtime_checklist_extra",
+                        f"runtime checklist unexpected: {name}",
+                    )
+                runtime_names.add(name)
+    except OSError as error:
+        fail(
+            "runtime_checklist_directory",
+            f"runtime checklist directory unavailable: {error}",
+        )
+
+    missing = [name for name in expected_names if name not in runtime_names]
+    if missing:
+        fail("runtime_checklist_missing", f"runtime checklist missing: {missing[0]}")
+    return runtime_names
+
+
+def validated_checklist_names(manifest: ManifestSpec) -> list[str]:
+    names: list[str] = []
+    total_bytes = 0
+    for entry in manifest.checklists:
+        total_bytes += entry.size_bytes
+        if total_bytes > manifest.max_total_checklist_bytes:
+            fail(
+                "checklist_total_too_large",
+                "checklist total exceeds manifest limit",
+            )
+        names.append(entry.file)
+    return names
+
+
+def verified_checklist_content(
+    entry: ChecklistSpec,
+    runtime_checklists: Path,
+    canonical_root: Path,
+) -> tuple[str, str]:
+    content, _canonical_target = read_trusted_checklist(
+        runtime_checklists / entry.file,
+        canonical_root / entry.file,
+        entry.file,
+        entry.size_bytes,
+    )
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError as error:
+        fail(
+            "runtime_checklist_invalid",
+            f"runtime checklist is not UTF-8: {entry.file}: {error}",
+        )
+    digest = sha256(content)
+    if digest != entry.sha256:
+        fail(
+            "runtime_checklist_digest",
+            f"runtime checklist digest mismatch: {entry.file}",
+        )
+    validate_case_structure(
+        entry.file,
+        text,
+        entry.ids,
+        entry.required_fields,
+    )
+    return text, digest
+
+
+def checklist_snapshot_entry(
+    entry: ChecklistSpec,
+    text: str,
+    digest: str,
+) -> tuple[str, dict[str, object]]:
+    if not text.endswith("\n"):
+        text += "\n"
+    snapshot = (
+        f'<<<CHECKLIST file="{entry.file}">>>\n'
+        f"{text}"
+        "<<<END CHECKLIST>>>\n"
+    )
+    provenance = {
+        "file": entry.file,
+        "sha256": digest,
+        "is_structure_valid": True,
+    }
+    return snapshot, provenance
+
+
+def build_checklist_snapshot(
+    manifest: ManifestSpec, runtime_checklists: Path
+) -> tuple[str, list[dict[str, object]], list[str]]:
+    entries = manifest.checklists
+    names = validated_checklist_names(manifest)
+    runtime_checklist_names(runtime_checklists, names)
+
+    canonical_root = trusted_checklist_root(manifest)
+    snapshot_parts: list[str] = []
+    provenance: list[dict[str, object]] = []
+    expected_ids_flat: list[str] = []
+    for entry in entries:
+        text, digest = verified_checklist_content(
+            entry,
+            runtime_checklists,
+            canonical_root,
+        )
+        snapshot, checklist_provenance = checklist_snapshot_entry(
+            entry,
+            text,
+            digest,
+        )
+        snapshot_parts.append(snapshot)
+        provenance.append(checklist_provenance)
+        expected_ids_flat.extend(entry.ids)
+    return "".join(snapshot_parts), provenance, expected_ids_flat
+
+
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "Validate parent-selected source paths and build a verified qa-nightmare "
+            "checklist snapshot. Runtime roots are derived only from HOME and the "
+            "versioned manifest. This helper does not extract source_evidence or redact "
+            "secret values; semantic fact extraction and redaction remain the parent "
+            "workflow's responsibility."
+        )
+    )
+    parser.add_argument("--runtime", required=True, choices=("claude", "codex"))
+    parser.add_argument("--repo", required=True, help="target Git worktree root")
+    parser.add_argument(
+        "--source-only",
+        action="store_true",
+        dest="is_source_only",
+        help="validate source provenance without resolving runtime checklists",
+    )
+    parser.add_argument(
+        "--source",
+        required=True,
+        action="append",
+        help="relative regular source file; repeat for multiple files",
+    )
+    return parser.parse_args()
+
+
+def full_checklist_provenance(
+    manifest: ManifestSpec, manifest_content: bytes, runtime: str
+) -> tuple[dict[str, object], str]:
+    runtime_root, runtime_manifest, runtime_checklists = runtime_paths(
+        manifest, runtime
+    )
+    validate_runtime_manifest(runtime_manifest)
+    snapshot, checklists, expected_ids = build_checklist_snapshot(
+        manifest, runtime_checklists
+    )
+    expected_ids_bytes = json.dumps(
+        expected_ids, ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")
+    provenance = {
+        "runtime": runtime,
+        "manifest_sha256": sha256(manifest_content),
+        "checklists": checklists,
+        "expected_ids": expected_ids,
+        "expected_ids_sha256": sha256(expected_ids_bytes),
+        "snapshot_sha256": sha256(snapshot.encode("utf-8")),
+    }
+    return provenance, snapshot
+
+
+def run() -> dict[str, object]:
+    arguments = parse_arguments()
+    manifest, manifest_content = load_trusted_manifest()
+    repository = resolve_repository(arguments.repo)
+    accepted_sources = validate_sources(manifest, repository, arguments.source)
+    repo_provenance = {
+        "repository_identity_sha256": repository_identity_sha256(repository),
+        "is_canonical_git_root": True,
+        "accepted_sources": accepted_sources,
+    }
+    if arguments.is_source_only:
+        return {
+            "schema_version": manifest.schema_version,
+            "mode": "source-only",
+            "repo_provenance": repo_provenance,
+        }
+    checklist_provenance, snapshot = full_checklist_provenance(
+        manifest,
+        manifest_content,
+        arguments.runtime,
+    )
+    return {
+        "schema_version": manifest.schema_version,
+        "mode": "full",
+        "repo_provenance": repo_provenance,
+        "checklist_provenance": checklist_provenance,
+        "checklist_snapshot": snapshot,
+    }
+
+
+def main() -> int:
+    try:
+        output = run()
+    except PreflightError as error:
+        sys.stderr.write(
+            json.dumps(
+                {"error": {"code": error.code, "message": str(error)}},
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            + "\n"
+        )
+        return 2
+    sys.stdout.write(json.dumps(output, ensure_ascii=False, sort_keys=True) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -45,25 +45,69 @@ effort: high
 | スコープ | 例 | qa_nightmare の利用 |
 | --- | --- | --- |
 | ユニット (関数・純粋ロジック) | 値オブジェクト、ユーティリティ関数、純粋な計算 | 利用しない。次フェーズへ進む |
-| 機能単位 (画面 / API / エンドポイント / ジョブ) | ユーザー登録画面、決済 API、夜間バッチ | qa_nightmare subagent を起動する |
+| 機能単位 (画面 / API / エンドポイント / ジョブ) | ユーザー登録画面、決済 API、夜間バッチ | 現行Codex: 未実行を明示 (dispatch禁止) |
 
-機能単位と判定したら、テストリスト作成に進む前に qa_nightmare subagent を起動して悪夢テストケースを先に列挙する。
+機能単位と判定しても、現行Codexではqa_nightmareをdispatchせず、悪夢テストケース生成が未実行であることを先に明示する。
 
-### qa_nightmare 起動
+### qa_nightmare の将来有効化仕様
 
-`spawn_agent` で `agent_type: qa_nightmare` を起動する。プロンプトには対象機能名と画面 URL / API パスを渡す。
+現行Codex custom-agentには構造的なempty tool surfaceがない。
+`sandbox_mode = "read-only"` はtoolを非公開化しないため、実運用では `agent_type: qa_nightmare` をdispatchしない。
+悪夢テストケース生成は未実行としてユーザーへ明示する。
+将来、実行surfaceが全toolを構造的に除外できることを一次情報と実tool eventで確認できた場合だけ、以下のpreflightとdispatchを有効化する。
+
+親はversion管理された `qa-nightmare-preflight` helperだけを使い、最初に `qa-nightmare-preflight --runtime codex --repo <canonical-repo> --source-only --source <relative-file>` を実行する。
+helperはcanonical repo rootを確認し、relative regular fileのみを許可する。
+directory/absolute/./../external symlink/sibling-prefix/gitignored/credential/secret-bearingを拒否し、component-aware配下判定、source個数/size上限、秘密候補scanを行い、`accepted_sources` のpath/digest/sizeだけを返す。
+いずれかを検証できなければ起動しない。
+
+親はaccepted sourceだけを読み、読取前後digestを照合する。
+秘密値をfactへ含めない。
+source_evidenceを作り、schema/auth/state各core slotが確認済みfactまたは根拠付き非該当かを先に検査する。
+不足slotがあれば確認質問を返し、full preflightとchecklist_snapshotを構築せず子agentを起動しない。
+
+親はsource selectionの選択理由と依存観点を `repo_provenance` へ記録し、entrypoint、主要依存、状態境界、認可、外部副作用、既存テストをsource_evidenceで確認する。
+どれかが不足し、根拠付き非該当にもできなければsource_evidence不足としてdispatchせず、対象追加を要求する。
+
+core gate通過後、`qa-nightmare-preflight --runtime codex --repo <canonical-repo> --source <relative-file>` のfull preflightを実行する。
+source-onlyとfullの `repo_provenance` が完全一致しなければ停止する。
+helperはruntime rootをユーザー入力から取らずCodex既知pathから導出し、machine-readable manifestに基づく期待file名/canonical target/digest/ID集合/構造をdispatch直前に検証する。
+helperのprovenanceはopaqueなrepository identity、相対file名、digest、検証結果だけを返し、absolute pathを出力しない。
+
+
+子agentへabsolute filesystem pathを渡さず、親が検証したsnapshotだけを渡す。
+
+親は選択model/runtimeの一次情報から `context_limit_tokens` と `output_reserve_tokens` を取得し、agent固定指示、対象機能、URL / パス、4 fieldを直列化したUTF-8 byte数をtoken数の保守的上限 `input_upper_bound_tokens` として計測する。
+いずれかを取得できなければ起動しない。
+3値をrepo_provenanceへ記録し、値を含むpayloadを再直列化して固定点になるまで `input_upper_bound_tokens` を更新する。
+`input_upper_bound_tokens + output_reserve_tokens <= context_limit_tokens` のときだけdispatchする。
+超過時は対象を絞ってpreflightからやり直す。
 
 ```
 対象機能: <機能名>
 URL / パス: <画面 URL or API パス>
+repo_provenance: <親がcanonical repo rootを確認した情報>
+source_evidence: <relative regular fileから抽出し、secret redaction済みの相対file:line付き事実>
+checklist_snapshot: <Codex既知pathから導出し、期待file名/canonical target/ID集合/構造を検証した全データ>
+checklist_provenance: <snapshotの導出/検証結果>
 悪夢テストケースを生成してランク付き一覧で返してください。
 ```
 
-### 結果の扱い
+### 将来有効化時の結果の扱い
 
 subagent から返ってきたランク付き一覧 (NM-001, NM-002, ...) をユーザーに提示し、実装対象範囲 (S のみ / S+A / 全部) を確認する。
 
 合意した範囲の各ケースに対して以降の TDD サイクル (RED → GREEN → REFACTOR) を 1 つずつ回す。実装順は S ランク → A → B → C。
+
+<!-- qa-continuation:start -->
+長大出力で継続が必要な場合、Codex parent は完全性索引、`snapshot_digest`、未返却rankを持つcompact continuation_ledgerを受け取る。
+未返却rankについてのみ、各代表ケースを再構成できるredacted事実 (事前条件/操作/期待結果/観測点/根拠/score) を保持し、表示済みrank本文を含めない。
+ledger全体を含む初回出力のUTF-8 byte数から保守的な`ledger_upper_bound_tokens`を算出し、埋込み後の再直列化が固定点に達して`ledger_upper_bound_tokens <= output_reserve_tokens`を満たすことを検証する。
+超過時は対象絞り込みを要求して停止する。
+digest検証後、followup_taskでledger digestとrequested_rankだけを指定する。
+既存contextを使い、snapshotを再送しない。
+未返却 S を除外しない。
+<!-- qa-continuation:end -->
 
 ---
 
@@ -149,7 +193,10 @@ subagent から返ってきたランク付き一覧 (NM-001, NM-002, ...) をユ
 // [ ]  0円の購入ではポイント0（境界値）
 ```
 
-テストリストにはエッジケース (null / 空 / 0 / 負数 / 境界値) を 3 つ以上含める。優先順位はユーザーに確認する。機能単位の場合は `qa_nightmare` subagent の出力を反映する。
+テストリストにはエッジケース (null / 空 / 0 / 負数 / 境界値) を 3 つ以上含める。
+優先順位はユーザーに確認する。
+機能単位の場合はqa_nightmare未実行を明示し、通常TDD候補を親が作る。
+将来有効化後だけ `qa_nightmare` subagent の出力を反映する。
 
 ### 順序の決め方
 

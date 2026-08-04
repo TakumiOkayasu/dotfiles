@@ -16,4 +16,4 @@ RUN git config --global user.email "test@test.com" && \
 WORKDIR /workspace
 COPY . /workspace/
 
-ENTRYPOINT ["python3", "-m", "pytest", "tests/test_install.py", "-v"]
+ENTRYPOINT ["python3", "-m", "pytest", "tests/test_install.py", "tests/test_qa_nightmare.py", "tests/test_qa_nightmare_preflight.py", "tests/test_port_claude_assets.py", "-v"]
