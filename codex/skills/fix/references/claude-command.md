@@ -6,7 +6,7 @@
 
 - This file was ported from `claude/commands/fix.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
-- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
@@ -56,7 +56,7 @@
 
 ### Phase 2.5: 方針検証 (Phase 3 前に判定)
 
-`$HOME/.codex/AGENTS.md` 「着手前の方針検証」と整合する。Phase 2 で確定した修正方針が以下のいずれかに該当する場合は **premise-questioning skill のワークフロー全体を実行**し、✅ 採用判定が出るまで Phase 3 へ進まない:
+Taskのscopeとriskを確認し,該当するskill descriptionに従う。Phase 2 で確定した修正方針が以下のいずれかに該当する場合は **premise-questioning skill のワークフロー全体を実行**し、✅ 採用判定が出るまで Phase 3 へ進まない:
 
 - 根本原因の修正がアーキテクチャ変更を伴う
 - 公開 API I/F 変更を伴う

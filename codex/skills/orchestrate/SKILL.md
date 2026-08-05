@@ -12,7 +12,7 @@ description: 仕様が固まった複数 task の実装を、計画 → subagent
 
 - This file was ported from `claude/skills/orchestrate/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
-- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
@@ -56,7 +56,7 @@ description: 仕様が固まった複数 task の実装を、計画 → subagent
 | --- | --- |
 | 確定済み仕様 | `docs/specs/*` または会話中の合意済み設計 |
 | `ユーザー指定の保存先` | 計画の保存先パス (省略時は `.codex/plans/YYYY-MM-DD-<topic>.md`) |
-| ロード済み rules | `${HOME}/.codex/rules/*` は rules-inject hook で context に注入済みである |
+| 適用rules | `RULES_CORE.md`と`RULES_INDEX.md`を読み、taskに該当する詳細ruleだけを明示的に読む |
 
 | 出力 | 内容 |
 | --- | --- |

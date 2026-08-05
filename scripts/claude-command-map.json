@@ -22,6 +22,7 @@
     }
   ],
   "allowed_skill_files": [
-    "SKILL.md"
+    "SKILL.md",
+    "references/review-lenses.md"
   ]
 }

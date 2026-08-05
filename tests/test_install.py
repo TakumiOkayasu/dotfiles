@@ -621,6 +621,16 @@ class TestRuleDistribution:
         for fragment in required_fragments:
             assert fragment in content
 
+        pipeline = (
+            "generate-standard-workflow-skills.py",
+            "port-claude-assets-to-codex.py",
+            "apply-codex-performance-profile.py",
+            "sync-codex-plugin.py",
+            "verify-codex-plugin.py",
+        )
+        positions = [content.index(command) for command in pipeline]
+        assert positions == sorted(positions)
+
     def test_performance_profile_keeps_generated_html_optional(self) -> None:
         """一時HTMLをglobal defaultや永続sourceとして扱わない"""
         content = (
@@ -669,6 +679,20 @@ class TestRuleDistribution:
         assert first.stdout == second.stdout
         assert "Generated at:" not in first.stdout
         assert str(tmp_path) not in first.stdout
+
+    def test_command_safety_matches_selective_rule_loading_contract(self) -> None:
+        """command policyから旧full injection前提を再導入しない"""
+        module = runpy.run_path(
+            str(REPO_ROOT / "scripts" / "apply-codex-performance-profile.py")
+        )
+        expected = module["SAFETY_RULES"].rstrip() + "\n"
+        actual = (
+            REPO_ROOT / "codex" / "rules" / "command-safety.rules"
+        ).read_text(encoding="utf-8")
+
+        assert actual == expected
+        assert "must be read explicitly when applicable" in actual
+        assert "are injected by rules-inject.sh" not in actual
 
     def test_bug_hunt_skill_includes_its_allowlisted_resource(self) -> None:
         """real port outputにskill本体,reference,optional policyを揃える"""
@@ -884,8 +908,8 @@ class TestRuleDistribution:
         assert (REPO_ROOT / "claude" / "rules" / "natural-japanese.md").is_file()
         assert "@'$HOME/.claude/rules/natural-japanese.md'" in claude_global
         assert (REPO_ROOT / "codex" / "rules" / "natural-japanese.md").is_file()
-        assert "`codex/rules/natural-japanese.md`" in codex_index
-        assert "## Source: `codex/rules/natural-japanese.md`" in codex_bundle
+        assert "| `natural-japanese.md` |" in codex_index
+        assert "# RULE FILE: natural-japanese.md" in codex_bundle
         assert not (
             REPO_ROOT / "codex" / "skills" / "natural-japanese" / "SKILL.md"
         ).exists()
@@ -906,14 +930,18 @@ class TestRuleDistribution:
         assert "Step 5: commit" not in content
         assert "subagent が TDD で実装・テスト・自己レビューする" in content
 
-    def test_rule_bundle_header_has_separate_description_line(self) -> None:
-        """RULES_BUNDLE の見出しと説明文は同一行に潰さない"""
+    def test_rule_bundle_header_is_deterministic(self) -> None:
+        """RULES_BUNDLEの見出しへ生成時刻や旧injection説明を混ぜない"""
         bundle = REPO_ROOT / "codex" / "rules" / "RULES_BUNDLE.md"
         lines = bundle.read_text(encoding="utf-8").splitlines()
 
-        assert lines[0] == "# Codex Rules Bundle"
+        assert lines[0] == "# RULES_BUNDLE"
         assert lines[1] == ""
-        assert lines[2].startswith("このファイルは hook/context injection 用")
+        assert lines[2] == (
+            "This file is generated from `codex/rules/*.md`. Do not edit it directly."
+        )
+        assert "Generated at:" not in "\n".join(lines)
+        assert "hook/context injection" not in "\n".join(lines)
 
 
 class TestScriptCli:

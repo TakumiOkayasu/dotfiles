@@ -1,6 +1,6 @@
 # Codex command safety rules for dotfile-work.
 # These are official Codex command execution rules, not markdown coding rules.
-# Markdown coding/design rules remain in *.md and are injected by rules-inject.sh.
+# Markdown coding/design rules remain in *.md and must be read explicitly when applicable.
 
 prefix_rule(
     pattern = ["git", "commit"],

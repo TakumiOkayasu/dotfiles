@@ -27,6 +27,7 @@ Optional skills are packaged in `dotfile-work-codex-extra` and should usually be
 ## Optional skills
 
 - `arch`
+- `bug-hunt`
 - `design-team`
 - `empirical-prompt-tuning`
 - `failure-logging`

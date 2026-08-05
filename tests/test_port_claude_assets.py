@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PORT_SCRIPT = REPO_ROOT / "scripts" / "port-claude-assets-to-codex.py"
 GENERATOR_SCRIPT = REPO_ROOT / "scripts" / "generate-standard-workflow-skills.py"
 VERIFY_SCRIPT = REPO_ROOT / "scripts" / "verify-codex-plugin.py"
+SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync-codex-plugin.py"
 CLAUDE_TDD_QA_FIXTURE = """# Test-Driven Development
 
 | 機能単位 (画面 / API / エンドポイント / ジョブ) | ユーザー登録画面、決済 API、夜間バッチ | qa-nightmare subagent を起動する |
@@ -108,6 +109,7 @@ class PortClaudeAssetsTest(unittest.TestCase):
             "# Claude command\n\n"
             "$ARGUMENTS を `.claude` と CLAUDE.md で確認し、`/feat` を使う。\n"
             "@ $HOME/.claude/CLAUDE.md\n"
+            "`$HOME/.claude/CLAUDE.md` 「着手前の方針検証」と整合する。\n"
             "`${HOME}/.claude/skills/tdd/SKILL.md` を読む。\n"
             "`${HOME}/.claude/rules/*` は @import 済みで context にある。\n"
             "`code-reviewer` は読み取り専用・sonnet モデルで安定している。\n",
@@ -128,7 +130,11 @@ class PortClaudeAssetsTest(unittest.TestCase):
         self.assertNotIn("$ARGUMENTS", text)
         self.assertIn("`${HOME}/.codex/AGENTS.md` を読む", text)
         self.assertIn("`$tdd`", text)
-        self.assertIn("rules-inject hook", text)
+        self.assertIn("`RULES_CORE.md`", text)
+        self.assertIn("taskに該当する詳細ruleだけを明示的に読む", text)
+        self.assertNotIn("rules-inject hook", text)
+        self.assertIn("Taskのscopeとriskを確認し", text)
+        self.assertNotIn("着手前の方針検証", text)
         self.assertNotIn("@import", text)
         self.assertNotIn("sonnet", text)
 
@@ -151,6 +157,68 @@ class PortClaudeAssetsTest(unittest.TestCase):
         text = reference.read_text(encoding="utf-8")
         self.assertIn("`@commit-msg`", text)
         self.assertNotIn("`@commit`", text)
+
+    def test_tracked_methodology_references_match_transformer(self) -> None:
+        porter = load_script(PORT_SCRIPT, "port_claude_methodology_reference_test")
+
+        for command, skill in (
+            ("commit", "commit-msg"),
+            ("feat", "feat"),
+            ("fix", "fix"),
+            ("deep-review", "deep-review"),
+        ):
+            source = REPO_ROOT / "claude" / "commands" / f"{command}.md"
+            transformed, _role = porter.transform_source(
+                source, repo=REPO_ROOT, kind="command"
+            )
+            expected = transformed.rstrip() + "\n"
+            actual = (
+                REPO_ROOT
+                / "codex"
+                / "skills"
+                / skill
+                / "references"
+                / "claude-command.md"
+            ).read_text(encoding="utf-8")
+            self.assertEqual(actual, expected)
+
+    def test_tracked_selective_rule_assets_match_transformer(self) -> None:
+        porter = load_script(PORT_SCRIPT, "port_claude_selective_rules_test")
+
+        for relative_source in (
+            Path("claude/skills/bug-hunt/SKILL.md"),
+            Path("claude/skills/bug-hunt/references/review-lenses.md"),
+        ):
+            source = REPO_ROOT / relative_source
+            transformed, _role = porter.transform_source(
+                source, repo=REPO_ROOT, kind="skill"
+            )
+            relative_output = relative_source.relative_to("claude/skills")
+            actual = (REPO_ROOT / "codex" / "skills" / relative_output).read_text(
+                encoding="utf-8"
+            )
+            self.assertEqual(actual, transformed.rstrip() + "\n")
+
+        orchestrate_source = (
+            REPO_ROOT / "claude" / "skills" / "orchestrate" / "SKILL.md"
+        )
+        orchestrate_expected, _role = porter.transform_source(
+            orchestrate_source, repo=REPO_ROOT, kind="skill"
+        )
+        orchestrate_actual = (
+            REPO_ROOT / "codex" / "skills" / "orchestrate" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(orchestrate_actual, orchestrate_expected.rstrip() + "\n")
+
+        for source in sorted((REPO_ROOT / "claude" / "rules").glob("*.md")):
+            transformed, _role = porter.transform_source(
+                source, repo=REPO_ROOT, kind="rule"
+            )
+            expected = transformed.rstrip() + "\n"
+            actual = (REPO_ROOT / "codex" / "rules" / source.name).read_text(
+                encoding="utf-8"
+            )
+            self.assertEqual(actual, expected)
 
     def test_ports_skill_with_valid_frontmatter_and_codex_references(self) -> None:
         skill = self.repo / "claude" / "skills" / "semantic-generation" / "SKILL.md"
@@ -267,6 +335,35 @@ class PortClaudeAssetsTest(unittest.TestCase):
             (self.repo / "codex" / "skills" / "first" / "SKILL.md").exists()
         )
 
+    def test_ports_allowlisted_skill_resource(self) -> None:
+        skill = self.repo / "claude" / "skills" / "bug-hunt" / "SKILL.md"
+        skill.parent.mkdir()
+        skill.write_text(
+            "# Bug Hunt\n\nRead `references/review-lenses.md`.\n",
+            encoding="utf-8",
+        )
+        reference = skill.parent / "references" / "review-lenses.md"
+        reference.parent.mkdir()
+        reference.write_text(
+            "# Review Lenses\n\nCheck `.claude` paths.\n",
+            encoding="utf-8",
+        )
+
+        result = self.run_port()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = (
+            self.repo
+            / "codex"
+            / "skills"
+            / "bug-hunt"
+            / "references"
+            / "review-lenses.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("source=claude/skills/bug-hunt/references/review-lenses.md", output)
+        self.assertIn("Check `.codex` paths.", output)
+        self.assertIn("Rules are not automatically loaded.", output)
+
     def test_prune_is_explicit_and_removes_only_managed_stale_outputs(self) -> None:
         rules = self.repo / "codex" / "rules"
         rules.mkdir(parents=True)
@@ -291,6 +388,32 @@ class PortClaudeAssetsTest(unittest.TestCase):
         self.assertFalse(managed.exists())
         self.assertTrue(unmanaged.exists())
 
+    def test_prune_removes_resource_after_source_and_allowlist_removal(self) -> None:
+        porter = load_script(PORT_SCRIPT, "port_claude_prune_removed_resource_test")
+        porter.ALLOWED_SKILL_FILES = frozenset({"SKILL.md"})
+        resource = (
+            self.repo
+            / "codex"
+            / "skills"
+            / "bug-hunt"
+            / "references"
+            / "review-lenses.md"
+        )
+        resource.parent.mkdir(parents=True)
+        resource.write_text(
+            "# stale\n"
+            "<!-- codex-port: managed; "
+            "source=claude/skills/bug-hunt/references/review-lenses.md; "
+            "generated-by=scripts/port-claude-assets-to-codex.py -->\n",
+            encoding="utf-8",
+        )
+        args = type("Args", (), {"dry_run": False})()
+
+        pruned = porter.prune_stale_outputs(self.repo, args)
+
+        self.assertEqual(pruned, [resource])
+        self.assertFalse(resource.exists())
+
 
 class VerifyCodexPluginTest(unittest.TestCase):
     def test_rule_sync_detects_content_drift(self) -> None:
@@ -310,6 +433,96 @@ class VerifyCodexPluginTest(unittest.TestCase):
 
 
 class GenerateStandardWorkflowSkillsTest(unittest.TestCase):
+    def test_workflow_generator_is_idempotent_without_backups(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            command = [
+                sys.executable,
+                str(GENERATOR_SCRIPT),
+                "--repo",
+                str(repo),
+                "--overwrite",
+            ]
+
+            first = subprocess.run(
+                command, capture_output=True, text=True, timeout=30
+            )
+            self.assertEqual(first.returncode, 0, first.stderr)
+            first_outputs = {
+                path.relative_to(repo): path.read_bytes()
+                for path in sorted((repo / "codex" / "skills").rglob("*"))
+                if path.is_file()
+            }
+
+            second = subprocess.run(
+                command, capture_output=True, text=True, timeout=30
+            )
+            self.assertEqual(second.returncode, 0, second.stderr)
+            second_outputs = {
+                path.relative_to(repo): path.read_bytes()
+                for path in sorted((repo / "codex" / "skills").rglob("*"))
+                if path.is_file()
+            }
+
+            self.assertEqual(second_outputs, first_outputs)
+            self.assertNotIn(
+                b"Generated at:",
+                second_outputs[Path("codex/skills/PLUGIN_ONLY_WORKFLOWS.md")],
+            )
+            self.assertEqual(list(repo.rglob("*.bak")), [])
+
+    def test_core_manifest_describes_selective_rule_loading(self) -> None:
+        sync = load_script(SYNC_SCRIPT, "sync_codex_plugin_rule_contract_test")
+        interface = sync.core_manifest()["interface"]
+
+        self.assertIn(
+            "selective markdown rule loading", interface["longDescription"]
+        )
+        self.assertNotIn("rule injection", interface["longDescription"])
+        self.assertIn(
+            "select and apply task-applicable rules",
+            "\n".join(interface["defaultPrompt"]),
+        )
+
+    def test_plugin_sync_is_deterministic(self) -> None:
+        sync = load_script(SYNC_SCRIPT, "sync_codex_plugin_determinism_test")
+
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / "codex" / "skills").mkdir(parents=True)
+
+            def snapshot() -> dict[Path, bytes]:
+                return {
+                    path.relative_to(repo): path.read_bytes()
+                    for path in sorted((repo / "plugins").rglob("*"))
+                    if path.is_file()
+                }
+
+            sync.sync_core(repo, clean=True)
+            sync.sync_extra(repo, clean=True)
+            first = snapshot()
+
+            sync.sync_core(repo, clean=True)
+            sync.sync_extra(repo, clean=True)
+            second = snapshot()
+
+            self.assertEqual(second, first)
+            for content in second.values():
+                self.assertNotIn(b"Generated at:", content)
+
+    def test_tracked_rule_workflows_match_generator(self) -> None:
+        generator = load_script(
+            GENERATOR_SCRIPT, "generate_standard_workflow_rule_contract_test"
+        )
+
+        for name in ("feat", "rules-required"):
+            description, title, content = generator.WORKFLOWS[name]
+            expected = generator.skill_body(name, description, title, content)
+            actual = (
+                REPO_ROOT / "codex" / "skills" / name / "SKILL.md"
+            ).read_text(encoding="utf-8")
+            self.assertEqual(actual, expected)
+
     def test_plugin_sync_uses_manifest_and_runs_the_full_pipeline(self) -> None:
         generator = load_script(GENERATOR_SCRIPT, "generate_standard_workflow_skills_test")
 

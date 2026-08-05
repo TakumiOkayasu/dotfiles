@@ -6,7 +6,7 @@
 
 - This file was ported from `claude/commands/deep-review.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
-- Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
+- Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.
 - Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
@@ -28,7 +28,7 @@
 | --- | --- |
 | `ユーザー指定の対象` | ブランチ名・コミットハッシュ・ファイルパス (省略可) |
 | `git diff` | ステージ済み + 未ステージの差分 |
-| ロード済み rules | `${HOME}/.codex/rules/*` は rules-inject hook で context に注入済みである |
+| 適用rules | `RULES_CORE.md`と`RULES_INDEX.md`を読み、taskに該当する詳細ruleだけを明示的に読む |
 
 | 出力 | 内容 |
 | --- | --- |
@@ -55,7 +55,7 @@
 
 ### Step 3: 適用ルールの特定
 
-`${HOME}/.codex/rules/*` は rules-inject hook で既に context に注入済みである。読み直さず、今回の差分で違反しうる具体パターンを観点別に列挙する。
+`RULES_CORE.md`と`RULES_INDEX.md`を読み、taskに該当する詳細ruleを特定する。今回の差分で違反しうる具体パターンを観点別に列挙する。
 
 - アーキ・設計・命名・テスト系 → 保守性 subagent へ
 - 性能系 → パフォーマンス subagent へ
@@ -108,7 +108,7 @@ tool contract 上どうしても起動できない場合は、レビューを実
 
 ## 方針検証発動跡の確認 (保守性 subagent)
 
-差分が `$HOME/.codex/AGENTS.md` の「着手前の方針検証」発動条件 (100 行以上の変更 / 外部依存の増減 / DB スキーマ・公開 API 変更 / 根本原因への修正 / UI 機能 5 個以上 等) に該当する場合、premise-questioning / feature-pruning の発動跡を確認する。
+差分が taskのscope,risk,関連skill descriptionの発動条件 (100 行以上の変更 / 外部依存の増減 / DB スキーマ・公開 API 変更 / 根本原因への修正 / UI 機能 5 個以上 等) に該当する場合、premise-questioning / feature-pruning の発動跡を確認する。
 
 発動跡と認める記述 (いずれか 1 つ以上): PR 本文・コミットメッセージ・`.codex/progress.md` の判断ログ・差分内コメントに、検証結果 (✅ 採用 / skipped 等) が読み取れること。跡がない、または結論ラベルが読めない場合は Critical として指摘する。
 

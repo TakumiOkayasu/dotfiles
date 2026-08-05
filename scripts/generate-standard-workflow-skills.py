@@ -3,11 +3,8 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-JST = timezone(timedelta(hours=9), "JST")
 ASSET_MANIFEST_PATH = Path(__file__).with_name("claude-command-map.json")
 
 
@@ -25,7 +22,7 @@ WORKFLOWS: dict[str, tuple[str, str, str]] = {
     "feat": (
         "Feature implementation, new behavior, or product change. Use for 'implement', 'add', 'create', 'feat', UI/API changes. Do not use for pure bug fixes or explanation-only tasks.",
         "Feature Implementation",
-        """## Goal\nImplement a feature with minimal scope and risk-gated TDD.\n\n## Steps\n\n1. Apply mandatory rules. If full rules are not injected, stop before editing.\n2. Classify risk:\n   - small: <=50 changed lines, no DB/API/dependency/auth/secrets changes\n   - normal: existing architecture, limited files\n   - high-risk: DB schema, public API, auth, secrets, dependency changes, destructive data, 100+ changed lines, unclear requirements\n3. For high-risk tasks, present a short plan and use `premise-questioning` / `feature-pruning` only when the trigger actually applies.\n4. For new modules/classes, use `interface-first-design` before code.\n5. Use `tdd` for behavior changes: test list -> RED -> GREEN -> REFACTOR.\n6. Keep diffs minimal. Do not add unrelated cleanup.\n7. Run project-defined test/lint/build when available.\n\n## Output\n- Risk classification\n- Changed files\n- Tests/checks run\n- Unverified risks\n- Follow-up candidates\n""",
+        """## Goal\nImplement a feature with minimal scope and risk-gated TDD.\n\n## Steps\n\n1. Read and apply only the rules applicable to this task. If a required rule cannot be read, report the blocker before editing.\n2. Classify risk:\n   - small: <=50 changed lines, no DB/API/dependency/auth/secrets changes\n   - normal: existing architecture, limited files\n   - high-risk: DB schema, public API, auth, secrets, dependency changes, destructive data, 100+ changed lines, unclear requirements\n3. For high-risk tasks, present a short plan and use `premise-questioning` / `feature-pruning` only when the trigger actually applies.\n4. For new modules/classes, use `interface-first-design` before code.\n5. Use `tdd` for behavior changes: test list -> RED -> GREEN -> REFACTOR.\n6. Keep diffs minimal. Do not add unrelated cleanup.\n7. Run project-defined test/lint/build when available.\n\n## Output\n- Risk classification\n- Changed files\n- Tests/checks run\n- Unverified risks\n- Follow-up candidates\n""",
     ),
     "fix": (
         "Bug fixing, failing tests, runtime errors, unexpected behavior, regression repair. First reproduce and identify root cause. Do not use for new features.",
@@ -58,9 +55,9 @@ WORKFLOWS: dict[str, tuple[str, str, str]] = {
         """## Goal\nImprove structure without changing behavior.\n\n## Steps\n1. Apply mandatory rules.\n2. Confirm existing tests/checks and current behavior.\n3. State scope and invariants.\n4. Make one small structural change at a time.\n5. Run tests after meaningful changes.\n6. If behavior change is needed, stop and reroute to `feat` or `fix`.\n""",
     ),
     "rules-required": (
-        "Mandatory rule application before edits, tests, reviews, or implementation conclusions. Use when rules are unclear or before any mutating tool.",
+        "Select and apply only the markdown rules relevant to the current task. Use when task or project instructions require rules, applicable rules are unclear, or a rules guard requests reactivation.",
         "Rules Required",
-        """## Goal\nEnsure applicable markdown rules are read and applied.\n\n## Steps\n1. Confirm `RULES_CORE.md` and `RULES_INDEX.md` are available.\n2. For implementation/review/test/refactor, require full rule injection before any mutating tool.\n3. Identify relevant rule files for the task.\n4. Summarize applicable constraints.\n5. If rules conflict, follow nearest/project-specific rule and report conflict.\n\n## Output\n- Rules applied\n- Conflicts\n- Task-specific checklist\n""",
+        """## Goal\nEnsure applicable markdown rules are read and applied without loading unrelated rules.\n\n## Steps\n1. Locate and read `RULES_CORE.md` and `RULES_INDEX.md` when available.\n2. Use the index and task scope to identify only the relevant detailed rule files.\n3. Read those files before edits or implementation/review conclusions.\n4. If the rules marker is missing, core-only, or stale, run `codex-rules refresh`; the marker proves checksum activation, not model read completion.\n5. Summarize applicable constraints and report conflicts according to the runtime instruction hierarchy.\n\n## Output\n- Rules read and applied\n- Conflicts\n- Task-specific checklist\n""",
     ),
     "codex-handoff": (
         "Create a compact continuation handoff for Codex sessions, compaction, or task transfer.",
@@ -102,10 +99,6 @@ WORKFLOWS: dict[str, tuple[str, str, str]] = {
 COMMON = """\n## Common contract\n\n- Plugin-only operation: use `$skill` / `@skill` or `/skills`; no `/prompt:*` or `prompt:*`.\n- Apply mandatory rules before editing, reviewing, testing, or implementation conclusions.\n- Keep diffs minimal and scoped.\n- Report unverified items and skipped checks.\n- Destructive operations, dependency changes, DB/API contract changes, commit, push, deploy, privileged commands, and external writes require explicit user approval.\n"""
 
 
-def generated_at_jst() -> str:
-    return f"{datetime.now(JST).isoformat(timespec='seconds')} JST"
-
-
 def skill_body(name: str, desc: str, title: str, content: str) -> str:
     command_reference = ""
     if name in CLAUDE_COMMAND_REFERENCES:
@@ -140,17 +133,17 @@ def main() -> int:
         if out.exists() and not args.overwrite:
             print(f"skip existing {out.relative_to(root)}")
             continue
-        bak = out.with_name("SKILL.md.pre-performance-profile.bak")
-        if out.exists() and not bak.exists():
-            shutil.copy2(out, bak)
         out.write_text(skill_body(name, desc, title, content), encoding="utf-8")
         generated.append(out.relative_to(root).as_posix())
     if not args.dry_run:
+        workflow_paths = [
+            f"codex/skills/{name}/SKILL.md" for name in sorted(WORKFLOWS)
+        ]
         (outdir / "PLUGIN_ONLY_WORKFLOWS.md").write_text(
             "# Plugin-only workflow skills\n\n"
             "Generated optimized core @skill workflow entrypoints. Legacy prompt compatibility is intentionally not generated.\n\n"
-            f"Generated at: {generated_at_jst()}\n\n"
-            + "\n".join(f"- `{p}`" for p in generated) + "\n",
+            + "\n".join(f"- `{path}`" for path in workflow_paths)
+            + "\n",
             encoding="utf-8",
         )
     print(f"generated={len(generated)}")

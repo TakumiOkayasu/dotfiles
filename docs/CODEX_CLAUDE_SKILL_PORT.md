@@ -19,7 +19,7 @@ rules は `codex/rules/*.md` を正本にし、`install.sh` では `~/.codex/rul
   - `codex/rules/RULES_INDEX.md` と `codex/rules/RULES_BUNDLE.md` を生成
   - `codex/skills/CLAUDE_PORT_REPORT.md` を生成
 - `codex/hooks/rules-inject.sh`
-  - rules full content を context に注入
+  - compact contractをcontextへ出力
   - checksum marker を `codex_tmp/.codex_rules_loaded` に記録
 - `codex/hooks/rules-guard.sh`
   - rules 未注入 / checksum 不一致時に mutating tools を block
@@ -41,9 +41,9 @@ python3 scripts/verify-codex-plugin.py --repo .
 
 - 既存 `codex/skills/*/SKILL.md` は上書きされる。初回上書き時は `.pre-claude-port.bak` を作る。
 - 既存 `codex/rules/*.md` も上書きされる。初回上書き時は `.pre-claude-port.bak` を作る。
-- Claude skill の付属ファイルは現時点で `SKILL.md` だけを許可する。`references/`、`scripts/`、`assets/` を追加する場合は manifest と変換処理を先に拡張する。
+- Claude skillの付属fileは`scripts/claude-command-map.json`の`allowed_skill_files`で明示的に許可し,skill配下の同じrelative pathへportする. 新しいresource種別を追加する場合はmanifestと変換処理を先に拡張する.
 - Codex が rules を自動 import するとは仮定しない。hook で必要時に rules 契約を注入する。
-- `CODEX_RULES_MAX_BYTES` を超える場合、full injection は止まり、`rules-guard.sh` が mutating tool を block する。
+- Hookはfull rule bundleを自動注入しない. Relevant workflowが`RULES_INDEX.md`からtaskに該当するruleだけを選び,明示的に読む.
 - `plugins/dotfile-work-codex*` は生成物。`python3 scripts/sync-codex-plugin.py --repo . --clean` で作成し、Git 管理しない。
 
 ## 推奨確認
