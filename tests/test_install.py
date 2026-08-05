@@ -573,6 +573,250 @@ class TestCodexConfigTemplate:
 class TestRuleDistribution:
     """Claude/Codex の常時 rule 配布境界を検証するテスト"""
 
+    def test_global_agents_contains_only_cross_project_defaults(self) -> None:
+        """global AGENTS に生成blockやhook実装詳細を再混入させない"""
+        content = (REPO_ROOT / "codex" / "global_AGENTS.md").read_text(
+            encoding="utf-8"
+        )
+
+        required_headings = (
+            "# Codex Global Instructions",
+            "## Communication",
+            "## Scope and autonomy",
+            "## Engineering defaults",
+            "## Verification",
+            "## Delegation",
+            "## Web retrieval",
+        )
+        for heading in required_headings:
+            assert content.count(heading) == 1
+
+        forbidden_fragments = (
+            "codex-performance-profile:start",
+            "codex-rules-required",
+            "Deterministic Rules Enforcement",
+            "rules-inject.sh",
+            "rules-guard.sh",
+            "rules-enforce.sh",
+        )
+        for fragment in forbidden_fragments:
+            assert fragment not in content
+
+    def test_performance_profile_documents_prompt_cache_boundaries(self) -> None:
+        """cache最適化をcorrectnessやCodex未公開APIの仮定より優先しない"""
+        content = (
+            REPO_ROOT / "docs" / "CODEX_PERFORMANCE_PROFILE.md"
+        ).read_text(encoding="utf-8")
+
+        required_fragments = (
+            "exact prompt prefixes",
+            "deterministic and stable",
+            "not durable memory",
+            "project-approved Markdown checkpoint",
+            "prompt_cache_breakpoint",
+            "not assumed to be exposed by Codex clients",
+            "model- and runtime-specific",
+            "fixed expiry window",
+        )
+        for fragment in required_fragments:
+            assert fragment in content
+
+    def test_performance_profile_keeps_generated_html_optional(self) -> None:
+        """一時HTMLをglobal defaultや永続sourceとして扱わない"""
+        content = (
+            REPO_ROOT / "docs" / "CODEX_PERFORMANCE_PROFILE.md"
+        ).read_text(encoding="utf-8")
+
+        required_fragments = (
+            "HTML is one optional view",
+            "smallest visual format",
+            "durable source of truth",
+            "Do not commit a generated HTML view",
+            "rather than the always-loaded global instructions",
+        )
+        for fragment in required_fragments:
+            assert fragment in content
+
+    def test_rules_inject_stdout_is_deterministic(self, tmp_path: Path) -> None:
+        """同じhook入力ではmodel-visible contractをbyte単位で安定させる"""
+        hook = REPO_ROOT / "codex" / "hooks" / "rules-inject.sh"
+        payload = json.dumps(
+            {
+                "cwd": str(tmp_path),
+                "hook_event_name": "UserPromptSubmit",
+                "prompt": "review this change",
+            },
+            ensure_ascii=False,
+        )
+        env = {**os.environ, "CODEX_RULES_CONTEXT_MODE": "compact"}
+
+        def invoke() -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                ["sh", str(hook)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                input=payload,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+        first = invoke()
+        second = invoke()
+
+        assert first.returncode == 0, first.stderr
+        assert second.returncode == 0, second.stderr
+        assert first.stdout == second.stdout
+        assert "Generated at:" not in first.stdout
+        assert str(tmp_path) not in first.stdout
+
+    def test_bug_hunt_skill_includes_its_allowlisted_resource(self) -> None:
+        """real port outputにskill本体,reference,optional policyを揃える"""
+        skill = REPO_ROOT / "codex" / "skills" / "bug-hunt"
+
+        assert (skill / "SKILL.md").is_file()
+        assert (skill / "references" / "review-lenses.md").is_file()
+        openai_yaml = (skill / "agents" / "openai.yaml").read_text(
+            encoding="utf-8"
+        )
+        assert "allow_implicit_invocation: false" in openai_yaml
+        skill_policy = (
+            REPO_ROOT / "codex" / "skills" / "SKILL_POLICY.md"
+        ).read_text(encoding="utf-8")
+        assert "- `bug-hunt`" in skill_policy
+
+    def test_performance_profile_does_not_rewrite_global_agents(
+        self, tmp_path: Path
+    ) -> None:
+        """performance profile生成後もglobal AGENTSを唯一の正本として保つ"""
+        agents = tmp_path / "codex" / "global_AGENTS.md"
+        agents.parent.mkdir(parents=True)
+        expected = "# canonical global instructions\n"
+        agents.write_text(expected, encoding="utf-8")
+
+        result = subprocess.run(
+            [
+                "python3",
+                str(REPO_ROOT / "scripts" / "apply-codex-performance-profile.py"),
+                "--repo",
+                str(tmp_path),
+            ],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert agents.read_text(encoding="utf-8") == expected
+
+        bundle = tmp_path / "codex" / "rules" / "RULES_BUNDLE.md"
+        first_bundle = bundle.read_text(encoding="utf-8")
+        repeated_result = subprocess.run(
+            [
+                "python3",
+                str(REPO_ROOT / "scripts" / "apply-codex-performance-profile.py"),
+                "--repo",
+                str(tmp_path),
+            ],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert repeated_result.returncode == 0, repeated_result.stderr
+        assert bundle.read_text(encoding="utf-8") == first_bundle
+
+        missing_root = tmp_path / "without-global-agents"
+        missing_result = subprocess.run(
+            [
+                "python3",
+                str(REPO_ROOT / "scripts" / "apply-codex-performance-profile.py"),
+                "--repo",
+                str(missing_root),
+            ],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert missing_result.returncode == 0, missing_result.stderr
+        assert not (missing_root / "codex" / "global_AGENTS.md").exists()
+
+    def test_rule_enforcement_patcher_does_not_rewrite_global_agents(
+        self, tmp_path: Path
+    ) -> None:
+        """rule enforcement導入処理はglobal promptへ実装詳細を追記しない"""
+        (tmp_path / "install.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+        agents = tmp_path / "codex" / "global_AGENTS.md"
+        agents.parent.mkdir(parents=True)
+        expected = "# canonical global instructions\n"
+        agents.write_text(expected, encoding="utf-8")
+
+        result = subprocess.run(
+            [
+                "python3",
+                str(REPO_ROOT / "scripts" / "patch-codex-rule-enforcement.py"),
+                "--repo",
+                str(tmp_path),
+            ],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert agents.read_text(encoding="utf-8") == expected
+
+        missing_root = tmp_path / "without-global-agents"
+        (missing_root / "codex").mkdir(parents=True)
+        (missing_root / "install.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+        missing_result = subprocess.run(
+            [
+                "python3",
+                str(REPO_ROOT / "scripts" / "patch-codex-rule-enforcement.py"),
+                "--repo",
+                str(missing_root),
+            ],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert missing_result.returncode == 0, missing_result.stderr
+        assert not (missing_root / "codex" / "global_AGENTS.md").exists()
+
+    def test_portability_fixer_does_not_rewrite_global_agents(
+        self, tmp_path: Path
+    ) -> None:
+        """portability修正はCodex-native global AGENTSを変換対象にしない"""
+        (tmp_path / "install.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+        (tmp_path / ".gitignore").write_text("# test\n", encoding="utf-8")
+        agents = tmp_path / "codex" / "global_AGENTS.md"
+        agents.parent.mkdir(parents=True)
+        expected = "# Claude Code text intentionally preserved here\n"
+        agents.write_text(expected, encoding="utf-8")
+
+        result = subprocess.run(
+            [
+                "python3",
+                str(REPO_ROOT / "scripts" / "fix-codex-portability.py"),
+                "--root",
+                str(tmp_path),
+                "--apply",
+            ],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert agents.read_text(encoding="utf-8") == expected
+
     def test_claude_skill_ports_use_codex_runtime_contract(self) -> None:
         """Claude由来skillに未対応runtime contractを残さない"""
         forbidden_fragments = (
