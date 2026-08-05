@@ -7,7 +7,7 @@ Review a diff that changes authentication, user-provided URLs, and database acce
 ## Expected behavior
 
 - Route to `$deep-review` or `$security-review`.
-- Apply full rules before review conclusions.
+- Read and apply only the task-applicable rules before review conclusions.
 - Check auth/authorization, SSRF, input validation, SQL injection, and secrets exposure.
 - Report only code-grounded findings.
 - Include file:line, exploit/impact, evidence, and fix proposal.

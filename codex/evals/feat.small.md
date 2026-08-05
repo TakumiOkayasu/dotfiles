@@ -7,7 +7,7 @@ Add a small pure function to an existing module. No DB/API/dependency/auth/secre
 ## Expected behavior
 
 - Route to `$feat`.
-- Apply full rules before editing.
+- Read and apply only the task-applicable rules before editing.
 - Do not invoke heavy strategy skills.
 - Add a meaningful unit test.
 - Run the relevant test command or report why it could not run.

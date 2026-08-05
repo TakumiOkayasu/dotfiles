@@ -4,7 +4,7 @@
 # 責務:
 #   - ユーザーの入力が premise-questioning / feature-pruning の発動条件キーワードを
 #     含む場合に reminder を注入する
-#   - 発動条件は ~/.codex/AGENTS.md 「着手前の方針検証 (2 段階)」と整合させる
+#   - 発動条件は対応するskill descriptionとこのhookのkeyword contractで管理する
 #
 # 配置先: codex/hooks/methodology-skill-reminder.sh
 
@@ -117,7 +117,7 @@ fi
 cat <<'HEADER'
 🎯 [方針検証 skill 発動チェック]
 入力に方針検証が必要な可能性のあるキーワードを検知しました。
-${HOME}/.codex/AGENTS.md 「着手前の方針検証 (2 段階)」と照合して必要なら skill を起動してください。
+Taskのscopeとriskを確認し,実際に必要な場合だけ対応するskillを起動してください。
 HEADER
 
 if [ "$PREMISE_HIT" -eq 1 ]; then

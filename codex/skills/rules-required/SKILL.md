@@ -1,22 +1,22 @@
 ---
 name: rules-required
-description: Mandatory rule application before edits, tests, reviews, or implementation conclusions. Use when rules are unclear or before any mutating tool. Front-load this description for Codex implicit matching; explicit invocation via $rules-required always works.
+description: Select and apply only the markdown rules relevant to the current task. Use when task or project instructions require rules, applicable rules are unclear, or a rules guard requests reactivation. Front-load this description for Codex implicit matching; explicit invocation via $rules-required always works.
 ---
 
 # Rules Required
 
 ## Goal
-Ensure applicable markdown rules are read and applied.
+Ensure applicable markdown rules are read and applied without loading unrelated rules.
 
 ## Steps
-1. Confirm `RULES_CORE.md` and `RULES_INDEX.md` are available.
-2. For implementation/review/test/refactor, require full rule injection before any mutating tool.
-3. Identify relevant rule files for the task.
-4. Summarize applicable constraints.
-5. If rules conflict, follow nearest/project-specific rule and report conflict.
+1. Locate and read `RULES_CORE.md` and `RULES_INDEX.md` when available.
+2. Use the index and task scope to identify only the relevant detailed rule files.
+3. Read those files before edits or implementation/review conclusions.
+4. If the rules marker is missing, core-only, or stale, run `codex-rules refresh`; the marker proves checksum activation, not model read completion.
+5. Summarize applicable constraints and report conflicts according to the runtime instruction hierarchy.
 
 ## Output
-- Rules applied
+- Rules read and applied
 - Conflicts
 - Task-specific checklist
 

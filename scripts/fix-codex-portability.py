@@ -8,7 +8,6 @@ or orphaned paths.
 from __future__ import annotations
 
 import argparse
-import re
 import shutil
 from pathlib import Path
 
@@ -43,10 +42,6 @@ TARGET_DIRS = (
     "codex/skills",
 )
 
-TARGET_FILES = (
-    "codex/global_AGENTS.md",
-)
-
 TEXT_SUFFIXES = {".md", ".sh", ".json", ".toml"}
 
 GITIGNORE_LINES = (
@@ -77,11 +72,6 @@ def write_if_changed(path: Path, text: str, apply: bool, ops: list[str]) -> None
 
 def collect_codex_text_files(root: Path) -> list[Path]:
     files: list[Path] = []
-    for rel in TARGET_FILES:
-        path = root / rel
-        if path.exists():
-            files.append(path)
-
     for rel in TARGET_DIRS:
         base = root / rel
         if not base.exists():
@@ -100,38 +90,6 @@ def apply_text_replacements(root: Path, apply: bool, ops: list[str]) -> None:
         for old, new in REPLACEMENTS:
             new_text = new_text.replace(old, new)
         write_if_changed(path, new_text, apply, ops)
-
-
-def fix_global_agents(root: Path, apply: bool, ops: list[str]) -> None:
-    path = root / "codex/global_AGENTS.md"
-    if not path.exists():
-        return
-
-    text = read_text(path)
-    text = text.replace("# codex Code 運用ルール", "# Codex 運用ルール")
-    text = text.replace("# codex 運用ルール", "# Codex 運用ルール")
-    text = re.sub(
-        r"常時適用の規約は以下を import する \(毎セッション自動ロードされる\)。\n\n"
-        r"(?:@~/.codex/rules/[^\n]+\n?)+",
-        "常時適用の規約は以下を確認する。\n\n"
-        "- `~/.codex/rules/hallucination-prevention.md`\n"
-        "- `~/.codex/rules/hierarchical-architecture.md`\n"
-        "- `~/.codex/rules/coding-conventions.md`\n"
-        "- `~/.codex/rules/implementation-policy.md`\n\n"
-        "Codex は `AGENTS.md` 内の `@path` import を展開しないため、"
-        "必要なルールは明示的に読むか、AGENTS.md に要点を直接集約する。",
-        text,
-    )
-    text = text.replace(
-        "| commands | `~/.codex/commands/` | トリガーワード対応 |",
-        "| prompts/commands | `~/.codex/prompts/commands/` | Codex で貼り付けて使うプロンプト断片 |",
-    )
-    text = text.replace(
-        "| commands | `~/.codex/prompts/commands/` | トリガーワード対応 |",
-        "| prompts/commands | `~/.codex/prompts/commands/` | Codex で貼り付けて使うプロンプト断片 |",
-    )
-
-    write_if_changed(path, text, apply, ops)
 
 
 def fix_codex_config_info(root: Path, apply: bool, ops: list[str]) -> None:
@@ -268,7 +226,6 @@ def main() -> int:
 
     ops: list[str] = []
     apply_text_replacements(root, args.apply, ops)
-    fix_global_agents(root, args.apply, ops)
     fix_codex_config_info(root, args.apply, ops)
     fix_shellcheck_patterns(root, args.apply, ops)
     ensure_gitignore(root, args.apply, ops)

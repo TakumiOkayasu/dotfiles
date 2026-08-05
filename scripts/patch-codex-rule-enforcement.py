@@ -110,26 +110,6 @@ def ensure_plugin_files(repo: Path) -> None:
     patch_plugin_hooks(plugin / "hooks/hooks.json")
 
 
-def patch_global_agents(repo: Path) -> None:
-    path = repo / "codex/global_AGENTS.md"
-    if not path.exists():
-        return
-    text = read(path)
-    marker = "## Deterministic Rules Enforcement"
-    block = """
-## Deterministic Rules Enforcement
-
-- Treat all active `codex/rules/*.md` and plugin `rules/*.md` as mandatory.
-- `rules-inject.sh` activates the current rules checksum and injects a compact rules contract.
-- `rules-guard.sh` blocks mutating tools when rules are inactive or changed.
-- `rules-enforce.sh` scans changed code after edits and at turn stop; if it reports `BLOCK`, fix the violations before final output.
-- For semantic rules that cannot be fully scanned, use `$rules-compliance-review`; for large/high-risk diffs, dispatch one rules-only review subagent and then parent session makes the final decision.
-""".strip()
-    if marker not in text:
-        text = text.rstrip() + "\n\n" + block + "\n"
-        write(path, text)
-
-
 def clean_markers(repo: Path) -> None:
     for marker in [repo / "codex_tmp/.codex_rules_loaded"]:
         if marker.exists():
@@ -149,7 +129,6 @@ def main(argv: list[str]) -> int:
     patch_codex_hooks_json(repo)
     patch_plugin_hooks(repo / "plugins/dotfile-work-codex/hooks/hooks.json")
     ensure_plugin_files(repo)
-    patch_global_agents(repo)
     clean_markers(repo)
     print("OK: deterministic rules enforcement patched")
     return 0

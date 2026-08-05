@@ -10,7 +10,7 @@ Implement a feature with minimal scope and risk-gated TDD.
 
 ## Steps
 
-1. Apply mandatory rules. If full rules are not injected, stop before editing.
+1. Read and apply only the rules applicable to this task. If a required rule cannot be read, report the blocker before editing.
 2. Classify risk:
    - small: <=50 changed lines, no DB/API/dependency/auth/secrets changes
    - normal: existing architecture, limited files

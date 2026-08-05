@@ -3,13 +3,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import re
 import shutil
 import stat
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
-
-JST = timezone(timedelta(hours=9), "JST")
 
 CORE_SKILLS = {
     "feat",
@@ -44,42 +40,6 @@ SUMMARY_BY_NAME = {
     "hallucination-prevention.md": "source verification and uncertainty handling policy",
     "hierarchical-architecture.md": "architecture invariants, dependency direction, composition, interfaces, and layer naming",
 }
-
-AGENTS_BLOCK_START = "<!-- codex-performance-profile:start -->"
-AGENTS_BLOCK_END = "<!-- codex-performance-profile:end -->"
-
-AGENTS_BLOCK = f"""{AGENTS_BLOCK_START}
-
-## Performance profile
-
-Keep the default context small and route details through skills.
-
-Priority order:
-
-1. User instruction
-2. Project-local `AGENTS.md`
-3. Active plugin rules and project rules
-4. Active skill workflow
-5. General best practice
-
-Before mutating files or running mutating commands:
-
-- Apply `RULES_CORE.md` and `RULES_INDEX.md` immediately.
-- Ensure full rules were injected for implementation, review, test, refactor, fix, or any write operation.
-- If `rules-guard.sh` blocks a tool, re-read rules instead of bypassing the guard.
-- Do not overwrite user changes. Check `git status --short` when editing is involved.
-- Never report unrun checks as passed. Report unverified risks explicitly.
-
-Skill routing:
-
-- Use `$feat` for feature implementation.
-- Use `$fix` for bugs, failing tests, runtime errors, or unexpected behavior.
-- Use `$review` or `$deep-review` for code review.
-- Use `$rules-required` when the applicable rules are unclear.
-- Use high-effort strategy skills (`premise-questioning`, `feature-pruning`, `deep-review`) only for high-risk tasks.
-
-{AGENTS_BLOCK_END}
-"""
 
 RULES_CORE = """# RULES_CORE
 
@@ -119,7 +79,7 @@ Treat as high-risk: DB schema, public API/SDK/CLI contract, auth/authorization, 
 
 SAFETY_RULES = r'''# Codex command safety rules for dotfile-work.
 # These are official Codex command execution rules, not markdown coding rules.
-# Markdown coding/design rules remain in *.md and are injected by rules-inject.sh.
+# Markdown coding/design rules remain in *.md and must be read explicitly when applicable.
 
 prefix_rule(
     pattern = ["git", "commit"],
@@ -295,8 +255,6 @@ def generate_rules(root: Path) -> None:
     bundle_parts = [
         "# RULES_BUNDLE",
         "",
-        f"Generated at: {datetime.now(JST).isoformat(timespec='seconds')} JST",
-        "",
         "This file is generated from `codex/rules/*.md`. Do not edit it directly.",
         "",
         "---",
@@ -306,25 +264,6 @@ def generate_rules(root: Path) -> None:
     for path in rule_files:
         bundle_parts.extend(["\n---\n", f"# RULE FILE: {path.name}\n", read_text(path)])
     write_text(rules_dir / "RULES_BUNDLE.md", "\n".join(bundle_parts))
-
-
-def patch_agents(root: Path) -> None:
-    path = root / "codex" / "global_AGENTS.md"
-    if not path.exists():
-        write_text(path, "# Codex Global Instructions\n\n" + AGENTS_BLOCK)
-        return
-    text = read_text(path)
-    backup_once(path)
-    if AGENTS_BLOCK_START in text and AGENTS_BLOCK_END in text:
-        text = re.sub(
-            re.escape(AGENTS_BLOCK_START) + r".*?" + re.escape(AGENTS_BLOCK_END),
-            AGENTS_BLOCK.strip(),
-            text,
-            flags=re.S,
-        )
-    else:
-        text = text.rstrip() + "\n\n" + AGENTS_BLOCK
-    write_text(path, text)
 
 
 def skill_name(skill_dir: Path) -> str:
@@ -376,7 +315,6 @@ def patch_install_mapping(root: Path) -> None:
         return
     text = read_text(path)
     original = text
-    backup_once(path)
 
     # Include official *.rules in Codex install mapping, but do not symlink codex/skills into ~/.agents by default.
     text = text.replace("bin/*.sh|hooks/*.sh|prompts/commands/*.md|rules/*.md)", "bin/*|hooks/*.sh|rules/*.md|rules/*.rules)")
@@ -406,11 +344,12 @@ def patch_install_mapping(root: Path) -> None:
             text = text.replace(needle, insert + needle)
 
     if text != original:
+        backup_once(path)
         write_text(path, text)
 
 
 def chmod_tree(root: Path) -> None:
-    for pattern in ["codex/hooks/*.sh", "codex/bin/*", "scripts/*.py"]:
+    for pattern in ["codex/hooks/*.sh", "codex/bin/*"]:
         for p in root.glob(pattern):
             if p.is_file():
                 p.chmod(p.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
@@ -422,7 +361,6 @@ def main() -> int:
     args = ap.parse_args()
     root = Path(args.repo).resolve()
     generate_rules(root)
-    patch_agents(root)
     add_openai_yaml(root)
     write_skill_policy(root)
     patch_install_mapping(root)

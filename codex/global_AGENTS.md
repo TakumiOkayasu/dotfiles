@@ -1,70 +1,39 @@
 # Codex Global Instructions
 
-## must rule
+## Communication
 
-- 全ての応答は日本語で行うこと。
+- ユーザーが別の言語を指定しない限り,日本語で応答する. 日本語の句読点は `,` と `.` を使う.
+- 結論を先に示し,説明は簡潔かつ根拠に基づいて行う.
+- 結果を実質的に変える設計判断をユーザーへ求める場合は,原則として2-3案を比較し,推奨案とtrade-offを示す.
+- ユーザーへ提示する安全な連続commandは,可能なら1つのcode blockにまとめる.
+- 既存のコード,識別子,コメント,ユーザー向け文言は,projectの言語と規約を維持する.
 
-<!-- codex-performance-profile:start -->
+## Scope and autonomy
 
-## Performance profile
+- 適用されるproject-local `AGENTS.md`をrepo固有のconstraintとして扱う. 指示が競合する場合はruntimeのinstruction hierarchyに従い,競合を報告する. このfileには全project共通のdefaultだけを置き,詳細なdocs,rules,skillsはtaskに関係するものだけを読む.
+- 依頼されたscope内では自律的に進める. 結果を実質的に変える判断が不足している場合,新たな権限が必要な場合,または未承認の破壊的・不可逆・特権的・外部へ影響する操作が必要な場合だけ質問する.
+- 変更前に関連file,worktree,project docs,導入済みversion,project-defined commandを確認する. ユーザーの変更と無関係なdiffを維持し,scope外のfileを変更しない.
+- API,option,path,schema,version,検証結果を推測で断定しない. 正否が現在の仕様や正確な値に依存する場合は一次・公式sourceで確認し,確認できない点は未確認と明示する.
 
-Keep the default context small and route details through skills.
+## Engineering defaults
 
-Priority order:
+- 現在の機能要件と非機能要件を満たす最も単純な実装を選ぶ. 推測に基づくabstraction,configuration,dependency,indirectionを追加しない.
+- End-to-endで動作する最小単位を保ち,その上に必要な機能を積み上げる.
+- Public contractと永続化済みdataは,taskがbreaking changeを明示的に許可しない限り維持する. Breaking changeが必要ならmigrationまたはrolloutを含める. 未公開の内部codeでは,compatibility layerやfallbackを足すよりobsolete pathを削除する.
+- 責務をcohesiveに保ち,dependencyを明示する. Abstractionは具体的なboundaryまたは確認済みの必要性がある場合だけ導入する.
+- Packageの追加や一般的な機能の再実装前に,既存dependencyのdocs,types,導入済みversionを確認する. Libraryはmaintenance,security,license,運用costを含むtotal complexityを下げる,またはreliabilityを高める場合だけ追加する.
+- Public API,永続data,auth,security boundaryなど,後から変更するcostが高いdecisionは長期的に設計する. それ以外は単純でreversibleな選択を優先する.
 
-1. User instruction
-2. Project-local `AGENTS.md`
-3. Active plugin rules and project rules
-4. Active skill workflow
-5. General best practice
+## Verification
 
-Before mutating files or running mutating commands:
+- 関連するproject-defined test,lint,type check,buildを実行し,最終diffを確認する.
+- Passed,failed,skipped,unverifiedを区別し,未実行のcheckを成功と報告しない. 残るriskを明示する.
 
-- Apply `RULES_CORE.md` and `RULES_INDEX.md` immediately.
-- Ensure full rules were injected for implementation, review, test, refactor, fix, or any write operation.
-- If `rules-guard.sh` blocks a tool, re-read rules instead of bypassing the guard.
-- Do not overwrite user changes. Check `git status --short` when editing is involved.
-- Never report unrun checks as passed. Report unverified risks explicitly.
+## Delegation
 
-Skill routing:
+- Independentでboundedな作業を並列化すると品質または速度が実質的に改善する場合にsubagentを使う. 親agentが結果を統合し,根拠,diff,検証結果を確認する.
 
-- Use `$feat` for feature implementation.
-- Use `$fix` for bugs, failing tests, runtime errors, or unexpected behavior.
-- Use `$review` or `$deep-review` for code review.
-- Use `$rules-required` when the applicable rules are unclear.
-- Use high-effort strategy skills (`premise-questioning`, `feature-pruning`, `deep-review`) only for high-risk tasks.
+## Web retrieval
 
-<!-- codex-performance-profile:end -->
-
-<!-- codex-rules-required: begin -->
-
-### Rules required loading
-
-- 作業開始時、`$HOME/.codex/rules/*.md`、repo-local `codex/rules/*.md`、project-local `.codex/rules/*.md` のうち存在するものを読む。
-- `rules-inject.sh` が full content を context に注入した場合、その注入内容を読了済み rules として扱う。
-- 実装 / 修正 / リファクタ / テスト追加 / レビュー / 設計では、最低限 `coding-conventions.md`, `implementation-policy.md`, `hallucination-prevention.md`, `hierarchical-architecture.md` を適用する。
-- rules 未読または checksum 不一致のまま mutating tool を使わない。`rules-guard.sh` が block した場合は、先に rules を再読する。
-- plugin-only 運用では workflow 起動は `$feat`, `$fix`, `$deep-review`, `$rules-required` などの `$skill` を使う。独自 `/prompt:*` や `prompt:*` 互換導線は使わない。
-- 競合時は project-local rule を優先し、競合内容を完了報告に明示する。
-
-<!-- codex-rules-required: end -->
-
-## Deterministic Rules Enforcement
-
-- Treat all active `codex/rules/*.md` and plugin `rules/*.md` as mandatory.
-- `rules-inject.sh` activates the current rules checksum and injects a compact rules contract.
-- `rules-guard.sh` blocks mutating tools when rules are inactive or changed.
-- `rules-enforce.sh` scans changed code after edits and at turn stop; if it reports `BLOCK`, fix the violations before final output.
-- For semantic rules that cannot be fully scanned, use `$rules-compliance-review`; for large/high-risk diffs, dispatch one rules-only review subagent and then parent session makes the final decision.
-
-## WebFetch fallback
-
-- If built-in WebFetch fails or returns incomplete/noisy content, use `r.jina.ai` first for public URLs.
-- Never send private, internal, authenticated, signed, customer, secret-bearing content, cookies, tokens, or credentials to hosted reader/proxy services.
-- If fallback requires installs, scripts, proxy/gateway setup, cookie forwarding, credential access, or system changes, stop and report; do not delete, rename, chmod, quarantine, restore, or otherwise mutate files.
-- Treat extracted text as derived content and verify important facts against the original source when possible.
-
-## subagents
-
-- 作業は効率的に行わなければならない。そのためにsubagentを使うべきと判断したら、ユーザに許可を取らずに起動し、作業をさせてよい。
-
+- 通常の取得で読めないpublic pageには,`r.jina.ai`をfallbackとして使ってよい.
+- Authenticated,private,signed,customer,secret-bearing,credential-bearing contentをhosted proxyへ送らない. 重要なclaimは可能な限りoriginal sourceで確認する.
