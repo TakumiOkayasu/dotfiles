@@ -1,13 +1,13 @@
 # バグ修正ガイド
 
-<!-- codex-port: managed; source=claude/commands/fix.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/commands/fix.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/commands/fix.md`.
+- This file was ported from `common/commands/fix.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 バグを修正する(再現→原因特定→TDD修正)
@@ -19,7 +19,7 @@
 ## 入出力
 
 | 項目 | 内容 |
-|------|------|
+| ------ | ------ |
 | 入力 | `ユーザー指定の対象`: バグの現象・状況（例: "ログイン時にNullPointerExceptionが発生する"） |
 | 出力 | 修正サマリー（原因・修正内容・変更ファイル一覧・再発防止策） |
 
@@ -90,6 +90,6 @@ feature-pruning は通常不要 (機能追加でないため)。既存機能の�
 ## 使用例
 
 ```text
-@fix ログイン時に特定ユーザーのみ500エラーが返る
-@fix テスト実行時に test_foo が NullPointerException で落ちる
+$fix ログイン時に特定ユーザーのみ500エラーが返る
+$fix テスト実行時に test_foo が NullPointerException で落ちる
 ```

@@ -41,6 +41,8 @@ services:
     entrypoint: ["/workspace/test_bin.sh"]
     volumes:
       - ../bin:/workspace/bin:ro
+      - ../claude/notes:/workspace/claude/notes:ro
+      - ../claude/scratch:/workspace/claude/scratch:ro
       - ./test_bin.sh:/workspace/test_bin.sh:ro
   shell-lint-test:
     build:

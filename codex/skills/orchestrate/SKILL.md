@@ -1,19 +1,19 @@
 ---
-# codex_port_source: claude/skills/orchestrate/SKILL.md
+# codex_port_source: common/skills/orchestrate/SKILL.md
 name: orchestrate
 description: 仕様が固まった複数 task の実装を、計画 → subagent 実装 → 2 段階レビュー (仕様適合 → 品質) で一気通貫に回す。task に分解できる機能追加・改修をまとめて自走実装したいときに使う。「実装計画」「計画立てて」「plan して」「まとめて実装」「全部作って」「順番に実装」「タスク分解」「subagent で回す」「2 段階レビュー」で起動。単発の小修正 (→ feat/fix) や設計未確定 (→ consult) では使わない。
 ---
 
 # Plan and Review
 
-<!-- codex-port: managed; source=claude/skills/orchestrate/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/orchestrate/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/orchestrate/SKILL.md`.
+- This file was ported from `common/skills/orchestrate/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## 概要
@@ -30,7 +30,7 @@ description: 仕様が固まった複数 task の実装を、計画 → subagent
 - **明示**: 「実装計画」「計画立てて」「plan して」「タスク分解して」「2 段階レビュー」「spec 適合チェック」
 - **自然発話**: 「まとめて実装」「全部作って」「順番に実装して」「一気にやって」「subagent で回して」「複数機能を実装」
 - **状況**: 確定仕様/設計ドキュメントを渡されて「これ実装して」、複数の独立した変更を一括依頼された
-- `@orchestrate` 直接起動
+- `$orchestrate` 直接起動
 
 ## 非対象
 

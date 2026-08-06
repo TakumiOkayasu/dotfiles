@@ -173,7 +173,7 @@ is_version_probe() {
     _vp_rest=$(printf '%s' "$_vp_rest" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
     # 引数がバージョン/ヘルプフラグ単独の場合のみ許可 (実行引数が続く場合はブロック継続)
     case "$_vp_rest" in
-        -v|-V|--version|version|-h|--help) return 0 ;;
+        -v| -V| --version|version| -h| --help) return 0 ;;
         *) return 1 ;;
     esac
 }

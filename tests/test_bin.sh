@@ -42,44 +42,16 @@ cleanup_repo() {
 echo "=== git-new-feature ==="
 echo ""
 
-echo "=== codex-cmd ==="
+echo "=== Codex plugin-only workflow ==="
 echo ""
 
-PROMPT_DIR=$(mktemp -d)
-printf '%s\n' "# feat prompt" > "$PROMPT_DIR/feat.md"
-printf '%s\n' "# fix prompt" > "$PROMPT_DIR/fix.md"
-printf '%s\n' "# deep prompt" > "$PROMPT_DIR/deep-review.md"
-printf '%s\n' "# commit prompt" > "$PROMPT_DIR/commit.md"
-
-output=$(CODEX_PROMPT_DIR="$PROMPT_DIR" /workspace/bin/codex-cmd list 2>/dev/null)
-has_feat=$(printf '%s\n' "$output" | grep -c '^feat$' || true)
-assert_eq "codex-cmd list: feat を表示" "1" "$has_feat"
-
-output=$(CODEX_PROMPT_DIR="$PROMPT_DIR" /workspace/bin/codex-feat --print "add-login" 2>/dev/null)
-has_prompt=$(printf '%s\n' "$output" | grep -c '# feat prompt' || true)
-has_args=$(printf '%s\n' "$output" | grep -c 'add-login' || true)
-assert_eq "codex-feat --print: prompt を展開" "1" "$has_prompt"
-assert_eq "codex-feat --print: 引数を追加" "1" "$has_args"
-
-output=$(CODEX_PROMPT_DIR="$PROMPT_DIR" /workspace/bin/codex-feat --print "first arg" "second arg" 2>/dev/null)
-has_first=$(printf '%s\n' "$output" | grep -c '^first arg$' || true)
-has_second=$(printf '%s\n' "$output" | grep -c '^second arg$' || true)
-assert_eq "codex-feat --print: 空白含み引数を保持" "1" "$has_first"
-assert_eq "codex-feat --print: 複数引数を行で保持" "1" "$has_second"
-
-output=$(CODEX_PROMPT_DIR="$PROMPT_DIR" /workspace/bin/codex-cmd --print code-review HEAD 2>/dev/null)
-has_review=$(printf '%s\n' "$output" | grep -c '# deep prompt' || true)
-has_target=$(printf '%s\n' "$output" | grep -c 'HEAD' || true)
-assert_eq "codex-cmd code-review: deep-review に alias" "1" "$has_review"
-assert_eq "codex-cmd code-review: 対象を追加" "1" "$has_target"
-
-output=$(CODEX_PROMPT_DIR="$PROMPT_DIR" /workspace/bin/codex-code-review --print HEAD 2>/dev/null)
-has_alias_prompt=$(printf '%s\n' "$output" | grep -c '# deep prompt' || true)
-has_alias_target=$(printf '%s\n' "$output" | grep -c 'HEAD' || true)
-assert_eq "codex-code-review: deep-review に alias" "1" "$has_alias_prompt"
-assert_eq "codex-code-review: 対象を追加" "1" "$has_alias_target"
-
-rm -rf "$PROMPT_DIR"
+legacy_wrapper_count=0
+for legacy_wrapper in codex-cmd codex-feat codex-fix codex-code-review codex-deep-review codex-commit; do
+    if [ -e "/workspace/bin/${legacy_wrapper}" ]; then
+        legacy_wrapper_count=$((legacy_wrapper_count + 1))
+    fi
+done
+assert_eq "plugin-only: 旧 Codex prompt wrapper を配布しない" "0" "$legacy_wrapper_count"
 
 echo ""
 echo "--- 引数解析 ---"
@@ -104,6 +76,22 @@ assert_eq "非ASCII文字でエラー" "1" "$?"
 
 /workspace/bin/git-new-feature "test with spaces" > /dev/null 2>&1
 assert_eq "スペース含みでエラー" "1" "$?"
+
+echo ""
+echo "=== claude-init-project ==="
+echo ""
+
+TEMPLATE_HOME=$(mktemp -d)
+INIT_REPO=$(mktemp -d)
+mkdir -p "$TEMPLATE_HOME/.claude/notes" "$TEMPLATE_HOME/.claude/scratch"
+cp /workspace/claude/notes/_template.md /workspace/claude/notes/README.md \
+    "$TEMPLATE_HOME/.claude/notes/"
+cp /workspace/claude/scratch/_template.md /workspace/claude/scratch/README.md \
+    "$TEMPLATE_HOME/.claude/scratch/"
+git -C "$INIT_REPO" init > /dev/null 2>&1
+(cd "$INIT_REPO" && HOME="$TEMPLATE_HOME" /workspace/bin/claude-init-project --dry-run > /dev/null 2>&1)
+assert_eq "installerが配置する既定テンプレートを利用" "0" "$?"
+rm -rf "$TEMPLATE_HOME" "$INIT_REPO"
 
 echo ""
 echo "--- ブランチ作成 ---"

@@ -6,6 +6,7 @@ description: High-risk or multi-file code review using security, performance, an
 # Deep Review
 
 ## Goal
+
 Run a multi-perspective review and synthesize into one severity-ordered result.
 
 ## Steps
@@ -18,18 +19,19 @@ Run a multi-perspective review and synthesize into one severity-ordered result.
 6. Synthesize duplicates and sort Critical -> Warning -> Suggestion.
 
 ## Output
+
 - `## 判定: BLOCK|WARN|PASS`
 - Counts by severity and perspective
 - Findings with file:line, evidence, fix proposal
 
 ## Claude command reference
 
-- `claude/commands/deep-review.md` から変換された詳細手順は `references/claude-command.md` を読む。
+- `common/commands/deep-review.md` から変換された詳細手順は `references/claude-command.md` を読む。
 - 内容が競合する場合は、この Codex-native `SKILL.md` と `Common contract` を優先する。
 
 ## Common contract
 
-- Plugin-only operation: use `$skill` / `@skill` or `/skills`; no `/prompt:*` or `prompt:*`.
+- Plugin-only operation: use `$skill` or `/skills`; no `/prompt:*` or `prompt:*`.
 - Apply mandatory rules before editing, reviewing, testing, or implementation conclusions.
 - Keep diffs minimal and scoped.
 - Report unverified items and skipped checks.

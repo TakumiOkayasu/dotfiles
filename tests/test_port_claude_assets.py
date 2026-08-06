@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
+import json
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from types import ModuleType
 import unittest
 
 
@@ -13,6 +17,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PORT_SCRIPT = REPO_ROOT / "scripts" / "port-claude-assets-to-codex.py"
 GENERATOR_SCRIPT = REPO_ROOT / "scripts" / "generate-standard-workflow-skills.py"
 VERIFY_SCRIPT = REPO_ROOT / "scripts" / "verify-codex-plugin.py"
+PROFILE_SCRIPT = REPO_ROOT / "scripts" / "apply-codex-performance-profile.py"
+SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync-codex-plugin.py"
+ASSET_MANIFEST = REPO_ROOT / "scripts" / "claude-command-map.json"
+ASSET_MANIFEST_SCRIPT = REPO_ROOT / "scripts" / "codex_asset_manifest.py"
 CLAUDE_TDD_QA_FIXTURE = """# Test-Driven Development
 
 | 機能単位 (画面 / API / エンドポイント / ジョブ) | ユーザー登録画面、決済 API、夜間バッチ | qa-nightmare subagent を起動する |
@@ -45,13 +53,44 @@ def load_script(path: Path, module_name: str):
     return module
 
 
+def write_shared_command_outputs(root: Path, porter: ModuleType) -> None:
+    commands_dir = root / "common" / "commands"
+    commands_dir.mkdir(parents=True, exist_ok=True)
+    for command_name, skill_name in porter.COMMAND_DESTINATIONS.items():
+        source = commands_dir / f"{command_name}.md"
+        source.write_text(f"# {command_name}\n", encoding="utf-8")
+        expected, _role = porter.transform_source(
+            source, repo=root, kind="command"
+        )
+        generated = (
+            root
+            / "codex"
+            / "skills"
+            / skill_name
+            / porter.COMMAND_REFERENCES[command_name]
+        )
+        generated.parent.mkdir(parents=True, exist_ok=True)
+        generated.write_text(expected.rstrip() + "\n", encoding="utf-8")
+
+
 class PortClaudeAssetsTest(unittest.TestCase):
+    def test_rule_port_uses_single_blank_line_before_runtime_contract(self) -> None:
+        module = load_script(PORT_SCRIPT, "port_claude_assets_rule_spacing_test")
+
+        result = module.add_portability_notes(
+            "# Rule\n\nBody\n\n",
+            source=Path("common/rules/example.md"),
+            kind="rule",
+        )
+
+        self.assertNotIn("\n\n\n## Codex rule loading", result)
+
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
         self.repo = Path(self.temp_dir.name)
-        (self.repo / "claude" / "skills").mkdir(parents=True)
-        (self.repo / "claude" / "rules").mkdir(parents=True)
-        commands = self.repo / "claude" / "commands"
+        (self.repo / "common" / "skills").mkdir(parents=True)
+        (self.repo / "common" / "rules").mkdir(parents=True)
+        commands = self.repo / "common" / "commands"
         commands.mkdir()
         for command, skill in {
             "commit": "commit-msg",
@@ -84,7 +123,7 @@ class PortClaudeAssetsTest(unittest.TestCase):
         )
 
     def port_codex_tdd_fixture(self) -> str:
-        skill = self.repo / "claude" / "skills" / "tdd" / "SKILL.md"
+        skill = self.repo / "common" / "skills" / "tdd" / "SKILL.md"
         skill.parent.mkdir()
         skill.write_text(CLAUDE_TDD_QA_FIXTURE, encoding="utf-8")
 
@@ -101,9 +140,33 @@ class PortClaudeAssetsTest(unittest.TestCase):
         path.write_text(f"# native {name}\n", encoding="utf-8")
         return path
 
+    def test_should_port_nested_resource_when_common_skill_contains_it(self) -> None:
+        common = self.repo / "common"
+        (common / "skills" / "bug-hunt" / "references").mkdir(parents=True)
+        (common / "skills" / "bug-hunt" / "SKILL.md").write_text(
+            "---\nname: bug-hunt\ndescription: Find bugs.\n---\n\n# Bug Hunt\n",
+            encoding="utf-8",
+        )
+        (common / "skills" / "bug-hunt" / "references" / "review-lenses.md").write_text(
+            "# Review Lenses\n\nClaude Code contract.\n", encoding="utf-8"
+        )
+
+        result = self.run_port()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        skill = self.repo / "codex" / "skills" / "bug-hunt" / "SKILL.md"
+        reference = skill.parent / "references" / "review-lenses.md"
+        self.assertIn(
+            "source=common/skills/bug-hunt/SKILL.md",
+            skill.read_text(encoding="utf-8"),
+        )
+        reference_text = reference.read_text(encoding="utf-8")
+        self.assertIn("source=common/skills/bug-hunt/references/review-lenses.md", reference_text)
+        self.assertIn("Codex contract.", reference_text)
+
     def test_ports_known_command_as_reference_without_overwriting_native_skill(self) -> None:
         native = self.write_native_skill("feat")
-        commands = self.repo / "claude" / "commands"
+        commands = self.repo / "common" / "commands"
         (commands / "feat.md").write_text(
             "# Claude command\n\n"
             "$ARGUMENTS を `.claude` と CLAUDE.md で確認し、`/feat` を使う。\n"
@@ -120,21 +183,21 @@ class PortClaudeAssetsTest(unittest.TestCase):
         self.assertEqual(native.read_text(encoding="utf-8"), "# native feat\n")
         reference = self.repo / "codex" / "skills" / "feat" / "references" / "claude-command.md"
         text = reference.read_text(encoding="utf-8")
-        self.assertIn("source=claude/commands/feat.md", text)
+        self.assertIn("source=common/commands/feat.md", text)
         self.assertIn("ユーザー指定の対象", text)
         self.assertIn(".codex", text)
         self.assertIn("AGENTS.md", text)
-        self.assertIn("`@feat`", text)
+        self.assertIn("`$feat`", text)
+        self.assertNotIn("`@feat`", text)
         self.assertNotIn("$ARGUMENTS", text)
         self.assertIn("`${HOME}/.codex/AGENTS.md` を読む", text)
         self.assertIn("`$tdd`", text)
         self.assertIn("rules-inject hook", text)
         self.assertNotIn("@import", text)
         self.assertNotIn("sonnet", text)
-
     def test_maps_commit_command_to_commit_msg_invocation(self) -> None:
         self.write_native_skill("commit-msg")
-        commands = self.repo / "claude" / "commands"
+        commands = self.repo / "common" / "commands"
         (commands / "commit.md").write_text("Use `/commit`.\n", encoding="utf-8")
 
         result = self.run_port()
@@ -149,11 +212,28 @@ class PortClaudeAssetsTest(unittest.TestCase):
             / "claude-command.md"
         )
         text = reference.read_text(encoding="utf-8")
-        self.assertIn("`@commit-msg`", text)
-        self.assertNotIn("`@commit`", text)
+        self.assertIn("`$commit-msg`", text)
+        self.assertNotIn("`$commit`", text)
+
+    def test_should_reject_shared_skill_directory_without_entrypoint(self) -> None:
+        orphan_reference = (
+            self.repo
+            / "common"
+            / "skills"
+            / "orphan"
+            / "references"
+            / "details.md"
+        )
+        orphan_reference.parent.mkdir(parents=True)
+        orphan_reference.write_text("# Details\n", encoding="utf-8")
+
+        result = self.run_port()
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("invalid shared skill layout", result.stderr)
 
     def test_ports_skill_with_valid_frontmatter_and_codex_references(self) -> None:
-        skill = self.repo / "claude" / "skills" / "semantic-generation" / "SKILL.md"
+        skill = self.repo / "common" / "skills" / "semantic-generation" / "SKILL.md"
         skill.parent.mkdir()
         skill.write_text(
             "---\n"
@@ -171,7 +251,7 @@ class PortClaudeAssetsTest(unittest.TestCase):
         output = (
             self.repo / "codex" / "skills" / "semantic-generation" / "SKILL.md"
         ).read_text(encoding="utf-8")
-        self.assertIn("# codex_port_source: claude/skills/semantic-generation/SKILL.md", output)
+        self.assertIn("# codex_port_source: common/skills/semantic-generation/SKILL.md", output)
         self.assertNotIn("\ncodex_port_source:", output)
         self.assertNotIn("[[", output)
         self.assertIn("`$semantic-generation`", output)
@@ -217,10 +297,11 @@ class PortClaudeAssetsTest(unittest.TestCase):
 
         self.assertIn("`agent_type: qa_nightmare` をdispatchしない", output)
         self.assertIn("followup_taskでledger digestとrequested_rankだけ", output)
+        self.assertNotIn("\n\n\n", output)
 
     def test_unknown_command_fails_preflight_before_any_write(self) -> None:
         self.write_native_skill("feat")
-        commands = self.repo / "claude" / "commands"
+        commands = self.repo / "common" / "commands"
         (commands / "feat.md").write_text("# feat\n", encoding="utf-8")
         (commands / "surprise.md").write_text("# surprise\n", encoding="utf-8")
         rule_dest = self.repo / "codex" / "rules" / "existing.md"
@@ -237,7 +318,7 @@ class PortClaudeAssetsTest(unittest.TestCase):
         self.assertEqual(rule_dest.read_text(encoding="utf-8"), "# unchanged\n")
 
     def test_missing_manifest_command_fails_preflight_before_any_write(self) -> None:
-        (self.repo / "claude" / "commands" / "fix.md").unlink()
+        (self.repo / "common" / "commands" / "fix.md").unlink()
 
         result = self.run_port()
 
@@ -248,15 +329,15 @@ class PortClaudeAssetsTest(unittest.TestCase):
         )
 
     def test_unexpected_skill_resource_fails_before_any_write(self) -> None:
-        first = self.repo / "claude" / "skills" / "first" / "SKILL.md"
+        first = self.repo / "common" / "skills" / "first" / "SKILL.md"
         first.parent.mkdir()
         first.write_text("# first\n", encoding="utf-8")
-        second = self.repo / "claude" / "skills" / "second" / "SKILL.md"
+        second = self.repo / "common" / "skills" / "second" / "SKILL.md"
         second.parent.mkdir()
         second.write_text("# second\n", encoding="utf-8")
-        (second.parent / "references").mkdir()
-        (second.parent / "references" / "extra.md").write_text(
-            "# extra\n", encoding="utf-8"
+        (second.parent / "scripts").mkdir()
+        (second.parent / "scripts" / "extra.py").write_text(
+            "raise SystemExit(0)\n", encoding="utf-8"
         )
 
         result = self.run_port()
@@ -273,7 +354,7 @@ class PortClaudeAssetsTest(unittest.TestCase):
         managed = rules / "stale.md"
         managed.write_text(
             "# stale\n"
-            "<!-- codex-port: managed; source=claude/rules/stale.md; "
+            "<!-- codex-port: managed; source=common/rules/stale.md; "
             "generated-by=scripts/port-claude-assets-to-codex.py -->\n",
             encoding="utf-8",
         )
@@ -292,7 +373,277 @@ class PortClaudeAssetsTest(unittest.TestCase):
         self.assertTrue(unmanaged.exists())
 
 
+class AssetManifestTest(unittest.TestCase):
+    def test_should_reject_non_string_command_fields_when_manifest_is_loaded(
+        self,
+    ) -> None:
+        manifest_module = load_script(
+            ASSET_MANIFEST_SCRIPT, "asset_manifest_field_type_test"
+        )
+        original = json.loads(ASSET_MANIFEST.read_text(encoding="utf-8"))
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            manifest_path = Path(temp_dir) / "manifest.json"
+            for field in ("source", "skill", "reference"):
+                with self.subTest(field=field):
+                    invalid = json.loads(json.dumps(original))
+                    invalid["commands"][0][field] = 123
+                    manifest_path.write_text(
+                        json.dumps(invalid), encoding="utf-8"
+                    )
+
+                    with self.assertRaisesRegex(ValueError, "invalid command entry"):
+                        manifest_module.load_asset_manifest(manifest_path)
+
+
 class VerifyCodexPluginTest(unittest.TestCase):
+    def test_should_reject_core_skill_missing_from_catalog(self) -> None:
+        verify = load_script(VERIFY_SCRIPT, "verify_unknown_core_skill_test")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "common" / "skills").mkdir(parents=True)
+            verify.CODEX_NATIVE_SKILLS = frozenset()
+            verify.CORE_SKILLS = frozenset({"missing-core"})
+
+            self.assertNotEqual(verify.check_core_skill_catalog(root), 0)
+
+    def test_should_load_core_skill_tier_from_single_manifest(self) -> None:
+        manifest = json.loads(ASSET_MANIFEST.read_text(encoding="utf-8"))
+        expected = frozenset(manifest["core_skills"])
+        profile = load_script(PROFILE_SCRIPT, "profile_core_skill_manifest_test")
+        sync = load_script(SYNC_SCRIPT, "sync_core_skill_manifest_test")
+        verify = load_script(VERIFY_SCRIPT, "verify_core_skill_manifest_test")
+
+        self.assertEqual(profile.CORE_SKILLS, expected)
+        self.assertEqual(sync.CORE_SKILLS, expected)
+        self.assertEqual(verify.CORE_SKILLS, expected)
+
+    def test_should_report_shared_and_native_counts_when_requested(self) -> None:
+        verify = load_script(VERIFY_SCRIPT, "verify_skill_count_report_test")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            for path in [
+                root / "common" / "skills" / "shared" / "SKILL.md",
+                root
+                / "plugins"
+                / "dotfile-work-codex"
+                / "skills"
+                / "shared"
+                / "SKILL.md",
+                root
+                / "plugins"
+                / "dotfile-work-codex-extra"
+                / "skills"
+                / "native"
+                / "SKILL.md",
+            ]:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("# skill\n", encoding="utf-8")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                verify.report_skill_counts(root)
+
+            self.assertIn("shared_skills=1", output.getvalue())
+            self.assertIn(
+                f"codex_native_skills={len(verify.CODEX_NATIVE_SKILLS)}",
+                output.getvalue(),
+            )
+
+    def test_should_detect_content_drift_when_shared_rule_changes(self) -> None:
+        verify = load_script(VERIFY_SCRIPT, "verify_shared_non_skill_source_test")
+        porter = load_script(PORT_SCRIPT, "port_shared_non_skill_source_test")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            rule = root / "common" / "rules" / "sample.md"
+            rule.parent.mkdir(parents=True)
+            rule.write_text("# Rule\n", encoding="utf-8")
+            write_shared_command_outputs(root, porter)
+
+            expected_rule, _role = porter.transform_source(
+                rule, repo=root, kind="rule"
+            )
+            generated_rule = root / "codex" / "rules" / "sample.md"
+            generated_rule.parent.mkdir(parents=True)
+            generated_rule.write_text(
+                expected_rule.rstrip() + "\n", encoding="utf-8"
+            )
+            self.assertEqual(
+                verify.check_shared_rule_and_command_source_sync(root), 0
+            )
+
+            generated_rule.write_text(expected_rule + "stale\n", encoding="utf-8")
+            self.assertNotEqual(
+                verify.check_shared_rule_and_command_source_sync(root), 0
+            )
+
+    def test_should_reject_missing_shared_source_directories_when_verifying(
+        self,
+    ) -> None:
+        verify = load_script(VERIFY_SCRIPT, "verify_missing_shared_sources_test")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+
+            result = verify.check_shared_rule_and_command_source_sync(root)
+
+            self.assertNotEqual(result, 0)
+
+    def test_should_reject_manifest_drift_when_shared_command_is_missing(
+        self,
+    ) -> None:
+        verify = load_script(VERIFY_SCRIPT, "verify_missing_shared_command_test")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "common" / "rules").mkdir(parents=True)
+            (root / "common" / "commands").mkdir(parents=True)
+
+            with self.assertRaisesRegex(ValueError, "missing Claude command"):
+                verify.check_shared_rule_and_command_source_sync(root)
+
+    def test_should_detect_stale_output_when_shared_rule_source_is_deleted(
+        self,
+    ) -> None:
+        verify = load_script(VERIFY_SCRIPT, "verify_deleted_shared_rule_test")
+        porter = load_script(PORT_SCRIPT, "port_deleted_shared_rule_test")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            rule = root / "common" / "rules" / "sample.md"
+            rule.parent.mkdir(parents=True)
+            rule.write_text("# Rule\n", encoding="utf-8")
+            write_shared_command_outputs(root, porter)
+            expected_rule, _role = porter.transform_source(
+                rule, repo=root, kind="rule"
+            )
+            generated_rule = root / "codex" / "rules" / "sample.md"
+            generated_rule.parent.mkdir(parents=True)
+            generated_rule.write_text(
+                expected_rule.rstrip() + "\n", encoding="utf-8"
+            )
+
+            rule.unlink()
+
+            self.assertNotEqual(
+                verify.check_shared_rule_and_command_source_sync(root), 0
+            )
+
+    def test_should_ignore_rule_bundle_and_backups_when_checking_stale_outputs(
+        self,
+    ) -> None:
+        verify = load_script(VERIFY_SCRIPT, "verify_shared_rule_artifacts_test")
+        porter = load_script(PORT_SCRIPT, "port_shared_rule_artifacts_test")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            rule = root / "common" / "rules" / "sample.md"
+            rule.parent.mkdir(parents=True)
+            rule.write_text("# Rule\n", encoding="utf-8")
+            write_shared_command_outputs(root, porter)
+            expected_rule, _role = porter.transform_source(
+                rule, repo=root, kind="rule"
+            )
+            generated_rule = root / "codex" / "rules" / "sample.md"
+            generated_rule.parent.mkdir(parents=True)
+            generated_rule.write_text(
+                expected_rule.rstrip() + "\n", encoding="utf-8"
+            )
+            bundle = generated_rule.parent / "RULES_BUNDLE.md"
+            bundle.write_text(expected_rule.rstrip() + "\n", encoding="utf-8")
+            backup = generated_rule.with_suffix(".md.bak")
+            backup.write_text(expected_rule.rstrip() + "\n", encoding="utf-8")
+
+            result = verify.check_shared_rule_and_command_source_sync(root)
+
+            self.assertEqual(result, 0)
+
+    def test_should_accept_catalog_when_only_declared_native_skills_are_extra(
+        self,
+    ) -> None:
+        verify = load_script(VERIFY_SCRIPT, "verify_shared_skill_catalog_test")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            shared = root / "common" / "skills" / "sample" / "SKILL.md"
+            shared.parent.mkdir(parents=True)
+            shared.write_text("# sample\n", encoding="utf-8")
+            for name in {"sample", *verify.CODEX_NATIVE_SKILLS}:
+                skill = root / "codex" / "skills" / name / "SKILL.md"
+                skill.parent.mkdir(parents=True)
+                skill.write_text(f"# {name}\n", encoding="utf-8")
+
+            self.assertEqual(verify.check_shared_skill_catalog(root), 0)
+
+            unexpected = root / "codex" / "skills" / "unexpected" / "SKILL.md"
+            unexpected.parent.mkdir(parents=True)
+            unexpected.write_text("# unexpected\n", encoding="utf-8")
+            self.assertNotEqual(verify.check_shared_skill_catalog(root), 0)
+
+    def test_should_detect_content_drift_when_shared_skill_changes(self) -> None:
+        verify = load_script(VERIFY_SCRIPT, "verify_shared_skill_source_test")
+        porter = load_script(PORT_SCRIPT, "port_shared_skill_source_test")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "common" / "skills" / "sample" / "SKILL.md"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "---\nname: sample\ndescription: Sample.\n---\n\n# Sample\n",
+                encoding="utf-8",
+            )
+            reference = source.parent / "references" / "details.md"
+            reference.parent.mkdir()
+            reference.write_text("# Details\n", encoding="utf-8")
+            output, _role = porter.transform_source(
+                source, repo=root, kind="skill"
+            )
+            generated = root / "codex" / "skills" / "sample" / "SKILL.md"
+            generated.parent.mkdir(parents=True)
+            generated.write_text(output.rstrip() + "\n", encoding="utf-8")
+            reference_output, _role = porter.transform_source(
+                reference, repo=root, kind="skill_resource"
+            )
+            generated_reference = generated.parent / "references" / "details.md"
+            generated_reference.parent.mkdir()
+            generated_reference.write_text(
+                reference_output.rstrip() + "\n", encoding="utf-8"
+            )
+
+            self.assertEqual(verify.check_shared_skill_source_sync(root), 0)
+
+            generated.write_text(output + "stale\n", encoding="utf-8")
+            self.assertNotEqual(verify.check_shared_skill_source_sync(root), 0)
+
+    def test_should_detect_stale_output_when_nested_skill_source_is_deleted(
+        self,
+    ) -> None:
+        verify = load_script(VERIFY_SCRIPT, "verify_deleted_shared_resource_test")
+        porter = load_script(PORT_SCRIPT, "port_deleted_shared_resource_test")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "common" / "skills" / "sample" / "SKILL.md"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "---\nname: sample\ndescription: Sample.\n---\n\n# Sample\n",
+                encoding="utf-8",
+            )
+            reference = source.parent / "references" / "details.md"
+            reference.parent.mkdir()
+            reference.write_text("# Details\n", encoding="utf-8")
+            output, _role = porter.transform_source(
+                source, repo=root, kind="skill"
+            )
+            generated = root / "codex" / "skills" / "sample" / "SKILL.md"
+            generated.parent.mkdir(parents=True)
+            generated.write_text(output.rstrip() + "\n", encoding="utf-8")
+            reference_output, _role = porter.transform_source(
+                reference, repo=root, kind="skill_resource"
+            )
+            generated_reference = generated.parent / "references" / "details.md"
+            generated_reference.parent.mkdir()
+            generated_reference.write_text(
+                reference_output.rstrip() + "\n", encoding="utf-8"
+            )
+
+            reference.unlink()
+
+            self.assertNotEqual(verify.check_shared_skill_source_sync(root), 0)
+
     def test_rule_sync_detects_content_drift(self) -> None:
         verify = load_script(VERIFY_SCRIPT, "verify_codex_plugin_test")
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -308,14 +659,79 @@ class VerifyCodexPluginTest(unittest.TestCase):
             plugin.write_text("# drift\n", encoding="utf-8")
             self.assertNotEqual(verify.check_rule_sync(root), 0)
 
+    def test_should_detect_stale_generated_content_when_rule_aggregate_is_verified(
+        self,
+    ) -> None:
+        verify = load_script(VERIFY_SCRIPT, "verify_rule_aggregate_test")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            rules = root / "codex" / "rules"
+            rules.mkdir(parents=True)
+            (rules / "RULES_CORE.md").write_text("# Core\n", encoding="utf-8")
+            (rules / "sample.md").write_text("# Sample\n", encoding="utf-8")
+            (rules / "RULES_INDEX.md").write_text("# stale\n", encoding="utf-8")
+            (rules / "RULES_BUNDLE.md").write_text("# stale\n", encoding="utf-8")
+
+            self.assertNotEqual(verify.check_rule_aggregate_sync(root), 0)
+
+    def test_should_detect_tier_drift_when_core_and_extra_skills_are_swapped(
+        self,
+    ) -> None:
+        verify = load_script(VERIFY_SCRIPT, "verify_skill_tier_test")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            core_name = min(verify.CORE_SKILLS)
+            optional_name = "optional-only"
+            for name in (core_name, optional_name):
+                source = root / "codex" / "skills" / name / "SKILL.md"
+                source.parent.mkdir(parents=True)
+                source.write_text(f"# {name}\n", encoding="utf-8")
+
+            wrong_core = (
+                root
+                / "plugins"
+                / "dotfile-work-codex"
+                / "skills"
+                / optional_name
+                / "SKILL.md"
+            )
+            wrong_extra = (
+                root
+                / "plugins"
+                / "dotfile-work-codex-extra"
+                / "skills"
+                / core_name
+                / "SKILL.md"
+            )
+            for path in (wrong_core, wrong_extra):
+                path.parent.mkdir(parents=True)
+                path.write_text(
+                    (root / "codex" / "skills" / path.parent.name / "SKILL.md").read_text(
+                        encoding="utf-8"
+                    ),
+                    encoding="utf-8",
+                )
+
+            self.assertNotEqual(verify.check_skill_sync(root), 0)
+
 
 class GenerateStandardWorkflowSkillsTest(unittest.TestCase):
+    def test_generated_workflows_leave_blank_line_after_headings(self) -> None:
+        generator = load_script(
+            GENERATOR_SCRIPT, "generate_standard_workflow_spacing_test"
+        )
+
+        for name, (description, title, content) in generator.WORKFLOWS.items():
+            with self.subTest(name=name):
+                generated = generator.skill_body(name, description, title, content)
+                self.assertNotRegex(generated, r"(?m)^#{2,6} .+\n(?!\n)")
+
     def test_plugin_sync_uses_manifest_and_runs_the_full_pipeline(self) -> None:
         generator = load_script(GENERATOR_SCRIPT, "generate_standard_workflow_skills_test")
 
         self.assertEqual(
             generator.CLAUDE_COMMAND_REFERENCES["commit-msg"],
-            "claude/commands/commit.md",
+            "common/commands/commit.md",
         )
         workflow = generator.WORKFLOWS["plugin-sync"][2]
         commands = [
@@ -328,6 +744,8 @@ class GenerateStandardWorkflowSkillsTest(unittest.TestCase):
         positions = [workflow.index(command) for command in commands]
         self.assertEqual(positions, sorted(positions))
         self.assertIn("--prune", workflow)
+        for command in commands:
+            self.assertIn(f"uv run python scripts/{command}", workflow)
 
 
 if __name__ == "__main__":

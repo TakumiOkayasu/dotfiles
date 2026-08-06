@@ -28,8 +28,7 @@ local-command-block.sh - ローカル環境のコマンド実行をブロック
   echo '{"tool_input":{"command":"python3 script.py"}}' | ./local-command-block.sh
 
 説明:
-  Python, Node.js, PHP, Ruby, Go などのコマンドを
-  Docker外で直接実行しようとした場合にブロックします。
+  Python, Node.js, PHP, Ruby, Go などのコマンドをDocker外で直接実行しようとした場合にブロックします。
   docker exec/run/compose 経由の実行は許可されます。
   Runnerサブコマンド (npm run, poetry run, cargo build 等) も許可されます。
   難読化によるバイパス (base64, eval, hex, curl|sh 等) も検知します。

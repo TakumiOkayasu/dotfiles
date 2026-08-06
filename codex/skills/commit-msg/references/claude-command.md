@@ -1,13 +1,13 @@
 # コミット準備
 
-<!-- codex-port: managed; source=claude/commands/commit.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/commands/commit.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/commands/commit.md`.
+- This file was ported from `common/commands/commit.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 コミットメッセージを生成し、コミット準備を行う
@@ -33,14 +33,14 @@ git status && git diff --staged
 
 Conventional Commits形式で日本語メッセージを提案:
 
-```text
+```markdown
 <type>: <description>
 
 <body>(任意)
 ```
 
 | type | 用途 |
-|------|------|
+| ------ | ------ |
 | feat | 新機能 |
 | fix | バグ修正 |
 | docs | ドキュメント |

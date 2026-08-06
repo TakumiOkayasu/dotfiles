@@ -9,12 +9,11 @@ Claude Code 用の `agents/`、`commands/`、`hooks/`、`rules/`、`skills/` を
 | `claude/global_CLAUDE.md` | `codex/global_AGENTS.md` | `~/.codex/AGENTS.md` にリネームして配置 |
 | `claude/SUBAGENTS.md` | `codex/SUBAGENTS.md` | `~/.codex/SUBAGENTS.md` に配置する subagent mechanics |
 | `claude/agents/*.md` | `codex/agents/*.toml` | `~/.codex/agents/*.toml` に配置する Codex custom agent 定義 |
-| `claude/rules/` | `codex/rules/` | 参照用の設計・実装ルール |
-| `claude/skills/` | `codex/skills/` | plugin 配布用 source。plugin-only mode では `install.sh` の配置対象外 |
-| `claude/commands/` | `codex/skills/*/references/claude-command.md` | Codex-native skill が必要時に読む詳細手順 |
+| `common/rules/` | `codex/rules/` | 共有正本から生成する設計と実装のルール |
+| `common/skills/` | `codex/skills/` | 共有正本から生成するplugin配布用view |
+| `common/commands/` | `codex/skills/*/references/claude-command.md` | Codex-native skillが必要時に読む詳細手順 |
 | `claude/hooks/` | `codex/hooks/` | `config.toml.template` の inline hook から呼ばれる Codex hook 実体 |
 | `claude/bin/` | `codex/bin/` | 補助スクリプト |
-| `claude/settings.json` | `codex/reference/claude-settings.reference.json` | 参照用。install対象外 |
 | `claude/settings.json` の hooks | `codex/config.toml.template` | `~/.codex/config.toml` 初回生成用 template。hook 定義は inline TOML |
 
 ## 使い方
@@ -28,7 +27,8 @@ Claude Code 用の `agents/`、`commands/`、`hooks/`、`rules/`、`skills/` を
 ./install.sh
 ```
 
-対話モードでは `Codex設定` を選ぶ。全設定をまとめて入れる場合は `./install.sh -f` を使う。
+- 対話モードでは `Codex設定` を選ぶ。
+- 全設定をまとめて入れる場合は `./install.sh -f` を使う。
 
 インストール後は主に次のリンクが作成される。
 
@@ -41,9 +41,8 @@ Claude Code 用の `agents/`、`commands/`、`hooks/`、`rules/`、`skills/` を
 | `~/.codex/agents/` | `codex/agents/` |
 | `~/.codex/hooks/` | `codex/hooks/` |
 | `~/.codex/rules/` | `codex/rules/` |
-| `~/.codex/prompts/commands/` | `codex/prompts/commands/` |
 
-`codex/README.md`、`codex/reference/`、`codex/config.toml.template` はリポジトリ内の参照資料であり、`~/.codex/` にはリンク配置しない。`~/.codex/config.toml` が存在しない場合のみ template から通常ファイルとして生成する。
+`codex/README.md` と `codex/config.toml.template` は `~/.codex/` へリンク配置しない。`~/.codex/config.toml` が存在しない場合のみ template から通常ファイルとして生成する。
 
 `codex/*.config.toml` は選択可能なprofileであり、`~/.codex/*.config.toml` へsymlink配置する。
 
@@ -113,41 +112,42 @@ cp codex/global_AGENTS.md AGENTS.md
 
 ## skills / rules
 
-- `codex/skills/` は plugin 配布用 source。plugin-only mode では `install.sh` で `~/.agents/skills/` に重複配置しない。
+- `common/skills/` は共有skillの正本。`codex/skills/` は共有skillの生成viewとCodex-native skillを保持する。
+- `codex/skills/` はplugin配布用sourceとして扱い、plugin-only modeでは `install.sh` で `~/.agents/skills/` に重複配置しない。
 - `plugins/dotfile-work-codex*` は `codex/skills` / `codex/rules` / `codex/hooks` / `codex/bin` から生成するローカル bundle。Git 管理しない。
-- Claude由来skillは `port-claude-assets-to-codex.py` でCodexのruntime contractへ変換してから配布する。
-- `verify-codex-plugin.py` はsourceとpluginのskill集合、重複、ファイル内容を検証する。
+- 共有skillは `port-claude-assets-to-codex.py` でCodexのruntime contractへ変換してから配布する。
+- `verify-codex-plugin.py` はcommon正本、Codex生成view、pluginの集合と内容を検証する。
 - core pluginのrule hookはinline dispatcherを検出した場合に処理を譲り、plugin未導入時はinline hookをfallbackとして使う。
 - `codex/rules/` は参照資料。Codex が自動的に常時ロードする前提にはしない。
 - 常時必要な運用ルールは `codex/global_AGENTS.md` に直接集約する。
 - vendor skill の更新は自動実行しない。必要な場合のみ `~/.codex/bin/vendor-skills-update-manual.sh` を手動実行する。
 
-plugin bundle を更新する場合は次を実行する。
+plugin bundle を更新する場合は次を実行する:
 
 ```bash
-python3 scripts/generate-standard-workflow-skills.py --repo . --overwrite
-python3 scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup --prune
-python3 scripts/apply-codex-performance-profile.py --repo .
-python3 scripts/sync-codex-plugin.py --repo . --clean
-python3 scripts/verify-codex-plugin.py --repo .
+uv run python scripts/generate-standard-workflow-skills.py --repo . --overwrite
+uv run python scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup --prune
+uv run python scripts/apply-codex-performance-profile.py --repo .
+uv run python scripts/sync-codex-plugin.py --repo . --clean
+uv run python scripts/verify-codex-plugin.py --repo .
 ```
 
 既存の `codex/skills/` を bundle に反映するだけなら、`generate-standard-workflow-skills.py` は省略してよい。
 
-Claude側のskill/command/ruleを再移植する場合は次を実行する。
+common正本をCodex生成viewへ再反映する場合は次を実行する:
 
 ```bash
-python3 scripts/generate-standard-workflow-skills.py --repo . --overwrite
-python3 scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup --prune
-python3 scripts/apply-codex-performance-profile.py --repo .
-python3 scripts/sync-codex-plugin.py --repo . --clean
-python3 scripts/verify-codex-plugin.py --repo .
+uv run python scripts/generate-standard-workflow-skills.py --repo . --overwrite
+uv run python scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup --prune
+uv run python scripts/apply-codex-performance-profile.py --repo .
+uv run python scripts/sync-codex-plugin.py --repo . --clean
+uv run python scripts/verify-codex-plugin.py --repo .
 ```
 
 個人環境の `~/.codex/plugins/` と `~/.agents/plugins/marketplace.json` に配置する場合は次を実行する。
 
 ```bash
-python3 scripts/install-codex-plugin-personal.py --repo .
+uv run python scripts/install-codex-plugin-personal.py --repo .
 ```
 
 配置後は Codex を再起動し、`/plugins` で `dotfile-work-codex` を有効化する。`dotfile-work-codex-extra` は必要な時だけ有効化する。
@@ -187,8 +187,6 @@ Codex hook は `~/.codex/config.toml` の inline TOML から読み込む。`inst
 - `SessionStart`: ルール・スキル・環境状態の表示
 
 hook は補助的な安全機構であり、完全な enforcement 境界ではない。`apply_patch` など一部編集系は hook 側でも検知するが、最終的には `codex/global_AGENTS.md` の指示とテスト・レビューで補完する。
-
-`codex/reference/claude-settings.reference.json` は Claude Code 形式の hook 定義を Codex パスに置き換えた参照用ファイル。Codex 本体がこの JSON を自動で解釈する前提にはしない。
 
 既存の `~/.codex/hooks.json` がある場合、`install.sh` は自動削除しない。inline hooks へ移行済みで不要なら手動で退避する。
 

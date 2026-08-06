@@ -1,5 +1,5 @@
 ---
-# codex_port_source: claude/skills/arch/SKILL.md
+# codex_port_source: common/skills/arch/SKILL.md
 name: arch
 description: クラス・モジュールのアーキテクチャ設計時に使用。レイヤー構造の決定、コンポーネントの配置、モジュール/レイヤー間の責務分割、合成と継承の判断、依存関係の整理をカバー。新規コンポーネント追加や既存設計のリファクタリング時に発動。「レイヤー構造」「合成と継承」もトリガー。常に守る不変条件は hierarchical-architecture ルール、疑似コードからのインターフェース起こしは interface-first-design スキルを参照。
 effort: high
@@ -7,14 +7,14 @@ effort: high
 
 # Architecture Design
 
-<!-- codex-port: managed; source=claude/skills/arch/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/arch/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/arch/SKILL.md`.
+- This file was ported from `common/skills/arch/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 コンポーネントをどのレイヤーに置き、どう責務分割し、合成で組み立てるかの設計手順。常に守る不変条件 (依存方向・継承深度・命名等) は `hierarchical-architecture` ルールにあり、本スキルはその不変条件を満たす設計の進め方を扱う。

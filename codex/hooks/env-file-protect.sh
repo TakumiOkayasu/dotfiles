@@ -18,8 +18,9 @@ env-file-protect.sh - .envファイルの読み取り/編集をブロック
   echo '{"tool_name":"Read","tool_input":{"file_path":".env.local"}}' | ./env-file-protect.sh
 
 説明:
-  .envファイル(.env, .env.local, .env.production 等)の読み取り・編集を
-  ブロックします。以下は許可されます:
+  .envファイル(.env, .env.local, .env.production 等)の読み取り・編集をブロックします。
+  以下は許可されます:
+
     - .env.example, .env.sample, .env.template, .env.dist (テンプレート)
     - .envファイルの存在確認(test -f, ls)
 

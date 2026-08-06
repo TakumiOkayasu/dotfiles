@@ -1,5 +1,5 @@
 ---
-# codex_port_source: claude/skills/semantic-generation/SKILL.md
+# codex_port_source: common/skills/semantic-generation/SKILL.md
 name: semantic-generation
 description: |
   対象文書 (設計資料・要求からの設計・調査報告・原因切り分け案・対策案・命名・推論順序の要約) を書く前に、対応表 (referent table) を独立成果物として先に提出し、語より先に指示対象と役割を固定する生成手順.
@@ -9,14 +9,14 @@ description: |
 
 # 語より先に対象を固定する生成手順
 
-<!-- codex-port: managed; source=claude/skills/semantic-generation/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/semantic-generation/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/semantic-generation/SKILL.md`.
+- This file was ported from `common/skills/semantic-generation/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 対象が曖昧なまま語 (しばしばその場の造語) を先に置き、その語を土台に思考を進めると、指示対象とのずれが訂正されないまま日本語文・設計文・コード識別子へ波及する。

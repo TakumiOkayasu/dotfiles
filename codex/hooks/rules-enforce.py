@@ -16,9 +16,9 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
 
 MAX_REPORT_ITEMS = int(os.environ.get("CODEX_RULES_MAX_REPORT_ITEMS", "25"))
 STRICT = os.environ.get("CODEX_RULES_STRICT", "1") != "0"
@@ -199,140 +199,182 @@ def violation(rule: str, item: AddedLine, message: str, severity: str = "BLOCK")
     return Violation(rule, item.path, item.line_no, message, evidence, severity)
 
 
-def scan_added_lines(lines: Iterable[AddedLine]) -> list[Violation]:
+def scan_dependency_line(
+    item: AddedLine,
+    in_dependency_section: dict[str, bool],
+    dependency_depth: dict[str, int],
+) -> list[Violation]:
+    path = item.path
+    text = item.text
+    if DEPENDENCY_SECTION_RE.search(text):
+        in_dependency_section[path] = True
+        dependency_depth[path] = text.count("{") - text.count("}")
+        return []
+    if not in_dependency_section.get(path):
+        return []
+
+    dependency_depth[path] = dependency_depth.get(path, 0) + text.count("{") - text.count("}")
     violations: list[Violation] = []
-    in_dependency_section: dict[str, bool] = {}
-    dep_depth: dict[str, int] = {}
-
-    for item in lines:
-        path = item.path
-        if should_skip(path):
-            continue
-        e = ext(path)
-        text = item.text
-        stripped = text.strip()
-        lower_path = path.lower()
-
-        # Allow intentional local escapes only with explicit reason.
-        if has_ignore(text):
-            # Require a reason after the marker to avoid silent blanket ignores.
-            if re.search(r"codex-rule-ignore(?::|\s+-\s+).{8,}", text):
-                continue
-            violations.append(violation("RULES_CORE", item, "codex-rule-ignore requires a concrete reason."))
-            continue
-
-        # package dependency guard
-        if path.endswith("package.json"):
-            if DEPENDENCY_SECTION_RE.search(text):
-                in_dependency_section[path] = True
-                dep_depth[path] = text.count("{") - text.count("}")
-                continue
-            if in_dependency_section.get(path):
-                dep_depth[path] = dep_depth.get(path, 0) + text.count("{") - text.count("}")
-                if DEPENDENCY_LINE_RE.match(text):
-                    if LATEST_OR_WILDCARD_RE.search(text):
-                        violations.append(violation("implementation-policy.md", item, "Dependency version must not use latest or wildcard."))
-                    elif not ALLOW_DEPENDENCY_CHANGE:
-                        violations.append(violation("implementation-policy.md", item, "Dependency changes require explicit approval and audit. Set CODEX_RULES_ALLOW_DEPENDENCY_CHANGE=1 only after approval."))
-                if dep_depth.get(path, 0) <= 0:
-                    in_dependency_section[path] = False
-            continue
-
-        if not is_code(path):
-            # Test assertion rule can still apply in non-code snapshots? keep code only.
-            continue
-
-        comment_only = is_comment_only(text, path)
-
-        # coding-conventions: strict equality.
-        if e in JS_EXTS and not comment_only:
-            if LOOSE_EQUAL_RE.search(text):
-                violations.append(violation("coding-conventions.md", item, "Use strict equality (`===` / `!==`) or add an explicit codex-rule-ignore reason."))
-            if EXPLICIT_BOOL_RE.search(text):
-                violations.append(violation("coding-conventions.md", item, "Do not compare booleans with `=== true` / `=== false`; use truthy/falsy form."))
-            if e in TS_EXTS and ANY_RE.search(text):
-                violations.append(violation("coding-conventions.md", item, "Do not use `any`; use `unknown`, `object`, generics, or a concrete type."))
-            if PROMISE_CHAIN_RE.search(text):
-                violations.append(violation("coding-conventions.md", item, "Avoid Promise chains; prefer async/await."))
-            if CONSOLE_RE.search(text) and not is_test(path):
-                violations.append(violation("implementation-policy.md", item, "Do not use console.* directly in production code; use the project logger."))
-
-        if e in PY_EXTS and not comment_only:
-            if PY_PRINT_RE.search(text) and not is_test(path) and "/scripts/" not in f"/{path}":
-                violations.append(violation("implementation-policy.md", item, "Do not use print() directly in production code; use the project logger."))
-            if BROAD_CATCH_RE.search(text):
-                violations.append(violation("coding-conventions.md", item, "Avoid broad Exception/BaseException catches unless handling is specific and justified."))
-            if EMPTY_CATCH_RE.search(text):
-                violations.append(violation("coding-conventions.md", item, "Do not use empty exception handlers or `pass` catches."))
-
-        if not comment_only:
-            if BROAD_CATCH_RE.search(text) and e not in PY_EXTS:
-                violations.append(violation("coding-conventions.md", item, "Avoid broad catch clauses; catch specific errors or rethrow with context."))
-            if EMPTY_CATCH_RE.search(text) and e not in PY_EXTS:
-                violations.append(violation("coding-conventions.md", item, "Empty catch block is forbidden."))
-            if TODO_RE.search(text):
-                violations.append(violation("coding-conventions.md", item, "TODO must use `TODO(@user): content` or the project existing format."))
-            if TO_BE_DEFINED_RE.search(text) and is_test(path):
-                violations.append(violation("coding-conventions.md", item, "Do not use toBeDefined()-only assertions; assert concrete behavior."))
-
-        if COMMENTED_OUT_CODE_RE.search(text):
-            violations.append(violation("coding-conventions.md", item, "Do not add commented-out code; delete it and rely on git history."))
-
+    if DEPENDENCY_LINE_RE.match(text):
+        if LATEST_OR_WILDCARD_RE.search(text):
+            violations.append(violation("implementation-policy.md", item, "Dependency version must not use latest or wildcard."))
+        elif not ALLOW_DEPENDENCY_CHANGE:
+            violations.append(violation("implementation-policy.md", item, "Dependency changes require explicit approval and audit. Set CODEX_RULES_ALLOW_DEPENDENCY_CHANGE=1 only after approval."))
+    if dependency_depth.get(path, 0) <= 0:
+        in_dependency_section[path] = False
     return violations
 
 
-def scan_function_length(root: Path, paths: Iterable[str]) -> list[Violation]:
-    """Approximate function-length guard for changed JS/TS/Python files.
+def scan_javascript_line(item: AddedLine, suffix: str) -> list[Violation]:
+    violations: list[Violation] = []
+    text = item.text
+    if LOOSE_EQUAL_RE.search(text):
+        violations.append(violation("coding-conventions.md", item, "Use strict equality (`===` / `!==`) or add an explicit codex-rule-ignore reason."))  # codex-rule-ignore: scanner diagnostic names its supported suppression marker
+    if EXPLICIT_BOOL_RE.search(text):
+        violations.append(violation("coding-conventions.md", item, "Do not compare booleans with `=== true` / `=== false`; use truthy/falsy form."))
+    if suffix in TS_EXTS and ANY_RE.search(text):
+        violations.append(violation("coding-conventions.md", item, "Do not use `any`; use `unknown`, `object`, generics, or a concrete type."))
+    if PROMISE_CHAIN_RE.search(text):
+        violations.append(violation("coding-conventions.md", item, "Avoid Promise chains; prefer async/await."))
+    if CONSOLE_RE.search(text) and not is_test(item.path):
+        violations.append(violation("implementation-policy.md", item, "Do not use console.* directly in production code; use the project logger."))
+    return violations
 
-    This is intentionally conservative: it only reports newly/modified files when
-    a simple top-level function shape is obviously longer than the 30-line rule.
-    """
+
+def scan_python_line(item: AddedLine) -> list[Violation]:
+    violations: list[Violation] = []
+    text = item.text
+    if PY_PRINT_RE.search(text) and not is_test(item.path) and "/scripts/" not in f"/{item.path}":
+        violations.append(violation("implementation-policy.md", item, "Do not use print() directly in production code; use the project logger."))  # codex-rule-ignore: scanner diagnostic names the blocked function
+    if BROAD_CATCH_RE.search(text):
+        violations.append(violation("coding-conventions.md", item, "Avoid broad Exception/BaseException catches unless handling is specific and justified."))
+    if EMPTY_CATCH_RE.search(text):
+        violations.append(violation("coding-conventions.md", item, "Do not use empty exception handlers or `pass` catches."))
+    return violations
+
+
+def scan_common_code_line(item: AddedLine, suffix: str) -> list[Violation]:
+    violations: list[Violation] = []
+    text = item.text
+    if BROAD_CATCH_RE.search(text) and suffix not in PY_EXTS:
+        violations.append(violation("coding-conventions.md", item, "Avoid broad catch clauses; catch specific errors or rethrow with context."))
+    if EMPTY_CATCH_RE.search(text) and suffix not in PY_EXTS:
+        violations.append(violation("coding-conventions.md", item, "Empty catch block is forbidden."))
+    if TODO_RE.search(text):  # codex-rule-ignore: scanner implementation must invoke its task-marker rule
+        violations.append(violation("coding-conventions.md", item, "TODO must use `TODO(@user): content` or the project existing format."))  # codex-rule-ignore: scanner diagnostic names the required task marker
+    if TO_BE_DEFINED_RE.search(text) and is_test(item.path):
+        violations.append(violation("coding-conventions.md", item, "Do not use toBeDefined()-only assertions; assert concrete behavior."))
+    return violations
+
+
+def scan_added_lines(lines: Iterable[AddedLine]) -> list[Violation]:
+    violations: list[Violation] = []
+    in_dependency_section: dict[str, bool] = {}
+    dependency_depth: dict[str, int] = {}
+
+    for item in lines:
+        if should_skip(item.path):
+            continue
+        if has_ignore(item.text):
+            if not re.search(r"codex-rule-ignore(?::|\s+-\s+).{8,}", item.text):  # codex-rule-ignore: scanner definition validates this marker
+                violations.append(violation("RULES_CORE", item, "codex-rule-ignore requires a concrete reason."))  # codex-rule-ignore: scanner diagnostic names its supported suppression marker
+            continue
+        if item.path.endswith("package.json"):
+            violations.extend(scan_dependency_line(item, in_dependency_section, dependency_depth))
+            continue
+        if not is_code(item.path):
+            continue
+
+        suffix = ext(item.path)
+        comment_only = is_comment_only(item.text, item.path)
+        if suffix in JS_EXTS and not comment_only:
+            violations.extend(scan_javascript_line(item, suffix))
+        if suffix in PY_EXTS and not comment_only:
+            violations.extend(scan_python_line(item))
+        if not comment_only:
+            violations.extend(scan_common_code_line(item, suffix))
+        if COMMENTED_OUT_CODE_RE.search(item.text):
+            violations.append(violation("coding-conventions.md", item, "Do not add commented-out code; delete it and rely on git history."))
+    return violations
+
+
+def function_length_violation(rel: str, start: int, line: str, length: int) -> Violation:
+    return Violation(
+        "coding-conventions.md",
+        rel,
+        start,
+        f"Function appears too long ({length} lines). Split around single responsibilities.",
+        line.strip(),
+    )
+
+
+def scan_python_function_lengths(rel: str, file_lines: list[str]) -> list[Violation]:
+    starts = [
+        (idx, line)
+        for idx, line in enumerate(file_lines, 1)
+        if re.match(r"^\s*def\s+\w+\s*\(", line)
+    ]
+    violations: list[Violation] = []
+    for start, line in starts:
+        indent = len(line) - len(line.lstrip(" "))
+        end = len(file_lines) + 1
+        for index in range(start, len(file_lines)):
+            candidate = file_lines[index]
+            candidate_indent = len(candidate) - len(candidate.lstrip(" "))
+            if candidate.strip() and candidate_indent <= indent and not candidate.lstrip().startswith(("#", "@")):
+                end = index + 1
+                break
+        length = end - start
+        if length > 45:
+            violations.append(function_length_violation(rel, start, line, length))
+    return violations
+
+
+def scan_javascript_function_lengths(rel: str, file_lines: list[str]) -> list[Violation]:
+    function_re = re.compile(r"\b(function\s+\w+|const\s+\w+\s*=\s*(async\s*)?\([^)]*\)\s*=>|\w+\s*\([^)]*\)\s*\{)")
+    starts = [(idx, line) for idx, line in enumerate(file_lines, 1) if function_re.search(line)]
+    violations: list[Violation] = []
+    for start, line in starts:
+        brace_depth = line.count("{") - line.count("}")
+        if brace_depth <= 0:
+            continue
+        end = start
+        for index in range(start, len(file_lines)):
+            brace_depth += file_lines[index].count("{") - file_lines[index].count("}")
+            if brace_depth <= 0:
+                end = index + 1
+                break
+        length = end - start + 1 if end >= start else 0
+        if length > 45:
+            violations.append(function_length_violation(rel, start, line, length))
+    return violations
+
+
+def scan_file_function_lengths(root: Path, rel: str) -> list[Violation]:
+    path = root / rel
+    if not path.is_file():
+        return []
+    suffix = ext(rel)
+    if suffix not in JS_EXTS and suffix not in PY_EXTS:
+        return []
+    try:
+        file_lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:  # codex-rule-ignore: handler returns safely on the following line
+        return []
+    if suffix in PY_EXTS:
+        return scan_python_function_lengths(rel, file_lines)
+    return scan_javascript_function_lengths(rel, file_lines)
+
+
+def scan_function_length(root: Path, paths: Iterable[str]) -> list[Violation]:
+    """Report obviously overlong functions in changed JS/TS/Python files."""
     if os.environ.get("CODEX_RULES_CHECK_FUNCTION_LENGTH", "1") == "0":
         return []
     violations: list[Violation] = []
     for rel in sorted(paths):
         if should_skip(rel) or not is_code(rel):
             continue
-        p = root / rel
-        if not p.is_file():
-            continue
-        e = ext(rel)
-        if e not in JS_EXTS and e not in PY_EXTS:
-            continue
-        try:
-            file_lines = p.read_text(encoding="utf-8", errors="replace").splitlines()
-        except Exception:
-            continue
-        if e in PY_EXTS:
-            starts = [(idx, line) for idx, line in enumerate(file_lines, 1) if re.match(r"^\s*def\s+\w+\s*\(", line)]
-            for i, (start, line) in enumerate(starts):
-                indent = len(line) - len(line.lstrip(" "))
-                end = len(file_lines) + 1
-                for j in range(start, len(file_lines)):
-                    l = file_lines[j]
-                    if l.strip() and (len(l) - len(l.lstrip(" "))) <= indent and not l.lstrip().startswith(("#", "@")):
-                        end = j + 1
-                        break
-                length = end - start
-                if length > 45:  # hard gate above guideline to reduce false positives
-                    violations.append(Violation("coding-conventions.md", rel, start, f"Function appears too long ({length} lines). Split around single responsibilities.", line.strip()))
-        else:
-            starts = [(idx, line) for idx, line in enumerate(file_lines, 1) if re.search(r"\b(function\s+\w+|const\s+\w+\s*=\s*(async\s*)?\([^)]*\)\s*=>|\w+\s*\([^)]*\)\s*\{)", line)]
-            for start, line in starts:
-                brace = line.count("{") - line.count("}")
-                if brace <= 0:
-                    continue
-                end = start
-                for j in range(start, len(file_lines)):
-                    if j + 1 == start:
-                        continue
-                    brace += file_lines[j].count("{") - file_lines[j].count("}")
-                    if brace <= 0:
-                        end = j + 1
-                        break
-                length = end - start + 1 if end >= start else 0
-                if length > 45:
-                    violations.append(Violation("coding-conventions.md", rel, start, f"Function appears too long ({length} lines). Split around single responsibilities.", line.strip()))
+        violations.extend(scan_file_function_lengths(root, rel))
     return violations
 
 

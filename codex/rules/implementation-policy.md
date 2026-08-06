@@ -1,13 +1,13 @@
 # Implementation Policy
 
-<!-- codex-port: managed; source=claude/rules/implementation-policy.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/rules/implementation-policy.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/rules/implementation-policy.md`.
+- This file was ported from `common/rules/implementation-policy.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 車輪の再発明をしない。技術選定・ライブラリ利用・データアクセスの方針。
@@ -46,7 +46,6 @@
 - 複雑な集計 (CTE / window 関数): ORM で表現困難なことを示す
 - DB 固有機能: 移植性を捨てる判断を明示する
 - 読み取り専用レポート: ビュー定義または生 SQL、レビュー必須
-
 
 ## Codex rule loading
 

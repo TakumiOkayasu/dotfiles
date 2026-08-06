@@ -6,6 +6,7 @@ description: Code review for a diff, file, PR, or implementation result. Use for
 # Code Review
 
 ## Goal
+
 Review real code evidence only.
 
 ## Steps
@@ -17,6 +18,7 @@ Review real code evidence only.
 5. Every finding must include file:line, evidence, impact, and fix proposal.
 
 ## Output
+
 - PASS / WARN / BLOCK
 - Findings ordered by severity
 - Fix proposals
@@ -24,7 +26,7 @@ Review real code evidence only.
 
 ## Common contract
 
-- Plugin-only operation: use `$skill` / `@skill` or `/skills`; no `/prompt:*` or `prompt:*`.
+- Plugin-only operation: use `$skill` or `/skills`; no `/prompt:*` or `prompt:*`.
 - Apply mandatory rules before editing, reviewing, testing, or implementation conclusions.
 - Keep diffs minimal and scoped.
 - Report unverified items and skipped checks.

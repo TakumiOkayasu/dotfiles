@@ -1,19 +1,19 @@
 ---
-# codex_port_source: claude/skills/consult/SKILL.md
+# codex_port_source: common/skills/consult/SKILL.md
 name: consult
 description: 実装中に判断が必要になった時、技術選定・設計相談が必要な時に使用。相談テンプレートで構造化された問題提示を強制。「どっちがいい」「どう設計するか」「迷ってる」「技術選定」「比較して」もトリガー。
 ---
 
 # Consultation
 
-<!-- codex-port: managed; source=claude/skills/consult/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/consult/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/consult/SKILL.md`.
+- This file was ported from `common/skills/consult/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## トリガー条件
@@ -47,7 +47,7 @@ description: 実装中に判断が必要になった時、技術選定・設計�
 本スキルは「判断の相談」に特化する。以下の隣接領域は別スキルに委譲する:
 
 | 状況 | 委譲先 |
-|---|---|
+| --- | --- |
 | レイヤー構造・責務配置・合成と継承を Codex 自身が設計する | `arch` |
 | 新規 interface 設計・責務分割・依存関係整理 | `interface-first-design`（疑似コード→interface→クラス→TDD） |
 | バグの原因分析・仮説構築 | `systematic-debugging`（Phase 1-4、「なぜ?」3-5回） |
@@ -110,7 +110,7 @@ description: 実装中に判断が必要になった時、技術選定・設計�
 ## 役割分担
 
 | CodexCode (ここ) | スマホ・PCクライアント |
-|-------------------|----------------------|
+| ------------------- | ---------------------- |
 | コーディング・ファイル操作 | 問題の整理・分析 |
 | テスト実行・デバッグ | 解決方針・アーキテクチャ設計 |
 
@@ -121,11 +121,13 @@ description: 実装中に判断が必要になった時、技術選定・設計�
 相談送信時は必ずテンプレートの全セクションを含めること。省略不可。
 
 **良い例**:
+
 ```
 ✅ 「JWTの保存場所、localStorageとhttpOnly Cookieで迷っている。XSS vs CSRF のトレードオフ」
 ```
 
 **悪い例**:
+
 ```
 ❌ 「認証がうまくいかない。どうすればいい?」
 ```

@@ -1,13 +1,19 @@
-FROM ubuntu:24.04
+FROM python:slim
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_ROOT_USER_ACTION=ignore \
+    PYTHONWARNINGS=error
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     stow \
     bash \
     coreutils \
-    python3 \
-    python3-pytest \
     && rm -rf /var/lib/apt/lists/*
+
+RUN python -m pip install --no-cache-dir pytest
 
 RUN git config --global user.email "test@test.com" && \
     git config --global user.name "Test" && \
@@ -16,4 +22,4 @@ RUN git config --global user.email "test@test.com" && \
 WORKDIR /workspace
 COPY . /workspace/
 
-ENTRYPOINT ["python3", "-m", "pytest", "tests/test_install.py", "tests/test_qa_nightmare.py", "tests/test_qa_nightmare_preflight.py", "tests/test_port_claude_assets.py", "-v"]
+ENTRYPOINT ["python", "-m", "pytest", "tests/test_install.py", "tests/test_qa_nightmare.py", "tests/test_qa_nightmare_preflight.py", "tests/test_port_claude_assets.py", "-v"]

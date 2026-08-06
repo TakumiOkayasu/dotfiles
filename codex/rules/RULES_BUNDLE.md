@@ -1,10 +1,12 @@
-# RULES_BUNDLE
+# Codex Rules Bundle
 
-Generated at: 2026-07-30T16:42:54+09:00 JST
+このファイルは hook/context injection 用の連結 rules bundle です。直接編集せず、元 rule を編集して再生成してください。
 
-This file is generated from `codex/rules/*.md`. Do not edit it directly.
+Generated at: 2026-08-06T21:47:03+09:00 JST
 
 ---
+
+## Source: `codex/rules/RULES_CORE.md`
 
 # RULES_CORE
 
@@ -41,21 +43,20 @@ When instructions conflict, follow the higher-priority source and report the con
 
 Treat as high-risk: DB schema, public API/SDK/CLI contract, auth/authorization, secrets, payments, dependency add/remove/update, data migration/destructive change, 100+ changed lines, multiple services, or unclear requirements.
 
-
 ---
 
-# RULE FILE: coding-conventions.md
+## Source: `codex/rules/coding-conventions.md`
 
 # Coding Conventions
 
-<!-- codex-port: managed; source=claude/rules/coding-conventions.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/rules/coding-conventions.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/rules/coding-conventions.md`.
+- This file was ported from `common/rules/coding-conventions.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 言語非依存のコード規約。プロジェクト固有の規約があればそれを優先する。
@@ -139,26 +140,24 @@ Treat as high-risk: DB schema, public API/SDK/CLI contract, auth/authorization, 
 
 アサーションは具体値を検証し、振る舞いを実際に判定するテストだけを書く。トートロジー・`toBeDefined()` のみ・カバレッジ稼ぎは書かない。書く前に「何を検証するか」を 1 行で言語化できること。AAA 構造 (Arrange/Act/Assert)、1 テスト 1 概念、テスト間の状態共有・順序依存をなしにする。命名は `should_<expected>_when_<condition>`。詳細は `$tdd` を参照。
 
-
 ## Codex rule loading
 
 This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
-
 ---
 
-# RULE FILE: hallucination-prevention.md
+## Source: `codex/rules/hallucination-prevention.md`
 
 # Hallucination Prevention
 
-<!-- codex-port: managed; source=claude/rules/hallucination-prevention.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/rules/hallucination-prevention.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/rules/hallucination-prevention.md`.
+- This file was ported from `common/rules/hallucination-prevention.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 「たぶん正しい」で出力しない。不確実なものは不確実と明示する。
@@ -186,26 +185,24 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 - ユーザーが自分で確認できる手順を案内する
 - 間違いに気づいたら影響範囲を説明し、即訂正する
 
-
 ## Codex rule loading
 
 This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
-
 ---
 
-# RULE FILE: hierarchical-architecture.md
+## Source: `codex/rules/hierarchical-architecture.md`
 
 # Architecture Invariants
 
-<!-- codex-port: managed; source=claude/rules/hierarchical-architecture.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/rules/hierarchical-architecture.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/rules/hierarchical-architecture.md`.
+- This file was ported from `common/rules/hierarchical-architecture.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 アーキテクチャ上、常に守る不変条件。設計の手順・判断は `arch` スキルを参照する。
@@ -244,26 +241,24 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 
 アプリケーションコードは `Intent` (意図レベルのデータ) のみに依存し、`Raw Input` (引数・パス文字列等の生データ) を直接扱わない。
 
-
 ## Codex rule loading
 
 This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
-
 ---
 
-# RULE FILE: implementation-policy.md
+## Source: `codex/rules/implementation-policy.md`
 
 # Implementation Policy
 
-<!-- codex-port: managed; source=claude/rules/implementation-policy.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/rules/implementation-policy.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/rules/implementation-policy.md`.
+- This file was ported from `common/rules/implementation-policy.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 車輪の再発明をしない。技術選定・ライブラリ利用・データアクセスの方針。
@@ -303,26 +298,24 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 - DB 固有機能: 移植性を捨てる判断を明示する
 - 読み取り専用レポート: ビュー定義または生 SQL、レビュー必須
 
-
 ## Codex rule loading
 
 This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
-
 ---
 
-# RULE FILE: natural-japanese.md
+## Source: `codex/rules/natural-japanese.md`
 
 # Natural Japanese
 
-<!-- codex-port: managed; source=claude/rules/natural-japanese.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/rules/natural-japanese.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/rules/natural-japanese.md`.
+- This file was ported from `common/rules/natural-japanese.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 あなたの日本語は AI だと簡単に分かる。表層の癖を消すだけでなく、論証に穴を残さない。書き上げたら本ルールで点検する。
@@ -447,26 +440,24 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 - その根拠は著者の断定ではなく、読者自身の経験に訴える一般的事実や通説に求める。
 - 確認していないことを、確認したかのように滑らかに書かない。
 
-
 ## Codex rule loading
 
 This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
-
 ---
 
-# RULE FILE: opus-47-policy.md
+## Source: `codex/rules/opus-47-policy.md`
 
 # Session Memory Policy
 
-<!-- codex-port: managed; source=claude/rules/opus-47-policy.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/rules/opus-47-policy.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/rules/opus-47-policy.md`.
+- This file was ported from `common/rules/opus-47-policy.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 長時間 / マルチセッションタスクの継続性を、ファイルシステム上の 3 層で担保する。
@@ -545,26 +536,24 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 - マージ済みブランチに対応する `notes/{task-id}.md` は `git-cleanup-branch` 時に `notes/archive/` へ移動する
 - `scratch/` は 30 日以上更新のないファイルを自由に削除可
 
-
 ## Codex rule loading
 
 This rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.
 
-
 ---
 
-# RULE FILE: referent-before-label.md
+## Source: `codex/rules/referent-before-label.md`
 
 # 語より先に指示対象を固定する
 
-<!-- codex-port: managed; source=claude/rules/referent-before-label.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/rules/referent-before-label.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/rules/referent-before-label.md`.
+- This file was ported from `common/rules/referent-before-label.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 <!-- codex-runtime-summary -->
@@ -604,7 +593,6 @@ This rule must be treated as mandatory whenever it is injected by `rules-inject.
 
 - 対象文書なのに対応表を提出せず本文を書き始めたことに気づいたら、後付けで表を追記して継続しない。本文を破棄し、対応表を独立提出し直してから本文を再生成する。
 - skill が利用できない環境では、最低 6 列 (出典・目的・具体対象・役割・前後関係・候補語)の対応表を作業ディレクトリに独立ファイルとして保存してから本文に着手する。
-
 
 ## Codex rule loading
 

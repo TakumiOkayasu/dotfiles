@@ -5,11 +5,11 @@ description: Synchronize codex assets into the local plugin bundle and verify pl
 
 # Plugin Sync
 
-Run `python3 scripts/generate-standard-workflow-skills.py --repo . --overwrite`, then `python3 scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup --prune`, then `python3 scripts/apply-codex-performance-profile.py --repo .`, then `python3 scripts/sync-codex-plugin.py --repo . --clean`, then `python3 scripts/verify-codex-plugin.py --repo .`. Stop on the first failure.
+Run `uv run python scripts/generate-standard-workflow-skills.py --repo . --overwrite`, then `uv run python scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup --prune`, then `uv run python scripts/apply-codex-performance-profile.py --repo .`, then `uv run python scripts/sync-codex-plugin.py --repo . --clean`, then `uv run python scripts/verify-codex-plugin.py --repo .`. Stop on the first failure.
 
 ## Common contract
 
-- Plugin-only operation: use `$skill` / `@skill` or `/skills`; no `/prompt:*` or `prompt:*`.
+- Plugin-only operation: use `$skill` or `/skills`; no `/prompt:*` or `prompt:*`.
 - Apply mandatory rules before editing, reviewing, testing, or implementation conclusions.
 - Keep diffs minimal and scoped.
 - Report unverified items and skipped checks.

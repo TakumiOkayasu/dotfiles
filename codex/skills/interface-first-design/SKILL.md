@@ -1,19 +1,19 @@
 ---
-# codex_port_source: claude/skills/interface-first-design/SKILL.md
+# codex_port_source: common/skills/interface-first-design/SKILL.md
 name: interface-first-design
 description: 機能追加・クラス設計・interface設計・依存関係整理・クラス/メソッドの責務分割時に使用。疑似コードから interface→クラス→TDD→実装の順で設計する。TDDスキルの前段。「インターフェースから設計」「疑似コードで設計」もトリガー。
 ---
 
 # Interface-First Design
 
-<!-- codex-port: managed; source=claude/skills/interface-first-design/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/interface-first-design/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/interface-first-design/SKILL.md`.
+- This file was ported from `common/skills/interface-first-design/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 **理想の処理フローを疑似コードで先に描け。そこからinterfaceが生まれる。実装は最後。**
@@ -86,6 +86,7 @@ then 在庫を元に戻す → エラーを返す
 ```
 
 **疑似コードから読み取るもの:**
+
 - 動詞ひとつ = interfaceのメソッドひとつ
 - 名詞 = interfaceが扱うデータ型
 - 分岐 = エラー型 or 戻り値の型バリアント
@@ -115,6 +116,7 @@ then 在庫を元に戻す → エラーを返す
 ```
 
 **変換ルール:**
+
 - 動詞ひとつ = メソッドひとつ
 - 名詞 = interfaceが扱うデータ型
 - フレームワーク固有の型 (Request / Response / Model 等) はinterfaceに含めない
@@ -159,7 +161,7 @@ class OrderService
 ## 禁止事項・制約
 
 | 禁止 | 理由 |
-|------|------|
+| ------ | ------ |
 | 疑似コードを省略してinterfaceを作る | 実装都合がinterfaceに漏れる（Anti-pattern 4） |
 | 既存実装からそのままinterfaceを写す | ORM・フレームワーク依存が混入する |
 | 1つのinterfaceに複数メソッドを定義する | ISP違反・責務混在（Anti-pattern 3） |
@@ -266,12 +268,12 @@ GOOD: 疑似コードから「記事一覧表示」フローを先に描く
 
 ### Interface一覧
 | Interface名 | メソッド | 引数 | 戻り値 |
-|------------|---------|------|--------|
+| ------------ | --------- | ------ | -------- |
 | FooReader  | read()  | id   | Foo \| null |
 
 ### クラス一覧
 | クラス名    | 実装Interface | 責務 |
-|------------|--------------|------|
+| ------------ | -------------- | ------ |
 | FooReader  | Reader       | DBからFooを取得 |
 
 ### 上位層の組み立て

@@ -1,34 +1,37 @@
 ---
-# codex_port_source: claude/skills/test-coverage-guard/SKILL.md
+# codex_port_source: common/skills/test-coverage-guard/SKILL.md
 name: test-coverage-guard
 description: 既存テストの信頼性を検証し、偽陽性を検出・排除するガードレール。テストがGREENになった後に発動する。「このテスト信頼できる?」「偽陽性」「カバレッジ稼ぎ検出」で発動。
 ---
 
 # Test Coverage Guard
 
-<!-- codex-port: managed; source=claude/skills/test-coverage-guard/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/test-coverage-guard/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/test-coverage-guard/SKILL.md`.
+- This file was ported from `common/skills/test-coverage-guard/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## トリガー条件
 
 **キーワード（いずれか）**
+
 - 「テストレビュー」「テストの品質」「偽陽性」「false positive」「テストが信頼できない」
 - 「モックが多すぎる」「カバレッジは高いのにバグが出る」「フレイキーテスト」「flaky test」
 - 「テスト削除していい?」「このテスト意味ある?」「test review」「mutation testing」
 - 「テストスイートが通っているのに不安」「テスト全部通るけど大丈夫?」
 
 **状況**
+
 - テストGREEN後、スイートの品質に不安がある場面
 - PRレビューでテストコードの品質を確認したい場合
 
 **非対象（委譲先）**
+
 - テスト新規作成 → `test-driven-development`
 - CI/CD設定 → `ci-cd`
 - セキュリティテスト詳細設計 → `security-review`
@@ -48,7 +51,7 @@ description: 既存テストの信頼性を検証し、偽陽性を検出・排�
 **偽陽性**: 本来FAILすべきテストがPASSしている状態。緑でも本番で壊れるなら誤った安心感を与えるだけ。
 
 | スキル | 責務 | タイミング |
-|--------|------|-----------|
+| -------- | ------ | ----------- |
 | **test-driven-development** | テスト設計・作成（TDDサイクル） | テストを書く時 |
 | **本スキル** | テスト検証（偽陽性検出・網羅性指摘） | テストGREEN後 |
 
@@ -61,7 +64,7 @@ description: 既存テストの信頼性を検証し、偽陽性を検出・排�
 ### Step 1: スコープ特定
 
 | 戦略 | 適用場面 |
-|------|---------|
+| ------ | --------- |
 | PR差分ベース | PRレビュー・直近変更 |
 | モジュール単位 | 「この機能のテストをレビューして」 |
 | リスクベース | カバレッジ低・バグ多・クリティカル機能を優先 |
@@ -107,6 +110,7 @@ Mock2つ以上で要注意。合計5つ以上なら設計見直し検討。外�
 
 Reflection等でprivate直接テスト → publicメソッド経由の間接検証に置換。
 例外（以下**すべて**を満たす場合のみ）:
+
 1. 同機能の統合テストが既存でPASS
 2. 純粋な計算ロジック（副作用なし）
 3. 統合テストでは網羅困難な境界値
@@ -134,7 +138,7 @@ DB側デフォルト値・バリデーション・関連テーブル連動を再
 **パターン7: フレイキーの温床**
 
 | 原因 | 対策 |
-|------|------|
+| ------ | ------ |
 | テスト間状態共有 | テストごとにDB/状態リセット |
 | 非同期待機不足 | waitFor/eventually使用。`sleep(固定値)` 禁止 |
 | 外部サービス依存 | テストダブルまたはテストコンテナ |
@@ -162,7 +166,7 @@ DB側デフォルト値・バリデーション・関連テーブル連動を再
 自動化ツール:
 
 | 言語 | ツール | 言語 | ツール |
-|------|--------|------|--------|
+| ------ | -------- | ------ | -------- |
 | JS/TS | Stryker | Python | mutmut |
 | Java/Kotlin | PIT | Ruby | mutant |
 | Go | gremlins | C#/.NET | Stryker.NET |
@@ -172,20 +176,21 @@ DB側デフォルト値・バリデーション・関連テーブル連動を再
 ### Step 4: テストダブル検証
 
 **チェックポイント**
+
 1. Mock数: 1テストあたり2つ以上で要注意
 2. レスポンス一致: 型・フィールド名・ネスト構造が実際と一致しているか
 3. エラーケース: タイムアウト・エラーレスポンス・不正データのStubが存在するか
 4. 自プロジェクトのDB/クラスをテストダブルで差し替えていないか（実物が原則）
 
 | 種類 | 推奨用途 |
-|------|---------|
+| ------ | --------- |
 | Stub | 外部APIの正常/異常レスポンス |
 | Mock | 通知送信など副作用の発生確認 |
 | Fake | InMemoryRepository, FakeClock |
 | Spy | 実処理維持しつつ呼び出し記録 |
 
 | 対象 | 推奨 |
-|------|------|
+| ------ | ------ |
 | 外部API（決済・SMS等） | Stub/Mock |
 | 非決定的な値（時刻・乱数） | Fake |
 | 自プロジェクトのDB | **実物** |
@@ -230,7 +235,7 @@ DB側デフォルト値・バリデーション・関連テーブル連動を再
 ## アンチパターン
 
 | 禁止事項 | 理由 |
-|---------|------|
+| --------- | ------ |
 | 不足テストを本スキル内で実装する | テスト作成はTDDスキルの責務 |
 | TDDサイクルを中断・上書きする | 本スキルは検証専用 |
 | `sleep(固定値)` による非同期待機 | フレイキーの原因 |
@@ -243,6 +248,7 @@ DB側デフォルト値・バリデーション・関連テーブル連動を再
 ## テスト削除の判断基準
 
 **削除してよい条件**（いずれか該当 **かつ** 代替テストが存在/追加予定の場合のみ）:
+
 1. 同層の他テストと検証内容が完全重複し、独自に検出できるバグがない
 2. 過去6ヶ月でリファクタリング起因の修正が3回以上で、その間バグを1度も検出していない
 3. テストダブルの保守コストが検出するリスクに見合わない
@@ -250,7 +256,7 @@ DB側デフォルト値・バリデーション・関連テーブル連動を再
 **即削除すべきテスト**:
 
 | テスト | 理由 |
-|--------|------|
+| -------- | ------ |
 | 常にPASS（アサーションなし/トートロジー） | 偽の安心感 |
 | 実装内部構造をそのままなぞっている | リファクタリングのたびに壊れる |
 | テストダブル過多で実際の振る舞いを未検証 | 偽陽性の温床 |
@@ -271,7 +277,7 @@ DB側デフォルト値・バリデーション・関連テーブル連動を再
 ## 関連スキルとの連携
 
 | スキル | 連携ポイント |
-|--------|------------|
+| -------- | ------------ |
 | **test-driven-development** | 不足発見時はTDDスキルに戻ってテストケースを追加。本スキルは指摘まで |
 | **ci-cd** | テストの段階実行、CIゲート設定 |
 | **security-review** | セキュリティテストの詳細設計 |

@@ -1,19 +1,19 @@
 ---
-# codex_port_source: claude/skills/design-team/SKILL.md
+# codex_port_source: common/skills/design-team/SKILL.md
 name: design-team
 description: 規模の大きいタスクの設計段階で、Architect (構築役) と Devil's advocate (反対役) を独立 subagent として並行起動し、指示から抜けた視点/選択肢/死角を炙り出してから設計を確定する。互いの出力を見せずアンカリングを防ぎ、本体が突合して統合設計を作り 2nd round で再レビューさせる。「設計チーム」「死角を洗い出して設計」「devil's advocate」で起動。方針自体の go/no-go は premise-questioning、単一視点の設計手順は arch を使う。
 ---
 
 # Design Team (Architect + Devil's advocate)
 
-<!-- codex-port: managed; source=claude/skills/design-team/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/design-team/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/design-team/SKILL.md`.
+- This file was ported from `common/skills/design-team/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 着手前の設計は、書いた本人には筋が良く見える。自分の指示の枠内で考えるほど、抜けた視点/見送った選択肢/前提の死角は見えなくなる。本 skill は構築役の **Architect** と反対役の **Devil's advocate** を独立 subagent として並行起動し、自分一人では出なかった角度を機械的に確保してから設計を確定する。

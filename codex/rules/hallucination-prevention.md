@@ -1,13 +1,13 @@
 # Hallucination Prevention
 
-<!-- codex-port: managed; source=claude/rules/hallucination-prevention.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/rules/hallucination-prevention.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/rules/hallucination-prevention.md`.
+- This file was ported from `common/rules/hallucination-prevention.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 「たぶん正しい」で出力しない。不確実なものは不確実と明示する。
@@ -34,7 +34,6 @@
 - 確実に存在する代替案を提示する
 - ユーザーが自分で確認できる手順を案内する
 - 間違いに気づいたら影響範囲を説明し、即訂正する
-
 
 ## Codex rule loading
 

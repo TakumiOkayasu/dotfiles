@@ -18,8 +18,8 @@ destructive-command-block.sh - git commit/push および破壊的操作をブロ
   echo '{"tool_input":{"command":"git commit -m test"}}' | ./destructive-command-block.sh
 
 説明:
-  Claude/Codex の PreToolUse hook として動作し、以下を検出した場合に
-  exit 2 でブロックします。
+  Claude/Codex の PreToolUse hook として動作し、以下を検出した場合に exit 2 でブロックします。
+
   - git commit / git push (ユーザーのみ操作可能)
   - git reset --hard / git clean -f / git checkout -- . / git restore (破壊的操作)
   - git rebase / git branch -D / git stash drop|clear (履歴・ブランチ破壊)
@@ -91,7 +91,7 @@ block_both_flags() {
 # === ルール定義（テーブル） ===
 
 # --- case-sensitive: -D と -d を区別する必要があるルール ---
-block_flag '\bgit\s+branch\b' '-D\b|--delete.*--force|--force.*--delete' 'git branch -D/--delete --force は禁止されています。-d を使用してください。'
+block_flag '\bgit\s+branch\b' '-D\b|[[:space:]]+--delete.*--force|[[:space:]]+--force.*--delete' 'git branch -D/--delete --force は禁止されています。-d を使用してください。'
 
 # --- 以降は lowercase で検査（パターン簡素化） ---
 COMMAND=$(printf '%s\n' "$COMMAND" | tr '[:upper:]' '[:lower:]')
@@ -114,7 +114,7 @@ block_command '\bdd\s+'                        'dd は禁止されています�
 # --- 2. コマンド+危険フラグの組み合わせでブロック ---
 block_flag '\bgit\s+reset\b'  '--hard\b'  'git reset --hard は禁止されています。'
 block_flag '\bgit\s+clean\b'  '-[a-z]*f'  'git clean -f は禁止されています。'
-block_flag '\brm\b' '(^|\s)-[a-z]*r[a-z]*f|(^|\s)-[a-z]*f[a-z]*r' 'rm -rf は禁止されています。'
-block_both_flags '\brm\b' '(^|\s)-[a-z]*r(\s|$)|--recursive\b' '(^|\s)-[a-z]*f(\s|$)|--force\b' 'rm -rf は禁止されています。'
+block_flag '\brm\b' '(^|[[:space:]])-[a-z]*r[a-z]*f|(^|[[:space:]])-[a-z]*f[a-z]*r' 'rm -rf は禁止されています。'
+block_both_flags '\brm\b' '(^|[[:space:]])-[a-z]*r([[:space:]]|$)|[[:space:]]+--recursive\b' '(^|[[:space:]])-[a-z]*f([[:space:]]|$)|[[:space:]]+--force\b' 'rm -rf は禁止されています。'
 
 exit 0

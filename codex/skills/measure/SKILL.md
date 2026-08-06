@@ -1,19 +1,19 @@
 ---
-# codex_port_source: claude/skills/measure/SKILL.md
+# codex_port_source: common/skills/measure/SKILL.md
 name: measure
 description: 【計測実務】パフォーマンス最適化やプロファイリング時に使用。計測手法、プロファイラ/APM でのボトルネック特定、負荷テスト、レポート出力をカバー。
 ---
 
 # Performance Optimization
 
-<!-- codex-port: managed; source=claude/skills/measure/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/measure/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/measure/SKILL.md`.
+- This file was ported from `common/skills/measure/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## トリガー条件
@@ -36,7 +36,7 @@ description: 【計測実務】パフォーマンス最適化やプロファイ�
 本スキルは **動作は正しいが遅い** ケースに限定する。以下は別スキルへ委譲する。
 
 | 状況 | 委譲先 |
-|---|---|
+| --- | --- |
 | 誤動作・バグ修正（出力が誤っている、例外が出る） | `systematic-debugging` → `tdd` |
 | 振る舞いを変えずコード構造のみ改善（計測不要の可読性改善） | `refactoring` |
 | テストの信頼性検証（GREEN なのに偽陽性の疑い） | `test-coverage-guard` |
@@ -174,7 +174,7 @@ Core Web Vitals 目標:
 ## 禁止事項・制約
 
 | 禁止 | 理由 |
-|------|------|
+| ------ | ------ |
 | ❌ 計測前に最適化する | 影響のない箇所に時間を浪費する |
 | ❌ 影響の小さい処理に時間をかける | ROIが低い |
 | ❌ invalidation 戦略なしにキャッシュを追加する | データ不整合を引き起こす |

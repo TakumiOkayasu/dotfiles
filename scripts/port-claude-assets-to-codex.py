@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Port Claude skills, commands, and rules into Codex layout.
+"""Port shared skills, commands, and rules into Codex layout.
 
 This script intentionally runs inside the user's dotfile-work checkout.
-It reads every tracked or untracked `claude/skills/*/SKILL.md` and
-`claude/rules/*.md`, plus the explicitly mapped `claude/commands/*.md`,
+It reads every tracked or untracked `common/skills/*/SKILL.md` and
+`common/rules/*.md`, plus the explicitly mapped `common/commands/*.md`,
 converts Claude-specific paths/phrasing to Codex conventions, and writes
 the result under `codex/`.
 """
@@ -14,13 +14,30 @@ import argparse
 import dataclasses
 import enum
 import hashlib
-import json
 from pathlib import Path
 import re
 import shutil
+import sys
+
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from codex_asset_manifest import load_asset_manifest
+from codex_rule_renderer import (
+    RULE_BUNDLE_NAME,
+    RULE_INDEX_NAME,
+    generated_at_jst,
+    load_rule_documents,
+    render_rule_bundle,
+    render_rule_index,
+)
 
 MANAGED_MARKER = "codex-port: managed"
-TDD_SKILL_SOURCE = Path("claude/skills/tdd/SKILL.md")
+SHARED_SKILLS_DIR = Path("common/skills")
+SHARED_RULES_DIR = Path("common/rules")
+SHARED_COMMANDS_DIR = Path("common/commands")
+TDD_SKILL_SOURCE = SHARED_SKILLS_DIR / "tdd/SKILL.md"
 QA_CONTINUATION_START = "<!-- qa-continuation:start -->"
 QA_CONTINUATION_END = "<!-- qa-continuation:end -->"
 CODEX_QA_CONTINUATION_OVERLAY = (
@@ -65,8 +82,6 @@ CODEX_QA_SURFACE_REPLACEMENTS = (
     ("### qa_nightmare 起動", "### qa_nightmare の将来有効化仕様"),
     ("### 結果の扱い", "### 将来有効化時の結果の扱い"),
 )
-RULE_BUNDLE_NAME = "RULES_BUNDLE.md"
-RULE_INDEX_NAME = "RULES_INDEX.md"
 ASSET_MANIFEST_PATH = Path(__file__).with_name("claude-command-map.json")
 MANAGED_SOURCE_PATTERN = re.compile(
     rf"<!-- {re.escape(MANAGED_MARKER)}; source=([^;]+); "
@@ -74,45 +89,14 @@ MANAGED_SOURCE_PATTERN = re.compile(
 )
 
 
-def load_asset_manifest() -> tuple[dict[str, str], dict[str, Path], frozenset[str]]:
-    data = json.loads(ASSET_MANIFEST_PATH.read_text(encoding="utf-8"))
-    commands = data.get("commands")
-    allowed_skill_files = data.get("allowed_skill_files")
-    if not isinstance(commands, list) or not isinstance(allowed_skill_files, list):
-        raise ValueError(f"invalid asset manifest: {ASSET_MANIFEST_PATH}")
-
-    destinations: dict[str, str] = {}
-    references: dict[str, Path] = {}
-    used_skills: set[str] = set()
-    for entry in commands:
-        if not isinstance(entry, dict):
-            raise ValueError(f"invalid command entry: {entry!r}")
-        source = Path(str(entry.get("source", "")))
-        skill = str(entry.get("skill", ""))
-        reference = Path(str(entry.get("reference", "")))
-        if (
-            len(source.parts) != 3
-            or source.parts[:2] != ("claude", "commands")
-            or source.suffix != ".md"
-            or not re.fullmatch(r"[a-z0-9-]+", skill)
-            or reference.is_absolute()
-            or ".." in reference.parts
-            or reference.name != "claude-command.md"
-        ):
-            raise ValueError(f"invalid command mapping: {entry!r}")
-        if source.stem in destinations or skill in used_skills:
-            raise ValueError(f"duplicate command mapping: {entry!r}")
-        destinations[source.stem] = skill
-        references[source.stem] = reference
-        used_skills.add(skill)
-
-    allowed = frozenset(str(path) for path in allowed_skill_files)
-    if not allowed or any(Path(path).is_absolute() or ".." in Path(path).parts for path in allowed):
-        raise ValueError(f"invalid allowed_skill_files: {allowed_skill_files!r}")
-    return destinations, references, allowed
-
-
-COMMAND_DESTINATIONS, COMMAND_REFERENCES, ALLOWED_SKILL_FILES = load_asset_manifest()
+ASSET_MANIFEST = load_asset_manifest(ASSET_MANIFEST_PATH)
+COMMAND_DESTINATIONS = {
+    mapping.source.stem: mapping.skill for mapping in ASSET_MANIFEST.commands
+}
+COMMAND_REFERENCES = {
+    mapping.source.stem: mapping.reference for mapping in ASSET_MANIFEST.commands
+}
+ALLOWED_SKILL_FILES = ASSET_MANIFEST.allowed_skill_files
 
 
 class ArtifactRole(enum.Enum):
@@ -146,7 +130,9 @@ class PortedFile:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Port claude/ skills and rules into codex/.")
+    parser = argparse.ArgumentParser(
+        description="Port shared common/ assets into the Codex layout."
+    )
     parser.add_argument("--repo", default=".", help="dotfile-work repository root")
     parser.add_argument("--overwrite", action="store_true", help="overwrite existing codex files")
     parser.add_argument("--skip-existing", action="store_true", help="skip files that already exist")
@@ -331,6 +317,11 @@ def replace_codex_surface_contracts(body: str, *, role: ArtifactRole) -> str:
         1,
     )
     out = out.replace("qa_nightmare-preflight", "qa-nightmare-preflight")
+    out = re.sub(
+        r"\n{3,}(?=(?:`qa-nightmare-preflight`|子agentへabsolute filesystem pathを渡さず))",
+        "\n\n",
+        out,
+    )
     out = replace_marked_section(
         out,
         QA_CONTINUATION_START,
@@ -343,12 +334,12 @@ def replace_codex_surface_contracts(body: str, *, role: ArtifactRole) -> str:
 def replace_command_invocations(body: str) -> str:
     out = re.sub(
         r"`/([a-zA-Z0-9_.-]+)`",
-        lambda match: f"`@{COMMAND_DESTINATIONS.get(match.group(1), match.group(1))}`",
+        lambda match: f"`${COMMAND_DESTINATIONS.get(match.group(1), match.group(1))}`",
         body,
     )
     return re.sub(
         r"(?<![\w`])/(feat|fix|review|deep-review|commit|commit-msg|test|refactor|plan|explain)(?![\w`:-])",
-        lambda match: f"@{COMMAND_DESTINATIONS.get(match.group(1), match.group(1))}",
+        lambda match: f"${COMMAND_DESTINATIONS.get(match.group(1), match.group(1))}",
         out,
     )
 
@@ -356,7 +347,7 @@ def replace_command_invocations(body: str) -> str:
 def add_portability_notes(body: str, *, source: Path, kind: str) -> str:
     out = body
     source_str = str(source).replace("\\", "/")
-    note = f"""\n<!-- {MANAGED_MARKER}; source={source_str}; generated-by=scripts/port-claude-assets-to-codex.py -->\n\n## Codex portability notes\n\n- This file was ported from `{source_str}`.\n- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${{HOME}}/.agents/skills` in plugin-only mode.\n- Global and project rules live under `${{HOME}}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.\n- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.\n- Subagent usage must follow `${{HOME}}/.codex/SUBAGENTS.md` and the current Codex tool contract.\n"""
+    note = f"""\n<!-- {MANAGED_MARKER}; source={source_str}; generated-by=scripts/port-claude-assets-to-codex.py -->\n\n## Codex portability notes\n\n- This file was ported from `{source_str}`.\n- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${{HOME}}/.agents/skills` in plugin-only mode.\n- Global and project rules live under `${{HOME}}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.\n- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.\n- Subagent usage must follow `${{HOME}}/.codex/SUBAGENTS.md` and the current Codex tool contract.\n"""
     if MANAGED_MARKER not in out:
         # Insert after first H1 when possible; otherwise prepend after frontmatter.
         match = re.search(r"(^# .+?\n)", out, re.MULTILINE)
@@ -367,7 +358,7 @@ def add_portability_notes(body: str, *, source: Path, kind: str) -> str:
             out = note + "\n" + out
 
     if kind == "rule" and "## Codex rule loading" not in out:
-        out += """\n\n## Codex rule loading\n\nThis rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.\n"""
+        out = out.rstrip() + """\n\n## Codex rule loading\n\nThis rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.\n"""
 
     return out
 
@@ -441,33 +432,16 @@ def write_file(dest: Path, text: str, *, args: argparse.Namespace) -> tuple[bool
     return True, backed_up
 
 
-def first_heading(text: str) -> str:
-    for line in text.splitlines():
-        if line.startswith("# "):
-            return line[2:].strip()
-    return "(no title)"
-
-
-def first_description(text: str) -> str:
-    match = re.search(r"^description:\s*(.+)$", text, re.MULTILINE)
-    if match:
-        return match.group(1).strip().strip('"')
-    for line in text.splitlines():
-        if line.strip() and not line.startswith("---") and not line.startswith("#") and not line.startswith("<!--"):
-            return line.strip()[:160]
-    return ""
-
-
 def iter_skill_sources(repo: Path) -> list[Path]:
-    return sorted((repo / "claude" / "skills").glob("*/SKILL.md"))
+    return sorted((repo / SHARED_SKILLS_DIR).glob("*/SKILL.md"))
 
 
 def iter_rule_sources(repo: Path) -> list[Path]:
-    return sorted((repo / "claude" / "rules").glob("*.md"))
+    return sorted((repo / SHARED_RULES_DIR).glob("*.md"))
 
 
 def iter_command_sources(repo: Path) -> list[Path]:
-    return sorted((repo / "claude" / "commands").glob("*.md"))
+    return sorted((repo / SHARED_COMMANDS_DIR).glob("*.md"))
 
 
 def validate_command_manifest(command_sources: list[Path]) -> None:
@@ -490,11 +464,30 @@ def validate_skill_resources(repo: Path) -> None:
         for source in iter_skill_sources(repo)
         for path in source.parent.rglob("*")
         if path.is_file()
-        and path.relative_to(source.parent).as_posix() not in ALLOWED_SKILL_FILES
+        and not any(
+            path.relative_to(source.parent).match(pattern)
+            for pattern in ALLOWED_SKILL_FILES
+        )
     ]
     if unexpected_skill_files:
         raise ValueError(
             "unsupported Claude skill resource: " + ", ".join(sorted(unexpected_skill_files))
+        )
+
+
+def validate_shared_skill_layout(repo: Path) -> None:
+    skills_dir = repo / SHARED_SKILLS_DIR
+    entries = tuple(skills_dir.iterdir())
+    missing_entrypoints = sorted(
+        path.name
+        for path in entries
+        if path.is_dir() and not (path / "SKILL.md").is_file()
+    )
+    root_files = sorted(path.name for path in entries if path.is_file())
+    if missing_entrypoints or root_files:
+        raise ValueError(
+            "invalid shared skill layout: "
+            f"missing_entrypoints={missing_entrypoints}, root_files={root_files}"
         )
 
 
@@ -516,6 +509,7 @@ def validate_transformability(repo: Path, command_sources: list[Path]) -> None:
 
 def validate_sources(repo: Path) -> None:
     command_sources = iter_command_sources(repo)
+    validate_shared_skill_layout(repo)
     validate_command_manifest(command_sources)
     validate_skill_resources(repo)
     validate_transformability(repo, command_sources)
@@ -531,6 +525,25 @@ def port_skills(repo: Path, args: argparse.Namespace) -> list[PortedFile]:
         result.append(
             PortedFile(source, dest, "skill", role, changed, backed_up)
         )
+        for resource in sorted(source.parent.rglob("*")):
+            if not resource.is_file() or resource == source:
+                continue
+            relative_resource = resource.relative_to(source.parent)
+            resource_dest = dest.parent / relative_resource
+            resource_out, resource_role = transform_source(
+                resource, repo=repo, kind="skill_resource"
+            )
+            changed, backed_up = write_file(resource_dest, resource_out, args=args)
+            result.append(
+                PortedFile(
+                    resource,
+                    resource_dest,
+                    "skill_resource",
+                    resource_role,
+                    changed,
+                    backed_up,
+                )
+            )
     return result
 
 
@@ -573,15 +586,15 @@ def managed_source(dest: Path) -> Path | None:
 
 def expected_managed_destination(repo: Path, source: Path) -> Path | None:
     parts = source.parts
-    if len(parts) == 3 and parts[:2] == ("claude", "rules") and source.suffix == ".md":
+    if len(parts) == 3 and parts[:2] == ("common", "rules") and source.suffix == ".md":
         return repo / "codex" / "rules" / source.name
     if (
-        len(parts) == 4
-        and parts[:2] == ("claude", "skills")
-        and parts[3] == "SKILL.md"
+        len(parts) >= 4
+        and parts[:2] == ("common", "skills")
+        and source.suffix == ".md"
     ):
-        return repo / "codex" / "skills" / parts[2] / "SKILL.md"
-    if len(parts) == 3 and parts[:2] == ("claude", "commands") and source.suffix == ".md":
+        return repo / "codex" / "skills" / parts[2] / Path(*parts[3:])
+    if len(parts) == 3 and parts[:2] == ("common", "commands") and source.suffix == ".md":
         skill_name = COMMAND_DESTINATIONS.get(source.stem)
         if skill_name is not None:
             return repo / "codex" / "skills" / skill_name / COMMAND_REFERENCES[source.stem]
@@ -590,10 +603,8 @@ def expected_managed_destination(repo: Path, source: Path) -> Path | None:
 
 def prune_stale_outputs(repo: Path, args: argparse.Namespace) -> list[Path]:
     candidates = list((repo / "codex" / "rules").glob("*.md"))
-    candidates.extend((repo / "codex" / "skills").glob("*/SKILL.md"))
     candidates.extend(
-        repo / "codex" / "skills" / skill_name / COMMAND_REFERENCES[command_name]
-        for command_name, skill_name in COMMAND_DESTINATIONS.items()
+        path for path in (repo / "codex" / "skills").rglob("*") if path.is_file()
     )
 
     pruned: list[Path] = []
@@ -612,102 +623,28 @@ def prune_stale_outputs(repo: Path, args: argparse.Namespace) -> list[Path]:
     return pruned
 
 
-def generate_rule_index(repo: Path, args: argparse.Namespace) -> None:
+def generate_rule_aggregates(repo: Path, args: argparse.Namespace) -> None:
     rules_dir = repo / "codex" / "rules"
-    rules = [p for p in sorted(rules_dir.glob("*.md")) if p.name not in {RULE_INDEX_NAME, RULE_BUNDLE_NAME}]
-    lines = [
-        "# Codex Rules Index",
-        "",
-        "このファイルは `scripts/port-claude-assets-to-codex.py` により生成される rules index です。",
-        "Codex は作業前に該当 rule を読む必要があります。hook により full content が注入された場合は、それを読了済みとして扱います。",
-        "",
-        "| Rule | Title | Description |",
-        "| --- | --- | --- |",
-    ]
-    for rule in rules:
-        text = rule.read_text(encoding="utf-8")
-        rel = rule.relative_to(repo).as_posix()
-        lines.append(f"| `{rel}` | {first_heading(text)} | {first_description(text)} |")
-    lines.append("")
-    content = "\n".join(lines)
-    if not args.dry_run:
-        rules_dir.mkdir(parents=True, exist_ok=True)
-        (rules_dir / RULE_INDEX_NAME).write_text(content, encoding="utf-8")
-
-
-def generate_rule_bundle(repo: Path, args: argparse.Namespace) -> None:
-    rules_dir = repo / "codex" / "rules"
-    rules = [p for p in sorted(rules_dir.glob("*.md")) if p.name not in {RULE_INDEX_NAME, RULE_BUNDLE_NAME}]
-    parts = [
-        "# Codex Rules Bundle",
-        "",
-        "このファイルは hook/context injection 用の連結 rules bundle です。直接編集せず、元 rule を編集して再生成してください。",
-        "",
-    ]
-    for rule in rules:
-        rel = rule.relative_to(repo).as_posix()
-        parts.extend(["---", "", f"## Source: `{rel}`", "", rule.read_text(encoding="utf-8").rstrip(), ""])
-    content = "\n".join(parts)
-    if not args.dry_run:
-        rules_dir.mkdir(parents=True, exist_ok=True)
-        (rules_dir / RULE_BUNDLE_NAME).write_text(content.rstrip() + "\n", encoding="utf-8")
-
-
-def generate_report(
-    repo: Path,
-    ported: list[PortedFile],
-    pruned: list[Path],
-    args: argparse.Namespace,
-) -> None:
-    report = repo / "codex" / "skills" / "CLAUDE_PORT_REPORT.md"
-    lines = [
-        "# Claude to Codex Port Report",
-        "",
-        "Generated by `scripts/port-claude-assets-to-codex.py`.",
-        "",
-        "## Summary",
-        "",
-        f"- Skills: {sum(1 for p in ported if p.kind == 'skill')}",
-        f"- Commands: {sum(1 for p in ported if p.kind == 'command')}",
-        f"- Rules: {sum(1 for p in ported if p.kind == 'rule')}",
-        f"- Changed: {sum(1 for p in ported if p.changed)}",
-        f"- Backups: {sum(1 for p in ported if p.backed_up)}",
-        f"- Pruned: {len(pruned)}",
-        "",
-        "## Files",
-        "",
-        "| Kind | Source | Destination | Changed | Backup |",
-        "| --- | --- | --- | --- | --- |",
-    ]
-    for p in ported:
-        lines.append(
-            f"| {p.kind} | `{p.source.relative_to(repo).as_posix()}` | `{p.dest.relative_to(repo).as_posix()}` | {p.changed} | {p.backed_up} |"
-        )
-    if pruned:
-        lines += ["", "## Pruned files", ""]
-        lines.extend(f"- `{path.relative_to(repo).as_posix()}`" for path in pruned)
-    lines += [
-        "",
-        "## Follow-up checks",
-        "",
-        "1. `git diff -- codex/skills codex/rules` を確認する。",
-        "2. `grep -R \"~/.claude\\|CLAUDE.md\\|Claude Code\" codex/skills codex/rules` で残存参照を確認する。",
-        "3. `./install.sh -n` で Codex install path を確認する。",
-        "4. Codex で `/skills` を確認し、移植 skill が `~/.agents/skills` から認識されるか確認する。",
-    ]
-    if not args.dry_run:
-        report.parent.mkdir(parents=True, exist_ok=True)
-        report.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    documents = load_rule_documents(repo)
+    if args.dry_run:
+        return
+    rules_dir.mkdir(parents=True, exist_ok=True)
+    (rules_dir / RULE_INDEX_NAME).write_text(
+        render_rule_index(documents), encoding="utf-8"
+    )
+    (rules_dir / RULE_BUNDLE_NAME).write_text(
+        render_rule_bundle(documents, generated_at_jst()), encoding="utf-8"
+    )
 
 
 def main() -> int:
     args = parse_args()
     repo = Path(args.repo).resolve()
-    if not (repo / "claude" / "skills").is_dir():
-        print(f"ERROR: missing claude/skills under {repo}", file=sys.stderr)
+    if not (repo / SHARED_SKILLS_DIR).is_dir():
+        print(f"ERROR: missing common/skills under {repo}", file=sys.stderr)
         return 2
-    if not (repo / "claude" / "rules").is_dir():
-        print(f"ERROR: missing claude/rules under {repo}", file=sys.stderr)
+    if not (repo / SHARED_RULES_DIR).is_dir():
+        print(f"ERROR: missing common/rules under {repo}", file=sys.stderr)
         return 2
 
     validate_sources(repo)
@@ -717,17 +654,14 @@ def main() -> int:
     ported.extend(port_commands(repo, args))
     ported.extend(port_rules(repo, args))
     pruned = prune_stale_outputs(repo, args) if args.prune else []
-    generate_rule_index(repo, args)
-    generate_rule_bundle(repo, args)
-    generate_report(repo, ported, pruned, args)
+    generate_rule_aggregates(repo, args)
 
-    print("Claude -> Codex port complete")
+    print("Shared assets -> Codex port complete")
     print(f"skills: {sum(1 for p in ported if p.kind == 'skill')}")
     print(f"commands: {sum(1 for p in ported if p.kind == 'command')}")
     print(f"rules:  {sum(1 for p in ported if p.kind == 'rule')}")
     print(f"changed:{sum(1 for p in ported if p.changed)}")
     print(f"pruned: {len(pruned)}")
-    print("report: codex/skills/CLAUDE_PORT_REPORT.md")
     return 0
 
 

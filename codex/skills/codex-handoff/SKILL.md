@@ -29,7 +29,7 @@ description: Create a compact continuation handoff for Codex sessions, compactio
 
 ## Common contract
 
-- Plugin-only operation: use `$skill` / `@skill` or `/skills`; no `/prompt:*` or `prompt:*`.
+- Plugin-only operation: use `$skill` or `/skills`; no `/prompt:*` or `prompt:*`.
 - Apply mandatory rules before editing, reviewing, testing, or implementation conclusions.
 - Keep diffs minimal and scoped.
 - Report unverified items and skipped checks.

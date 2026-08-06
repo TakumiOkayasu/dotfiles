@@ -16,7 +16,7 @@ COMMAND=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.command // ""' 2>/dev/n
 # パターン: PASS='plaintext' / CLI引数 / Authorization header 等。
 # $変数参照は除外する。
 PATTERN_ENV="(PASS(WORD)?|SECRET|TOKEN|API[_-]?KEY|AUTH|BEARER)=[\"'][^\$\"']{4,}[\"']"
-PATTERN_CLI="(--token|--api-key|--password)[= ][^ \$'\";]{4,}"
+PATTERN_CLI="(--token|--api-key|--password)(=|[[:space:]]+)[^\$[:space:]'\";]{4,}"
 PATTERN_AUTH_HEADER="Authorization:[[:space:]]*Bearer[[:space:]]+[A-Za-z0-9._~+/-]{10,}"
 
 if printf '%s\n' "$COMMAND" | grep -qEi "$PATTERN_ENV|$PATTERN_CLI|$PATTERN_AUTH_HEADER"; then

@@ -2,8 +2,7 @@
 # methodology-skill-reminder.sh - 方針検証 skill 発動リマインド (UserPromptSubmit)
 #
 # 責務:
-#   - ユーザーの入力が premise-questioning / feature-pruning の発動条件キーワードを
-#     含む場合に reminder を注入する
+#   - ユーザーの入力が premise-questioning / feature-pruning の発動条件キーワードを含む場合に reminder を注入する
 #   - 発動条件は ~/.codex/AGENTS.md 「着手前の方針検証 (2 段階)」と整合させる
 #
 # 配置先: codex/hooks/methodology-skill-reminder.sh
@@ -16,8 +15,7 @@
 SKIP_COMMANDS="feat fix code-review"
 
 # === 設定: 否定文除外パターン (発動キーワードを含むが意図と逆の文章) ===
-# 「機能多すぎないか?」のような反語形 (= 発動すべき) を除外しないため、
-# 動詞の否定 (~しない / ~は要らない) のみ対象とする
+# 「機能多すぎないか?」のような反語形 (= 発動すべき) を除外しないため、動詞の否定 (~しない / ~は要らない) のみ対象とする
 NEGATION_PATTERNS="リファクタしない リファクタリングしない レビューしない レビューは要らない"
 
 # === 設定: premise-questioning 発動キーワード (戦略レベル) ===

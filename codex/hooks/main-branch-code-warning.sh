@@ -18,9 +18,7 @@ main-branch-code-warning.sh - mainブランチでのコード変更を警告
   echo '{"tool_input":{"file_path":"src/main.py"}}' | ./main-branch-code-warning.sh
 
 説明:
-  Codex の PreToolUse hook として動作し、mainブランチで
-  コードファイルを変更しようとした場合に警告を出します。
-  (ドキュメントや設定ファイルはスキップ)
+  Codex の PreToolUse hook として動作し、mainブランチでコードファイルを変更しようとした場合に警告を出します。(ドキュメントや設定ファイルはスキップ)
 
 依存関係:
   jaq または jq が必要です (jaq優先)

@@ -155,7 +155,7 @@ main() {
                 check_only=true
                 shift
                 ;;
-            -h|--help)
+            -h| --help)
                 usage
                 exit 0
                 ;;

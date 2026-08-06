@@ -1,123 +1,61 @@
-# AGENTS.md
+# Repository Guidelines
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+## プロジェクト構成
 
-## Overview
+このリポジトリは Shell/Git/Vim と Claude Code/Codex の個人設定を管理する。
+`config/` は通常の dotfiles、`bin/` は `~/.local/bin/` 向け CLI、`claude/` と `codex/` は各ランタイム固有資産を置く。
+共有する command/rule/skill は `common/` を正本とし、`scripts/` で Codex 向け生成物と plugin bundle に変換する。
+`tests/` には shell テスト、pytest、Docker 定義がある。
+`.stow-work/` と `plugins/dotfile-work-codex*` は生成物なので直接編集しない。
 
-個人用dotfilesリポジトリ。Shell/Git/Vim設定とCodex設定（skills, hooks, prompts, rules）を管理し、`install.sh` でシンボリックリンクを配置する。
-
-## Commands
+## 開発と検証のコマンド
 
 ```bash
-# インストール
-./install.sh              # 対話モード
-./install.sh -f           # 全ファイル強制インストール
-./install.sh -n           # ドライラン
-./install.sh -u           # アンインストール
-
-# テスト (Docker)
-docker compose -f tests/compose.yml run --rm hooks-test    # hook テスト
-docker compose -f tests/compose.yml run --rm bin-test      # bin/ テスト
-docker compose -f tests/compose.yml run --rm install-test  # install.sh テスト
-
-# CLI (bin/ → ~/.local/bin/)
-git-new-feature <name>    # ブランチ作成 (-f fix/ -d docs/ -r refactor/ -c chore/)
-git-cleanup-branch        # マージ済みブランチ削除
-gh-setup-repo             # GitHub リポジトリ設定
-codex-cmd list            # Codex prompt command 一覧
-codex-feat <description>  # 機能実装ガイド (TDD)
-codex-fix <description>   # バグ修正ガイド
-codex-code-review [target] # /code-review 互換の差分レビュー
-codex-deep-review [target] # 並列観点レビュー
+./install.sh -n
+docker compose -f tests/compose.yml run --rm hooks-test
+docker compose -f tests/compose.yml run --rm codex-hooks-test
+docker compose -f tests/compose.yml run --rm shell-lint-test
+docker compose -f tests/compose.yml run --rm install-test
+uv run python scripts/verify-codex-plugin.py --repo .
 ```
 
-## Architecture
+`./install.sh -n` は実ホームを変更せず配置予定を確認する。
+Docker サービスは hook、CLI、ShellCheck、installer/asset pipeline を分離して検証する。
+共有資産を変更した場合は README の generate、port、profile、sync、verify の順で再生成する。
 
-```text
-dotfile-work/
-├── install.sh           # メインインストーラー (POSIX sh)
-├── config/              # ドットファイル本体
-│   ├── shell/           # bash/zsh/fish + common.sh, aliases.sh
-│   ├── git/             # .gitconfig.{common,work,private}, .gitignore.*
-│   └── vim/             # .vimrc
-├── codex/              # Codex設定 → ~/.codex/ にリンク
-│   ├── global_AGENTS.md # → ~/.codex/AGENTS.md (リネームしてリンク)
-│   ├── SUBAGENTS.md    # → ~/.codex/SUBAGENTS.md (subagent mechanics)
-│   ├── config.toml.template # → ~/.codex/config.toml 初回生成用 (hook定義はinline TOML)
-│   ├── reference/      # install対象外の参照資料
-│   ├── prompts/        # prompt command 断片
-│   ├── hooks/           # 補助ガード (セキュリティ, セッション管理)
-│   ├── rules/           # 参照ルール (hallucination-prevention, hierarchical-architecture, coding-conventions, implementation-policy)
-│   └── skills/          # plugin配布用 source。install対象外
-├── bin/                 # CLI ツール → ~/.local/bin/
-├── tests/               # Docker テスト
-└── docs/                # ドキュメント
-```
+## コーディング規約
 
-Codex vendor skill は自動 clone / 自動更新しない。必要な場合のみ手動スクリプトで更新する。
+Shell は既存の POSIX `sh` を優先し、必要な場合だけ Bash を使う。
+Python は4スペース、型注釈、`snake_case` を用いる。
+関数は単一責務に保ち、早期 return と具体的な名前を選ぶ。
+生成済み view を修正せず、必ず正本と生成スクリプトを直す。
 
-## Install Flow
+## テスト
 
-1. `git ls-files` で `config/` と `codex/` の tracked file を列挙
-2. `config/` → `${HOME}` に、`codex/` の allowlist 対象 → `${HOME}/.codex/` にシンボリックリンク作成
-3. `global_AGENTS.md` は `AGENTS.md` にリネームしてリンク
-4. `${HOME}/.codex/config.toml` が存在しない場合だけ `codex/config.toml.template` から通常ファイルを生成
-5. `codex/skills/*` は plugin 配布用 source として install 対象外
-6. `codex/README.md`、`codex/config.toml.template`、`codex/reference/` はリンク対象外
-7. プラットフォーム自動検出: macOS → `.gitconfig.private` / Linux・WSL → `.gitconfig.work`
-8. `bin/` は `${HOME}/.local/bin/` にリンクし、Codex 用ショートカット (`codex-feat` など) も配置する
+変更は失敗する回帰テストから始め、対象テストを通してから関連 Docker サービスを実行する。
+pytest は `Test...` クラスと `test_<behavior>` 関数、shell テストは明示的な期待値を使う。
+数値の coverage 閾値はないが、変更した配置、削除、再実行、異常入力を検証する。
 
-## Development Notes
+## AI 駆動開発
 
-- シェルスクリプトは原則 POSIX sh。bash依存スクリプトは `#!/bin/sh` + bash再実行パターン
-- ドキュメントに具体的な数値（件数・行数）を書かない（ドリフト防止）
+作業前に `git status --short`、`README.md`、`codex/rules/RULES_CORE.md`、`RULES_INDEX.md` と該当する full rule を読む。
+機能、修正、レビューは plugin skill の `$feat`、`$fix`、`$review` または `$deep-review` から開始する。
+リポジトリ内の実装、テスト、生成 manifest を一次ソースとして source から生成物、配置先まで追跡する。
+既存差分を戻さず、実行していない検証を成功と報告しない。
+完了報告では各検証を `passed`、`failed`、`skipped` に分け、未確認リスクを残す。
+モデルの出力は候補として扱い、差分、テスト結果、実行ログで採否を決める。
+長い作業では `.codex/progress.md` に目的、判断理由、実行済み検証を残す。
+独立した調査だけを、現在の tool contract が許可する場合に subagent へ分け、親が一次ソースで結果を確認する。
+モデル名や資産件数を文書へ固定せず、現行設定と manifest を参照する。
 
-## Subagents
+## 安全な設定変更
 
-Codex では、品質や速度が上がる場面で subagent を積極利用する。
-dispatch mechanics は `codex/SUBAGENTS.md` を参照する。
+API access token、秘密値、端末固有パスを追跡対象へ入れない。
+実ホームを変更する `./install.sh -f` や uninstall の前には dry-run と対象差分を確認する。
+commit、push、破壊的操作、依存更新は明示された範囲でだけ実行する。
 
-- 多角レビュー、複数案の妥当性検証、影響範囲調査、客観評価、並列検証は subagent 候補
-- 親セッションの直近判断をブロックする作業は親が行う
-- worker には担当範囲・編集可能ファイル・他者の変更を戻さないことを明示する
-- subagent の結果は親が統合し、根拠・差分・テストで検証してから採用する
-- Codex の tool contract で明示要求時のみ起動可とされる場合は、その制約を優先する
+## コミットと Pull Request
 
-## [自動] セッション継続プロトコル
-
-以下はCodex自身が自律的に実行する。
-
-### PROGRESS.md 自動更新
-
-ファイル: `.codex/progress.md`
-
-更新タイミング:
-
-1. **タスク着手時** → 「現在のタスク」更新
-2. **設計判断時** → 「判断ログ」に理由(Why)追記
-3. **Planモード結論時** → 実装前に書き出し
-4. **タスク完了時** → 完了マーク + 次のタスク
-
-### コンテキスト警告対応
-
-- **⚠️ 70%**: PROGRESS.md が最新か確認
-- **🚨 85%**: 即座に更新（現状・判断理由・次のステップ）
-
-### セッション開始時
-
-`.codex/progress.md` の内容を確認し、未完了タスクがあればそこから再開。
-
-### PROGRESS.md フォーマット
-
-```markdown
-# PROGRESS
-
-## 現在のタスク
-- [ ] タスク名 - 目的: xxx
-
-## 判断ログ
-- YYYY-MM-DD: 判断内容。理由: ...
-
-## 完了
-- [x] 完了したタスク
-```
+履歴に合わせて `feat(codex): ...`、`fix(shell): ...`、`refactor: ...` のような Conventional Commit を使う。
+PR には目的、影響する配置先、正本と生成物、実行したコマンドと結果、関連 issue を記載する。
+画面出力が変わる場合だけ比較画像を添付する。

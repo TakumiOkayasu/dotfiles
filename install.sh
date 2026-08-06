@@ -58,6 +58,9 @@ VENDOR_SKILLS="composition-patterns react-best-practices web-design-guidelines"
 COMMON_HOOKS="common/hooks"
 COMMON_QA_NIGHTMARE_CHECKLISTS="common/qa-nightmare/checklists"
 COMMON_QA_NIGHTMARE_MANIFEST="common/qa-nightmare/manifest.json"
+COMMON_COMMANDS="common/commands"
+COMMON_RULES="common/rules"
+COMMON_SKILLS="common/skills"
 
 DOTWORK_MARKER_BEGIN="# === dotfile-work: BEGIN ==="
 DOTWORK_MARKER_END="# === dotfile-work: END ==="
@@ -294,9 +297,10 @@ prepare_stow_targets_from_file() {
         _dest="${_spec#*:}"
         if prepare_stow_target "${HOME}/${_dest}" "$_package" ".stow-work/${_package}/${_dest}"; then
             continue
+        else
+            _status=$?
         fi
 
-        _status=$?
         if [ "$_status" -eq 2 ]; then
             _prepare_status=2
             continue
@@ -426,11 +430,11 @@ detect_current_shell() {
 
 get_shell_rc_display() {
     case "$1" in
-        bash) echo "~/.bashrc" ;;
-        zsh)  echo "~/.zshrc" ;;
-        fish) echo "~/.config/fish/config.fish" ;;
-        all)  echo "~/.bashrc, ~/.zshrc, config.fish" ;;
-        *)    echo "~/.bashrc" ;;
+        bash) echo "$HOME/.bashrc" ;;
+        zsh)  echo "$HOME/.zshrc" ;;
+        fish) echo "$HOME/.config/fish/config.fish" ;;
+        all)  echo "$HOME/.bashrc, $HOME/.zshrc, $HOME/.config/fish/config.fish" ;;
+        *)    echo "$HOME/.bashrc" ;;
     esac
 }
 
@@ -486,7 +490,7 @@ remove_link() {
 is_dotfiles_link() {
     [ ! -L "$1" ] && return 1
     _idl_target=$(readlink "$1" 2>/dev/null) || return 1
-    _idl_target=$(canonicalize_path "$_idl_target")
+    _idl_target=$(absolute_path_without_following_leaf "$_idl_target" "$(dirname "$1")")
     case "$_idl_target" in "${DOTFILES_DIR}"/*) return 0 ;; *) return 1 ;; esac
 }
 
@@ -494,8 +498,15 @@ is_dotfiles_link() {
 _is_stale_link() {
     [ ! -L "$1" ] && return 1
     _sl_target=$(readlink "$1" 2>/dev/null) || return 1
-    _sl_target=$(canonicalize_path "$_sl_target")
-    case "$_sl_target" in "${_csl_dotfiles}"/*) ;; *) return 1 ;; esac
+    _sl_target=$(absolute_path_without_following_leaf "$_sl_target" "$(dirname "$1")")
+    case "$_sl_target" in
+        "${_csl_dotfiles}/.stow-work"/*)
+            [ ! -e "$1" ] && return 0
+            return 1
+            ;;
+        "${_csl_dotfiles}"/*) ;;
+        *) return 1 ;;
+    esac
     [ ! -e "$1" ] && return 0
     _sl_relative="${_sl_target#"${_csl_dotfiles}"/}"
     (cd "$DOTFILES_DIR" && git ls-files --error-unmatch "$_sl_relative" >/dev/null 2>&1) && return 1
@@ -1211,7 +1222,8 @@ _claude_ensure_directories() {
 
 _claude_cleanup_stale() {
     cleanup_legacy_claude_skill_tiers
-    cleanup_stale_links_in "Claude" "${HOME}/.claude" commands hooks skills rules
+    remove_dotfiles_link "${HOME}/.claude/statusline.settings.json" "旧Claude statusline.settings.json"
+    cleanup_stale_links_in "Claude" "${HOME}/.claude" bin commands hooks skills rules
 }
 
 _claude_install_stow_package() {
@@ -1240,16 +1252,35 @@ _claude_add_managed_stow_specs() {
 
     _filelist=$(mktemp)
     _TMPFILES="$_TMPFILES $_filelist"
-    (cd "$DOTFILES_DIR" && git ls-files claude/ 2>/dev/null) > "$_filelist"
+    (
+        cd "$DOTFILES_DIR" &&
+            git ls-files \
+                claude/ \
+                "${COMMON_COMMANDS}/" \
+                "${COMMON_RULES}/" \
+                "${COMMON_SKILLS}/" 2>/dev/null
+    ) > "$_filelist"
 
     while IFS= read -r _file; do
         [ -z "$_file" ] && continue
         [ -e "${DOTFILES_DIR}/${_file}" ] || [ -L "${DOTFILES_DIR}/${_file}" ] || continue
 
-        _relative="${_file#claude/}"
-        case "$_relative" in CLAUDE.md) continue ;; esac  # プロジェクトローカル用
-
-        _dest_relative=$(claude_target_relative "$_relative")
+        case "$_file" in
+            "${COMMON_COMMANDS}"/*)
+                _dest_relative="commands/${_file#"${COMMON_COMMANDS}"/}"
+                ;;
+            "${COMMON_RULES}"/*)
+                _dest_relative="rules/${_file#"${COMMON_RULES}"/}"
+                ;;
+            "${COMMON_SKILLS}"/*)
+                _dest_relative="skills/${_file#"${COMMON_SKILLS}"/}"
+                ;;
+            claude/*)
+                _relative="${_file#claude/}"
+                case "$_relative" in CLAUDE.md) continue ;; esac
+                _dest_relative=$(claude_target_relative "$_relative")
+                ;;
+        esac
         stow_specs_add "$_spec_file" "$_file" ".claude/${_dest_relative}"
     done < "$_filelist"
 
@@ -1277,7 +1308,10 @@ _claude_vendor_clone_if_missing() {
         return 0
     fi
 
-    if git clone --depth 1 --quiet "https://github.com/vercel-labs/agent-skills.git" "$1" 2>/dev/null; then
+    if (
+        unset GIT_INDEX_FILE
+        git clone --depth 1 --quiet "https://github.com/vercel-labs/agent-skills.git" "$1" 2>/dev/null
+    ); then
         print_success "取得: vendor/agent-skills"
     else
         print_skip "vendor/agent-skills の取得に失敗（オフライン？）"
@@ -1362,7 +1396,9 @@ _claude_prune_empty_dirs() {
     _count=$(find "${HOME}/.claude" -mindepth 1 -depth -type d 2>/dev/null \
         | while IFS= read -r _dir; do rmdir "$_dir" 2>/dev/null && echo x; done \
         | wc -l)
-    [ "$_count" -gt 0 ] && print_success "空ディレクトリ削除: .claude/ 配下 ${_count} 件"
+    if [ "$_count" -gt 0 ]; then
+        print_success "空ディレクトリ削除: .claude/ 配下 ${_count} 件"
+    fi
 }
 
 # ============================================================================
@@ -1377,7 +1413,7 @@ codex_dest_for_relative() {
         SUBAGENTS.md)
             printf '%s/.codex/%s\n' "$HOME" "$1"
             ;;
-        agents/*.toml|agents/*/checklists/*.md|bin/*|hooks/*.sh|rules/*.md|rules/*.rules)
+        agents/*.toml|agents/*/checklists/*.md|bin/*|hooks/*|rules/*.md|rules/*.rules)
             printf '%s/.codex/%s\n' "$HOME" "$1"
             ;;
         */*.config.toml)
@@ -1550,7 +1586,9 @@ _codex_prune_empty_dirs() {
     _count=$(find "${HOME}/.codex" -mindepth 1 -depth -type d 2>/dev/null \
         | while IFS= read -r _dir; do rmdir "$_dir" 2>/dev/null && echo x; done \
         | wc -l)
-    [ "$_count" -gt 0 ] && print_success "空ディレクトリ削除: .codex/ 配下 ${_count} 件"
+    if [ "$_count" -gt 0 ]; then
+        print_success "空ディレクトリ削除: .codex/ 配下 ${_count} 件"
+    fi
 }
 
 # ============================================================================
@@ -1782,7 +1820,7 @@ _preview_bin() {
 
 _preview_claude() {
     printf "  ${COLOR_CYAN}Claude Code設定:${COLOR_RESET}\n"
-    printf "    + claude/* -> ~/.claude/* (global_* prefix と statusline.settings.json は配置名を変換)\n"
+    printf "    + claude/* と common/{commands,rules,skills} -> ~/.claude/*\n"
     echo ""
 }
 
@@ -1890,11 +1928,11 @@ EOF
 parse_args() {
     while [ $# -gt 0 ]; do
         case "$1" in
-            -h|--help)        show_help; exit 0 ;;
-            -i|--interactive) MODE_INTERACTIVE=true; shift ;;
-            -f|--force)       MODE_INTERACTIVE=false; shift ;;
-            -n|--dry-run)     MODE_DRY_RUN=true; shift ;;
-            -u|--uninstall)   MODE_UNINSTALL=true; shift ;;
+            -h| --help)        show_help; exit 0 ;;
+            -i| --interactive) MODE_INTERACTIVE=true; shift ;;
+            -f| --force)       MODE_INTERACTIVE=false; shift ;;
+            -n| --dry-run)     MODE_DRY_RUN=true; shift ;;
+            -u| --uninstall)   MODE_UNINSTALL=true; shift ;;
             *)                die "不明なオプション: $1\nヘルプは -h で表示" ;;
         esac
     done

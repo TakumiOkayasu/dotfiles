@@ -39,8 +39,8 @@
         "壊れ方",
         "嫌度"
       ],
-      "size_bytes": 2934,
-      "sha256": "7870da1aa48be123e5d13719d1f75875e7576f9a8874f8a53bf55e9524169d06"
+      "size_bytes": 2944,
+      "sha256": "e67f38e2b84907216d9b1071047e0918a7ae5cbe606709739cebc3c37a20828d"
     },
     {
       "file": "boundary-hell.md",
@@ -63,8 +63,8 @@
         "壊れ方",
         "嫌度"
       ],
-      "size_bytes": 3503,
-      "sha256": "c6e4b45f55c234f3dc863b62a11cddf62f97f32ae3c2f98e398585870c463d18"
+      "size_bytes": 3514,
+      "sha256": "21af0a7b6b4bf4e2071425c1f836ff3f298130578b4ef1b48eaa7fde9cfdfee8"
     },
     {
       "file": "data-io.md",
@@ -86,8 +86,8 @@
         "壊れ方",
         "嫌度"
       ],
-      "size_bytes": 3571,
-      "sha256": "87a1a25a8678ca132c25ab747c1f086fbfbef07a13ff3e2a8d6752b4677ed8ac"
+      "size_bytes": 3581,
+      "sha256": "e7ec3aafe173e4170b3e8d91477b94b9999444b207a64ef62c0f7d5af00a53c8"
     },
     {
       "file": "domain-specific.md",
@@ -109,8 +109,8 @@
         "壊れ方",
         "嫌度"
       ],
-      "size_bytes": 4570,
-      "sha256": "50544ed310f096248be31cdd24717a68b845bdaa1a01f586d4815b259c85eebd"
+      "size_bytes": 4580,
+      "sha256": "08143c8b8f792de335e610d2f0df2dbe914bbe4f6c6baf35be53a69f63c4e1e7"
     },
     {
       "file": "error-recovery.md",
@@ -132,8 +132,8 @@
         "壊れ方",
         "嫌度"
       ],
-      "size_bytes": 3869,
-      "sha256": "406faf2fa6098e43e64d5910f3794322b585bdd8d6f9d03b75ad0e7794c7200a"
+      "size_bytes": 3879,
+      "sha256": "9c322cd244a1709c49a7f8a97b4bdab3ea0b2b03bdf8c96aad1e09db6bf3c9c5"
     },
     {
       "file": "silent-corruption.md",
@@ -155,8 +155,8 @@
         "壊れ方",
         "嫌度"
       ],
-      "size_bytes": 3207,
-      "sha256": "b5ea253b798906a72db3d374b4244a64399f61e24a85082773a9a427c1fdbefa"
+      "size_bytes": 3217,
+      "sha256": "0dc65f453d003681d845222b29e40a0178594b06f658b71dce27d7035c90e2ac"
     },
     {
       "file": "state-transition.md",
@@ -176,8 +176,8 @@
         "壊れ方",
         "嫌度"
       ],
-      "size_bytes": 2627,
-      "sha256": "7f32bb5f7d0c0f6379ac12621c91485d04092cf3eb6dcbffd54d53a9ba4e6cbe"
+      "size_bytes": 2635,
+      "sha256": "080edf7d37d7d92a32e304f4a2919439a579db563d956735f7a11cff75f6b939"
     },
     {
       "file": "timing-chaos.md",
@@ -199,8 +199,8 @@
         "壊れ方",
         "嫌度"
       ],
-      "size_bytes": 2985,
-      "sha256": "cd315d28846854a1bb5bd852c292be47a4249193d224e507a8e1811d1a7ac810"
+      "size_bytes": 2995,
+      "sha256": "e415753ad14066b380a5f798e606b128869d801239f701b8f6b99c2a66c53e92"
     },
     {
       "file": "ui-destruction.md",
@@ -223,8 +223,8 @@
         "スクショ箇所",
         "嫌度"
       ],
-      "size_bytes": 3932,
-      "sha256": "c6d722ebdbe65c7a5b6cb1de219c68f0193976ec702efb48561f13fcc219b753"
+      "size_bytes": 3942,
+      "sha256": "5035a82b2a51675dbe099ebfebef56bdad10162b6b3791686d6671c2b9e18f65"
     },
     {
       "file": "ui-operation.md",
@@ -247,8 +247,8 @@
         "スクショ箇所",
         "嫌度"
       ],
-      "size_bytes": 3945,
-      "sha256": "9341b9399edd8302b5f81dca8a38c960d4a2a659d3a0cc604dbae34df86627fb"
+      "size_bytes": 3955,
+      "sha256": "86d596dcd2835b87121945b873abdee4743d82e241d4e70395f0f680d48806cd"
     },
     {
       "file": "ui-state.md",
@@ -271,8 +271,8 @@
         "スクショ箇所",
         "嫌度"
       ],
-      "size_bytes": 3830,
-      "sha256": "783d29f9875988243d8a1d9552415fed9c9440ef151feaf457d0af2d5ddad9e5"
+      "size_bytes": 3840,
+      "sha256": "f0713271eae4c7a95dc9e8db2e422d399be2bb7a7fe181bc8ae9aedfd988dd6b"
     }
   ]
 }

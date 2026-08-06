@@ -10,6 +10,7 @@ import json
 import os
 import re
 import runpy
+import shutil
 import subprocess
 import tomllib
 from pathlib import Path
@@ -20,6 +21,7 @@ INSTALL_SH = Path(__file__).resolve().parent.parent / "install.sh"
 BASHRC = INSTALL_SH.parent / "config" / "shell" / "bash" / "bashrc"
 REPO_ROOT = INSTALL_SH.parent
 STOW_INSTALL_SH = REPO_ROOT / "scripts" / "stow-install.sh"
+RULES_ENFORCE_PY = REPO_ROOT / "codex" / "hooks" / "rules-enforce.py"
 INSTALL_TEST_DOCKERFILE = REPO_ROOT / "tests" / "Dockerfile.install"
 QA_NIGHTMARE_MANIFEST = REPO_ROOT / "common" / "qa-nightmare" / "manifest.json"
 MODEL_PROFILE_PATHS = (
@@ -103,9 +105,15 @@ def _run_install_sh(
     home: Path,
     *,
     uninstall: bool = False,
+    dry_run: bool = False,
     env_overrides: dict[str, str] | None = None,
+    use_fake_vendor: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     """install.sh を指定 HOME で実行"""
+    vendor_dir = home / ".claude" / "vendor" / "agent-skills"
+    if not uninstall and use_fake_vendor and not vendor_dir.exists():
+        _create_fake_vendor(home)
+
     env = os.environ.copy()
     env.update(env_overrides or {})
     env["HOME"] = str(home)
@@ -113,6 +121,8 @@ def _run_install_sh(
     cmd = ["sh", str(dotfiles / "install.sh"), "-f"]
     if uninstall:
         cmd.insert(-1, "-u")  # -u -f の順
+    if dry_run:
+        cmd.insert(-1, "-n")  # -n -f の順
 
     return subprocess.run(
         cmd, cwd=str(dotfiles), env=env, capture_output=True, text=True, timeout=30
@@ -332,6 +342,16 @@ def _assert_codex_common_links(codex_dir: Path) -> None:
     assert destructive_hook.resolve() == (
         REPO_ROOT / "common" / "hooks" / "destructive-command-block.sh"
     )
+    _assert_generated_stow_link(
+        codex_dir / "hooks" / "rules-enforce.py",
+        REPO_ROOT
+        / ".stow-work"
+        / "codex"
+        / ".codex"
+        / "hooks"
+        / "rules-enforce.py",
+        REPO_ROOT / "codex" / "hooks" / "rules-enforce.py",
+    )
 
 
 def _assert_claude_core_links(claude_dir: Path) -> None:
@@ -359,6 +379,52 @@ def _assert_claude_core_links(claude_dir: Path) -> None:
 
 def _assert_claude_common_links(claude_dir: Path) -> None:
     assert (claude_dir / "rules" / "natural-japanese.md").is_symlink()
+    _assert_claude_common_command_links(claude_dir)
+    _assert_claude_common_skill_links(claude_dir)
+
+
+def _assert_claude_common_command_links(claude_dir: Path) -> None:
+    _assert_generated_stow_link(
+        claude_dir / "commands" / "feat.md",
+        REPO_ROOT
+        / ".stow-work"
+        / "claude"
+        / ".claude"
+        / "commands"
+        / "feat.md",
+        REPO_ROOT / "common" / "commands" / "feat.md",
+    )
+
+
+def _assert_claude_common_skill_links(claude_dir: Path) -> None:
+    _assert_generated_stow_link(
+        claude_dir / "skills" / "tdd" / "SKILL.md",
+        REPO_ROOT
+        / ".stow-work"
+        / "claude"
+        / ".claude"
+        / "skills"
+        / "tdd"
+        / "SKILL.md",
+        REPO_ROOT / "common" / "skills" / "tdd" / "SKILL.md",
+    )
+    _assert_generated_stow_link(
+        claude_dir / "skills" / "bug-hunt" / "references" / "review-lenses.md",
+        REPO_ROOT
+        / ".stow-work"
+        / "claude"
+        / ".claude"
+        / "skills"
+        / "bug-hunt"
+        / "references"
+        / "review-lenses.md",
+        REPO_ROOT
+        / "common"
+        / "skills"
+        / "bug-hunt"
+        / "references"
+        / "review-lenses.md",
+    )
     _assert_qa_nightmare_checklists(
         claude_dir / "skills" / "qa-nightmare" / "checklists",
         REPO_ROOT
@@ -429,7 +495,7 @@ class TestCodexAgentDefinitions:
             ),
             (
                 "subagent_type",
-                REPO_ROOT / "claude" / "skills" / "tdd" / "SKILL.md",
+                REPO_ROOT / "common" / "skills" / "tdd" / "SKILL.md",
                 self._claude_agent_names(),
             ),
         )
@@ -450,6 +516,15 @@ class TestCodexAgentDefinitions:
 
 
 class TestInstallTestDockerfile:
+    def test_should_track_latest_python_and_fail_on_warnings(self) -> None:
+        """install-test は最新Pythonを正とし、warningを見逃さない"""
+        content = INSTALL_TEST_DOCKERFILE.read_text(encoding="utf-8")
+
+        assert content.startswith("FROM python:slim\n")
+        assert "PYTHONWARNINGS=error" in content
+        assert "python3-pytest" not in content
+        assert 'ENTRYPOINT ["python", "-m", "pytest"' in content
+
     def test_should_run_all_regression_suites_when_using_default_entrypoint(
         self,
     ) -> None:
@@ -587,7 +662,7 @@ class TestRuleDistribution:
             "duration_ms",
         )
 
-        for source in sorted((REPO_ROOT / "claude" / "skills").glob("*/SKILL.md")):
+        for source in sorted((REPO_ROOT / "common" / "skills").glob("*/SKILL.md")):
             port = REPO_ROOT / "codex" / "skills" / source.parent.name / "SKILL.md"
             content = port.read_text(encoding="utf-8")
             for fragment in forbidden_fragments:
@@ -602,22 +677,17 @@ class TestRuleDistribution:
             "plan-and-review": "orchestrate",
         }
         skills_dir = REPO_ROOT / "codex" / "skills"
-        skill_policy = (skills_dir / "SKILL_POLICY.md").read_text(encoding="utf-8")
         for legacy_name, canonical_name in aliases.items():
             assert (skills_dir / canonical_name / "SKILL.md").is_file()
             assert not (skills_dir / legacy_name).exists()
-            assert f"- `{canonical_name}`" in skill_policy
 
         runtime_files = (
             REPO_ROOT / "scripts" / "generate-standard-workflow-skills.py",
             REPO_ROOT / "scripts" / "apply-codex-performance-profile.py",
             REPO_ROOT / "scripts" / "sync-codex-plugin.py",
-            REPO_ROOT / "codex" / "skills" / "SKILL_POLICY.md",
-            REPO_ROOT / "codex" / "skills" / "PLUGIN_ONLY_WORKFLOWS.md",
-            REPO_ROOT / "codex" / "skills" / "RECOMMENDATIONS.md",
             REPO_ROOT / "codex" / "skills" / "implementation-router" / "SKILL.md",
             REPO_ROOT / "codex" / "skills" / "plan" / "SKILL.md",
-            REPO_ROOT / "claude" / "skills" / "design-team" / "SKILL.md",
+            REPO_ROOT / "common" / "skills" / "design-team" / "SKILL.md",
         )
         runtime_contract = "\n".join(
             path.read_text(encoding="utf-8") for path in runtime_files
@@ -637,7 +707,7 @@ class TestRuleDistribution:
             encoding="utf-8"
         )
 
-        assert (REPO_ROOT / "claude" / "rules" / "natural-japanese.md").is_file()
+        assert (REPO_ROOT / "common" / "rules" / "natural-japanese.md").is_file()
         assert "@'$HOME/.claude/rules/natural-japanese.md'" in claude_global
         assert (REPO_ROOT / "codex" / "rules" / "natural-japanese.md").is_file()
         assert "`codex/rules/natural-japanese.md`" in codex_index
@@ -655,7 +725,7 @@ class TestRuleDistribution:
         content = skill_path.read_text(encoding="utf-8")
 
         assert "name: orchestrate" in content
-        assert "codex_port_source: claude/skills/orchestrate/SKILL.md" in content
+        assert "codex_port_source: common/skills/orchestrate/SKILL.md" in content
         assert "Codex/Codex" not in content
         assert "| task 種別 / 役割 | 複雑度シグナル | Driver | Worker |" in content
         assert "task ごとの commit" not in content
@@ -674,24 +744,6 @@ class TestRuleDistribution:
 
 class TestScriptCli:
     """scripts/*.py の CLI 基本動作を検証するテスト"""
-
-    def test_patch_codex_rule_enforcement_help_exits_successfully(self) -> None:
-        """patch-codex-rule-enforcement.py --help は repo path 扱いされず正常終了する"""
-        result = subprocess.run(
-            [
-                "python3",
-                str(REPO_ROOT / "scripts" / "patch-codex-rule-enforcement.py"),
-                "--help",
-            ],
-            cwd=str(REPO_ROOT),
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-
-        assert result.returncode == 0, result.stderr
-        assert "usage: patch-codex-rule-enforcement.py" in result.stdout
-        assert "not a dotfile-work repo root" not in result.stderr
 
     def test_port_claude_assets_dry_run_keeps_home_literal(self) -> None:
         """port-claude-assets-to-codex.py は `${HOME}` を未定義変数として評価しない"""
@@ -712,7 +764,7 @@ class TestScriptCli:
 
         assert result.returncode == 0, result.stderr
         assert "NameError: name 'HOME' is not defined" not in result.stderr
-        assert "Claude -> Codex port complete" in result.stdout
+        assert "Shared assets -> Codex port complete" in result.stdout
 
     def test_verify_codex_plugin_rejects_skill_sync_drift(
         self, tmp_path: Path
@@ -734,6 +786,86 @@ class TestScriptCli:
         )
 
         assert check_skill_sync(tmp_path) != 0
+
+
+class TestRulesEnforceScanner:
+    """rules scanner の検出順と関数境界を直接検証する"""
+
+    def test_should_preserve_added_line_detection_order(self) -> None:
+        scanner = runpy.run_path(str(RULES_ENFORCE_PY))
+        added_line = scanner["AddedLine"]
+        scan_added_lines = scanner["scan_added_lines"]
+        lines = (
+            added_line("src/app.py", 1, "pri" + "nt('value')", True),
+            added_line("src/app.py", 2, "except " + "Exception:", True),
+            added_line("src/app.py", 3, "TO" + "DO: later", True),
+        )
+
+        violations = scan_added_lines(lines)
+
+        assert [item.rule for item in violations] == [
+            "implementation-policy.md",
+            "coding-conventions.md",
+            "coding-conventions.md",
+            "coding-conventions.md",
+        ]
+
+    def test_should_track_package_dependency_depth(self) -> None:
+        scanner = runpy.run_path(str(RULES_ENFORCE_PY))
+        added_line = scanner["AddedLine"]
+        scan_added_lines = scanner["scan_added_lines"]
+        lines = (
+            added_line("package.json", 1, '  "dependencies": {', True),
+            added_line("package.json", 2, '    "demo": "latest"', True),
+            added_line("package.json", 3, "  }", True),
+        )
+
+        violations = scan_added_lines(lines)
+
+        assert len(violations) == 1
+        assert violations[0].rule == "implementation-policy.md"
+        assert "latest or wildcard" in violations[0].message
+
+    def test_should_require_concrete_inline_ignore_reason(self) -> None:
+        scanner = runpy.run_path(str(RULES_ENFORCE_PY))
+        added_line = scanner["AddedLine"]
+        scan_added_lines = scanner["scan_added_lines"]
+
+        violations = scan_added_lines(
+            [
+                added_line(
+                    "src/app.py",
+                    1,
+                    "# " + "-".join(("codex", "rule-ignore")),
+                    True,
+                )
+            ]
+        )
+
+        assert len(violations) == 1
+        assert violations[0].rule == "RULES_CORE"
+
+    def test_should_enforce_python_function_length_at_46_lines(self) -> None:
+        scanner = runpy.run_path(str(RULES_ENFORCE_PY))
+        scan_lengths = scanner["scan_python_function_lengths"]
+        allowed = ["def allowed():", *["    value = 1"] * 44]
+        blocked = ["def blocked():", *["    value = 1"] * 45]
+
+        assert scan_lengths("src/allowed.py", allowed) == []
+        violations = scan_lengths("src/blocked.py", blocked)
+        assert len(violations) == 1
+        assert violations[0].line_no == 1
+
+    def test_should_end_javascript_function_at_matching_brace(self) -> None:
+        scanner = runpy.run_path(str(RULES_ENFORCE_PY))
+        scan_lengths = scanner["scan_javascript_function_lengths"]
+        allowed = ["function allowed() {", *["  value += 1;"] * 43, "}"]
+        blocked = ["function blocked() {", *["  value += 1;"] * 44, "}"]
+
+        assert scan_lengths("src/allowed.js", allowed) == []
+        violations = scan_lengths("src/blocked.js", blocked)
+        assert len(violations) == 1
+        assert violations[0].line_no == 1
 
 
 class TestStowInstallScript:
@@ -848,6 +980,46 @@ class TestStowInstallScript:
         assert "BUG in find_stowed_path" not in second.stderr
         assert not (home / ".old-conf").is_symlink()
         assert (home / ".new-conf").is_symlink()
+
+    def test_uninstall_removes_link_only_present_in_previous_manifest(
+        self, tmp_path: Path
+    ) -> None:
+        """source削除後の直接uninstallも旧manifestのlinkを除去する"""
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        old_source = repo / "config" / "old.conf"
+        keep_source = repo / "config" / "keep.conf"
+        old_source.parent.mkdir(parents=True)
+        old_source.write_text("old\n", encoding="utf-8")
+        keep_source.write_text("keep\n", encoding="utf-8")
+        home.mkdir()
+        env = os.environ.copy()
+
+        install_result = _run_stow_install_script(
+            repo,
+            home,
+            "demo",
+            env,
+            "--link",
+            "config/old.conf:.legacy/value.conf",
+            "--link",
+            "config/keep.conf:.active/value.conf",
+        )
+        old_source.unlink()
+        uninstall_result = _run_stow_install_script(
+            repo,
+            home,
+            "demo",
+            env,
+            "--uninstall",
+            "--link",
+            "config/keep.conf:.active/value.conf",
+        )
+
+        assert install_result.returncode == 0, install_result.stderr
+        assert uninstall_result.returncode == 0, uninstall_result.stderr
+        assert not (home / ".legacy").is_symlink()
+        assert not (home / ".active").is_symlink()
 
     def test_link_restows_existing_folded_generated_package(
         self, tmp_path: Path
@@ -1157,20 +1329,69 @@ class TestIntegrationInstallUninstall:
         )
         assert os.access(REPO_ROOT / "bin" / "qa-nightmare-preflight", os.X_OK)
 
+    def test_installed_claude_init_project_uses_installed_templates(
+        self, tmp_path: Path
+    ) -> None:
+        """install後のCLIはHOMEへ配置したtemplateからprojectを初期化する"""
+        home = tmp_path / "home"
+        project = tmp_path / "project"
+        home.mkdir()
+        project.mkdir()
+        install_result = _run_install_sh(REPO_ROOT, home)
+        subprocess.run(
+            ["git", "init"], cwd=project, capture_output=True, text=True, check=True
+        )
+
+        env = os.environ.copy()
+        env["HOME"] = str(home)
+        init_result = subprocess.run(
+            [str(home / ".local" / "bin" / "claude-init-project")],
+            cwd=project,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert install_result.returncode == 0, install_result.stderr
+        assert init_result.returncode == 0, init_result.stderr
+        assert (project / ".claude" / "notes" / "_template.md").read_text(
+            encoding="utf-8"
+        ) == (REPO_ROOT / "claude" / "notes" / "_template.md").read_text(
+            encoding="utf-8"
+        )
+        assert (project / ".claude" / "scratch" / "README.md").is_file()
+        assert ".claude/scratch/" in (project / ".gitignore").read_text(
+            encoding="utf-8"
+        )
+
     def test_uninstall_succeeds(self, tmp_path: Path) -> None:
         """install → uninstall が正常終了する"""
         home = tmp_path / "home"
         home.mkdir()
         _run_install_sh(REPO_ROOT, home)
         assert (home / ".claude" / "statusline.json").is_symlink()
+        assert (home / ".claude" / "commands" / "feat.md").is_symlink()
+        nested_resource = (
+            home
+            / ".claude"
+            / "skills"
+            / "bug-hunt"
+            / "references"
+            / "review-lenses.md"
+        )
+        assert nested_resource.is_symlink()
         result = _run_install_sh(REPO_ROOT, home, uninstall=True)
         assert result.returncode == 0, f"uninstall failed:\n{result.stdout}"
         assert not (home / ".claude" / "statusline.json").is_symlink()
+        assert not (home / ".claude" / "commands" / "feat.md").is_symlink()
+        assert not nested_resource.is_symlink()
 
     def test_install_creates_claude_symlinks(self, tmp_path: Path) -> None:
         """install 後に ~/.claude/ 配下にシンボリックリンクが作られる"""
         home = tmp_path / "home"
         home.mkdir()
+        _create_fake_vendor(home)
         _run_install_sh(REPO_ROOT, home)
 
         claude_dir = home / ".claude"
@@ -1240,13 +1461,28 @@ class TestIntegrationInstallUninstall:
         env_overrides = _create_tracked_paths_index_env(
             tmp_path / "git-index", MODEL_PROFILE_PATHS
         )
+        fake_git_dir, clone_env_log = _create_vendor_clone_probe(tmp_path)
+        real_git = shutil.which("git")
+        assert real_git is not None
+        env_overrides.update(
+            {
+                "PATH": f"{fake_git_dir}:{os.environ['PATH']}",
+                "REAL_GIT": real_git,
+                "VENDOR_CLONE_ENV_LOG": str(clone_env_log),
+            }
+        )
         home = tmp_path / "home"
         codex_dir = home / ".codex"
         codex_dir.mkdir(parents=True)
         config_toml = codex_dir / "config.toml"
         config_toml.write_text('model = "local-only"\n', encoding="utf-8")
 
-        result = _run_install_sh(REPO_ROOT, home, env_overrides=env_overrides)
+        result = _run_install_sh(
+            REPO_ROOT,
+            home,
+            env_overrides=env_overrides,
+            use_fake_vendor=False,
+        )
         assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
         assert config_toml.read_text(encoding="utf-8") == 'model = "local-only"\n'
         for profile_path in MODEL_PROFILE_PATHS:
@@ -1254,6 +1490,7 @@ class TestIntegrationInstallUninstall:
             profile = codex_dir / filename
             assert profile.is_symlink()
             assert profile.resolve() == REPO_ROOT / profile_path
+        assert clone_env_log.read_text(encoding="utf-8") == "unset\n"
 
         _run_install_sh(REPO_ROOT, home, uninstall=True, env_overrides=env_overrides)
         assert config_toml.is_file()
@@ -1322,6 +1559,8 @@ class TestIntegrationInstallUninstall:
         assert (home / ".codex" / "agents" / "code_reviewer.toml").is_symlink()
         destructive_hook = home / ".codex" / "hooks" / "destructive-command-block.sh"
         assert destructive_hook.is_symlink()
+        rules_enforce_helper = home / ".codex" / "hooks" / "rules-enforce.py"
+        assert rules_enforce_helper.is_symlink()
         checklist = (
             home
             / ".codex"
@@ -1339,6 +1578,7 @@ class TestIntegrationInstallUninstall:
         assert config_toml.is_file()
         assert not (home / ".codex" / "agents" / "code_reviewer.toml").exists()
         assert not destructive_hook.exists()
+        assert not rules_enforce_helper.exists()
         assert not checklist.exists()
         assert not manifest.exists()
 
@@ -1414,16 +1654,13 @@ class TestIntegrationInstallUninstall:
         assert len(codex_lines) == 1, f"Codexサマリーは1行であるべき: {summary_lines}"
 
     def test_uninstall_without_prior_install(self, tmp_path: Path) -> None:
-        """install していない状態で uninstall してもクラッシュしない
-
-        既知: set -e + `[ $COUNT_ERROR -gt 0 ] && exit 1` で
-        COUNT_ERROR=0 でも exit 1 になる (L1339)。
-        ここではクラッシュ (stderr にトレース) がないことを検証。
-        """
+        """install していない状態で uninstall しても正常終了する"""
         home = tmp_path / "home"
         home.mkdir()
         result = _run_install_sh(REPO_ROOT, home, uninstall=True)
-        # set -e の既知問題で exit 1 になるが、エラーメッセージは出ない
+        assert result.returncode == 0, (
+            f"uninstall failed:\n{result.stdout}\n{result.stderr}"
+        )
         assert "エラー" not in result.stdout
         assert result.stderr == ""
 
@@ -1446,6 +1683,69 @@ class TestIntegrationInstallUninstall:
         result = _run_install_sh(REPO_ROOT, home)
         assert result.returncode == 0
         assert "古い" not in result.stdout
+
+    def test_install_removes_stale_generated_links(self, tmp_path: Path) -> None:
+        """installは削除・rename済みの旧stowリンクを除去する"""
+        home = tmp_path / "home"
+        claude_stale = home / ".claude" / "statusline.settings.json"
+        claude_bin_stale = home / ".claude" / "bin" / "statusline-command.sh"
+        codex_stale = home / ".codex" / "hooks" / "context-monitor.sh"
+        claude_stale.parent.mkdir(parents=True)
+        claude_bin_stale.parent.mkdir(parents=True)
+        codex_stale.parent.mkdir(parents=True)
+        claude_target = (
+            REPO_ROOT
+            / ".stow-work"
+            / "claude"
+            / ".claude"
+            / "statusline.settings.json"
+        )
+        codex_target = (
+            REPO_ROOT
+            / ".stow-work"
+            / "codex"
+            / ".codex"
+            / "hooks"
+            / "context-monitor.sh"
+        )
+        claude_target.parent.mkdir(parents=True, exist_ok=True)
+        codex_target.parent.mkdir(parents=True, exist_ok=True)
+        claude_stale.symlink_to(
+            os.path.relpath(claude_target, start=claude_stale.parent)
+        )
+        claude_bin_stale.symlink_to(
+            REPO_ROOT / "claude" / "bin" / "statusline-command.sh"
+        )
+        codex_stale.symlink_to(
+            os.path.relpath(codex_target, start=codex_stale.parent)
+        )
+
+        result = _run_install_sh(REPO_ROOT, home)
+
+        assert result.returncode == 0, (
+            f"install failed:\n{result.stdout}\n{result.stderr}"
+        )
+        assert not claude_stale.is_symlink()
+        assert not claude_bin_stale.is_symlink()
+        assert not codex_stale.is_symlink()
+
+    def test_dry_run_preserves_conflicting_file_and_reports_backup(
+        self, tmp_path: Path
+    ) -> None:
+        """dry-runは既存通常ファイルを変更せず退避予定を報告する"""
+        home = tmp_path / "home"
+        settings = home / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text('{"local": true}\n', encoding="utf-8")
+
+        result = _run_install_sh(REPO_ROOT, home, dry_run=True)
+
+        assert result.returncode == 0, (
+            f"dry-run failed:\n{result.stdout}\n{result.stderr}"
+        )
+        assert settings.read_text(encoding="utf-8") == '{"local": true}\n'
+        assert not (settings.parent / "settings.json.bak").exists()
+        assert f"[ドライラン] バックアップ: {settings}" in result.stdout
 
 
 # ---------------------------------------------------------------------------
@@ -1780,6 +2080,27 @@ class TestBinInstall:
 # ---------------------------------------------------------------------------
 # ヘルパー (vendor テスト用)
 # ---------------------------------------------------------------------------
+
+
+def _create_vendor_clone_probe(tmp_path: Path) -> tuple[Path, Path]:
+    fake_bin = tmp_path / "fake-git-bin"
+    clone_env_log = tmp_path / "vendor-clone-env.log"
+    _write_executable(
+        fake_bin / "git",
+        "#!/bin/sh\n"
+        'if [ "$1" = clone ]; then\n'
+        '    if [ -n "${GIT_INDEX_FILE:-}" ]; then\n'
+        '        printf "set\\n" > "$VENDOR_CLONE_ENV_LOG"\n'
+        "    else\n"
+        '        printf "unset\\n" > "$VENDOR_CLONE_ENV_LOG"\n'
+        "    fi\n"
+        '    for argument in "$@"; do target=$argument; done\n'
+        '    mkdir -p "$target/.git"\n'
+        "    exit 0\n"
+        "fi\n"
+        'exec "$REAL_GIT" "$@"\n',
+    )
+    return fake_bin, clone_env_log
 
 
 def _create_fake_vendor(home: Path) -> Path:

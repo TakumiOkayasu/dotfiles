@@ -1,5 +1,5 @@
 ---
-# codex_port_source: claude/skills/empirical-prompt-tuning/SKILL.md
+# codex_port_source: common/skills/empirical-prompt-tuning/SKILL.md
 name: empirical-prompt-tuning
 description: agent 向けテキスト指示（skill / slash command / task プロンプト / AGENTS.md 節 / コード生成プロンプト）を、バイアスを排した実行者に動かしてもらい、両面（実行者の自己申告 + 指示側メトリクス）で評価して反復改善する手法。改善が頭打ちになるまで回す。プロンプトや skill を新規作成・大幅改訂した直後、またはエージェントの挙動が期待通りにならない原因を指示側の曖昧さに求めたいときに使う。
 effort: high
@@ -7,14 +7,14 @@ effort: high
 
 # Empirical Prompt Tuning
 
-<!-- codex-port: managed; source=claude/skills/empirical-prompt-tuning/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/empirical-prompt-tuning/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/empirical-prompt-tuning/SKILL.md`.
+- This file was ported from `common/skills/empirical-prompt-tuning/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 プロンプトの品質は書いた本人には分からない。書き手が「明瞭だ」と思うものほど、別エージェントが読むと詰まる。**バイアスを排した実行者に実際に動かしてもらい、両面で評価して反復する** のが本 skill の核。改善が頭打ちになるまで止めない。
@@ -26,6 +26,7 @@ effort: high
 - 重要度の高い指示（頻繁に使う skill、自動化の中核プロンプト）を堅牢化したいとき
 
 使わない場面:
+
 - 一回限りの使い捨てプロンプト（評価コストが割に合わない）
 - 成功率の改善が目的ではなく、書き手の主観的好みを反映したいだけのとき
 
@@ -61,7 +62,7 @@ effort: high
 ## 評価軸
 
 | 軸 | 取り方 | 意味 |
-|---|---|---|
+| --- | --- | --- |
 | 成功/失敗 | 実行者が意図した成果物を出したか（二値） | 最低ライン |
 | 精度 | 成果物が要件を何 % 満たしたか | 部分成功の程度 |
 | ステップ数 | 実行者が使ったツール呼び出し / 判断ステップ数 | 指示の無駄遣いの指標 |
@@ -133,6 +134,7 @@ effort: high
 ## 環境制約
 
 新規 subagent を dispatch できない環境（既に subagent として動作している、`spawn_agent` が無効化されている等）では、本 skill は **適用しない**。
+
 - 代替案 1: 親セッションのユーザーに別 Codex セッションを起動して依頼してもらう
 - 代替案 2: 評価を諦め、ユーザーに「empirical evaluation skipped: dispatch unavailable」と明示報告する
 - **NG**: 自己再読で代替する（バイアスが入るので評価結果を信じてはいけない）
@@ -164,7 +166,7 @@ effort: high
 
 ### 実行結果（シナリオ別）
 | シナリオ | 成功/失敗 | 精度 | ステップ数 | duration | retries |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | A | ○ | 90% | 4 | 20s | 0 |
 | B | × | 60% | 9 | 41s | 2 |
 
@@ -185,7 +187,7 @@ effort: high
 ## Red flags（合理化に注意）
 
 | 出てくる合理化 | 実態 |
-|---|---|
+| --- | --- |
 | 「自分で読み直せば同じ効果がある」 | 直前に書いた文章を "客観視" はできない。必ず新規 subagent を dispatch する。 |
 | 「1 シナリオで充分」 | 1 シナリオは過適合する。最低 2、できれば 3。 |
 | 「不明瞭点ゼロが 1 回出たから終わり」 | 偶然なこともある。連続 2 回で確定判定。 |

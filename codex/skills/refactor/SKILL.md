@@ -6,9 +6,11 @@ description: Behavior-preserving refactoring, structure cleanup, naming, extract
 # Refactor
 
 ## Goal
+
 Improve structure without changing behavior.
 
 ## Steps
+
 1. Apply mandatory rules.
 2. Confirm existing tests/checks and current behavior.
 3. State scope and invariants.
@@ -18,7 +20,7 @@ Improve structure without changing behavior.
 
 ## Common contract
 
-- Plugin-only operation: use `$skill` / `@skill` or `/skills`; no `/prompt:*` or `prompt:*`.
+- Plugin-only operation: use `$skill` or `/skills`; no `/prompt:*` or `prompt:*`.
 - Apply mandatory rules before editing, reviewing, testing, or implementation conclusions.
 - Keep diffs minimal and scoped.
 - Report unverified items and skipped checks.

@@ -21,6 +21,8 @@ status_line_use_colors = true
 [features]
 hooks = true
 memories = true
+network_proxy = true
+prevent_idle_sleep = true
 default_mode_request_user_input = true
 
 #[mcp_servers.github]
@@ -118,5 +120,5 @@ skill = "#cda1fa"
 inherit = "core"
 
 [shell_environment_policy.set]
-EDITOR = "code --wait"
-VISUAL = "code --wait"
+EDITOR = "zed"
+VISUAL = "zed"

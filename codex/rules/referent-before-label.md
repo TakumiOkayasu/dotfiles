@@ -1,13 +1,13 @@
 # 語より先に指示対象を固定する
 
-<!-- codex-port: managed; source=claude/rules/referent-before-label.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/rules/referent-before-label.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/rules/referent-before-label.md`.
+- This file was ported from `common/rules/referent-before-label.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Global and project rules live under `${HOME}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 <!-- codex-runtime-summary -->
@@ -47,7 +47,6 @@
 
 - 対象文書なのに対応表を提出せず本文を書き始めたことに気づいたら、後付けで表を追記して継続しない。本文を破棄し、対応表を独立提出し直してから本文を再生成する。
 - skill が利用できない環境では、最低 6 列 (出典・目的・具体対象・役割・前後関係・候補語)の対応表を作業ディレクトリに独立ファイルとして保存してから本文に着手する。
-
 
 ## Codex rule loading
 
