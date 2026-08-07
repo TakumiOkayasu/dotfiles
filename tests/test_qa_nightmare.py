@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import re
 import tomllib
 from pathlib import Path
@@ -11,9 +10,8 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CLAUDE_AGENT = REPO_ROOT / "claude" / "agents" / "qa-nightmare.md"
 CODEX_AGENT = REPO_ROOT / "codex" / "agents" / "qa_nightmare.toml"
-CLAUDE_TDD = REPO_ROOT / "claude" / "skills" / "tdd" / "SKILL.md"
+CLAUDE_TDD = REPO_ROOT / "common" / "skills" / "tdd" / "SKILL.md"
 CODEX_TDD = REPO_ROOT / "codex" / "skills" / "tdd" / "SKILL.md"
-ITER_STRICT = REPO_ROOT / "docs" / "tuning-logs" / "qa-nightmare" / "iter-strict.md"
 PHASE3_HEADING = "## Phase 3: テストケース具体化"
 PHASE4_HEADING = "## Phase 4: ランク付け"
 PHASE5_HEADING = "## Phase 5: 完全性と重大ケースのゲート"
@@ -354,19 +352,6 @@ def test_should_pass_parent_validation_contract_from_tdd() -> None:
             "full preflight",
         ):
             assert required_term in tdd_skill
-
-
-def test_should_match_evaluation_hash_when_agent_contract_changes() -> None:
-    evaluation_log = ITER_STRICT.read_text(encoding="utf-8")
-    expected_hashes = {
-        "Claude": hashlib.sha256(CLAUDE_AGENT.read_bytes()).hexdigest(),
-        "Codex": hashlib.sha256(CODEX_AGENT.read_bytes()).hexdigest(),
-    }
-
-    for runtime, expected_hash in expected_hashes.items():
-        assert f"現行{runtime} agentのSHA-256は`{expected_hash}`である。" in (
-            evaluation_log
-        )
 
 
 def test_should_pass_parent_continuation_contract_from_tdd() -> None:

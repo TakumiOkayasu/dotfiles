@@ -24,4 +24,3 @@
 ```bash
 find .claude/scratch -type f -mtime +30 -delete
 ```
-

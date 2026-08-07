@@ -231,7 +231,7 @@ main() {
             --force)   FORCE=true ;;
             --quiet)   QUIET=true ;;
             --dry-run) DRY_RUN=true ;;
-            -h|--help) show_help; exit 0 ;;
+            -h| --help) show_help; exit 0 ;;
             *) error "Unknown option: $1"; exit 2 ;;
         esac
         shift

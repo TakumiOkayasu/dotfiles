@@ -5,11 +5,11 @@ description: Install the local dotfile-work Codex plugins into the personal mark
 
 # Plugin Install
 
-Run `python3 scripts/install-codex-plugin-personal.py --repo .`. Then restart Codex, open `/plugins`, install/enable core plugin, and trust hooks. Enable extra plugin only when needed.
+Run `uv run python scripts/install-codex-plugin-personal.py --repo .`. Then restart Codex, open `/plugins`, install/enable core plugin, and trust hooks. Enable extra plugin only when needed.
 
 ## Common contract
 
-- Plugin-only operation: use `$skill` / `@skill` or `/skills`; no `/prompt:*` or `prompt:*`.
+- Plugin-only operation: use `$skill` or `/skills`; no `/prompt:*` or `prompt:*`.
 - Apply mandatory rules before editing, reviewing, testing, or implementation conclusions.
 - Keep diffs minimal and scoped.
 - Report unverified items and skipped checks.

@@ -55,7 +55,7 @@ git diff --name-only origin/main...HEAD  # PR 全体
 ### Step 4: 未カバー箇所の優先度付け
 
 | 優先度 | 対象 | 例 |
-|--------|------|----|
+| -------- | ------ | ---- |
 | 高 | パブリック API / エンドポイント | Controller の action メソッド / 公開関数 |
 | 中 | ビジネスロジック | Service / UseCase / Domain |
 | 低 | 内部ヘルパー / プライベートメソッド | private ユーティリティ |
@@ -80,7 +80,7 @@ git diff --name-only origin/main...HEAD  # PR 全体
 ### サマリー
 
 | 項目 | 値 |
-|------|-----|
+| ------ | ----- |
 | 全体カバレッジ | XX.X% |
 | 閾値 | YY% |
 | 達成判定 | ✅ 達成 / ❌ 未達 (差分 -Z.Z%) |
@@ -107,7 +107,7 @@ git diff --name-only origin/main...HEAD  # PR 全体
 **テストコードそのものは書かない** (本 subagent は read-only)。テストは呼出側または `test-writer` subagent に委譲する。
 
 | # | テストケース名 (案) | 検証ポイント | 対応する未カバー箇所 |
-|---|---------------------|--------------|----------------------|
+| --- | --------------------- | -------------- | ---------------------- |
 | 1 | `should_<expected>_when_<condition>` | <1 行> | `<file>:<line>` |
 | 2 | ... | ... | ... |
 ```
@@ -117,7 +117,7 @@ git diff --name-only origin/main...HEAD  # PR 全体
 ## 絶対遵守 (read-only 制約)
 
 | 禁止 | 理由 |
-|------|------|
+| ------ | ------ |
 | `Write` / `Edit` ツールの使用 | 設計上 read-only。frontmatter で除外済 |
 | テストコードの提案実装 | 範囲外。`test-writer` subagent に委譲 |
 | プロダクションコードへのコメント追加提案 | read-only 趣旨を逸脱 |

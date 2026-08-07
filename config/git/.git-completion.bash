@@ -1129,7 +1129,7 @@ __git_complete_remote_or_refspec ()
 		i="${words[c]}"
 		case "$i" in
 		--mirror) [ "$cmd" = "push" ] && no_complete_refspec=1 ;;
-		-d|--delete) [ "$cmd" = "push" ] && lhs=0 ;;
+		-d| --delete) [ "$cmd" = "push" ] && lhs=0 ;;
 		--all)
 			case "$cmd" in
 			push) no_complete_refspec=1 ;;
@@ -1196,7 +1196,7 @@ __git_complete_strategy ()
 {
 	__git_compute_merge_strategies
 	case "$prev" in
-	-s|--strategy)
+	-s| --strategy)
 		__gitcomp "$__git_merge_strategies"
 		return 0
 		;;
@@ -1605,9 +1605,9 @@ _git_branch ()
 	while [ $c -lt $cword ]; do
 		i="${words[c]}"
 		case "$i" in
-		-d|-D|--delete|-m|-M|--move|-c|-C|--copy)
+		-d| -D| --delete| -m| -M| --move| -c| -C| --copy)
 			only_local_ref="y" ;;
-		-r|--remotes)
+		-r| --remotes)
 			has_r="y" ;;
 		esac
 		((c++))
@@ -1704,7 +1704,7 @@ _git_checkout ()
 	local dwim_opt="$(__git_checkout_default_dwim_mode)"
 
 	case "$prev" in
-	-b|-B|--orphan)
+	-b| -B| --orphan)
 		# Complete local branches (and DWIM branch
 		# remote branch names) for an option argument
 		# specifying a new branch name. This is for
@@ -1784,7 +1784,7 @@ _git_clean ()
 _git_clone ()
 {
 	case "$prev" in
-	-c|--config)
+	-c| --config)
 		__git_complete_config_variable_name_and_value
 		return
 		;;
@@ -1812,7 +1812,7 @@ __git_trailer_tokens ()
 _git_commit ()
 {
 	case "$prev" in
-	-c|-C)
+	-c| -C)
 		__git_complete_refs
 		return
 		;;
@@ -1824,8 +1824,8 @@ _git_commit ()
 			" "" "${cur##--cleanup=}"
 		return
 		;;
-	--reuse-message=*|--reedit-message=*|\
-	--fixup=*|--squash=*)
+	--reuse-message=*| --reedit-message=*|\
+	--fixup=*| --squash=*)
 		__git_complete_refs --cur="${cur#*=}"
 		return
 		;;
@@ -1999,7 +1999,7 @@ _git_format_patch ()
 			" "" "${cur##--thread=}"
 		return
 		;;
-	--base=*|--interdiff=*|--range-diff=*)
+	--base=*| --interdiff=*| --range-diff=*)
 		__git_complete_refs --cur="${cur#--*=}"
 		return
 		;;
@@ -2216,13 +2216,13 @@ __git_complete_log_opts ()
 		__git_complete_symbol --cur="${cur#:}" --sfx=":"
 		return
 		;;
-	-G,*|-S,*)
+	-G,*| -S,*)
 		__git_complete_symbol
 		return
 		;;
 	esac
 	case "$cur" in
-	--pretty=*|--format=*)
+	--pretty=*| --format=*)
 		__gitcomp "$__git_log_pretty_formats $(__git_pretty_aliases)
 			" "" "${cur#*=}"
 		return
@@ -2396,7 +2396,7 @@ _git_notes ()
 		;;
 	*)
 		case "$prev" in
-		-m|-F)
+		-m| -F)
 			;;
 		*)
 			__git_complete_refs
@@ -2557,7 +2557,7 @@ __git_send_email_suppresscc_options="author self cc bodycc sob cccmd body all"
 _git_send_email ()
 {
 	case "$prev" in
-	--to|--cc|--bcc|--from)
+	--to| --cc| --bcc| --from)
 		__gitcomp "$(__git send-email --dump-aliases)"
 		return
 		;;
@@ -2587,7 +2587,7 @@ _git_send_email ()
 			" "" "${cur##--thread=}"
 		return
 		;;
-	--to=*|--cc=*|--bcc=*|--from=*)
+	--to=*| --cc=*| --bcc=*| --from=*)
 		__gitcomp "$(__git send-email --dump-aliases)" "" "${cur#--*=}"
 		return
 		;;
@@ -2655,7 +2655,7 @@ _git_switch ()
 	local dwim_opt="$(__git_checkout_default_dwim_mode)"
 
 	case "$prev" in
-	-c|-C|--orphan)
+	-c| -C| --orphan)
 		# Complete local branches (and DWIM branch
 		# remote branch names) for an option argument
 		# specifying a new branch name. This is for
@@ -2707,11 +2707,11 @@ __git_config_get_set_variables ()
 	while [ $c -gt "$__git_cmd_idx" ]; do
 		word="${words[c]}"
 		case "$word" in
-		--system|--global|--local|--file=*)
+		--system| --global| --local| --file=*)
 			config_file="$word"
 			break
 			;;
-		-f|--file)
+		-f| --file)
 			config_file="$word $prevword"
 			break
 			;;
@@ -3202,7 +3202,7 @@ _git_show ()
 	__git_has_doubledash && return
 
 	case "$cur" in
-	--pretty=*|--format=*)
+	--pretty=*| --format=*)
 		__gitcomp "$__git_log_pretty_formats $(__git_pretty_aliases)
 			" "" "${cur#*=}"
 		return
@@ -3632,7 +3632,7 @@ _git_tag ()
 	while [ $c -lt $cword ]; do
 		i="${words[c]}"
 		case "$i" in
-		-d|--delete|-v|--verify)
+		-d| --delete| -v| --verify)
 			__gitcomp_direct "$(__git_tags "" "$cur" " ")"
 			return
 			;;
@@ -3644,7 +3644,7 @@ _git_tag ()
 	done
 
 	case "$prev" in
-	-m|-F)
+	-m| -F)
 		;;
 	-*|tag)
 		if [ $f = 1 ]; then
@@ -3698,17 +3698,17 @@ _git_worktree ()
 		# Here we are not completing an --option, it's either the
 		# path or a ref.
 		case "$prev" in
-		-b|-B)	# Complete refs for branch to be created/reseted.
+		-b| -B)	# Complete refs for branch to be created/reseted.
 			__git_complete_refs
 			;;
-		-*)	# The previous word is an -o|--option without an
+		-*)	# The previous word is an -o| --option without an
 			# unstuck argument: have to complete the path for
 			# the new worktree, so don't list anything, but let
 			# Bash fall back to filename completion.
 			;;
 		*)	# The previous word is not an --option, so it must
 			# be either the 'add' subcommand, the unstuck
-			# argument of an option (e.g. branch for -b|-B), or
+			# argument of an option (e.g. branch for -b| -B), or
 			# the path for the new worktree.
 			if [ $cword -eq $((subcommand_idx+1)) ]; then
 				# Right after the 'add' subcommand: have to
@@ -3717,7 +3717,7 @@ _git_worktree ()
 				:
 			else
 				case "${words[cword-2]}" in
-				-b|-B)	# After '-b <branch>': have to
+				-b| -B)	# After '-b <branch>': have to
 					# complete the path, so fall back
 					# to Bash filename completion.
 					;;
@@ -3821,7 +3821,7 @@ __git_main ()
 			command="help"
 			break
 			;;
-		-c|--work-tree|--namespace)
+		-c| --work-tree| --namespace)
 			((c++))
 			;;
 		-C)
@@ -3842,7 +3842,7 @@ __git_main ()
 
 	if [ -z "${command-}" ]; then
 		case "$prev" in
-		--git-dir|-C|--work-tree)
+		--git-dir| -C| --work-tree)
 			# these need a path argument, let's fall back to
 			# Bash filename completion
 			return

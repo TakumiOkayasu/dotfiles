@@ -5,35 +5,20 @@ import argparse
 import json
 import shutil
 import stat
+import sys
 from pathlib import Path
+
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from codex_asset_manifest import load_asset_manifest
 
 CORE_PLUGIN = "dotfile-work-codex"
 EXTRA_PLUGIN = "dotfile-work-codex-extra"
 VERSION = "0.3.0"
-
-CORE_SKILLS = {
-    "feat",
-    "fix",
-    "review",
-    "deep-review",
-    "security-review",
-    "test",
-    "refactor",
-    "tdd",
-    "systematic-debugging",
-    "rules-required",
-    "consult",
-    "codex-handoff",
-    "implementation-router",
-    "plan",
-    "explain",
-    "commit-msg",
-    "plugin-sync",
-    "plugin-install",
-}
-
-EXCLUDE_DOCS = {"RECOMMENDATIONS.md", "CLAUDE_PORT_REPORT.md", "PLUGIN_ONLY_WORKFLOWS.md", "SKILL_POLICY.md"}
-
+ASSET_MANIFEST_PATH = Path(__file__).with_name("claude-command-map.json")
+CORE_SKILLS = load_asset_manifest(ASSET_MANIFEST_PATH).core_skills
 
 def write_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -50,32 +35,37 @@ def copy_file(src: Path, dst: Path) -> None:
     shutil.copy2(src, dst)
 
 
-def copytree(src: Path, dst: Path, ignore_names: set[str] | None = None) -> None:
-    ignore_names = ignore_names or set()
+def copytree(src: Path, dst: Path) -> None:
     if not src.exists():
         return
     if dst.exists():
         shutil.rmtree(dst)
 
     def ignore(_dir: str, names: list[str]) -> set[str]:
-        return {n for n in names if n in ignore_names or n.endswith(".bak") or n == "__pycache__"}
+        return {n for n in names if n.endswith(".bak") or n == "__pycache__"}
 
     shutil.copytree(src, dst, ignore=ignore)
 
 
-def copy_skills(src_dir: Path, dst_dir: Path, mode: str) -> list[str]:
+def partition_skills(src_dir: Path) -> tuple[tuple[Path, ...], tuple[Path, ...]]:
+    if not src_dir.exists():
+        return (), ()
+    core: list[Path] = []
+    extra: list[Path] = []
+    for skill in sorted(src_dir.iterdir()):
+        if not skill.is_dir() or not (skill / "SKILL.md").is_file():
+            continue
+        destination = core if skill.name in CORE_SKILLS else extra
+        destination.append(skill)
+    return tuple(core), tuple(extra)
+
+
+def copy_skills(skills: tuple[Path, ...], dst_dir: Path) -> list[str]:
     if dst_dir.exists():
         shutil.rmtree(dst_dir)
     dst_dir.mkdir(parents=True, exist_ok=True)
     copied: list[str] = []
-    if not src_dir.exists():
-        return copied
-    for skill in sorted(p for p in src_dir.iterdir() if p.is_dir() and (p / "SKILL.md").exists()):
-        is_core = skill.name in CORE_SKILLS
-        if mode == "core" and not is_core:
-            continue
-        if mode == "extra" and is_core:
-            continue
+    for skill in skills:
         shutil.copytree(skill, dst_dir / skill.name, ignore=shutil.ignore_patterns("*.bak", "__pycache__"))
         copied.append(skill.name)
     return copied
@@ -170,14 +160,14 @@ def marketplace() -> dict:
     }
 
 
-def sync_core(root: Path, clean: bool) -> None:
+def sync_core(root: Path, clean: bool, skills_to_copy: tuple[Path, ...]) -> None:
     codex = root / "codex"
     plugin = root / "plugins" / CORE_PLUGIN
     if clean and plugin.exists():
         shutil.rmtree(plugin)
     plugin.mkdir(parents=True, exist_ok=True)
     (plugin / ".codex-plugin").mkdir(parents=True, exist_ok=True)
-    skills = copy_skills(codex / "skills", plugin / "skills", "core")
+    skills = copy_skills(skills_to_copy, plugin / "skills")
     copytree(codex / "rules", plugin / "rules")
     copytree(codex / "bin", plugin / "bin")
     hooks_dir = plugin / "hooks"
@@ -201,14 +191,14 @@ def sync_core(root: Path, clean: bool) -> None:
     )
 
 
-def sync_extra(root: Path, clean: bool) -> None:
+def sync_extra(root: Path, clean: bool, skills_to_copy: tuple[Path, ...]) -> None:
     codex = root / "codex"
     plugin = root / "plugins" / EXTRA_PLUGIN
     if clean and plugin.exists():
         shutil.rmtree(plugin)
     plugin.mkdir(parents=True, exist_ok=True)
     (plugin / ".codex-plugin").mkdir(parents=True, exist_ok=True)
-    skills = copy_skills(codex / "skills", plugin / "skills", "extra")
+    skills = copy_skills(skills_to_copy, plugin / "skills")
     write_json(plugin / ".codex-plugin" / "plugin.json", extra_manifest())
     (plugin / "README.md").write_text(
         "# dotfile-work Codex Extra Skills\n\n"
@@ -226,8 +216,9 @@ def main() -> int:
     root = Path(args.repo).resolve()
     if not (root / "codex").is_dir():
         raise SystemExit(f"missing codex dir: {root / 'codex'}")
-    sync_core(root, args.clean)
-    sync_extra(root, args.clean)
+    core_skills, extra_skills = partition_skills(root / "codex" / "skills")
+    sync_core(root, args.clean, core_skills)
+    sync_extra(root, args.clean, extra_skills)
     write_json(root / ".agents" / "plugins" / "marketplace.json", marketplace())
     print(f"synced plugins: plugins/{CORE_PLUGIN}, plugins/{EXTRA_PLUGIN}")
     return 0

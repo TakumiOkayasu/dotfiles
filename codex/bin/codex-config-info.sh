@@ -78,10 +78,10 @@ parse_args() {
             --json)
                 OUTPUT_JSON=true
                 ;;
-            --quiet|-q)
+            --quiet| -q)
                 QUIET=true
                 ;;
-            -h|--help)
+            -h| --help)
                 show_help
                 exit 0
                 ;;

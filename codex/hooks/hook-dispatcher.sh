@@ -2,8 +2,8 @@
 # hook-dispatcher.sh - Codex hook entrypoint aggregator
 #
 # Codex requires hook commands to be reviewed before execution. Registering every
-# small guard script separately makes first-run review noisy, so hooks.json calls
-# this dispatcher once per event and the dispatcher runs the local guard set.
+# small guard script separately makes first-run review noisy, so inline hooks in
+# config.toml call this dispatcher once per event to run the local guard set.
 
 # set -e を使わない（個別 hook の exit 2 を正しく伝播するため）
 
@@ -65,14 +65,12 @@ case "$EVENT" in
         ;;
     post-tool-use)
         run_hook rules-enforce.sh
-        run_hook context-monitor.sh
         ;;
     user-prompt-submit)
         CODEX_RULES_CONTEXT_MODE=none
         export CODEX_RULES_CONTEXT_MODE
         run_hook rules-inject.sh
         unset CODEX_RULES_CONTEXT_MODE
-        run_hook context-monitor.sh
         CODEX_PRIMARY_SOURCE_CHECK_MODE=quiet
         export CODEX_PRIMARY_SOURCE_CHECK_MODE
         run_hook primary-source-check.sh

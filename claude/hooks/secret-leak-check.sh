@@ -13,10 +13,13 @@ JQ=$(command -v jaq 2>/dev/null || command -v jq 2>/dev/null || echo "")
 COMMAND=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.command // ""' 2>/dev/null) || COMMAND=""
 [ -z "$COMMAND" ] && exit 0
 
-# パターン: PASS='plaintext' / SECRET="plaintext" 等 ($変数参照は除外)
-PATTERN="(PASS(WORD)?|SECRET|TOKEN|API_KEY|AUTH)=[\"'][^\$\"']{4,}[\"']"
+# パターン: PASS='plaintext' / CLI引数 / Authorization header 等。
+# $変数参照は除外する。
+PATTERN_ENV="(PASS(WORD)?|SECRET|TOKEN|API[_-]?KEY|AUTH|BEARER)=[\"'][^\$\"']{4,}[\"']"
+PATTERN_CLI="(--token|--api-key|--password)(=|[[:space:]]+)[^\$[:space:]'\";]{4,}"
+PATTERN_AUTH_HEADER="Authorization:[[:space:]]*Bearer[[:space:]]+[A-Za-z0-9._~+/-]{10,}"
 
-if printf '%s\n' "$COMMAND" | grep -qEi "$PATTERN"; then
+if printf '%s\n' "$COMMAND" | grep -qEi "$PATTERN_ENV|$PATTERN_CLI|$PATTERN_AUTH_HEADER"; then
     echo "BLOCK: コマンドに秘密情報がハードコードされています。.envに記載し環境変数(\$VAR)経由で渡してください。"
     exit 2
 fi

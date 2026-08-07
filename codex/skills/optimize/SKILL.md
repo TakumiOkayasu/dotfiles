@@ -1,5 +1,5 @@
 ---
-# codex_port_source: claude/skills/optimize/SKILL.md
+# codex_port_source: common/skills/optimize/SKILL.md
 name: optimize
 description: 【最適化の判断】実行時パフォーマンス最適化の思考プロトコル。推測による最適化を拒否し計測を最優先する。「速くしたい」「遅い」「重い」「ボトルネック」「最適化」「パフォーマンス改善」「スケールしない」「p99が悪い」「メモリが膨らむ」「GCが頻発」「CPU張り付く」「タイムアウト」「レイテンシ削減」「スループット向上」「もっと速く」「なぜ遅い」などの語、または相手が具体的な最適化提案 (キャッシュ追加 / 並列化 / インデックス追加 / アルゴリズム変更 / 言語切替 / サーバー増強 等) を出してきた際の妥当性検証時に発動。計測を最優先し、上流に遡り、暗黙の前提を疑い、層を横断して案を生成し、軽い案を優先し、帰結を予測する。
 effort: high
@@ -7,14 +7,14 @@ effort: high
 
 # Optimize
 
-<!-- codex-port: managed; source=claude/skills/optimize/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/optimize/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/optimize/SKILL.md`.
+- This file was ported from `common/skills/optimize/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 実行時パフォーマンスを「測定なき推測」で改善しないための思考の指針。相手が設定した「速くしたい場所」をそのまま受け入れず、ボトルネックを再特定し、層を横断して選択肢を棚卸しし、計測根拠と漸近性で評価し、最も軽くて効く案を推奨する。

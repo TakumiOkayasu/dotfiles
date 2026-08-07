@@ -1,19 +1,19 @@
 ---
-# codex_port_source: claude/skills/failure-logging/SKILL.md
+# codex_port_source: common/skills/failure-logging/SKILL.md
 name: failure-logging
 description: アプローチ失敗時・同じ問題で繰り返しつまずいた時に使用。失敗の履歴を構築し同じ失敗を繰り返さない。コマンドの実行エラーは failure-log フックが自動記録するため、本スキルは判断を要する記録・分析・参照を担当する。「また失敗した」「同じエラーを繰り返す」「前も詰まった」で発動。
 ---
 
 # Failure Logging
 
-<!-- codex-port: managed; source=claude/skills/failure-logging/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/failure-logging/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/failure-logging/SKILL.md`.
+- This file was ported from `common/skills/failure-logging/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 同じ失敗を繰り返さないための履歴管理。
@@ -25,7 +25,7 @@ description: アプローチ失敗時・同じ問題で繰り返しつまずい�
 - 試したアプローチがうまくいかなかった時 (コマンドエラーに限らない設計・方針レベルの失敗)
 - 同じ問題で 2 回以上つまずいた時
 - 新しいアプローチを試みる直前
-- `@compact` 後の再開時
+- `$compact` 後の再開時
 
 ## 失敗の記録 (判断を要する分)
 

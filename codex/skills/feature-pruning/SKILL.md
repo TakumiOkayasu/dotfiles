@@ -1,5 +1,5 @@
 ---
-# codex_port_source: claude/skills/feature-pruning/SKILL.md
+# codex_port_source: common/skills/feature-pruning/SKILL.md
 name: feature-pruning
 description: 個別機能 / UI 要素 / API エンドポイント / データ列の要否を機能名レベルで検証する skill。「このページネーション要らない」「この保存ボタン要らない」「この確認ダイアログ要らない」「この検索ボックスはブラウザ Cmd+F で済む」級の具体指摘を出す。3 手法 (YAGNI Probe / Convention Audit / Existing Substitute) を独立 subagent に投げて 3 ラウンド以上検証し、機能ごとに採点して過剰機能 / 代替可能機能リストを出す。premise-questioning が方針自体の妥当性を扱うのに対し、本 skill は **方針が採用された後の機能粒度の棚卸し専用**。empirical-prompt-tuning のバイアス排除手法を踏襲。
 effort: high
@@ -7,14 +7,14 @@ effort: high
 
 # Feature Pruning (機能粒度の棚卸し - 戦術レベル)
 
-<!-- codex-port: managed; source=claude/skills/feature-pruning/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/feature-pruning/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/feature-pruning/SKILL.md`.
+- This file was ported from `common/skills/feature-pruning/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 設計が固まり、実装する機能リストが揃った段階で、**個別機能の 1 つ 1 つを名指しで「これ本当に要る?」と問い直す**のが本 skill の核。「ページネーション (件数 30 件で 1 ページに収まる)」「確認ダイアログ (取り消し可能操作で警告不要)」「印刷ボタン (ブラウザ標準で代替可能)」レベルの具体指摘を、バイアスを排した実行者から取り出す。最低 3 ラウンド、機能名で語ることを強制する。
@@ -39,45 +39,47 @@ effort: high
 
 ## ワークフロー
 
-0. **対象機能リストのパッケージ化**
+1. **対象機能リストのパッケージ化**
 
-  - **機能 / UI 要素 / API エンドポイント / データ列を箇条書きで全列挙する** (これを欠かすと skill が成立しない)
-    - 必須情報:
-    - 機能リスト (例: 「画面 A: ヘッダー / 検索ボックス / フィルタ / リスト本体 / ページネーション / 確認ダイアログ / 保存ボタン / フッター」)
-    - 想定データ量 (件数 / レコード数 / 同時利用ユーザー数)
-    - 想定ユーザー行動 (主要動線、推定使用頻度)
-    - 環境前提 (Web / iOS / Android / デスクトップアプリ等。標準機能の利用可否に効く)
-  - 任意情報:
-    - 既存代替手段の候補 (ブラウザ機能 / OS 機能 / 既存ツール等で思い当たるもの)
+- **機能 / UI 要素 / API エンドポイント / データ列を箇条書きで全列挙する** (これを欠かすと skill が成立しない)
+  - 必須情報:
+  - 機能リスト (例: 「画面 A: ヘッダー / 検索ボックス / フィルタ / リスト本体 / ページネーション / 確認ダイアログ / 保存ボタン / フッター」)
+  - 想定データ量 (件数 / レコード数 / 同時利用ユーザー数)
+  - 想定ユーザー行動 (主要動線、推定使用頻度)
+  - 環境前提 (Web / iOS / Android / デスクトップアプリ等。標準機能の利用可否に効く)
+- 任意情報:
+  - 既存代替手段の候補 (ブラウザ機能 / OS 機能 / 既存ツール等で思い当たるもの)
 
 1. **手法ローテートで 3 ラウンド dispatch**
 
-  - Round 1: **YAGNI Probe** (機能要否プローブ) - 各機能の使用確率を時系列で見積もり、低確率機能を炙り出す
-  - Round 2: **Convention Audit** (慣習監査) - 慣習で入れているだけの機能を炙り出す
-  - Round 3: **Existing Substitute** (既存代替検証) - 標準機能 / 既存ツールで代替可能な機能を炙り出す
-  - **毎回新規 subagent を `spawn_agent` で dispatch** する (前回の出力を学習させない)。並列実行して構わない
-    - dispatch 不能環境の扱いは「環境制約」節
+- Round 1: **YAGNI Probe** (機能要否プローブ) - 各機能の使用確率を時系列で見積もり、低確率機能を炙り出す
+- Round 2: **Convention Audit** (慣習監査) - 慣習で入れているだけの機能を炙り出す
+- Round 3: **Existing Substitute** (既存代替検証) - 標準機能 / 既存ツールで代替可能な機能を炙り出す
+- **毎回新規 subagent を `spawn_agent` で dispatch** する (前回の出力を学習させない)。並列実行して構わない
+  - dispatch 不能環境の扱いは「環境制約」節
 
-2. **機能ごとの 3 軸スコアリング** (各軸 0-5、判定文言は「スコア軸」節で一元定義)
+1. **機能ごとの 3 軸スコアリング** (各軸 0-5、判定文言は「スコア軸」節で一元定義)
 
    - subagent が **機能リストの全項目について** 3 軸を採点する (機能数 × 3 軸のマトリクス)
-  - 3 リスト必須出力: 過剰機能リスト / 不足機能リスト / 代替可能機能リスト
 
-3. **ラウンド間統合**
-  - 3 ラウンド × 機能数 × 3 軸 = N セルを統合
-   - **3 リストの和集合** を取る (Round 1 で出た過剰機能 ∪ Round 2 で出た過剰機能 ∪ Round 3 で出た過剰機能)
-   - 機能ごとの **削減判定**: ✅ 維持 / 🟡 縮小 / 🔴 削除 / 🔁 標準機能で代替
+- 3 リスト必須出力: 過剰機能リスト / 不足機能リスト / 代替可能機能リスト
 
-4. **収束判定** (詳細は「反復の打ち切り基準」節)
+1. **ラウンド間統合**
 
-  - 3 ラウンドで同じ機能が 2 回以上「過剰 / 代替可能」判定 → 削除候補確定
-  - 1 ラウンドだけの指摘 → Round 4 で再検証 (制約除去 or 競合手法の追加投入)
+- 3 ラウンド × 機能数 × 3 軸 = N セルを統合
+- **3 リストの和集合** を取る (Round 1 で出た過剰機能 ∪ Round 2 で出た過剰機能 ∪ Round 3 で出た過剰機能)
+- 機能ごとの **削減判定**: ✅ 維持 / 🟡 縮小 / 🔴 削除 / 🔁 標準機能で代替
 
-5. **結論アウトプット**
+1. **収束判定** (詳細は「反復の打ち切り基準」節)
 
-  - 維持機能リスト / 縮小機能リスト / 削除推奨リスト / 標準機能代替リスト
-  - 削減後の最終機能セット (Before / After 対比)
-  - 削減によるリスク (もし削ったら困るシナリオ)
+- 3 ラウンドで同じ機能が 2 回以上「過剰 / 代替可能」判定 → 削除候補確定
+- 1 ラウンドだけの指摘 → Round 4 で再検証 (制約除去 or 競合手法の追加投入)
+
+1. **結論アウトプット**
+
+- 維持機能リスト / 縮小機能リスト / 削除推奨リスト / 標準機能代替リスト
+- 削減後の最終機能セット (Before / After 対比)
+- 削減によるリスク (もし削ったら困るシナリオ)
 
 ## 3 つの手法 (Core 3、ラウンドごとにローテート)
 
@@ -248,10 +250,12 @@ effort: high
 - **✅ 維持**: F-Nec ≥ 4 かつ F-Cnv ≤ 2 かつ F-Sub ≤ 2 (本案件固有で必要、自前実装が妥当)
 
 **判定の使い分け**:
+
 - 🔴 削除と 🔁 代替の境界は **F-Nec の値** で決まる (≤ 1 → 🔴 / ≥ 2 → 🔁)。F-Sub ≥ 4 でも F-Nec ≤ 1 なら 🔴 削除を優先する (使われない機能は代替先に移しても無駄)
 - 画面外代替 (社内 wiki / IDP / BI 等) の場合は F-Sub = 4 として採点し、F-Nec ≥ 2 なら 🔁、F-Nec ≤ 1 なら 🔴。代替先は「代替可能機能リスト」で必ず明示する
 
 **ライブラリ採用前提時の 🔴 / 🔁 境界** (F-Sub=3 の特例):
+
 - 同等機能を提供するライブラリ (テーブルライブラリ / フォームライブラリ / 認証ライブラリ等) の採用が前提条件として確定 / 強く推奨されている場合、F-Sub=3 (既存ライブラリで代替可能) でも **🔁 を優先**する (付随で得られる機能を再実装しない)
 - ライブラリ未採用 / 採用判断未確定の場合は、F-Nec ≤ 1 → 🔴 ルールを通常通り適用する (使用率低い機能を自作する工数 > 自作回避メリット)
 - 判定例:
@@ -260,6 +264,7 @@ effort: high
 - 入力側でライブラリ採用前提の有無を明示する (前提不明時は subagent が「ライブラリ未採用」とみなして採点)
 
 **ばらつきとの競合解決**:
+
 - 「マトリクス集約ルール」(提示フォーマット節) のラウンド間ばらつき ±2 以上 → 判定保留+追加ラウンド発動と、本節の優先順位 (🔴 削除推奨 / 🔁 代替) で結論が確定する条件が同時に成立した場合は **本節の優先順位を優先** = 判定保留せず確定
 - 具体例: F-Cnv が R1=2 / R2=4 / R3=4 (ばらつき 2) でも、F-Nec ≤ 1 が 3R 安定なら 🔴 削除推奨を確定 (追加ラウンド不要)
 - 理由: 保留して追加ラウンドを回しても結論が変わらない場合、ラウンド追加はリソースの無駄。ばらつき判定保留が意味を持つのは「ばらつき軸が判定の決め手になっている」ケースのみ
@@ -300,7 +305,7 @@ effort: high
 
 ### 各ラウンド結果
 | Round | 手法 | 過剰指摘数 | 代替可能指摘数 | 結論 |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | 1 | YAGNI Probe | 3 | 0 | 🟡 一部削減推奨 |
 | 2 | Convention Audit | 4 | 0 | 🟡 一部削減推奨 |
 | 3 | Existing Substitute | 1 | 3 | 🟡 一部削減推奨 |

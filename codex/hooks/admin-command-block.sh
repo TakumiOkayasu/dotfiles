@@ -37,7 +37,7 @@ fi
 
 COMMAND=$(printf '%s\n' "$INPUT" | "$JQ" -r '.tool_input.command // ""' 2>/dev/null) || COMMAND=""
 
-ADMIN_PATTERN='(^|[[:space:]])(sudo|su[[:space:]]+-|doas|pkexec)([[:space:]]|$)|--admin([[:space:]]|=|$)|-u[[:space:]]+root([[:space:]]|$)|--user(=|[[:space:]]+)root([[:space:]]|$)'
+ADMIN_PATTERN='(^|[[:space:]])(sudo|su[[:space:]]+-|doas|pkexec)([[:space:]]|$)|(^|[[:space:]])--admin([[:space:]]|=|$)|(^|[[:space:]])-u[[:space:]]+root([[:space:]]|$)|(^|[[:space:]])--user(=|[[:space:]]+)root([[:space:]]|$)'
 
 if printf '%s\n' "$COMMAND" | grep -qE "$ADMIN_PATTERN"; then
     echo "[管理者権限禁止] このコマンドには管理者権限が含まれています。ユーザーに確認してください。" >&2

@@ -6,9 +6,11 @@ description: Add or improve tests for existing behavior or new specification. Us
 # Test Authoring
 
 ## Goal
+
 Add meaningful tests that fail for the right reason and protect behavior.
 
 ## Steps
+
 1. Apply mandatory rules.
 2. Inspect existing test runner, layout, naming, and assertions.
 3. Define what behavior each test proves.
@@ -18,7 +20,7 @@ Add meaningful tests that fail for the right reason and protect behavior.
 
 ## Common contract
 
-- Plugin-only operation: use `$skill` / `@skill` or `/skills`; no `/prompt:*` or `prompt:*`.
+- Plugin-only operation: use `$skill` or `/skills`; no `/prompt:*` or `prompt:*`.
 - Apply mandatory rules before editing, reviewing, testing, or implementation conclusions.
 - Keep diffs minimal and scoped.
 - Report unverified items and skipped checks.

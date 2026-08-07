@@ -1,19 +1,19 @@
 ---
-# codex_port_source: claude/skills/refactoring/SKILL.md
+# codex_port_source: common/skills/refactoring/SKILL.md
 name: refactoring
 description: 振る舞いを変えずにコード構造を改善する際に使用。「リファクタ」「整理して」「きれいにして」「重複を消す」「関数を分割」で発動。
 ---
 
 # Refactoring
 
-<!-- codex-port: managed; source=claude/skills/refactoring/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/refactoring/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/refactoring/SKILL.md`.
+- This file was ported from `common/skills/refactoring/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## トリガー条件
@@ -28,7 +28,7 @@ description: 振る舞いを変えずにコード構造を改善する際に使�
 ## 前提条件
 
 | 条件 | 内容 |
-|------|------|
+| ------ | ------ |
 | ✅ 必須 | テストが存在し、全てパスしていること |
 | ✅ 必須 | 変更対象コードの動作を理解していること |
 | ❌ 実施禁止 | デッドライン直前 |
@@ -122,7 +122,7 @@ if (speed > GRAVITY)
 ## アンチパターン
 
 | 禁止 | 理由 |
-|------|------|
+| ------ | ------ |
 | 振る舞いの変更 | リファクタリングの定義違反 |
 | テストなしで進める | デグレ検出不能 |
 | 複数スメルを同時に変更 | 失敗時の原因特定が困難 |
@@ -137,7 +137,7 @@ if (speed > GRAVITY)
 依頼内に以下が混在する場合、本スキルでは扱わず該当スキルに委譲する。委譲時は「本スキルの対象外」を明示してから委譲先を提案する。
 
 | 範囲外作業 | 委譲先スキル |
-|---|---|
+| --- | --- |
 | テスト新規作成・特性テスト追加（前提条件未充足時） | tdd |
 | バグ修正・原因分析（振る舞い変更を伴う） | systematic-debugging → tdd |
 | 新規 interface 設計・新規実装 | interface-first-design |

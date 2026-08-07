@@ -3,43 +3,25 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import shutil
 import stat
+import sys
 from pathlib import Path
 
-CORE_SKILLS = {
-    "feat",
-    "fix",
-    "review",
-    "deep-review",
-    "security-review",
-    "test",
-    "refactor",
-    "tdd",
-    "systematic-debugging",
-    "rules-required",
-    "consult",
-    "codex-handoff",
-    "implementation-router",
-    "plan",
-    "explain",
-    "commit-msg",
-    "plugin-sync",
-    "plugin-install",
-}
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
 
-GENERATED_RULES = {
-    "RULES_CORE.md",
-    "RULES_INDEX.md",
-    "RULES_BUNDLE.md",
-}
+from codex_asset_manifest import load_asset_manifest
+from codex_rule_renderer import (
+    RULE_BUNDLE_NAME,
+    RULE_INDEX_NAME,
+    load_rule_documents,
+    render_rule_bundle,
+    render_rule_index,
+)
 
-SUMMARY_BY_NAME = {
-    "coding-conventions.md": "language-independent coding conventions, naming, testing, error handling, and logging",
-    "implementation-policy.md": "dependency, library, DB, validation, logging, crypto, and SQL policy",
-    "hallucination-prevention.md": "source verification and uncertainty handling policy",
-    "hierarchical-architecture.md": "architecture invariants, dependency direction, composition, interfaces, and layer naming",
-}
+ASSET_MANIFEST_PATH = Path(__file__).with_name("claude-command-map.json")
+CORE_SKILLS = load_asset_manifest(ASSET_MANIFEST_PATH).core_skills
 
 RULES_CORE = """# RULES_CORE
 
@@ -203,33 +185,8 @@ def write_text(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def backup_once(path: Path, suffix: str = ".pre-performance-profile.bak") -> None:
-    if path.exists() and not path.with_name(path.name + suffix).exists():
-        shutil.copy2(path, path.with_name(path.name + suffix))
-
-
 def sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-def list_markdown_rules(rules_dir: Path) -> list[Path]:
-    if not rules_dir.exists():
-        return []
-    return sorted(
-        p for p in rules_dir.glob("*.md")
-        if p.name not in GENERATED_RULES and not p.name.endswith(".bak")
-    )
-
-
-def summarize_rule(path: Path) -> str:
-    if path.name in SUMMARY_BY_NAME:
-        return SUMMARY_BY_NAME[path.name]
-    text = read_text(path)
-    for line in text.splitlines():
-        stripped = line.strip("# ").strip()
-        if stripped and not stripped.startswith("---"):
-            return stripped[:160]
-    return "project rule"
 
 
 def generate_rules(root: Path) -> None:
@@ -238,44 +195,29 @@ def generate_rules(root: Path) -> None:
     write_text(rules_dir / "RULES_CORE.md", RULES_CORE)
     write_text(rules_dir / "command-safety.rules", SAFETY_RULES)
 
-    rule_files = list_markdown_rules(rules_dir)
-    index_lines = [
-        "# RULES_INDEX",
-        "",
-        "Use this index to choose which detailed rule files are relevant. `RULES_CORE.md` is always mandatory.",
-        "",
-        "| Rule file | Applies when |",
-        "| --- | --- |",
-    ]
-    for path in rule_files:
-        index_lines.append(f"| `{path.name}` | {summarize_rule(path)} |")
-    index_lines.append("")
-    write_text(rules_dir / "RULES_INDEX.md", "\n".join(index_lines))
-
-    bundle_parts = [
-        "# RULES_BUNDLE",
-        "",
-        "This file is generated from `codex/rules/*.md`. Do not edit it directly.",
-        "",
-        "---",
-        "",
-        read_text(rules_dir / "RULES_CORE.md"),
-    ]
-    for path in rule_files:
-        bundle_parts.extend(["\n---\n", f"# RULE FILE: {path.name}\n", read_text(path)])
-    write_text(rules_dir / "RULES_BUNDLE.md", "\n".join(bundle_parts))
+    documents = load_rule_documents(root)
+    write_text(rules_dir / RULE_INDEX_NAME, render_rule_index(documents))
+    write_text(
+        rules_dir / RULE_BUNDLE_NAME,
+        render_rule_bundle(documents),
+    )
 
 
-def skill_name(skill_dir: Path) -> str:
-    return skill_dir.name
-
-
-def add_openai_yaml(root: Path) -> None:
-    skills_dir = root / "codex" / "skills"
+def skill_directories(skills_dir: Path) -> tuple[Path, ...]:
     if not skills_dir.exists():
-        return
-    for skill in sorted(p for p in skills_dir.iterdir() if p.is_dir() and (p / "SKILL.md").exists()):
-        name = skill_name(skill)
+        return ()
+    return tuple(
+        sorted(
+            path
+            for path in skills_dir.iterdir()
+            if path.is_dir() and (path / "SKILL.md").is_file()
+        )
+    )
+
+
+def add_openai_yaml(skills: tuple[Path, ...]) -> None:
+    for skill in skills:
+        name = skill.name
         implicit = "true" if name in CORE_SKILLS else "false"
         short = CORE_SHORT.get(name, "Optional workflow skill. Explicit invocation recommended.")
         display = name.replace("-", " ").title()
@@ -288,38 +230,17 @@ def add_openai_yaml(root: Path) -> None:
         ))
 
 
-def write_skill_policy(root: Path) -> None:
-    skills_dir = root / "codex" / "skills"
-    skills_dir.mkdir(parents=True, exist_ok=True)
-    all_skills = sorted(p.name for p in skills_dir.iterdir() if p.is_dir() and (p / "SKILL.md").exists())
-    optional = [s for s in all_skills if s not in CORE_SKILLS]
-    lines = [
-        "# Codex Skill Policy",
-        "",
-        "Core skills are packaged in `dotfile-work-codex` and may be implicitly invoked.",
-        "Optional skills are packaged in `dotfile-work-codex-extra` and should usually be explicitly invoked.",
-        "",
-        "## Core skills",
-        "",
-    ]
-    lines += [f"- `{s}`" for s in sorted(CORE_SKILLS & set(all_skills))]
-    lines += ["", "## Optional skills", ""]
-    lines += [f"- `{s}`" for s in optional]
-    lines.append("")
-    write_text(skills_dir / "SKILL_POLICY.md", "\n".join(lines))
-
-
 def patch_install_mapping(root: Path) -> None:
     path = root / "install.sh"
     if not path.exists():
         return
     text = read_text(path)
     original = text
-
     # Include official *.rules in Codex install mapping, but do not symlink codex/skills into ~/.agents by default.
-    text = text.replace("bin/*.sh|hooks/*.sh|prompts/commands/*.md|rules/*.md)", "bin/*|hooks/*.sh|rules/*.md|rules/*.rules)")
-    text = text.replace("bin/*|hooks/*.sh|rules/*.md)", "bin/*|hooks/*.sh|rules/*.md|rules/*.rules)")
-    text = text.replace("bin/*.sh|hooks/*.sh|rules/*.md)", "bin/*|hooks/*.sh|rules/*.md|rules/*.rules)")
+    text = text.replace("bin/*.sh|hooks/*.sh|prompts/commands/*.md|rules/*.md)", "bin/*|hooks/*|rules/*.md|rules/*.rules)")
+    text = text.replace("bin/*|hooks/*.sh|rules/*.md)", "bin/*|hooks/*|rules/*.md|rules/*.rules)")
+    text = text.replace("bin/*.sh|hooks/*.sh|rules/*.md)", "bin/*|hooks/*|rules/*.md|rules/*.rules)")
+    text = text.replace("bin/*|hooks/*.sh|rules/*.md|rules/*.rules)", "bin/*|hooks/*|rules/*.md|rules/*.rules)")
 
     old = '''        skills/*/SKILL.md)
             _skill_name=${_cdf_relative#skills/}
@@ -344,7 +265,6 @@ def patch_install_mapping(root: Path) -> None:
             text = text.replace(needle, insert + needle)
 
     if text != original:
-        backup_once(path)
         write_text(path, text)
 
 
@@ -361,8 +281,8 @@ def main() -> int:
     args = ap.parse_args()
     root = Path(args.repo).resolve()
     generate_rules(root)
-    add_openai_yaml(root)
-    write_skill_policy(root)
+    skills = skill_directories(root / "codex" / "skills")
+    add_openai_yaml(skills)
     patch_install_mapping(root)
     chmod_tree(root)
     print("applied Codex performance profile")

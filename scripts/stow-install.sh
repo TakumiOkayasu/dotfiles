@@ -69,7 +69,7 @@ parse_args() {
                 MODE_UNINSTALL=true
                 shift
                 ;;
-            -h|--help)
+            -h| --help)
                 usage
                 exit 0
                 ;;

@@ -6,9 +6,11 @@ description: Security-only review for auth, authorization, secrets, input valida
 # Security Review
 
 ## Goal
+
 Find exploitable security issues with evidence and fixes.
 
 ## Scope
+
 - auth / authorization
 - secrets / tokens / credentials
 - input validation and output encoding
@@ -18,6 +20,7 @@ Find exploitable security issues with evidence and fixes.
 - CORS / CSRF
 
 ## Output
+
 - BLOCK / WARN / PASS
 - file:line
 - exploit scenario
@@ -26,7 +29,7 @@ Find exploitable security issues with evidence and fixes.
 
 ## Common contract
 
-- Plugin-only operation: use `$skill` / `@skill` or `/skills`; no `/prompt:*` or `prompt:*`.
+- Plugin-only operation: use `$skill` or `/skills`; no `/prompt:*` or `prompt:*`.
 - Apply mandatory rules before editing, reviewing, testing, or implementation conclusions.
 - Keep diffs minimal and scoped.
 - Report unverified items and skipped checks.

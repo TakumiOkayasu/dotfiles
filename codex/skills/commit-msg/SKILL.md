@@ -9,12 +9,12 @@ Check `git status --short` and `git diff --staged`. If staged diff is empty, sto
 
 ## Claude command reference
 
-- `claude/commands/commit.md` から変換された詳細手順は `references/claude-command.md` を読む。
+- `common/commands/commit.md` から変換された詳細手順は `references/claude-command.md` を読む。
 - 内容が競合する場合は、この Codex-native `SKILL.md` と `Common contract` を優先する。
 
 ## Common contract
 
-- Plugin-only operation: use `$skill` / `@skill` or `/skills`; no `/prompt:*` or `prompt:*`.
+- Plugin-only operation: use `$skill` or `/skills`; no `/prompt:*` or `prompt:*`.
 - Apply mandatory rules before editing, reviewing, testing, or implementation conclusions.
 - Keep diffs minimal and scoped.
 - Report unverified items and skipped checks.

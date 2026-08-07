@@ -9,7 +9,7 @@ Claude Code の subagent (`.claude/agents/*.md`) を **個別プロジェクト*
 ## 配置方針 (なぜここに置くか)
 
 | 配置先 | 採否 | 理由 |
-|--------|------|------|
+| -------- | ------ | ------ |
 | `~/.claude/agents/` | ❌ | Claude Code がユーザー subagent として自動認識してしまう。プロジェクト固有値が未設定の状態で誤起動するリスク |
 | プロジェクトの `.claude/agents/` 直配置 | ❌ (テンプレ段階では) | 上記同様。プロジェクト固有値を埋めずに置くと壊れた subagent が認識される |
 | dotfile-work `templates/agents/` (ここ) | ✅ | Claude Code から不可視。git 管理されるため履歴追跡可。コピー基点として明示的 |
@@ -19,7 +19,7 @@ Claude Code の subagent (`.claude/agents/*.md`) を **個別プロジェクト*
 ## 利用可能なテンプレート
 
 | ファイル | 概要 |
-|----------|------|
+| ---------- | ------ |
 | `coverage-guard.template.md` | カバレッジ監査用 read-only subagent。`tools: Read, Grep, Glob, Bash`、`model: haiku` |
 
 ---
@@ -41,7 +41,7 @@ cp ~/prog/dotfile-work/templates/agents/coverage-guard.template.md .claude/agent
 `.claude/agents/coverage-guard.md` の `## Project Setup` セクションを開き、以下 4 項目をプロジェクト固有値で埋める:
 
 | 項目 | 例 (PHP / PHPUnit) | 例 (Node / Vitest) | 例 (Go) |
-|------|--------------------|--------------------|---------|
+| ------ | -------------------- | -------------------- | --------- |
 | カバレッジコマンド | `vendor/bin/phpunit --coverage-text` | `npm run test:coverage` | `go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out` |
 | 閾値 | `80` | `80` | `80` |
 | 対象 glob | `src/Controller/**, src/Service/**` | `src/**` | `./...` |

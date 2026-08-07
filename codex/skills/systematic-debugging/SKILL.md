@@ -1,5 +1,5 @@
 ---
-# codex_port_source: claude/skills/systematic-debugging/SKILL.md
+# codex_port_source: common/skills/systematic-debugging/SKILL.md
 name: systematic-debugging
 description: バグやテスト失敗に遭遇した際に使用。修正前の4フェーズ根本原因分析を強制。「エラーが出る」「動かない」「落ちる」「なぜ失敗するか」で発動。
 effort: xhigh
@@ -7,14 +7,14 @@ effort: xhigh
 
 # Systematic Debugging
 
-<!-- codex-port: managed; source=claude/skills/systematic-debugging/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/systematic-debugging/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/systematic-debugging/SKILL.md`.
+- This file was ported from `common/skills/systematic-debugging/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## トリガー条件

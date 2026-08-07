@@ -1,0 +1,17 @@
+{
+  "config": {
+    "MD013": false,
+    "MD036": false,
+    "MD040": false,
+    "MD041": false
+  },
+  "ignores": [
+    ".codex/**",
+    ".stow-work/**",
+    "**/.claude/**",
+    "claude_tmp/**",
+    "codex/rules/RULES_BUNDLE.md",
+    "codex_tmp/**",
+    "plugins/**"
+  ]
+}

@@ -2,21 +2,23 @@
 from __future__ import annotations
 
 import argparse
-import json
+import re
+import sys
 from pathlib import Path
+
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from codex_asset_manifest import load_asset_manifest
 
 ASSET_MANIFEST_PATH = Path(__file__).with_name("claude-command-map.json")
 
 
-def load_claude_command_references() -> dict[str, str]:
-    data = json.loads(ASSET_MANIFEST_PATH.read_text(encoding="utf-8"))
-    return {
-        str(entry["skill"]): str(entry["source"])
-        for entry in data["commands"]
-    }
-
-
-CLAUDE_COMMAND_REFERENCES = load_claude_command_references()
+ASSET_MANIFEST = load_asset_manifest(ASSET_MANIFEST_PATH)
+CLAUDE_COMMAND_REFERENCES = {
+    mapping.skill: mapping.source.as_posix() for mapping in ASSET_MANIFEST.commands
+}
 
 WORKFLOWS: dict[str, tuple[str, str, str]] = {
     "feat": (
@@ -87,16 +89,16 @@ WORKFLOWS: dict[str, tuple[str, str, str]] = {
     "plugin-sync": (
         "Synchronize codex assets into the local plugin bundle and verify plugin packaging.",
         "Plugin Sync",
-        """Run `python3 scripts/generate-standard-workflow-skills.py --repo . --overwrite`, then `python3 scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup --prune`, then `python3 scripts/apply-codex-performance-profile.py --repo .`, then `python3 scripts/sync-codex-plugin.py --repo . --clean`, then `python3 scripts/verify-codex-plugin.py --repo .`. Stop on the first failure.\n""",
+        """Run `uv run python scripts/generate-standard-workflow-skills.py --repo . --overwrite`, then `uv run python scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup --prune`, then `uv run python scripts/apply-codex-performance-profile.py --repo .`, then `uv run python scripts/sync-codex-plugin.py --repo . --clean`, then `uv run python scripts/verify-codex-plugin.py --repo .`. Stop on the first failure.\n""",
     ),
     "plugin-install": (
         "Install the local dotfile-work Codex plugins into the personal marketplace source.",
         "Plugin Install",
-        """Run `python3 scripts/install-codex-plugin-personal.py --repo .`. Then restart Codex, open `/plugins`, install/enable core plugin, and trust hooks. Enable extra plugin only when needed.\n""",
+        """Run `uv run python scripts/install-codex-plugin-personal.py --repo .`. Then restart Codex, open `/plugins`, install/enable core plugin, and trust hooks. Enable extra plugin only when needed.\n""",
     ),
 }
 
-COMMON = """\n## Common contract\n\n- Plugin-only operation: use `$skill` / `@skill` or `/skills`; no `/prompt:*` or `prompt:*`.\n- Apply mandatory rules before editing, reviewing, testing, or implementation conclusions.\n- Keep diffs minimal and scoped.\n- Report unverified items and skipped checks.\n- Destructive operations, dependency changes, DB/API contract changes, commit, push, deploy, privileged commands, and external writes require explicit user approval.\n"""
+COMMON = """\n## Common contract\n\n- Plugin-only operation: use `$skill` or `/skills`; no `/prompt:*` or `prompt:*`.\n- Apply mandatory rules before editing, reviewing, testing, or implementation conclusions.\n- Keep diffs minimal and scoped.\n- Report unverified items and skipped checks.\n- Destructive operations, dependency changes, DB/API contract changes, commit, push, deploy, privileged commands, and external writes require explicit user approval.\n"""
 
 
 def skill_body(name: str, desc: str, title: str, content: str) -> str:
@@ -109,8 +111,11 @@ def skill_body(name: str, desc: str, title: str, content: str) -> str:
             "- 内容が競合する場合は、この Codex-native `SKILL.md` と "
             "`Common contract` を優先する。\n"
         )
+    normalized_content = re.sub(
+        r"(?m)^(#{2,6} .+)\n(?!\n)", r"\1\n\n", content.strip()
+    )
     return (
-        f"""---\nname: {name}\ndescription: {desc} Front-load this description for Codex implicit matching; explicit invocation via ${name} always works.\n---\n\n# {title}\n\n{content.strip()}\n{command_reference}{COMMON}"""
+        f"""---\nname: {name}\ndescription: {desc} Front-load this description for Codex implicit matching; explicit invocation via ${name} always works.\n---\n\n# {title}\n\n{normalized_content}\n{command_reference}{COMMON}"""
     ).rstrip() + "\n"
 
 
@@ -135,17 +140,6 @@ def main() -> int:
             continue
         out.write_text(skill_body(name, desc, title, content), encoding="utf-8")
         generated.append(out.relative_to(root).as_posix())
-    if not args.dry_run:
-        workflow_paths = [
-            f"codex/skills/{name}/SKILL.md" for name in sorted(WORKFLOWS)
-        ]
-        (outdir / "PLUGIN_ONLY_WORKFLOWS.md").write_text(
-            "# Plugin-only workflow skills\n\n"
-            "Generated optimized core @skill workflow entrypoints. Legacy prompt compatibility is intentionally not generated.\n\n"
-            + "\n".join(f"- `{path}`" for path in workflow_paths)
-            + "\n",
-            encoding="utf-8",
-        )
     print(f"generated={len(generated)}")
     return 0
 

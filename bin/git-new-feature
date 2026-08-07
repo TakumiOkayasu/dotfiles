@@ -108,23 +108,23 @@ main() {
     # 引数解析
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -f|--fix)
+            -f| --fix)
                 prefix="fix"
                 shift
                 ;;
-            -d|--docs)
+            -d| --docs)
                 prefix="docs"
                 shift
                 ;;
-            -r|--refactor)
+            -r| --refactor)
                 prefix="refactor"
                 shift
                 ;;
-            -c|--chore)
+            -c| --chore)
                 prefix="chore"
                 shift
                 ;;
-            -h|--help)
+            -h| --help)
                 usage
                 exit 0
                 ;;
@@ -178,8 +178,12 @@ main() {
     # ① main を最新化 (新ブランチ作成「前」)
     echo -e "${BLUE}${main_branch} を最新化中...${NC}"
     git switch "$main_branch"
-    git fetch origin "$main_branch"
-    git pull --ff-only origin "$main_branch"
+    if git remote get-url origin &>/dev/null; then
+        git fetch origin "$main_branch"
+        git pull --ff-only origin "$main_branch"
+    else
+        echo -e "${YELLOW}! リモート (origin) が未設定のため fetch/pull をスキップしました${NC}"
+    fi
 
     # ② 新しいブランチを作成
     echo ""
@@ -201,4 +205,3 @@ main() {
     echo "  4. マージ後: git-cleanup-branch"
 }
 main "$@"
-

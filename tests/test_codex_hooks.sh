@@ -175,6 +175,26 @@ EOF_CONFIG
     rm -rf "$wd"
 }
 
+run_dispatcher_hook_closure_test() {
+    TOTAL=$((TOTAL + 1))
+    missing_hooks=""
+
+    for hook in $(sed -n 's/^[[:space:]]*run_hook \([^[:space:]]*\).*$/\1/p' \
+        "$HOOK_DIR/hook-dispatcher.sh" | sort -u); do
+        if [ ! -x "$HOOK_DIR/$hook" ]; then
+            missing_hooks="${missing_hooks} ${hook}"
+        fi
+    done
+
+    if [ -z "$missing_hooks" ]; then
+        printf "  PASS: dispatcher references only installed hooks\n"
+        PASS=$((PASS + 1))
+    else
+        printf "  FAIL: dispatcher references missing hooks:%s\n" "$missing_hooks"
+        FAIL=$((FAIL + 1))
+    fi
+}
+
 make_input() {
     tool="$1"
     field="$2"
@@ -232,8 +252,13 @@ run_hook_test "$LANG_HOOK" "allows pinned language image tag" "$(make_input Bash
 
 DISPATCHER="${HOOK_DIR}/hook-dispatcher.sh"
 export CODEX_HOOK_TEST_MODE=1
+run_dispatcher_hook_closure_test
 run_hook_test "$DISPATCHER pre-tool-use" "dispatcher allows runner build command" "$(make_input Bash command "npm run build")" 0
 run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks package install command" "$(make_input Bash command "npm install")" 2
+run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks base64 long decode" "$(make_input Bash command "echo cHl0aG9uMw== | base64 --decode | sh")" 2
+run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks tabbed branch force delete" "$(make_input Bash command "$(printf 'git branch\t--delete\t--force feat/old')")" 2
+run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks tabbed admin flag" "$(make_input Bash command "$(printf 'tool\t--admin')")" 2
+run_hook_test "$DISPATCHER pre-tool-use" "dispatcher blocks tabbed secret flag" "$(make_input Bash command "$(printf 'curl\t--api-key\tabcdefghijkl')")" 2
 run_hook_stdout_empty_test "$DISPATCHER user-prompt-submit" "dispatcher suppresses prompt reminder output" "$(make_prompt_input "修正して")" 0
 run_rules_checksum_stability_test
 run_codex_rules_refresh_test

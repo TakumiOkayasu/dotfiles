@@ -26,9 +26,9 @@ FORCE=false
 # オプション解析
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -n|--dry-run) DRY_RUN=true; shift ;;
-        -f|--force)   FORCE=true;   shift ;;
-        -h|--help)
+        -n| --dry-run) DRY_RUN=true; shift ;;
+        -f| --force)   FORCE=true;   shift ;;
+        -h| --help)
             cat <<EOF
 Usage: claude-init-project [OPTIONS]
 
@@ -44,7 +44,7 @@ OPTIONS:
 ENVIRONMENT:
   CLAUDE_TEMPLATE_ROOT
         テンプレートディレクトリのパス
-        (default: ${HOME}/.claude/templates/project-init)
+        (default: ${HOME}/.claude)
 EOF
             exit 0
             ;;
@@ -155,11 +155,11 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 fi
 
 # テンプレートルート
-TEMPLATE_ROOT="${CLAUDE_TEMPLATE_ROOT:-$HOME/.claude/templates/project-init}"
+TEMPLATE_ROOT="${CLAUDE_TEMPLATE_ROOT:-$HOME/.claude}"
 
 if [[ ! -d "$TEMPLATE_ROOT" ]]; then
     echo -e "${RED}エラー: テンプレートディレクトリが見つかりません: $TEMPLATE_ROOT${NC}" >&2
-    echo -e "${YELLOW}   ${HOME}/.claude/templates/project-init/ に notes/_template.md, scratch/_template.md 等を配置してください${NC}" >&2
+    echo -e "${YELLOW}   ${HOME}/.claude/ に notes/_template.md, scratch/_template.md 等を配置してください${NC}" >&2
     exit 1
 fi
 
@@ -192,4 +192,3 @@ echo ""
 echo -e "${BLUE}次のステップ:${NC}"
 echo "  1. CLAUDE.md がなければ 'claude init' を実行"
 echo "  2. 新ブランチで作業するときは 'git-new-feature <name>' で notes を自動生成"
-

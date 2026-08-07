@@ -62,15 +62,15 @@ CHECKSUM=$(rules_checksum_file_list "$FILES_TMP")
 MARKER="$CWD/codex_tmp/.codex_rules_loaded"
 
 if [ ! -f "$MARKER" ]; then
-    echo "[rules-guard] BLOCK: rules are not active for this worktree. Submit @rules-required or restart Codex so rules-inject can run." >&2
+    echo "[rules-guard] BLOCK: rules are not active for this worktree. Submit \$rules-required or restart Codex so rules-inject can run." >&2
     rm -f "$FILES_TMP"; exit 2
 fi
 if ! grep -Eq '^(mode=full|mode=enforced)$' "$MARKER" 2>/dev/null; then
-    echo "[rules-guard] BLOCK: only core rules are active; enforced rules are required before mutation. Use @rules-required." >&2
+    echo "[rules-guard] BLOCK: only core rules are active; enforced rules are required before mutation. Use \$rules-required." >&2
     rm -f "$FILES_TMP"; exit 2
 fi
 if ! grep -q "^checksum=$CHECKSUM$" "$MARKER" 2>/dev/null; then
-    echo "[rules-guard] BLOCK: rules changed after activation. Re-run @rules-required before modifying files." >&2
+    echo "[rules-guard] BLOCK: rules changed after activation. Re-run \$rules-required before modifying files." >&2
     echo "expected checksum: $CHECKSUM" >&2
     rm -f "$FILES_TMP"; exit 2
 fi

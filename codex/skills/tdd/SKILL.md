@@ -1,5 +1,5 @@
 ---
-# codex_port_source: claude/skills/tdd/SKILL.md
+# codex_port_source: common/skills/tdd/SKILL.md
 name: tdd
 description: 機能実装やバグ修正でテストを書く・変更する作業に使用。RED-GREEN-REFACTORサイクルを適用する。「TDD」「テストから書く」「テスト駆動」「テスト先に」で発動。
 effort: high
@@ -7,14 +7,14 @@ effort: high
 
 # Test-Driven Development
 
-<!-- codex-port: managed; source=claude/skills/tdd/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/tdd/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/tdd/SKILL.md`.
+- This file was ported from `common/skills/tdd/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## トリガー条件
@@ -22,7 +22,7 @@ effort: high
 **以下のすべてに該当する場合に発動する:**
 
 | 条件 | 例 |
-|------|----|
+| ------ | ---- |
 | キーワード一致 | TDD、テスト駆動、テストファースト、RED-GREEN、失敗するテストを先に |
 | 明示的指示 | 「テストを書いて」「テストから始めて」「再現テストを書いてから直して」 |
 | 作業種別 | 新機能実装・バグ修正・リファクタリングでテストコードの作成・変更を伴う |
@@ -30,7 +30,7 @@ effort: high
 **発動しない場合（除外条件）:**
 
 | 除外 | 理由 |
-|------|------|
+| ------ | ------ |
 | テストのインポート修正のみ | 振る舞いの変更なし |
 | CIのyaml編集のみ | テストコード変更なし |
 | E2Eテストの新規作成 | 本スキル対象外 |
@@ -73,7 +73,6 @@ core gate通過後、`qa-nightmare-preflight --runtime codex --repo <canonical-r
 source-onlyとfullの `repo_provenance` が完全一致しなければ停止する。
 helperはruntime rootをユーザー入力から取らずCodex既知pathから導出し、machine-readable manifestに基づく期待file名/canonical target/digest/ID集合/構造をdispatch直前に検証する。
 helperのprovenanceはopaqueなrepository identity、相対file名、digest、検証結果だけを返し、absolute pathを出力しない。
-
 
 子agentへabsolute filesystem pathを渡さず、親が検証したsnapshotだけを渡す。
 
@@ -154,7 +153,7 @@ digest検証後、followup_taskでledger digestとrequested_rankだけを指定�
 ### 仕様の確度を判断するシグナル
 
 | 確度 | シグナル例 |
-|------|-----------|
+| ------ | ----------- |
 | 確定 | 型定義/APIスキーマがある、ユーザーが具体的な入出力を示した、既存テストがある |
 | 方針のみ | 「〜したい」「〜な感じで」、インターフェースは未定だがゴールは明確 |
 | 探索的 | 「試してみたい」「プロトタイプ」「どうなるか見たい」 |
@@ -163,14 +162,14 @@ digest検証後、followup_taskでledger digestとrequested_rankだけを指定�
 ### テスタビリティを判断するシグナル
 
 | 状態 | シグナル例 |
-|------|-----------|
+| ------ | ----------- |
 | テスタブル | 純粋関数、DI済み、モック可能な境界がある |
 | テスタブルでない | グローバル状態依存、DBを直接呼ぶ、外部APIが密結合、テストランナーすらない |
 
 ### 判断結果→行動
 
 | 仕様 \ テスタビリティ | テスタブル | テスタブルでない |
-|---|---|---|
+| --- | --- | --- |
 | **確定** | TDDサイクルを回す | 特性テストで安全網→テスタブルにリファクタリング→TDD |
 | **方針のみ** | 統合テストを先に書き、詳細は実装しながら追加 | 特性テスト→テスタブルにする→統合テストから開始 |
 | **探索的** | **ユーザーに確認**: 実装先行でよいか、仕様を先に固めるか | **ユーザーに確認**: 実装先行でよいか |
@@ -224,6 +223,7 @@ digest検証後、followup_taskでledger digestとrequested_rankだけを指定�
 4. **意図した理由でFAIL**することを出力で確認する（スキップ禁止）
 
 確認ポイント:
+
 - コンパイルエラーや設定ミスではなく、機能が未実装だからFAILしているか?
 - テスト名から「対象」「条件」「期待結果」が読み取れるか?
 
@@ -236,7 +236,7 @@ digest検証後、followup_taskでledger digestとrequested_rankだけを指定�
 この場合の扱い:
 
 | 項目 | 指針 |
-|------|------|
+| ------ | ------ |
 | 実装 | **追加しない**（既に一般化済みのため） |
 | テスト | **回帰ガードとして残す**（将来のリファクタでの振る舞い保証） |
 | RED確認 | **不要**。鉄則1違反にならない |
@@ -253,7 +253,7 @@ digest検証後、followup_taskでledger digestとrequested_rankだけを指定�
 3つのテクニックを状況に応じて使い分ける:
 
 | テクニック | いつ使うか | やること |
-|-----------|----------|---------|
+| ----------- | ---------- | --------- |
 | 仮実装（Fake It） | 正しい一般化がすぐ書けない | ハードコードでテストを通す |
 | 三角測量（Triangulation） | 仮実装では2つ目のテストを通せない | テスト追加で仮実装を一般化に追い込む |
 | 明白な実装（Obvious） | 実装が一目で書ける | 直接正しい実装を書く。詰まったら仮実装へ |
@@ -284,6 +284,7 @@ GREENの直後に毎回判断する。以下のいずれかに該当すれば実
 現在の振る舞いを「そのまま記録する」テストを書く。正しいかどうかは問わない。
 
 分離方法はプロジェクトの慣習に合わせる。慣習がなければ以下から選択:
+
 - `describe("CHARACTERIZATION: ...")` / `@Tag("characterization")` / テスト名に `[characterization]` プレフィックス / ファイル名で分離
 
 期待値に確信がない場合は `// TODO: 仕様確認後に修正` コメントを付ける。
@@ -334,7 +335,7 @@ AI の見立て: [方針のみ / 探索的 / 不明（複数候補なら併記�
   理由: [シグナルとの対応を1行]
 
 | 確度 | 該当時の推奨アプローチ |
-|------|----------------------|
+| ------ | ---------------------- |
 | 確定 | RED-GREEN-REFACTOR 通常運用 |
 | 方針のみ | 統合テスト先行 + 詳細は実装しながら追加 |
 | 探索的 | 2択: (a) 実装先行 → 固まったらテスト化 / (b) 先に最小仕様を固める |
@@ -400,7 +401,7 @@ AI の見立て: [方針のみ / 探索的 / 不明（複数候補なら併記�
 ## AI固有の注意点
 
 | よくある問題 | 対策 |
-|------------|------|
+| ------------ | ------ |
 | テストと実装を1回のレスポンスで同時に出す | テスト出力→実行→RED確認→実装出力の順序を守る |
 | 実装を見てからテストを逆算する | テストリストを先に作成する。実装コードを見る前にテストを書く |
 | 弱いアサーション（`toBeDefined()` のみ） | 具体的な値を検証する。最低限「期待する戻り値」をアサート |
@@ -417,7 +418,7 @@ AI の見立て: [方針のみ / 探索的 / 不明（複数候補なら併記�
 すべてのステップで確認を求めると開発リズムが崩れる。以下のタイミングで確認する:
 
 | タイミング | 確認テンプレート |
-|-----------|---------------|
+| ----------- | --------------- |
 | テストリスト作成後 | 「以下のテストケースで進めます。追加・変更・優先順位の調整はありますか?」 |
 | 最初のRED-GREEN完了後 | 「この方向性（テストの書き方、実装アプローチ）で残りも進めてよいですか?」 |
 | 仕様に曖昧さがある時 | 「[具体的な入力]の場合、期待する振る舞いは[A]と[B]のどちらですか?」 |
@@ -433,7 +434,7 @@ AI の見立て: [方針のみ / 探索的 / 不明（複数候補なら併記�
 全テストがPASSした状態でのみコミットする。テストの期待値を無断で変更しない。コミットメッセージはプロジェクト慣習に従う（git-workflowスキルがあれば参照）。
 
 | タイミング | コミット例 |
-|-----------|----------|
+| ----------- | ---------- |
 | GREEN完了（テスト+実装） | `feat: implement [feature] with tests` |
 | REFACTOR完了 | `refactor: [description]` |
 | 特性テスト追加 | `test: add characterization test for [target]` |
@@ -448,7 +449,7 @@ RED（FAILするテスト）単独ではコミットしない。RED+GREENをセ�
 ## 関連スキルとの連携
 
 | スキル | 連携ポイント |
-|-------|------------|
+| ------- | ------------ |
 | refactoring | REFACTORフェーズで参照。テストが緑の状態を維持しながら構造改善 |
 | git-workflow | コミットメッセージ規約、ブランチ命名に従う |
 | code-review | テストの品質レビュー観点を参照 |
@@ -459,7 +460,7 @@ RED（FAILするテスト）単独ではコミットしない。RED+GREENをセ�
 ## アンチパターン
 
 | 禁止操作 | 理由 |
-|----------|------|
+| ---------- | ------ |
 | RED確認をスキップして実装に進む | テストの信頼性を損なう |
 | テストを書かずに実装する（ユーザー承認なし） | TDDの目的に反する |
 | 振る舞いが変わっていないのにテストの期待値を書き換える | 仕様の改ざん |

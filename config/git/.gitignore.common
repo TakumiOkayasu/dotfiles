@@ -59,6 +59,7 @@ $RECYCLE.BIN/
 *.sublime-project
 *.code-workspace
 .nb-gradle/
+.zed/
 
 # === Git ===
 .gitconfig

@@ -1,19 +1,19 @@
 ---
-# codex_port_source: claude/skills/bug-hunt/SKILL.md
+# codex_port_source: common/skills/bug-hunt/SKILL.md
 name: bug-hunt
 description: Gitのstagedまたはunstaged差分には必ず1件以上の実害バグがある前提で、差分・周辺コード・契約・テスト・実行結果を多角的に調査し、再現可能なバグを最低1件以上特定する。"バグの間違い探し"、"差分からバグを見つけて"、"staged/unstagedを疑って"、"必ず1件バグがある"、"変更コードを壊しに行って"で発動。単なるスタイル指摘や一般的コードレビューには使わない。
 ---
 
 # Bug Hunt
 
-<!-- codex-port: managed; source=claude/skills/bug-hunt/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/bug-hunt/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/bug-hunt/SKILL.md`.
+- This file was ported from `common/skills/bug-hunt/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 ## 概要

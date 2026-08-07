@@ -1,5 +1,5 @@
 ---
-# codex_port_source: claude/skills/probe/SKILL.md
+# codex_port_source: common/skills/probe/SKILL.md
 name: probe
 description: 【手計装での位置特定】性能ボトルネックの位置を、仮説を立てて計測用ログを実コードへ挿入し、実際に動かしてログから問題部位を洗い出してから最適化する手技スキル。プロファイラが使えない/粒度が粗い/特定パスだけ計りたい場面で使う。「どこが遅いか分からない」「計測ログを仕込みたい」「仮説を立てて当たりを付けたい」「自前で計装したい」「ボトルネックの位置を特定したい」などの語で発動。複数仮説/複数パスへの計装は subagent 並列で分散する。
 effort: high
@@ -7,14 +7,14 @@ effort: high
 
 # Instrumentation Profiling
 
-<!-- codex-port: managed; source=claude/skills/probe/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+<!-- codex-port: managed; source=common/skills/probe/SKILL.md; generated-by=scripts/port-claude-assets-to-codex.py -->
 
 ## Codex portability notes
 
-- This file was ported from `claude/skills/probe/SKILL.md`.
+- This file was ported from `common/skills/probe/SKILL.md`.
 - Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
 - Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.
-- Claude slash-command references should be invoked through Codex plugin/local skills such as `@feat`, `@fix`, `@deep-review`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
 仮説を立て、計測用ログを実コードへ挿入し、実際に動かして得たログからボトルネックの位置を洗い出し、そこだけを最適化する手技。プロファイラの自動計測では粒度が足りない/環境的に使えないときに、自分で計装点を置いて当たりを付ける。

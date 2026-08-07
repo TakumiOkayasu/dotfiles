@@ -35,4 +35,3 @@ cp .claude/notes/_template.md ".claude/notes/$(git branch --show-current | tr '/
 └── archive/             # マージ済みタスクのアーカイブ
     └── {task-id}.md
 ```
-

@@ -1,28 +1,66 @@
 {
   "commands": [
     {
-      "source": "claude/commands/commit.md",
+      "source": "common/commands/commit.md",
       "skill": "commit-msg",
       "reference": "references/claude-command.md"
     },
     {
-      "source": "claude/commands/deep-review.md",
+      "source": "common/commands/deep-review.md",
       "skill": "deep-review",
       "reference": "references/claude-command.md"
     },
     {
-      "source": "claude/commands/feat.md",
+      "source": "common/commands/feat.md",
       "skill": "feat",
       "reference": "references/claude-command.md"
     },
     {
-      "source": "claude/commands/fix.md",
+      "source": "common/commands/fix.md",
       "skill": "fix",
       "reference": "references/claude-command.md"
     }
   ],
   "allowed_skill_files": [
     "SKILL.md",
-    "references/review-lenses.md"
+    "references/*.md"
+  ],
+  "codex_native_skills": [
+    "codex-handoff",
+    "commit-msg",
+    "deep-review",
+    "explain",
+    "feat",
+    "fix",
+    "implementation-router",
+    "plan",
+    "plugin-install",
+    "plugin-sync",
+    "refactor",
+    "review",
+    "rules-compliance-review",
+    "rules-required",
+    "security-review",
+    "test"
+  ],
+  "core_skills": [
+    "codex-handoff",
+    "commit-msg",
+    "consult",
+    "deep-review",
+    "explain",
+    "feat",
+    "fix",
+    "implementation-router",
+    "plan",
+    "plugin-install",
+    "plugin-sync",
+    "refactor",
+    "review",
+    "rules-required",
+    "security-review",
+    "systematic-debugging",
+    "tdd",
+    "test"
   ]
 }

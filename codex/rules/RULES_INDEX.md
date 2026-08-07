@@ -1,13 +1,15 @@
-# RULES_INDEX
+# Codex Rules Index
 
-Use this index to choose which detailed rule files are relevant. `RULES_CORE.md` is always mandatory.
+このファイルは Codex asset pipeline により生成される rules index です。
+Codex は作業前に `RULES_CORE.md`、`RULES_INDEX.md`、task に該当する詳細 rule を明示的に読む必要があります。
 
-| Rule file | Applies when |
-| --- | --- |
-| `coding-conventions.md` | language-independent coding conventions, naming, testing, error handling, and logging |
-| `hallucination-prevention.md` | source verification and uncertainty handling policy |
-| `hierarchical-architecture.md` | architecture invariants, dependency direction, composition, interfaces, and layer naming |
-| `implementation-policy.md` | dependency, library, DB, validation, logging, crypto, and SQL policy |
-| `natural-japanese.md` | Natural Japanese |
-| `opus-47-policy.md` | Session Memory Policy |
-| `referent-before-label.md` | 語より先に指示対象を固定する |
+| Rule | Title | Description |
+| --- | --- | --- |
+| `codex/rules/RULES_CORE.md` | RULES_CORE | RULES_CORE |
+| `codex/rules/coding-conventions.md` | Coding Conventions | language-independent coding conventions, naming, testing, error handling, and logging |
+| `codex/rules/hallucination-prevention.md` | Hallucination Prevention | source verification and uncertainty handling policy |
+| `codex/rules/hierarchical-architecture.md` | Architecture Invariants | architecture invariants, dependency direction, composition, interfaces, and layer naming |
+| `codex/rules/implementation-policy.md` | Implementation Policy | dependency, library, DB, validation, logging, crypto, and SQL policy |
+| `codex/rules/natural-japanese.md` | Natural Japanese | Natural Japanese |
+| `codex/rules/opus-47-policy.md` | Session Memory Policy | Session Memory Policy |
+| `codex/rules/referent-before-label.md` | 語より先に指示対象を固定する | 語より先に指示対象を固定する |
