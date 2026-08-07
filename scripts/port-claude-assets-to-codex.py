@@ -27,7 +27,6 @@ from codex_asset_manifest import load_asset_manifest
 from codex_rule_renderer import (
     RULE_BUNDLE_NAME,
     RULE_INDEX_NAME,
-    generated_at_jst,
     load_rule_documents,
     render_rule_bundle,
     render_rule_index,
@@ -245,9 +244,11 @@ def replace_runtime_fragments(body: str, *, source: Path, kind: str) -> str:
     out = out.replace("[[semantic-generation]]", "`$semantic-generation`")
     out = out.replace("[[referent-before-label]]", "`referent-before-label`")
     out = re.sub(r"\[\[([^\]]+)\]\]", r"`\1`", out)
-    if kind in {"skill", "command"}:
+    if kind in {"skill", "skill_resource", "command"}:
         replacements = (
-            SKILL_RUNTIME_REPLACEMENTS if kind == "skill" else COMMAND_RUNTIME_REPLACEMENTS
+            COMMAND_RUNTIME_REPLACEMENTS
+            if kind == "command"
+            else SKILL_RUNTIME_REPLACEMENTS
         )
         for old, new in replacements:
             out = out.replace(old, new)
@@ -258,12 +259,49 @@ def replace_runtime_fragments(body: str, *, source: Path, kind: str) -> str:
     return out
 
 
-def replace_codex_paths(body: str) -> str:
+def replace_rule_loading_paths(body: str) -> str:
+    out = body.replace(
+        "`${HOME}/.codex/rules/*` は @import 済みで既に context にある。"
+        "読み直さず、今回の差分で違反しうる具体パターンを観点別に列挙する。",
+        "`RULES_CORE.md`と`RULES_INDEX.md`を読み、taskに該当する詳細ruleを特定する。"
+        "今回の差分で違反しうる具体パターンを観点別に列挙する。",
+    )
+    out = out.replace(
+        "`${HOME}/.codex/rules/*` は @import 済みで既に context にある",
+        "`RULES_CORE.md`と`RULES_INDEX.md`を読み、taskに該当する詳細ruleだけを明示的に読む",
+    )
+    out = out.replace(
+        "`${HOME}/.codex/rules/*` は @import 済みで context にある",
+        "`RULES_CORE.md`と`RULES_INDEX.md`を読み、taskに該当する詳細ruleだけを明示的に読む",
+    )
+    return out.replace(
+        "| ロード済み rules | `RULES_CORE.md`と`RULES_INDEX.md`を読み、taskに該当する詳細ruleだけを明示的に読む |",
+        "| 適用rules | `RULES_CORE.md`と`RULES_INDEX.md`を読み、taskに該当する詳細ruleだけを明示的に読む |",
+    )
+
+
+def replace_global_agents_contracts(body: str) -> str:
     out = body
+    for agents_path in ("`${HOME}/.codex/AGENTS.md`", "`$HOME/.codex/AGENTS.md`"):
+        out = out.replace(
+            f"{agents_path} の「着手前の方針検証」発動条件",
+            "taskのscope,risk,関連skill descriptionの発動条件",
+        )
+        out = out.replace(
+            f"{agents_path} 「着手前の方針検証」と整合する。",
+            "Taskのscopeとriskを確認し,該当するskill descriptionに従う。",
+        )
+    return out.replace(
+        "「着手前の方針検証」と整合する。",
+        "Taskのscopeとriskを確認し,該当するskill descriptionに従う。",
+    )
+
+
+def replace_codex_paths(body: str) -> str:
     out = re.sub(
         r"@\s+`?\$(?:\{HOME\}|HOME)/\.agents/skills/([^/]+)/SKILL\.md`?",
         r"`$\1`",
-        out,
+        body,
     )
     out = re.sub(
         r"`\$(?:\{HOME\}|HOME)/\.agents/skills/([^/]+)/SKILL\.md`",
@@ -275,14 +313,7 @@ def replace_codex_paths(body: str) -> str:
         r"`${HOME}/.codex/AGENTS.md` を読む",
         out,
     )
-    out = out.replace(
-        "`${HOME}/.codex/rules/*` は @import 済みで既に context にある",
-        "`${HOME}/.codex/rules/*` は rules-inject hook で既に context に注入済みである",
-    )
-    out = out.replace(
-        "`${HOME}/.codex/rules/*` は @import 済みで context にある",
-        "`${HOME}/.codex/rules/*` は rules-inject hook で context に注入済みである",
-    )
+    out = replace_rule_loading_paths(out)
     out = out.replace(
         "`code-reviewer` は読み取り専用・sonnet モデルで安定した出力形式を持つため、",
         "`code-reviewer` は読み取り専用で安定した出力形式を持つため、",
@@ -291,7 +322,7 @@ def replace_codex_paths(body: str) -> str:
         "`code-reviewer` は読み取り専用・sonnet モデルで安定している。",
         "`code-reviewer` は読み取り専用で安定している。",
     )
-    return out
+    return replace_global_agents_contracts(out)
 
 
 def replace_codex_surface_contracts(body: str, *, role: ArtifactRole) -> str:
@@ -347,7 +378,7 @@ def replace_command_invocations(body: str) -> str:
 def add_portability_notes(body: str, *, source: Path, kind: str) -> str:
     out = body
     source_str = str(source).replace("\\", "/")
-    note = f"""\n<!-- {MANAGED_MARKER}; source={source_str}; generated-by=scripts/port-claude-assets-to-codex.py -->\n\n## Codex portability notes\n\n- This file was ported from `{source_str}`.\n- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${{HOME}}/.agents/skills` in plugin-only mode.\n- Global and project rules live under `${{HOME}}/.codex/rules/*.md`; do not assume they are automatically loaded unless the rules-inject hook injected them into context.\n- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.\n- Subagent usage must follow `${{HOME}}/.codex/SUBAGENTS.md` and the current Codex tool contract.\n"""
+    note = f"""\n<!-- {MANAGED_MARKER}; source={source_str}; generated-by=scripts/port-claude-assets-to-codex.py -->\n\n## Codex portability notes\n\n- This file was ported from `{source_str}`.\n- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${{HOME}}/.agents/skills` in plugin-only mode.\n- Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.\n- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.\n- Subagent usage must follow `${{HOME}}/.codex/SUBAGENTS.md` and the current Codex tool contract.\n"""
     if MANAGED_MARKER not in out:
         # Insert after first H1 when possible; otherwise prepend after frontmatter.
         match = re.search(r"(^# .+?\n)", out, re.MULTILINE)
@@ -358,7 +389,7 @@ def add_portability_notes(body: str, *, source: Path, kind: str) -> str:
             out = note + "\n" + out
 
     if kind == "rule" and "## Codex rule loading" not in out:
-        out = out.rstrip() + """\n\n## Codex rule loading\n\nThis rule must be treated as mandatory whenever it is injected by `rules-inject.sh` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the nearer project rule and report the conflict.\n"""
+        out = out.rstrip() + """\n\n## Codex rule loading\n\nThis rule applies when selected through `RULES_INDEX.md` or explicitly read from `${HOME}/.codex/rules/*.md`. If this rule conflicts with a nearer project rule, follow the runtime instruction hierarchy and report the conflict.\n"""
 
     return out
 
@@ -436,6 +467,15 @@ def iter_skill_sources(repo: Path) -> list[Path]:
     return sorted((repo / SHARED_SKILLS_DIR).glob("*/SKILL.md"))
 
 
+def iter_skill_resource_sources(repo: Path) -> list[Path]:
+    return sorted(
+        path
+        for skill in iter_skill_sources(repo)
+        for path in skill.parent.rglob("*")
+        if path.is_file() and path != skill
+    )
+
+
 def iter_rule_sources(repo: Path) -> list[Path]:
     return sorted((repo / SHARED_RULES_DIR).glob("*.md"))
 
@@ -494,6 +534,8 @@ def validate_shared_skill_layout(repo: Path) -> None:
 def validate_transformability(repo: Path, command_sources: list[Path]) -> None:
     for source in iter_skill_sources(repo):
         transform_source(source, repo=repo, kind="skill")
+    for source in iter_skill_resource_sources(repo):
+        transform_source(source, repo=repo, kind="skill_resource")
     for source in iter_rule_sources(repo):
         transform_source(source, repo=repo, kind="rule")
     for source in command_sources:
@@ -525,25 +567,14 @@ def port_skills(repo: Path, args: argparse.Namespace) -> list[PortedFile]:
         result.append(
             PortedFile(source, dest, "skill", role, changed, backed_up)
         )
-        for resource in sorted(source.parent.rglob("*")):
-            if not resource.is_file() or resource == source:
-                continue
-            relative_resource = resource.relative_to(source.parent)
-            resource_dest = dest.parent / relative_resource
-            resource_out, resource_role = transform_source(
-                resource, repo=repo, kind="skill_resource"
-            )
-            changed, backed_up = write_file(resource_dest, resource_out, args=args)
-            result.append(
-                PortedFile(
-                    resource,
-                    resource_dest,
-                    "skill_resource",
-                    resource_role,
-                    changed,
-                    backed_up,
-                )
-            )
+    for source in iter_skill_resource_sources(repo):
+        relative_source = source.relative_to(repo / SHARED_SKILLS_DIR)
+        dest = repo / "codex" / "skills" / relative_source
+        out, role = transform_source(source, repo=repo, kind="skill_resource")
+        changed, backed_up = write_file(dest, out, args=args)
+        result.append(
+            PortedFile(source, dest, "skill_resource", role, changed, backed_up)
+        )
     return result
 
 
@@ -633,7 +664,7 @@ def generate_rule_aggregates(repo: Path, args: argparse.Namespace) -> None:
         render_rule_index(documents), encoding="utf-8"
     )
     (rules_dir / RULE_BUNDLE_NAME).write_text(
-        render_rule_bundle(documents, generated_at_jst()), encoding="utf-8"
+        render_rule_bundle(documents), encoding="utf-8"
     )
 
 

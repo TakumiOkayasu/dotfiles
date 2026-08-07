@@ -6,7 +6,6 @@ import json
 import shutil
 import stat
 import sys
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -18,7 +17,6 @@ from codex_asset_manifest import load_asset_manifest
 CORE_PLUGIN = "dotfile-work-codex"
 EXTRA_PLUGIN = "dotfile-work-codex-extra"
 VERSION = "0.3.0"
-JST = timezone(timedelta(hours=9), "JST")
 ASSET_MANIFEST_PATH = Path(__file__).with_name("claude-command-map.json")
 CORE_SKILLS = load_asset_manifest(ASSET_MANIFEST_PATH).core_skills
 
@@ -30,10 +28,6 @@ def write_json(path: Path, data: dict) -> None:
 def chmodx(path: Path) -> None:
     if path.exists() and path.is_file():
         path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-
-
-def generated_at_jst() -> str:
-    return f"{datetime.now(JST).isoformat(timespec='seconds')} JST"
 
 
 def copy_file(src: Path, dst: Path) -> None:
@@ -91,7 +85,7 @@ def core_manifest() -> dict:
         "interface": {
             "displayName": "dotfile-work Codex Core",
             "shortDescription": "Core @skills with mandatory rule enforcement.",
-            "longDescription": "Performance profile: small core skill set, markdown rule injection, rules guard, and official command-safety .rules.",
+            "longDescription": "Performance profile: small core skill set, selective markdown rule loading, rules guard, and official command-safety .rules.",
             "developerName": "TakumiOkayasu",
             "category": "Productivity",
             "capabilities": ["Read", "Write"],
@@ -99,7 +93,7 @@ def core_manifest() -> dict:
                 "Use $feat to implement a feature with risk-gated TDD.",
                 "Use $fix to repair a reproducible bug after root-cause analysis.",
                 "Use $deep-review to review the current diff.",
-                "Use $rules-required to load and apply mandatory rules."
+                "Use $rules-required to select and apply task-applicable rules."
             ]
         }
     }
@@ -133,10 +127,10 @@ def hooks() -> dict:
     return {
         "hooks": {
             "SessionStart": [
-                {"hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/hooks/rules-inject.sh --skip-if-inline", "timeout": 30, "statusMessage": "Loading core dotfile-work rules"}]}
+                {"hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/hooks/rules-inject.sh --skip-if-inline", "timeout": 30, "statusMessage": "Activating core dotfile-work rules"}]}
             ],
             "UserPromptSubmit": [
-                {"hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/hooks/rules-inject.sh --skip-if-inline", "timeout": 30, "statusMessage": "Checking rule scope"}]}
+                {"hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/hooks/rules-inject.sh --skip-if-inline", "timeout": 30, "statusMessage": "Activating task rule scope"}]}
             ],
             "PreToolUse": [
                 {"matcher": "Bash|Edit|Write|MultiEdit|apply_patch|ApplyPatch", "hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/hooks/rules-guard.sh --skip-if-inline", "timeout": 30, "statusMessage": "Checking mandatory rules"}]}
@@ -192,8 +186,7 @@ def sync_core(root: Path, clean: bool, skills_to_copy: tuple[Path, ...]) -> None
         "# dotfile-work Codex Core\n\n"
         "Performance-optimized core plugin. Use `$feat`, `$fix`, `$deep-review`, `$rules-required`.\n\n"
         f"Core skills: {', '.join(skills)}\n\n"
-        "Optional skills live in `dotfile-work-codex-extra`; keep that plugin disabled unless needed.\n"
-        f"Generated at: {generated_at_jst()}\n",
+        "Optional skills live in `dotfile-work-codex-extra`; keep that plugin disabled unless needed.\n",
         encoding="utf-8"
     )
 
@@ -210,8 +203,7 @@ def sync_extra(root: Path, clean: bool, skills_to_copy: tuple[Path, ...]) -> Non
     (plugin / "README.md").write_text(
         "# dotfile-work Codex Extra Skills\n\n"
         "Optional explicit-use skills ported from Claude Code. Enable only when needed.\n\n"
-        f"Optional skills: {', '.join(skills) if skills else '(none)'}\n\n"
-        f"Generated at: {generated_at_jst()}\n",
+        f"Optional skills: {', '.join(skills) if skills else '(none)'}\n",
         encoding="utf-8"
     )
 

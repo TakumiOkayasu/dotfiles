@@ -173,6 +173,7 @@ class PortClaudeAssetsTest(unittest.TestCase):
             "@ $HOME/.claude/CLAUDE.md\n"
             "`${HOME}/.claude/skills/tdd/SKILL.md` を読む。\n"
             "`${HOME}/.claude/rules/*` は @import 済みで context にある。\n"
+            "`$HOME/.claude/CLAUDE.md` 「着手前の方針検証」と整合する。\n"
             "`code-reviewer` は読み取り専用・sonnet モデルで安定している。\n",
             encoding="utf-8",
         )
@@ -192,9 +193,14 @@ class PortClaudeAssetsTest(unittest.TestCase):
         self.assertNotIn("$ARGUMENTS", text)
         self.assertIn("`${HOME}/.codex/AGENTS.md` を読む", text)
         self.assertIn("`$tdd`", text)
-        self.assertIn("rules-inject hook", text)
+        self.assertIn("`RULES_CORE.md`", text)
+        self.assertIn("taskに該当する詳細ruleだけを明示的に読む", text)
+        self.assertNotIn("rules-inject hook", text)
+        self.assertIn("Taskのscopeとriskを確認し", text)
+        self.assertNotIn("着手前の方針検証", text)
         self.assertNotIn("@import", text)
         self.assertNotIn("sonnet", text)
+
     def test_maps_commit_command_to_commit_msg_invocation(self) -> None:
         self.write_native_skill("commit-msg")
         commands = self.repo / "common" / "commands"
@@ -344,6 +350,25 @@ class PortClaudeAssetsTest(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("unsupported Claude skill resource", result.stderr)
+        self.assertFalse(
+            (self.repo / "codex" / "skills" / "first" / "SKILL.md").exists()
+        )
+
+    def test_untransformable_skill_resource_fails_before_any_write(self) -> None:
+        first = self.repo / "common" / "skills" / "first" / "SKILL.md"
+        first.parent.mkdir()
+        first.write_text("# first\n", encoding="utf-8")
+        second = self.repo / "common" / "skills" / "second" / "SKILL.md"
+        second.parent.mkdir()
+        second.write_text("# second\n", encoding="utf-8")
+        reference = second.parent / "references" / "details.md"
+        reference.parent.mkdir()
+        reference.write_bytes(b"\xff")
+
+        result = self.run_port()
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("UnicodeDecodeError", result.stderr)
         self.assertFalse(
             (self.repo / "codex" / "skills" / "first" / "SKILL.md").exists()
         )
@@ -716,6 +741,77 @@ class VerifyCodexPluginTest(unittest.TestCase):
 
 
 class GenerateStandardWorkflowSkillsTest(unittest.TestCase):
+    def test_workflow_generator_is_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            command = [
+                sys.executable,
+                str(GENERATOR_SCRIPT),
+                "--repo",
+                str(repo),
+                "--overwrite",
+            ]
+
+            first = subprocess.run(
+                command, capture_output=True, text=True, timeout=30
+            )
+            self.assertEqual(first.returncode, 0, first.stderr)
+            first_outputs = {
+                path.relative_to(repo): path.read_bytes()
+                for path in sorted((repo / "codex" / "skills").rglob("*"))
+                if path.is_file()
+            }
+            second = subprocess.run(
+                command, capture_output=True, text=True, timeout=30
+            )
+            self.assertEqual(second.returncode, 0, second.stderr)
+            second_outputs = {
+                path.relative_to(repo): path.read_bytes()
+                for path in sorted((repo / "codex" / "skills").rglob("*"))
+                if path.is_file()
+            }
+
+            self.assertEqual(second_outputs, first_outputs)
+            self.assertEqual(list(repo.rglob("*.bak")), [])
+
+    def test_core_manifest_describes_selective_rule_loading(self) -> None:
+        sync = load_script(SYNC_SCRIPT, "sync_codex_plugin_rule_contract_test")
+        interface = sync.core_manifest()["interface"]
+
+        self.assertIn(
+            "selective markdown rule loading", interface["longDescription"]
+        )
+        self.assertNotIn("rule injection", interface["longDescription"])
+        self.assertIn(
+            "select and apply task-applicable rules",
+            "\n".join(interface["defaultPrompt"]),
+        )
+
+    def test_plugin_sync_is_deterministic(self) -> None:
+        sync = load_script(SYNC_SCRIPT, "sync_codex_plugin_determinism_test")
+
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / "codex" / "skills").mkdir(parents=True)
+
+            def snapshot() -> dict[Path, bytes]:
+                return {
+                    path.relative_to(repo): path.read_bytes()
+                    for path in sorted((repo / "plugins").rglob("*"))
+                    if path.is_file()
+                }
+
+            sync.sync_core(repo, clean=True, skills_to_copy=())
+            sync.sync_extra(repo, clean=True, skills_to_copy=())
+            first = snapshot()
+            sync.sync_core(repo, clean=True, skills_to_copy=())
+            sync.sync_extra(repo, clean=True, skills_to_copy=())
+            second = snapshot()
+
+            self.assertEqual(second, first)
+            for content in second.values():
+                self.assertNotIn(b"Generated at:", content)
+
     def test_generated_workflows_leave_blank_line_after_headings(self) -> None:
         generator = load_script(
             GENERATOR_SCRIPT, "generate_standard_workflow_spacing_test"

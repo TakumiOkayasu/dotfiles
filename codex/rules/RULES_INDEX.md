@@ -1,7 +1,7 @@
 # Codex Rules Index
 
 このファイルは Codex asset pipeline により生成される rules index です。
-Codex は作業前に該当 rule を読む必要があります。hook により full content が注入された場合は、それを読了済みとして扱います。
+Codex は作業前に `RULES_CORE.md`、`RULES_INDEX.md`、task に該当する詳細 rule を明示的に読む必要があります。
 
 | Rule | Title | Description |
 | --- | --- | --- |

@@ -1,7 +1,7 @@
 #!/bin/sh
 # rules-inject.sh - quiet/compact rules activation for Codex.
 # It records the exact rules checksum for hooks and injects only a compact model-visible contract.
-# Full markdown text can be read explicitly with codex-rules read or @rules-required.
+# Applicable markdown rules can be read explicitly with $rules-required.
 
 INPUT=""
 [ ! -t 0 ] && INPUT=$(cat)
@@ -80,9 +80,8 @@ if [ "${CODEX_RULES_CONTEXT_MODE:-compact}" != "none" ]; then
     cat <<EOF_CONTEXT
 📚 [Codex rules active: ${MODE}]
 Mandatory rules checksum: ${CHECKSUM}
-Apply codex/rules/*.md. Deterministic checks run after edits and before final answer.
-Key enforced items: strict equality, no any, no direct console/print in production, no Promise chain, no empty/broad catch, no toBeDefined-only tests, no unapproved dependency changes, no commented-out code.
-Use @rules-required or codex-rules read for full text.
+Apply RULES_CORE.md and only task-applicable rules selected via RULES_INDEX.md. Deterministic checks run after edits and before final answer.
+Use \$rules-required to read task-applicable rule text. The marker records checksum activation, not read completion.
 EOF_CONTEXT
 fi
 

@@ -22,6 +22,9 @@ BASHRC = INSTALL_SH.parent / "config" / "shell" / "bash" / "bashrc"
 REPO_ROOT = INSTALL_SH.parent
 STOW_INSTALL_SH = REPO_ROOT / "scripts" / "stow-install.sh"
 RULES_ENFORCE_PY = REPO_ROOT / "codex" / "hooks" / "rules-enforce.py"
+PERFORMANCE_PROFILE_SCRIPT = (
+    REPO_ROOT / "scripts" / "apply-codex-performance-profile.py"
+)
 INSTALL_TEST_DOCKERFILE = REPO_ROOT / "tests" / "Dockerfile.install"
 QA_NIGHTMARE_MANIFEST = REPO_ROOT / "common" / "qa-nightmare" / "manifest.json"
 MODEL_PROFILE_PATHS = (
@@ -85,6 +88,16 @@ def _run_bashrc(
         capture_output=True,
         text=True,
         timeout=10,
+    )
+
+
+def _run_performance_profile(repo: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["python3", str(PERFORMANCE_PROFILE_SCRIPT), "--repo", str(repo)],
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
 
 
@@ -648,6 +661,171 @@ class TestCodexConfigTemplate:
 class TestRuleDistribution:
     """Claude/Codex の常時 rule 配布境界を検証するテスト"""
 
+    def test_global_agents_contains_only_cross_project_defaults(self) -> None:
+        """global AGENTS に生成blockやhook実装詳細を再混入させない"""
+        content = (REPO_ROOT / "codex" / "global_AGENTS.md").read_text(
+            encoding="utf-8"
+        )
+
+        required_headings = (
+            "# Codex Global Instructions",
+            "## Communication",
+            "## Scope and autonomy",
+            "## Engineering defaults",
+            "## Verification",
+            "## Delegation",
+            "## Web retrieval",
+        )
+        for heading in required_headings:
+            assert content.count(heading) == 1
+
+        forbidden_fragments = (
+            "codex-performance-profile:start",
+            "codex-rules-required",
+            "Deterministic Rules Enforcement",
+            "rules-inject.sh",
+            "rules-guard.sh",
+            "rules-enforce.sh",
+        )
+        for fragment in forbidden_fragments:
+            assert fragment not in content
+
+    def test_rules_inject_stdout_is_deterministic(self, tmp_path: Path) -> None:
+        """同じhook入力ではmodel-visible contractをbyte単位で安定させる"""
+        hook = REPO_ROOT / "codex" / "hooks" / "rules-inject.sh"
+        payload = json.dumps(
+            {
+                "cwd": str(tmp_path),
+                "hook_event_name": "UserPromptSubmit",
+                "prompt": "review this change",
+            },
+            ensure_ascii=False,
+        )
+        env = {**os.environ, "CODEX_RULES_CONTEXT_MODE": "compact"}
+
+        def invoke() -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                ["sh", str(hook)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                input=payload,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+        first = invoke()
+        second = invoke()
+
+        assert first.returncode == 0, first.stderr
+        assert second.returncode == 0, second.stderr
+        assert first.stdout == second.stdout
+        assert "Generated at:" not in first.stdout
+        assert str(tmp_path) not in first.stdout
+        assert "$rules-required" in first.stdout
+        assert "@rules-required" not in first.stdout
+
+    def test_rules_guard_error_uses_plugin_skill_invocation(
+        self, tmp_path: Path
+    ) -> None:
+        """guardの復旧手順は実在するplugin skill名を案内する"""
+        guard = REPO_ROOT / "codex" / "hooks" / "rules-guard.sh"
+        fake_bin = tmp_path / "bin"
+        _write_executable(
+            fake_bin / "jaq",
+            "#!/bin/sh\n"
+            "case \"$2\" in\n"
+            "  '.cwd // empty') printf '%s\\n' \"$FAKE_RULES_CWD\" ;;\n"
+            "  '.tool_name // empty') printf '%s\\n' Edit ;;\n"
+            "  *) printf '\\n' ;;\n"
+            "esac\n",
+        )
+        payload = json.dumps(
+            {"cwd": str(tmp_path), "tool_name": "Edit", "tool_input": {}},
+            ensure_ascii=False,
+        )
+        env = {
+            **os.environ,
+            "FAKE_RULES_CWD": str(tmp_path),
+            "PATH": f"{fake_bin}:{os.environ['PATH']}",
+        }
+
+        result = subprocess.run(
+            ["sh", str(guard)],
+            cwd=str(REPO_ROOT),
+            env=env,
+            input=payload,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert result.returncode == 2
+        assert "$rules-required" in result.stderr
+        assert "@rules-required" not in result.stderr
+
+    def test_command_safety_matches_selective_rule_loading_contract(self) -> None:
+        """command policyから旧full injection前提を再導入しない"""
+        module = runpy.run_path(
+            str(REPO_ROOT / "scripts" / "apply-codex-performance-profile.py")
+        )
+        expected = module["SAFETY_RULES"].rstrip() + "\n"
+        actual = (
+            REPO_ROOT / "codex" / "rules" / "command-safety.rules"
+        ).read_text(encoding="utf-8")
+
+        assert actual == expected
+        assert "must be read explicitly when applicable" in actual
+        assert "are injected by rules-inject.sh" not in actual
+
+    def test_bug_hunt_skill_includes_its_allowlisted_resource(self) -> None:
+        """real port outputにskill本体,reference,optional policyを揃える"""
+        skill = REPO_ROOT / "codex" / "skills" / "bug-hunt"
+
+        assert (skill / "SKILL.md").is_file()
+        assert (skill / "references" / "review-lenses.md").is_file()
+        openai_yaml = (skill / "agents" / "openai.yaml").read_text(
+            encoding="utf-8"
+        )
+        assert "allow_implicit_invocation: false" in openai_yaml
+
+    def test_performance_profile_preserves_existing_global_agents(
+        self, tmp_path: Path
+    ) -> None:
+        """performance profileは既存global AGENTSを書き換えない"""
+        agents = tmp_path / "codex" / "global_AGENTS.md"
+        agents.parent.mkdir(parents=True)
+        expected = "# canonical global instructions\n"
+        agents.write_text(expected, encoding="utf-8")
+
+        result = _run_performance_profile(tmp_path)
+
+        assert result.returncode == 0, result.stderr
+        assert agents.read_text(encoding="utf-8") == expected
+
+    def test_performance_profile_rule_bundle_is_deterministic(
+        self, tmp_path: Path
+    ) -> None:
+        """performance profileのrule bundleは再実行しても変わらない"""
+        first_result = _run_performance_profile(tmp_path)
+        assert first_result.returncode == 0, first_result.stderr
+
+        bundle = tmp_path / "codex" / "rules" / "RULES_BUNDLE.md"
+        first_bundle = bundle.read_text(encoding="utf-8")
+        repeated_result = _run_performance_profile(tmp_path)
+
+        assert repeated_result.returncode == 0, repeated_result.stderr
+        assert bundle.read_text(encoding="utf-8") == first_bundle
+
+    def test_performance_profile_does_not_create_global_agents(
+        self, tmp_path: Path
+    ) -> None:
+        """performance profileはglobal AGENTSがないrepoへ新規作成しない"""
+        result = _run_performance_profile(tmp_path)
+
+        assert result.returncode == 0, result.stderr
+        assert not (tmp_path / "codex" / "global_AGENTS.md").exists()
+
     def test_claude_skill_ports_use_codex_runtime_contract(self) -> None:
         """Claude由来skillに未対応runtime contractを残さない"""
         forbidden_fragments = (
@@ -710,7 +888,7 @@ class TestRuleDistribution:
         assert (REPO_ROOT / "common" / "rules" / "natural-japanese.md").is_file()
         assert "@'$HOME/.claude/rules/natural-japanese.md'" in claude_global
         assert (REPO_ROOT / "codex" / "rules" / "natural-japanese.md").is_file()
-        assert "`codex/rules/natural-japanese.md`" in codex_index
+        assert "| `codex/rules/natural-japanese.md` |" in codex_index
         assert "## Source: `codex/rules/natural-japanese.md`" in codex_bundle
         assert not (
             REPO_ROOT / "codex" / "skills" / "natural-japanese" / "SKILL.md"
@@ -732,14 +910,19 @@ class TestRuleDistribution:
         assert "Step 5: commit" not in content
         assert "subagent が TDD で実装・テスト・自己レビューする" in content
 
-    def test_rule_bundle_header_has_separate_description_line(self) -> None:
-        """RULES_BUNDLE の見出しと説明文は同一行に潰さない"""
+    def test_rule_bundle_header_is_deterministic(self) -> None:
+        """RULES_BUNDLEの見出しへ生成時刻や旧injection説明を混ぜない"""
         bundle = REPO_ROOT / "codex" / "rules" / "RULES_BUNDLE.md"
         lines = bundle.read_text(encoding="utf-8").splitlines()
 
         assert lines[0] == "# Codex Rules Bundle"
         assert lines[1] == ""
-        assert lines[2].startswith("このファイルは hook/context injection 用")
+        assert lines[2] == (
+            "このファイルは参照・検証用の連結 rules bundle です。"
+            "直接編集せず、元 rule を編集して再生成してください。"
+        )
+        assert "Generated at:" not in "\n".join(lines)
+        assert "hook/context injection" not in "\n".join(lines)
 
 
 class TestScriptCli:

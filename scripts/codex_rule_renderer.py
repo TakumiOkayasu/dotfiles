@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 RULE_INDEX_NAME = "RULES_INDEX.md"
 RULE_BUNDLE_NAME = "RULES_BUNDLE.md"
-JST = timezone(timedelta(hours=9), "JST")
 SUMMARY_BY_NAME = {
     "coding-conventions.md": "language-independent coding conventions, naming, testing, error handling, and logging",
     "implementation-policy.md": "dependency, library, DB, validation, logging, crypto, and SQL policy",
@@ -40,10 +38,6 @@ class RuleDocument:
         return "project rule"
 
 
-def generated_at_jst() -> str:
-    return f"{datetime.now(JST).isoformat(timespec='seconds')} JST"
-
-
 def load_rule_documents(root: Path) -> tuple[RuleDocument, ...]:
     rules_dir = root / "codex" / "rules"
     if not rules_dir.exists():
@@ -68,7 +62,7 @@ def render_rule_index(documents: tuple[RuleDocument, ...]) -> str:
         "# Codex Rules Index",
         "",
         "このファイルは Codex asset pipeline により生成される rules index です。",
-        "Codex は作業前に該当 rule を読む必要があります。hook により full content が注入された場合は、それを読了済みとして扱います。",
+        "Codex は作業前に `RULES_CORE.md`、`RULES_INDEX.md`、task に該当する詳細 rule を明示的に読む必要があります。",
         "",
         "| Rule | Title | Description |",
         "| --- | --- | --- |",
@@ -80,13 +74,11 @@ def render_rule_index(documents: tuple[RuleDocument, ...]) -> str:
     return "\n".join([*lines, ""])
 
 
-def render_rule_bundle(documents: tuple[RuleDocument, ...], generated_at: str) -> str:
+def render_rule_bundle(documents: tuple[RuleDocument, ...]) -> str:
     parts = [
         "# Codex Rules Bundle",
         "",
-        "このファイルは hook/context injection 用の連結 rules bundle です。直接編集せず、元 rule を編集して再生成してください。",
-        "",
-        f"Generated at: {generated_at}",
+        "このファイルは参照・検証用の連結 rules bundle です。直接編集せず、元 rule を編集して再生成してください。",
         "",
     ]
     for document in documents:
@@ -101,11 +93,3 @@ def render_rule_bundle(documents: tuple[RuleDocument, ...], generated_at: str) -
             ]
         )
     return "\n".join(parts).rstrip() + "\n"
-
-
-def read_generated_at(bundle: str) -> str | None:
-    prefix = "Generated at: "
-    for line in bundle.splitlines():
-        if line.startswith(prefix):
-            return line.removeprefix(prefix)
-    return None

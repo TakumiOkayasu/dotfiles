@@ -1,12 +1,12 @@
 # Codex 設定
 
-Claude Code 用の `agents/`、`commands/`、`hooks/`、`rules/`、`skills/` を Codex 向けに移植したディレクトリ。
+Codex-native設定と,Claude Code由来の `agents/`,`commands`,`hooks`,`rules`,`skills` の移植資産を管理するディレクトリ.
 
 ## 対応表
 
 | Claude Code | Codex 配置 | 扱い |
 | --- | --- | --- |
-| `claude/global_CLAUDE.md` | `codex/global_AGENTS.md` | `~/.codex/AGENTS.md` にリネームして配置 |
+| - (Codex-native) | `codex/global_AGENTS.md` | 全project共通の個人default. `~/.codex/AGENTS.md` にリネームして配置 |
 | `claude/SUBAGENTS.md` | `codex/SUBAGENTS.md` | `~/.codex/SUBAGENTS.md` に配置する subagent mechanics |
 | `claude/agents/*.md` | `codex/agents/*.toml` | `~/.codex/agents/*.toml` に配置する Codex custom agent 定義 |
 | `common/rules/` | `codex/rules/` | 共有正本から生成する設計と実装のルール |
@@ -102,13 +102,9 @@ codex debug prompt-input ping
 
 ### プロジェクトローカルで使う場合
 
-Codex に常時読ませる場合は、対象プロジェクトのルートに `codex/global_AGENTS.md` を `AGENTS.md` として配置する。
-
-```bash
-cp codex/global_AGENTS.md AGENTS.md
-```
-
-このリポジトリ内だけで参照する場合は、作業時に `codex/global_AGENTS.md`、必要な `codex/rules/*.md`、`codex/skills/*/SKILL.md` を読む。
+Install済みなら`codex/global_AGENTS.md`はglobal defaultとして自動的に適用されるため,projectへcopyしない.
+各projectのrootには,そのrepo固有のlayout,command,convention,constraint,done conditionだけを記述した`AGENTS.md`を置く.
+Subdirectory固有の指示が必要な場合は,対象に近い階層へ追加する.
 
 ## skills / rules
 
@@ -119,7 +115,8 @@ cp codex/global_AGENTS.md AGENTS.md
 - `verify-codex-plugin.py` はcommon正本、Codex生成view、pluginの集合と内容を検証する。
 - core pluginのrule hookはinline dispatcherを検出した場合に処理を譲り、plugin未導入時はinline hookをfallbackとして使う。
 - `codex/rules/` は参照資料。Codex が自動的に常時ロードする前提にはしない。
-- 常時必要な運用ルールは `codex/global_AGENTS.md` に直接集約する。
+- `codex/global_AGENTS.md` は全projectで長期的に安定する個人defaultだけを保持する. Project固有の規約はproject-local `AGENTS.md`,task固有のworkflowはskillへ置く.
+- `scripts/apply-codex-performance-profile.py` を含む生成scriptは `codex/global_AGENTS.md` を変更しない. このfile自体を唯一の正本とする.
 - vendor skill の更新は自動実行しない。必要な場合のみ `~/.codex/bin/vendor-skills-update-manual.sh` を手動実行する。
 
 plugin bundle を更新する場合は次を実行する:
@@ -192,4 +189,4 @@ hook は補助的な安全機構であり、完全な enforcement 境界では�
 
 ## progress
 
-`.codex/progress.md` は必要になった時だけ作成する。checkpoint は `.codex/checkpoints/latest.md` に置く。形式は `codex/global_AGENTS.md` の「進捗管理」を参照。
+`.codex/progress.md` はprojectまたは長時間taskで必要になった時だけ作成する. Checkpointは `.codex/checkpoints/latest.md` に置き,形式はproject-local instructionまたは利用するworkflowで定める.

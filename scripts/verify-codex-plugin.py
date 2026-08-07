@@ -17,7 +17,6 @@ from codex_rule_renderer import (
     RULE_BUNDLE_NAME,
     RULE_INDEX_NAME,
     load_rule_documents,
-    read_generated_at,
     render_rule_bundle,
     render_rule_index,
 )
@@ -388,15 +387,11 @@ def check_rule_aggregate_sync(root: Path) -> int:
     documents = load_rule_documents(root)
     actual_index = index_path.read_text(encoding="utf-8")
     actual_bundle = bundle_path.read_text(encoding="utf-8")
-    generated_at = read_generated_at(actual_bundle)
-    if generated_at is None:
-        print("RULE_AGGREGATE_DRIFT: missing generated timestamp", file=sys.stderr)
-        return 9
 
     changed = []
     if actual_index != render_rule_index(documents):
         changed.append(RULE_INDEX_NAME)
-    if actual_bundle != render_rule_bundle(documents, generated_at):
+    if actual_bundle != render_rule_bundle(documents):
         changed.append(RULE_BUNDLE_NAME)
     if changed:
         print(f"RULE_AGGREGATE_DRIFT: changed={changed}", file=sys.stderr)
