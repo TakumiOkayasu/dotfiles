@@ -124,5 +124,5 @@ skill = "#cda1fa"
 inherit = "core"
 
 [shell_environment_policy.set]
-EDITOR = "zed"
-VISUAL = "zed"
+EDITOR = "zed --wait"
+VISUAL = "zed --wait"

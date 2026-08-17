@@ -1,7 +1,7 @@
 {
   "env": {
-    "EDITOR": "code --wait",
-    "VISUAL": "code --wait"
+    "EDITOR": "zed --wait",
+    "VISUAL": "zed --wait"
   },
   "includeCoAuthoredBy": false,
   "permissions": {
