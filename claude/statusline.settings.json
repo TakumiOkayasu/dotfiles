@@ -3,128 +3,372 @@
   "lines": [
     [
       {
-        "id": "1",
+        "id": "l1-model-icon",
+        "type": "custom-text",
+        "color": "hex:F2F6FA",
+        "backgroundColor": "hex:36566E",
+        "customText": "🤖 ",
+        "merge": "no-padding"
+      },
+      {
+        "id": "model",
         "type": "model",
-        "color": "brightMagenta"
+        "color": "hex:F2F6FA",
+        "backgroundColor": "hex:36566E",
+        "rawValue": true,
+        "bold": true,
+        "merge": "no-padding"
       },
       {
-        "id": "41686898-1251-48ba-8f87-7aa425698cd2",
+        "id": "l1-model-sep-1",
+        "type": "custom-text",
+        "color": "hex:F2F6FA",
+        "backgroundColor": "hex:36566E",
+        "customText": " · ",
+        "merge": "no-padding",
+        "dim": true
+      },
+      {
+        "id": "version",
         "type": "version",
-        "backgroundColor": "bgGreen"
+        "color": "hex:F2F6FA",
+        "backgroundColor": "hex:36566E",
+        "rawValue": false,
+        "dim": true,
+        "merge": "no-padding"
       },
       {
-        "id": "b564102e-db3a-4813-8f46-40e4ae27ffba",
+        "id": "l1-model-sep-2",
+        "type": "custom-text",
+        "color": "hex:F2F6FA",
+        "backgroundColor": "hex:36566E",
+        "customText": " · 🧠 ",
+        "merge": "no-padding"
+      },
+      {
+        "id": "effort",
         "type": "thinking-effort",
-        "backgroundColor": "bgBrightYellow"
+        "color": "hex:F2F6FA",
+        "backgroundColor": "hex:36566E",
+        "rawValue": true
       },
       {
-        "id": "16a900f7-146d-4bb1-815d-0e9ea090e5eb",
-        "type": "session-usage",
-        "backgroundColor": "bgRed",
+        "id": "l1-context-icon",
+        "type": "custom-text",
+        "color": "hex:E9FBF7",
+        "backgroundColor": "hex:346A66",
+        "customText": "🧭 ",
+        "merge": "no-padding"
+      },
+      {
+        "id": "context-bar",
+        "type": "context-bar",
+        "color": "hex:E9FBF7",
+        "backgroundColor": "hex:346A66",
+        "rawValue": true,
+        "merge": "no-padding",
         "metadata": {
-          "display": "slider"
+          "display": "slider-only"
         }
       },
       {
-        "id": "e2231f36-c499-45d3-a4f0-c81f7df20dde",
-        "type": "weekly-usage",
-        "backgroundColor": "bgMagenta",
-        "metadata": {
-          "invert": "false"
-        }
+        "id": "l1-context-space",
+        "type": "custom-text",
+        "color": "hex:E9FBF7",
+        "backgroundColor": "hex:346A66",
+        "customText": " ",
+        "merge": "no-padding"
       },
       {
-        "id": "72ad9d2d-4110-4204-bf03-deb9ea5a6d6a",
+        "id": "context-usable",
         "type": "context-percentage-usable",
-        "backgroundColor": "bgBlue"
+        "color": "hex:E9FBF7",
+        "backgroundColor": "hex:346A66",
+        "rawValue": true,
+        "bold": true,
+        "merge": "no-padding",
+        "metadata": {
+          "inverse": "true"
+        }
       },
       {
-        "id": "e42b8e38-977b-4af1-93fc-fd5af75bea83",
+        "id": "l1-context-label",
+        "type": "custom-text",
+        "color": "hex:E9FBF7",
+        "backgroundColor": "hex:346A66",
+        "customText": " left · ",
+        "merge": "no-padding"
+      },
+      {
+        "id": "compaction",
         "type": "compaction-counter",
-        "backgroundColor": "bgBrightRed",
+        "color": "hex:E9FBF7",
+        "backgroundColor": "hex:346A66",
         "metadata": {
-          "showReclaimed": "true",
-          "nerdFont": "true"
+          "showReclaimed": "true"
+        }
+      },
+      {
+        "id": "l1-session-icon",
+        "type": "custom-text",
+        "color": "hex:FFF5DF",
+        "backgroundColor": "hex:6B5735",
+        "customText": "⏱️ ",
+        "merge": "no-padding"
+      },
+      {
+        "id": "session-clock",
+        "type": "session-clock",
+        "color": "hex:FFF5DF",
+        "backgroundColor": "hex:6B5735",
+        "rawValue": true,
+        "merge": "no-padding"
+      },
+      {
+        "id": "l1-sandbox-label",
+        "type": "custom-text",
+        "color": "hex:FFF5DF",
+        "backgroundColor": "hex:6B5735",
+        "customText": " · 🔒 ",
+        "merge": "no-padding"
+      },
+      {
+        "id": "sandbox",
+        "type": "sandbox-status",
+        "color": "hex:FFF5DF",
+        "backgroundColor": "hex:6B5735",
+        "rawValue": true,
+        "metadata": {
+          "format": "word"
         }
       }
     ],
     [
       {
-        "id": "e8776414-f30f-4bdb-b3cc-6dc719ef826e",
-        "type": "reset-timer",
-        "backgroundColor": "bgBrightYellow"
+        "id": "l2-5h-label",
+        "type": "custom-text",
+        "color": "hex:F5F0FF",
+        "backgroundColor": "hex:5A4F78",
+        "customText": "⏳ 5h ",
+        "merge": "no-padding"
       },
       {
-        "id": "bf66be7c-30d9-4298-9b62-161b3a8d91eb",
-        "type": "sandbox-status",
-        "backgroundColor": "bgYellow",
-        "excludeFromAutoAlign": true,
+        "id": "session-usage",
+        "type": "session-usage",
+        "color": "hex:F5F0FF",
+        "backgroundColor": "hex:5A4F78",
+        "rawValue": true,
+        "bold": true,
+        "merge": "no-padding",
         "metadata": {
-          "format": "word"
+          "display": "slider",
+          "cursor": "true"
         }
       },
       {
-        "id": "43df45c1-33dc-46b0-93c0-beb05f276aab",
-        "type": "claude-session-id",
-        "backgroundColor": "bgCyan"
+        "id": "l2-5h-reset-label",
+        "type": "custom-text",
+        "color": "hex:F5F0FF",
+        "backgroundColor": "hex:5A4F78",
+        "customText": " · ↻ ",
+        "merge": "no-padding"
       },
       {
-        "id": "fcc35e34-b01c-43e6-8af9-da86c5ddfab5",
-        "type": "thinking-effort",
-        "backgroundColor": "bgBrightGreen"
+        "id": "reset-timer",
+        "type": "reset-timer",
+        "color": "hex:F5F0FF",
+        "backgroundColor": "hex:5A4F78",
+        "rawValue": true,
+        "metadata": {
+          "compact": "true"
+        }
       },
       {
-        "id": "bb2b2eb2-c158-4895-a57d-de1725045dc0",
-        "type": "git-review",
-        "backgroundColor": "bgGreen"
+        "id": "l2-week-label",
+        "type": "custom-text",
+        "color": "hex:EAF4FC",
+        "backgroundColor": "hex:46667D",
+        "customText": "📅 7d ",
+        "merge": "no-padding"
       },
       {
-        "id": "cb4deb7c-175d-4d67-87c7-471d082c439e",
-        "type": "git-conflicts",
-        "backgroundColor": "bgBrightRed",
+        "id": "weekly-usage",
+        "type": "weekly-usage",
+        "color": "hex:EAF4FC",
+        "backgroundColor": "hex:46667D",
+        "rawValue": true,
+        "bold": true,
+        "merge": "no-padding",
+        "metadata": {
+          "display": "slider",
+          "cursor": "true"
+        }
+      },
+      {
+        "id": "l2-week-reset-label",
+        "type": "custom-text",
+        "color": "hex:EAF4FC",
+        "backgroundColor": "hex:46667D",
+        "customText": " · ↻ ",
+        "merge": "no-padding"
+      },
+      {
+        "id": "weekly-reset",
+        "type": "weekly-reset-timer",
+        "color": "hex:EAF4FC",
+        "backgroundColor": "hex:46667D",
+        "rawValue": true,
+        "metadata": {
+          "compact": "true"
+        }
+      },
+      {
+        "id": "l2-cache-label",
+        "type": "custom-text",
+        "color": "hex:FFF3D8",
+        "backgroundColor": "hex:705B32",
+        "customText": "⚡ ",
+        "merge": "no-padding"
+      },
+      {
+        "id": "cache-hit",
+        "type": "cache-hit-rate",
+        "color": "hex:FFF3D8",
+        "backgroundColor": "hex:705B32",
+        "rawValue": true,
+        "merge": "no-padding"
+      },
+      {
+        "id": "l2-cache-sep",
+        "type": "custom-text",
+        "color": "hex:FFF3D8",
+        "backgroundColor": "hex:705B32",
+        "customText": " · ",
+        "merge": "no-padding"
+      },
+      {
+        "id": "cache-timer",
+        "type": "cache-timer",
+        "color": "hex:FFF3D8",
+        "backgroundColor": "hex:705B32",
+        "rawValue": true
+      }
+    ],
+    [
+      {
+        "id": "git-branch",
+        "type": "git-branch",
+        "color": "hex:ECF4FF",
+        "backgroundColor": "hex:344E67",
+        "rawValue": false,
+        "bold": true,
+        "merge": "no-padding",
+        "character": "",
+        "maxWidth": 30,
         "metadata": {
           "hideNoGit": "true"
         }
       },
       {
-        "id": "043c4392-609b-4701-903c-38a4f4afa7b4",
-        "type": "git-branch",
-        "backgroundColor": "bgBrightBlack"
-      }
-    ],
-    [
+        "id": "l3-git-sep",
+        "type": "custom-text",
+        "color": "hex:ECF4FF",
+        "backgroundColor": "hex:344E67",
+        "customText": " · ",
+        "merge": "no-padding"
+      },
       {
-        "id": "1cddbfc7-f49a-4439-8034-bc103bb63e10",
-        "type": "context-bar",
-        "backgroundColor": "bgBrightGreen",
+        "id": "git-clean",
+        "type": "git-clean-status",
+        "color": "hex:ECF4FF",
+        "backgroundColor": "hex:344E67",
+        "rawValue": false,
+        "merge": "no-padding",
         "metadata": {
-          "display": "slider"
+          "hideNoGit": "true"
         }
       },
       {
-        "id": "8db0c05e-7b42-48fb-bcd8-1275f1b79f29",
-        "type": "free-memory",
-        "backgroundColor": "bgBlue"
+        "id": "l3-git-status-space",
+        "type": "custom-text",
+        "color": "hex:ECF4FF",
+        "backgroundColor": "hex:344E67",
+        "customText": " ",
+        "merge": "no-padding"
       },
       {
-        "id": "f56e1b55-50c3-497b-8bdf-39a12341fef3",
-        "type": "output-style",
-        "backgroundColor": "bgGreen"
+        "id": "git-status",
+        "type": "git-status",
+        "color": "hex:ECF4FF",
+        "backgroundColor": "hex:344E67",
+        "merge": true,
+        "metadata": {
+          "hideNoGit": "true"
+        }
       },
       {
-        "id": "39880f16-5fc6-49a8-898d-f1d29f82c119",
-        "type": "block-timer",
-        "backgroundColor": "bgBrightGreen"
+        "id": "git-ahead-behind",
+        "type": "git-ahead-behind",
+        "color": "hex:ECF4FF",
+        "backgroundColor": "hex:344E67",
+        "metadata": {
+          "hideNoGit": "true"
+        }
       },
       {
-        "id": "22597c72-4534-40d6-a187-75f33c549ee8",
-        "type": "session-clock",
-        "backgroundColor": "bgGreen"
+        "id": "l3-review-icon",
+        "type": "custom-text",
+        "color": "hex:F2EEFF",
+        "backgroundColor": "hex:4F5575",
+        "customText": "🔀 ",
+        "merge": "no-padding"
       },
       {
-        "id": "5dfdaf72-b769-4ae9-a865-4e6173606630",
-        "type": "context-percentage",
-        "backgroundColor": "bgBlue"
+        "id": "git-review",
+        "type": "git-review",
+        "color": "hex:F2EEFF",
+        "backgroundColor": "hex:4F5575",
+        "rawValue": false,
+        "merge": "no-padding",
+        "metadata": {
+          "hideNoGit": "true",
+          "hideTitle": "true"
+        }
+      },
+      {
+        "id": "l3-ci-label",
+        "type": "custom-text",
+        "color": "hex:F2EEFF",
+        "backgroundColor": "hex:4F5575",
+        "customText": " · CI ",
+        "merge": "no-padding"
+      },
+      {
+        "id": "git-ci",
+        "type": "git-ci-status",
+        "color": "hex:F2EEFF",
+        "backgroundColor": "hex:4F5575",
+        "rawValue": false,
+        "metadata": {
+          "hideNoGit": "true"
+        }
+      },
+      {
+        "id": "l3-changes-label",
+        "type": "custom-text",
+        "color": "hex:FFF1E2",
+        "backgroundColor": "hex:6B5032",
+        "customText": "Δ ",
+        "merge": "no-padding"
+      },
+      {
+        "id": "git-changes",
+        "type": "git-changes",
+        "color": "hex:FFF1E2",
+        "backgroundColor": "hex:6B5032",
+        "metadata": {
+          "hideNoGit": "true"
+        }
       }
     ]
   ],
@@ -134,18 +378,26 @@
   "defaultPadding": " ",
   "defaultPaddingSide": "both",
   "inheritSeparatorColors": false,
-  "globalBold": true,
+  "globalBold": false,
   "gitCacheTtlSeconds": 1,
-  "minimalistMode": true,
+  "minimalistMode": false,
   "powerline": {
     "enabled": true,
-    "separators": [""],
-    "separatorInvertBackground": [true],
-    "startCaps": [""],
-    "endCaps": [""],
-    "theme": "onedark",
+    "separators": [
+      ""
+    ],
+    "separatorInvertBackground": [
+      false
+    ],
+    "startCaps": [
+      ""
+    ],
+    "endCaps": [
+      ""
+    ],
+    "theme": "custom",
     "autoAlign": true,
-    "continueThemeAcrossLines": true
+    "continueThemeAcrossLines": false
   },
   "installation": {
     "method": "auto-update",
