@@ -9,21 +9,25 @@ TEST_PATH = Path("tests/test_install.py")
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
-    if old not in text:
-        raise SystemExit(f"expected block not found: {label}")
-    return text.replace(old, new, 1)
+    if old in text:
+        return text.replace(old, new, 1)
+    if new in text:
+        return text
+    raise SystemExit(f"expected block not found: {label}")
 
 
 def main() -> int:
     text = TEST_PATH.read_text(encoding="utf-8")
 
-    text = replace_once(
-        text,
-        '        assert "tests/test_port_claude_assets.py" in entrypoint\n',
-        '        assert "tests/test_port_claude_assets.py" in entrypoint\n'
-        '        assert "tests/test_issue_regressions.py" in entrypoint\n',
-        "default installer entrypoint",
-    )
+    entrypoint_assertion = '        assert "tests/test_issue_regressions.py" in entrypoint\n'
+    if entrypoint_assertion not in text:
+        text = replace_once(
+            text,
+            '        assert "tests/test_port_claude_assets.py" in entrypoint\n',
+            '        assert "tests/test_port_claude_assets.py" in entrypoint\n'
+            + entrypoint_assertion,
+            "default installer entrypoint",
+        )
 
     text = replace_once(
         text,
@@ -44,21 +48,19 @@ def main() -> int:
         "agent thread limit",
     )
 
-    text = replace_once(
-        text,
+    text = text.replace(
         '''        claude_global = (REPO_ROOT / "claude" / "global_CLAUDE.md").read_text(
             encoding="utf-8"
         )
 ''',
         "",
-        "stale Claude global setup",
+        1,
     )
-    text = replace_once(
-        text,
+    text = text.replace(
         '''        assert "@'$HOME/.claude/rules/natural-japanese.md'" in claude_global
 ''',
         "",
-        "stale Claude rule assertion",
+        1,
     )
 
     TEST_PATH.write_text(text, encoding="utf-8")
