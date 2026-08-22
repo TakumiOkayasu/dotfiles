@@ -97,7 +97,14 @@ projectの既存方針に従う。real dependency seam、fake、stub、mockの�
 
 明示的にこのoptional extensionを選んだ場合に限り、機能単位と判定しても、現行Codexではqa_nightmareをdispatchせず、悪夢テストケース生成が未実行であることを先に明示する。
 
-### qa_nightmareの安全な起動契約
+### qa_nightmare の将来有効化仕様
+
+現行Codex custom-agentには構造的なempty tool surfaceがない。
+`sandbox_mode = "read-only"` はtoolを非公開化しないため、実運用では `agent_type: qa_nightmare` をdispatchしない。
+悪夢テストケース生成は未実行としてユーザーへ明示する。
+将来、実行surfaceが全toolを構造的に除外できることを一次情報と実tool eventで確認できた場合だけ、以下のpreflightとdispatchを有効化する。
+
+
 
 source selectionの選択理由を記録し、依存観点としてentrypoint、主要依存、状態境界、認可、外部副作用、既存テストを確認する。source_evidence不足ならdispatchせず終了する。
 
@@ -114,14 +121,10 @@ context_limit_tokens、output_reserve_tokens、input_upper_bound_tokensはUTF-8 
 
 最初に`--source-only`でaccepted_sourcesと読取前後digestを検証する。この段階ではcore slot用のchecklist_snapshotを構築せず、続くfull preflightでsource-onlyとfullの `repo_provenance` が完全一致することを確認する。
 
-### qa_nightmare の将来有効化仕様
-
-現行Codex custom-agentには構造的なempty tool surfaceがない。
-`sandbox_mode = "read-only"` はtoolを非公開化しないため、実運用では `agent_type: qa_nightmare` をdispatchしない。
-悪夢テストケース生成は未実行としてユーザーへ明示する。
-将来、実行surfaceが全toolを構造的に除外できることを一次情報と実tool eventで確認できた場合だけ、以下のpreflightとdispatchを有効化する。
-
 ### 将来有効化時の結果の扱い
+
+機能単位の場合はqa_nightmare未実行を明示し、通常TDD候補を親が作る。
+将来有効化後だけ `qa_nightmare` subagent の出力を反映する。
 
 採用するcaseは重大度と今回のscopeで選び、全caseの実装を義務化しない。
 
