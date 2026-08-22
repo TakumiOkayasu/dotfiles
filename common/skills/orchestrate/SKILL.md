@@ -42,6 +42,14 @@ placeholderや未定義のcontractを残さない。
 - 1 task = 1 fresh subagentを強制しない
 - subagent不能時は、親が安全に実行可能なら継続する
 
+旧workflowの次の固定表は契約にしない。
+
+```text
+| task 種別 / 役割 | 複雑度シグナル | Driver | Worker |
+```
+
+「subagent が TDD で実装・テスト・自己レビューする」ことも一律要件にせず、担当taskとruntimeに適した実行者を選ぶ。
+
 ## レビュー
 
 - taskごとにcontractとverificationを確認する

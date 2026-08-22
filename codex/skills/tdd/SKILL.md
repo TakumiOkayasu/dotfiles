@@ -38,7 +38,7 @@ description: 振る舞いをテストで定義し、RED-GREEN-REFACTORで実装�
 
 ## Cycle
 
-### 1. Test list
+### Test list
 
 現在の変更で証明すべき振る舞いを短く列挙する。
 
@@ -49,13 +49,13 @@ description: 振る舞いをテストで定義し、RED-GREEN-REFACTORで実装�
 
 網羅性を装うため、無関係なnull/empty/max等を機械的に追加しない。
 
-### 2. RED
+### RED
 
 最小のテストを追加し、期待した理由で失敗することを確認する。
 
 既存bugを再現できない場合は、static trace、contract test、typecheck等の代替証拠を使い、RED未確認を明示する。
 
-### 3. GREEN
+### GREEN
 
 現在のテストを通す最小実装を行う。
 
@@ -63,11 +63,11 @@ description: 振る舞いをテストで定義し、RED-GREEN-REFACTORで実装�
 - production codeをtestだけのために歪めない
 - existing seamがあれば再利用する
 
-### 4. REFACTOR
+### REFACTOR
 
 テストが通る状態を維持して、重複、命名、責務だけを必要な範囲で整理する。
 
-### 5. VERIFY
+### VERIFY
 
 対象テスト、関連テスト、lint、buildをproject commandで実行する。実行していないcheckを成功扱いしない。
 
@@ -97,6 +97,23 @@ projectの既存方針に従う。real dependency seam、fake、stub、mockの�
 
 明示的にこのoptional extensionを選んだ場合に限り、機能単位と判定しても、現行Codexではqa_nightmareをdispatchせず、悪夢テストケース生成が未実行であることを先に明示する。
 
+### qa_nightmareの安全な起動契約
+
+source selectionの選択理由を記録し、依存観点としてentrypoint、主要依存、状態境界、認可、外部副作用、既存テストを確認する。source_evidence不足ならdispatchせず終了する。
+
+親はcanonicalなrepo_provenanceを作り、sourceはrelative regular fileのみ許可する。directory/absolute/./../external symlink/sibling-prefix/gitignored/credential/secret-bearingを拒否し、component-aware配下判定を行い、秘密値をfactへ含めない。sourceは既知pathから導出し、期待file名/canonical target/digest/ID集合/構造をdispatch直前に検証する。absolute pathを出力しない。子agentへabsolute filesystem pathを渡さず、次のfieldを渡す。
+
+```text
+repo_provenance:
+source_evidence:
+checklist_snapshot:
+checklist_provenance:
+```
+
+context_limit_tokens、output_reserve_tokens、input_upper_bound_tokensはUTF-8 byte数から保守的に見積もる。対象機能、URL / パス、4 fieldを再直列化して固定点へ収束させ、取得できなければ起動しない。
+
+最初に`--source-only`でaccepted_sourcesと読取前後digestを検証する。この段階ではcore slot用のchecklist_snapshotを構築せず、続くfull preflightでsource-onlyとfullの `repo_provenance` が完全一致することを確認する。
+
 ### qa_nightmare の将来有効化仕様
 
 現行Codex custom-agentには構造的なempty tool surfaceがない。
@@ -104,14 +121,7 @@ projectの既存方針に従う。real dependency seam、fake、stub、mockの�
 悪夢テストケース生成は未実行としてユーザーへ明示する。
 将来、実行surfaceが全toolを構造的に除外できることを一次情報と実tool eventで確認できた場合だけ、以下のpreflightとdispatchを有効化する。
 
-対象source、secret redaction、read-only tool surface、context budgetを検証する。いずれかを確認できなければdispatchしない。
-
-
-
 ### 将来有効化時の結果の扱い
-
-機能単位の場合はqa_nightmare未実行を明示し、通常TDD候補を親が作る。
-将来有効化後だけ `qa_nightmare` subagent の出力を反映する。
 
 採用するcaseは重大度と今回のscopeで選び、全caseの実装を義務化しない。
 
