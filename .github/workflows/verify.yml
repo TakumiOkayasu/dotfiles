@@ -29,6 +29,16 @@ jobs:
           python3 scripts/sync-codex-plugin.py --repo . --clean
           python3 scripts/verify-codex-plugin.py --repo .
 
+      - name: Upload generated files for drift repair
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: generated-drift-repair
+          path: |
+            codex/rules/RULES_BUNDLE.md
+            tests/test_install.py
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Require tracked generated views to be committed
         run: git diff --exit-code
 
