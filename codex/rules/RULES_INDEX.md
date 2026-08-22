@@ -7,6 +7,7 @@ Codex は作業前に `RULES_CORE.md`、`RULES_INDEX.md`、task に該当する�
 | --- | --- | --- |
 | `codex/rules/RULES_CORE.md` | RULES_CORE | RULES_CORE |
 | `codex/rules/coding-conventions.md` | Coding Conventions | language-independent coding conventions, naming, testing, error handling, and logging |
+| `codex/rules/contract-driven-object-collaboration.md` | Contract-Driven Object Collaboration | ideal contracts, object collaboration, representation hiding, responsibility separation, and DI as composition result |
 | `codex/rules/hallucination-prevention.md` | Hallucination Prevention | source verification and uncertainty handling policy |
 | `codex/rules/hierarchical-architecture.md` | Architecture Invariants | architecture invariants, dependency direction, composition, interfaces, and layer naming |
 | `codex/rules/implementation-policy.md` | Implementation Policy | dependency, library, DB, validation, logging, crypto, and SQL policy |
