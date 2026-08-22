@@ -7,6 +7,7 @@ RULE_INDEX_NAME = "RULES_INDEX.md"
 RULE_BUNDLE_NAME = "RULES_BUNDLE.md"
 SUMMARY_BY_NAME = {
     "coding-conventions.md": "language-independent coding conventions, naming, testing, error handling, and logging",
+    "contract-driven-object-collaboration.md": "ideal contracts, object collaboration, representation hiding, responsibility separation, and DI as composition result",
     "implementation-policy.md": "dependency, library, DB, validation, logging, crypto, and SQL policy",
     "hallucination-prevention.md": "source verification and uncertainty handling policy",
     "hierarchical-architecture.md": "architecture invariants, dependency direction, composition, interfaces, and layer naming",
