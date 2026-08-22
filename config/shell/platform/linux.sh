@@ -1,5 +1,5 @@
 #!/bin/sh
-# shell/local/linux.sh - Linux固有設定 (POSIX互換)
+# shell/platform/linux.sh - Linux固有設定 (POSIX互換)
 #
 # 読み込み元: common.sh (プラットフォーム検出後)
 # 対象: サーバー、デスクトップLinux (WSL以外)
@@ -67,4 +67,3 @@ if command -v systemctl >/dev/null 2>&1; then
     alias jc='journalctl'
     alias jcf='journalctl -f'
 fi
-

@@ -1,11 +1,15 @@
 #!/bin/sh
-# shell/local/wsl.sh - WSL固有設定 (POSIX互換)
+# shell/platform/wsl.sh - WSL固有設定 (POSIX互換)
 #
 # 読み込み元: common.sh (プラットフォーム検出後)
 
 # ============================================================================
 # Windows連携
 # ============================================================================
+
+# Claude CodeがWindowsプロファイル検出でpowershell.exeを繰り返し起動するのを防ぐ
+# ref: https://github.com/anthropics/claude-code/issues/14352
+export CLAUDE_CODE_SKIP_WINDOWS_PROFILE=1
 
 # Windowsホームディレクトリ (common.sh の _dotfiles_detect_win_home を使用)
 WIN_HOME="${WIN_HOME:-$(_dotfiles_detect_win_home)}"

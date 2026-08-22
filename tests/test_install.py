@@ -66,7 +66,12 @@ def _create_fake_mise_shell_runtime(tmp_path: Path) -> tuple[Path, Path, Path]:
 
 
 def _run_bashrc(
-    home: Path, fake_bin: Path, eza_bin: Path
+    home: Path,
+    fake_bin: Path,
+    eza_bin: Path,
+    *,
+    command: str = "alias lla",
+    env_overrides: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     env = {
         "DOTFILES_DIR": str(REPO_ROOT),
@@ -76,13 +81,14 @@ def _run_bashrc(
         "TERM": "xterm-256color",
         "USER": "test",
     }
+    env.update(env_overrides or {})
     return subprocess.run(
         [
             "/bin/bash",
             "--noprofile",
             "--norc",
             "-ic",
-            f'source "{BASHRC}"; alias lla',
+            f'source "{BASHRC}"; {command}',
         ],
         env=env,
         capture_output=True,
@@ -111,6 +117,63 @@ class TestShellInitialization:
             "alias lla='eza -la --git --group-directories-first --sort=name'"
             in result.stdout
         )
+
+    def test_bash_does_not_export_windows_profile_outside_wsl(
+        self, tmp_path: Path
+    ) -> None:
+        home, fake_bin, eza_bin = _create_fake_mise_shell_runtime(tmp_path)
+        result = _run_bashrc(
+            home,
+            fake_bin,
+            eza_bin,
+            command=(
+                "printf 'platform=%s\\nuserprofile=%s\\nskip=%s\\n' "
+                '"$DOTFILES_PLATFORM" "${USERPROFILE-}" '
+                '"${CLAUDE_CODE_SKIP_WINDOWS_PROFILE-}"'
+            ),
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert "platform=linux" in result.stdout
+        assert "userprofile=\n" in result.stdout
+        assert "skip=\n" in result.stdout
+
+    def test_bash_uses_windows_profile_detected_by_wsl(
+        self, tmp_path: Path
+    ) -> None:
+        home, fake_bin, eza_bin = _create_fake_mise_shell_runtime(tmp_path)
+        _write_executable(
+            fake_bin / "cmd.exe",
+            "#!/bin/sh\nprintf 'C:\\\\Users\\\\work\\r\\n'\n",
+        )
+        _write_executable(
+            fake_bin / "wslpath",
+            "#!/bin/sh\nprintf '/mnt/c/Users/work\\n'\n",
+        )
+        result = _run_bashrc(
+            home,
+            fake_bin,
+            eza_bin,
+            command=(
+                "printf 'platform=%s\\nuserprofile=%s\\nskip=%s\\n' "
+                '"$DOTFILES_PLATFORM" "$USERPROFILE" '
+                '"$CLAUDE_CODE_SKIP_WINDOWS_PROFILE"'
+            ),
+            env_overrides={"WSL_DISTRO_NAME": "Ubuntu"},
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert "platform=wsl" in result.stdout
+        assert "userprofile=/mnt/c/Users/work" in result.stdout
+        assert "skip=1" in result.stdout
+
+    def test_claude_lsp_flag_is_configured_for_claude_not_bash(self) -> None:
+        settings = json.loads(
+            (REPO_ROOT / "claude" / "settings.json").read_text(encoding="utf-8")
+        )
+
+        assert settings["env"]["ENABLE_LSP_TOOL"] == "1"
+        assert "ENABLE_LSP_TOOL" not in BASHRC.read_text(encoding="utf-8")
 
 
 def _run_install_sh(

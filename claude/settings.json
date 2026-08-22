@@ -1,5 +1,6 @@
 {
   "env": {
+    "ENABLE_LSP_TOOL": "1",
     "EDITOR": "zed --wait",
     "VISUAL": "zed --wait"
   },

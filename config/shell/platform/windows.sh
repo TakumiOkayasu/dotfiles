@@ -1,5 +1,5 @@
 #!/bin/sh
-# shell/local/windows.sh - Git Bash (MINGW/MSYS/Cygwin) 固有設定 (POSIX互換)
+# shell/platform/windows.sh - Git Bash (MINGW/MSYS/Cygwin) 固有設定 (POSIX互換)
 #
 # 読み込み元: common.sh (プラットフォーム検出後)
 # 対象: Git Bash on Windows (非WSL)

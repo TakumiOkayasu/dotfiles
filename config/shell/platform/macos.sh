@@ -1,5 +1,5 @@
 #!/bin/sh
-# shell/local/macos.sh - macOS固有設定 (POSIX互換)
+# shell/platform/macos.sh - macOS固有設定 (POSIX互換)
 #
 # 読み込み元: common.sh (プラットフォーム検出後)
 
@@ -79,4 +79,3 @@ if [ -d "$HOMEBREW_PREFIX/opt/openssl@3" ]; then
     export CPPFLAGS="-I$HOMEBREW_PREFIX/opt/openssl@3/include"
     export PKG_CONFIG_PATH="$HOMEBREW_PREFIX/opt/openssl@3/lib/pkgconfig"
 fi
-
