@@ -12,6 +12,23 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 INSTALL_SH = REPO_ROOT / "install.sh"
 CLAUDE_SETTINGS = REPO_ROOT / "claude" / "settings.json"
 GH_REPO_AUTO_SETUP_HOOK = REPO_ROOT / "claude" / "hooks" / "gh-repo-auto-setup.sh"
+COMMON_AUDIT_SKILL = (
+    REPO_ROOT / "common" / "skills" / "instruction-surface-audit" / "SKILL.md"
+)
+CODEX_AUDIT_SKILL = (
+    REPO_ROOT / "codex" / "skills" / "instruction-surface-audit" / "SKILL.md"
+)
+CODEX_AUDIT_METADATA = (
+    REPO_ROOT
+    / "codex"
+    / "skills"
+    / "instruction-surface-audit"
+    / "agents"
+    / "openai.yaml"
+)
+CLAUDE_CODE_REVIEWER = REPO_ROOT / "claude" / "agents" / "code-reviewer.md"
+CODEX_CODE_REVIEWER = REPO_ROOT / "codex" / "agents" / "code_reviewer.toml"
+AGENTS_MD = REPO_ROOT / "AGENTS.md"
 
 
 def test_uninstall_before_install_returns_zero(tmp_path: Path) -> None:
@@ -40,3 +57,31 @@ def test_repository_setup_is_explicit_not_a_post_tool_side_effect() -> None:
     assert "gh-repo-auto-setup.sh" not in serialized_hooks
     assert not GH_REPO_AUTO_SETUP_HOOK.exists()
     assert (REPO_ROOT / "bin" / "gh-setup-repo").is_file()
+
+
+def test_instruction_surface_audit_is_explicit_and_ported() -> None:
+    """The audit must remain read-only, explicit, and generated from common."""
+    common = COMMON_AUDIT_SKILL.read_text(encoding="utf-8")
+    codex = CODEX_AUDIT_SKILL.read_text(encoding="utf-8")
+    metadata = CODEX_AUDIT_METADATA.read_text(encoding="utf-8")
+
+    assert "name: instruction-surface-audit" in common
+    assert "disable-model-invocation: true" in common
+    assert "This audit is read-only." in common
+    assert (
+        "codex-port: managed; "
+        "source=common/skills/instruction-surface-audit/SKILL.md"
+    ) in codex
+    assert "allow_implicit_invocation: false" in metadata
+
+
+def test_code_review_requires_human_review_for_prohibited_operations() -> None:
+    """AI review cannot approve prohibited or irreversible operations alone."""
+    paths = (AGENTS_MD, CLAUDE_CODE_REVIEWER, CODEX_CODE_REVIEWER)
+
+    for path in paths:
+        content = path.read_text(encoding="utf-8")
+        assert "HUMAN_REVIEW_REQUIRED" in content, path
+        assert "人間" in content, path
+        assert "rollback" in content, path
+        assert "テスト" in content, path
