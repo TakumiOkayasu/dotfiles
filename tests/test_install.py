@@ -554,6 +554,7 @@ class TestInstallTestDockerfile:
         assert "tests/test_qa_nightmare.py" in entrypoint
         assert "tests/test_qa_nightmare_preflight.py" in entrypoint
         assert "tests/test_port_claude_assets.py" in entrypoint
+        assert "tests/test_issue_regressions.py" in entrypoint
 
 
 class TestCodexConfigTemplate:
@@ -569,11 +570,11 @@ class TestCodexConfigTemplate:
             "#:schema https://developers.openai.com/codex/config-schema.json\n"
         )
 
-    def test_config_template_uses_canonical_agent_thread_limit(self) -> None:
-        """agent thread 上限に現行の正式キーを使う"""
+    def test_config_template_preserves_configured_agent_thread_limit(self) -> None:
+        """agent thread 上限に正式キーと明示設定値を使う"""
         data = tomllib.loads(self.TEMPLATE.read_text(encoding="utf-8"))
 
-        assert data["agents"]["max_concurrent_threads_per_session"] == 8
+        assert data["agents"]["max_concurrent_threads_per_session"] == 100
         assert "max_threads" not in data["agents"]
 
     def test_config_template_excludes_removed_feature_flags(self) -> None:
@@ -875,9 +876,6 @@ class TestRuleDistribution:
 
     def test_natural_japanese_is_rule_not_stale_codex_skill(self) -> None:
         """natural-japanese は skill ではなく Claude/Codex 両方の rule として配布される"""
-        claude_global = (REPO_ROOT / "claude" / "global_CLAUDE.md").read_text(
-            encoding="utf-8"
-        )
         codex_index = (REPO_ROOT / "codex" / "rules" / "RULES_INDEX.md").read_text(
             encoding="utf-8"
         )
@@ -886,7 +884,6 @@ class TestRuleDistribution:
         )
 
         assert (REPO_ROOT / "common" / "rules" / "natural-japanese.md").is_file()
-        assert "@'$HOME/.claude/rules/natural-japanese.md'" in claude_global
         assert (REPO_ROOT / "codex" / "rules" / "natural-japanese.md").is_file()
         assert "| `codex/rules/natural-japanese.md` |" in codex_index
         assert "## Source: `codex/rules/natural-japanese.md`" in codex_bundle

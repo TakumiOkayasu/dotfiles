@@ -37,12 +37,11 @@ init_notes_for_branch() {
         return 0
     fi
 
-    # テンプレートを探す: ローカル → グローバル → テンプレートソース
+    # テンプレートを探す: ローカル → グローバル
     local template_file=""
     for candidate in \
         ".claude/notes/_template.md" \
-        "${HOME}/.claude/notes/_template.md" \
-        "${HOME}/.claude/templates/project-init/notes/_template.md"
+        "${HOME}/.claude/notes/_template.md"
     do
         if [[ -f "$candidate" ]]; then
             template_file="$candidate"
@@ -134,6 +133,11 @@ main() {
                 exit 1
                 ;;
             *)
+                if [[ -n "$branch_name" ]]; then
+                    echo -e "${RED}エラー: ブランチ名は1つだけ指定してください${NC}" >&2
+                    usage
+                    exit 1
+                fi
                 branch_name="$1"
                 shift
                 ;;
@@ -147,10 +151,18 @@ main() {
         exit 1
     fi
 
-    # ブランチ名にASCII英数字・ハイフン・アンダースコア・ドット・スラッシュ以外が含まれていないか確認
+    # 可読性を保つため入力はASCII英数字と一般的な区切り文字に限定する
     if [[ "$branch_name" =~ [^a-zA-Z0-9._/-] ]]; then
         printf "${RED}エラー: ブランチ名に使用できない文字が含まれています: %s${NC}\n" "$branch_name" >&2
         echo -e "${YELLOW}使用可能: 英数字, ハイフン(-), アンダースコア(_), ドット(.), スラッシュ(/)${NC}" >&2
+        exit 1
+    fi
+
+    local full_branch_name="${prefix}/${branch_name}"
+
+    # 文字種だけでなく、連続ドット、末尾.lock、空要素等のGit固有制約も検証する
+    if ! git check-ref-format --branch "$full_branch_name" >/dev/null 2>&1; then
+        printf "${RED}エラー: Gitで無効なブランチ名です: %s${NC}\n" "$full_branch_name" >&2
         exit 1
     fi
 
@@ -168,8 +180,6 @@ main() {
             main_branch="main"
         fi
     fi
-
-    local full_branch_name="${prefix}/${branch_name}"
 
     echo -e "${BLUE}メインブランチ: ${main_branch}${NC}"
     echo -e "${BLUE}新しいブランチ: ${full_branch_name}${NC}"
@@ -199,9 +209,10 @@ main() {
     # 完了メッセージ
     echo ""
     echo "作業が終わったら:"
-    echo "  1. git add . && git commit -m 'メッセージ'"
-    echo "  2. git push -u origin ${full_branch_name}"
-    echo "  3. gh pr create"
-    echo "  4. マージ後: git-cleanup-branch"
+    echo "  1. git status --short で変更対象を確認"
+    echo "  2. git add -- <files> && git commit -m 'メッセージ'"
+    echo "  3. git push -u origin ${full_branch_name}"
+    echo "  4. gh pr create"
+    echo "  5. マージ後: git-cleanup-branch"
 }
 main "$@"
