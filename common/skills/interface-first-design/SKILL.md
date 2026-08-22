@@ -1,287 +1,224 @@
 ---
 name: interface-first-design
-description: 機能追加・クラス設計・interface設計・依存関係整理・クラス/メソッドの責務分割時に使用。疑似コードから interface→クラス→TDD→実装の順で設計する。TDDスキルの前段。「インターフェースから設計」「疑似コードで設計」もトリガー。
+description: 機能追加・クラス設計・interface設計・依存関係整理・責務分割時に使用。実装やデータ表現を起点にせず、利用目的から理想的な役割・協調・契約を定義してからTDD/実装へ進む。TDDスキルの前段。「インターフェースから設計」「疑似コードで設計」もトリガー。
 ---
 
 # Interface-First Design
 
-**理想の処理フローを疑似コードで先に描け。そこからinterfaceが生まれる。実装は最後。**
+**実装からinterfaceを抜き出すな。理想的な役割と協調を先に描き、その協調に必要な契約だけを定義せよ。**
+
+常時守る不変条件は `contract-driven-object-collaboration` rule を正本とする。本スキルはその原則を設計作業へ適用する手順を扱う。
 
 ## トリガー条件
 
-以下のいずれかに該当する場合、このスキルを発動する：
+以下のいずれかに該当する場合、このスキルを発動する。
 
 - 新規クラス・モジュールの設計を開始するとき
 - 既存クラスの責務が肥大化し、分割を検討するとき
 - 依存関係の整理・リファクタリングを行うとき
-- 「何をinterfaceにすべきか」が不明なとき
+- 「何を契約にすべきか」が不明なとき
 - TDDスキル実行前の設計フェーズ
 
 ## 前提条件
 
-- 実装言語・フレームワークは問わない（言語非依存で適用可能）
-- 既存実装がある場合でも、必ず疑似コードから書き直す（Anti-pattern 4参照）
-- TDDスキルと組み合わせて使用する（本スキルはTDDの前段）
+- 実装言語・フレームワークは問わない
+- 既存実装があっても、実装構造から契約を逆算しない
+- この段階では具体クラス、保存形式、通信方式、framework API等を設計の根拠にしない
+- 具体実装は契約だけでユースケースが成立した後に検討する
 
----
+## Step 1: 利用目的を記述する
 
-## 手順（ステップバイステップ）
+最初に「何を作るか」ではなく「何を達成する必要があるか」を言語非依存で記述する。
 
-### Step 1: 疑似コードで理想フローを描く
+```text
+Given:
+  必要な前提
 
-**実装コードを一切書く前に**、以下テンプレートで「何が起きるか」を言語非依存で記述する。
+When:
+  利用者または上位の意図
 
-**要件に不明点がある場合**: 疑似コードの該当箇所を `[要確認: <不明点の具体>]` 記法で仮置きしてから先へ進み、レポート末尾に確認事項を集約する（`hallucination-prevention` rule 準拠）。推測で埋めない。
+Then:
+  期待する結果
 
-```
-# [機能名] の理想フロー
-
-given [入力・前提条件]
-
-when [トリガー・操作]
-
-then
-  [手順1]: [何をするか]
-  [手順2]: [何をするか]
-  ...
-  return [期待する出力]
-
-# 分岐・エラーケース
-when [例外ケース]
-then [どう扱うか]
+Failure:
+  期待される失敗・未解決状態
 ```
 
-**疑似コード例: 注文処理**
+要件に不明点がある場合は `[要確認: ...]` として残し、推測で実装詳細を補わない。
 
-```
-# 注文確定処理 の理想フロー
+## Step 2: 理想的な役割を抽出する
 
-given 注文内容(商品リスト, ユーザーID)
+利用目的を成立させるための役割を、名詞・既存クラス名ではなく責務で抽出する。
 
-when 注文確定ボタンが押された
+例:
 
-then
-  在庫チェック: 全商品が注文可能か確認する
-  合計計算:    単価 × 数量を合算する
-  決済処理:    合計金額を課金する
-  通知送信:    ユーザーに確定メールを送る
-  return 注文ID
-
-when 在庫不足
-then エラーを返す(どの商品が不足か含める)
-
-when 決済失敗
-then 在庫を元に戻す → エラーを返す
+```text
+取得する
+検証する
+変換する
+描画する
+実行する
+取り込む
+登録する
 ```
 
-**疑似コードから読み取るもの:**
+この段階では各役割が内部に何を保持するかを決めない。
 
-- 動詞ひとつ = interfaceのメソッドひとつ
-- 名詞 = interfaceが扱うデータ型
-- 分岐 = エラー型 or 戻り値の型バリアント
+## Step 3: 協調を描く
 
----
+役割同士が理想上どのように作用する必要があるかを記述する。
 
-### Step 2: interfaceへの変換
-
-疑似コードの各「手順」をinterfaceのメソッドに1:1対応させる。
-
-```
-疑似コード「在庫チェック」→
-  interface StockChecker
-    check(items) -> Ok | OutOfStockError
-
-疑似コード「合計計算」→
-  interface PriceCalculator
-    calculate(items) -> Money
-
-疑似コード「決済処理」→
-  interface PaymentGateway
-    charge(amount, userId) -> PaymentId | PaymentError
-
-疑似コード「通知送信」→
-  interface OrderNotifier
-    send(orderId, userId) -> void
+```text
+Contract A
+  accepts: Contract B
+  provides: Contract C
 ```
 
-**変換ルール:**
+または、処理フローとして記述する。
 
-- 動詞ひとつ = メソッドひとつ
-- 名詞 = interfaceが扱うデータ型
-- フレームワーク固有の型 (Request / Response / Model 等) はinterfaceに含めない
-- 戻り値は用途で書き分け: 読取系（`find` / `read` 等、副作用なし）は `T | null` で not-found を明示、副作用系（`write` / `charge` / `delete` 等）は `Ok | Error` で成功/失敗を明示する
-- メソッドは原則1つ。2つ必要に感じたら責務混在を疑う
-
----
-
-### Step 3: 上位層での組み立て
-
-interfaceを組み合わせる処理は上位層の責務。
-
-```
-class OrderService
-  depends-on: StockChecker, PriceCalculator, PaymentGateway, OrderNotifier
-
-  confirm(order):
-    stock.check(order.items)    -> error? return it
-    amount = price.calculate(order.items)
-    paymentId = payment.charge(amount, order.userId) -> error? return it
-    notifier.send(paymentId, order.userId)
-    return paymentId
+```text
+Input
+  -> Mapper
+  -> VirtualInput
+  -> ActionResolver
+  -> Action
 ```
 
-**ポイント:** `OrderService` は「何を使うか」を知っているが「どう実装されているか」は知らない。依存はすべてinterfaceを通じて注入する。
+協調相手の内部状態を取得して解釈する手順は書かない。
 
-**上位層の粒度の目安:**
+## Step 4: 最小契約へ変換する
 
-- 用途単位の薄い組み立て → UseCase（提供層）
-- 複数 UseCase を束ねる配線点 → 管理層（Controller / Orchestrator 等）
-- 命名は `hierarchical-architecture` の役割サフィックス規則（Manager / Provider / Accessor 等）に従う
-- 単一 UseCase で済むなら UseCase 自体が上位層（Controller を無理に作らない）
+協調に必要な操作だけを契約として定義する。
 
----
+原則:
 
-### Step 4: TDDへ移行
+- 1つの契約は1つの理想的責務に限定する
+- 複数の独立能力を持つ対象は、小さな契約を複数満たす形にする
+- ドメイン契約は原則として別のドメイン契約を受け取り、別のドメイン契約を返す
+- `string`、数値、日時、パス、URI、JSON、byte列等の実装表現を、便利だからという理由で公開契約へ出さない
+- `Value`、`Raw`、`Code`、`Index`等を公開し、利用側に実装表現の解釈を委ねない
+- 種別や状態を返して利用側に`if`/`switch`させるより、必要な能力を契約として表現する
+- 現在のユースケースに不要なメンバーを追加しない
 
-設計完了チェックリストを全てクリアしたら、TDDスキルを起動して実装フェーズへ移る。
+契約がmarkerだけで現在の協調を十分に表現できるなら、将来を予測して操作を追加しない。
 
----
+## Step 5: Contract-only walkthrough
 
-## 禁止事項・制約
+具体実装を一切仮定せず、Step 1のユースケースを契約だけで最後まで追跡する。
+
+確認すること:
+
+```text
+[ ] 具象型へ変換・castしなくても成立する
+[ ] primitiveの意味を呼び出し側で解釈しなくても成立する
+[ ] 相手の内部状態を取得して分岐しなくても成立する
+[ ] framework・DB・protocol・file formatを知らなくても成立する
+[ ] 取得と描画、取込と実行等の別責務が混ざっていない
+```
+
+1つでも満たさない場合は、実装を工夫する前に契約または責務配置を見直す。
+
+## Step 6: 実装候補を割り当てる
+
+契約だけでユースケースが成立した後、初めて具体実装を検討する。
+
+```text
+Ideal Contract
+  -> Implementation A
+  -> Implementation B
+```
+
+外部仕様との差異を埋めるAdapter、Translator等が必要なら、この段階で実際の差異を根拠に追加する。設計段階で先回りして作らない。
+
+## Step 7: 構成してTDDへ移行する
+
+どの契約へどの実装を割り当てるかを構成点で決める。
+DIはこの構成の結果であり、DIを行うために契約を作らない。
+
+構成方式は実装時に最小のものを選ぶ。DI container、constructor injection、Factory等を設計原則として固定しない。
+
+設計完了後、TDDスキルへ移行する。
+
+## トラブルシューティング
+
+既存設計や実装で問題が起きている場合、`contract-driven-object-collaboration` rule の順序で診断する。
+
+特に次を優先する。
+
+1. 呼び出し側が値を取り出して意味を解釈・分岐していないか
+2. 契約から実装表現が漏れていないか
+3. 具体製品・通信方式・保存形式がコア契約へ漏れていないか
+4. 異なる責務が同じオブジェクトへ集まっていないか
+5. 契約にない操作のために具象実装へ変換していないか
+6. 新実装追加のたびに既存条件分岐が増えていないか
+
+修正は現在の変更範囲で必要な最小境界から行い、全面再設計を自動的に要求しない。
+
+## 禁止事項
 
 | 禁止 | 理由 |
-| ------ | ------ |
-| 疑似コードを省略してinterfaceを作る | 実装都合がinterfaceに漏れる（Anti-pattern 4） |
-| 既存実装からそのままinterfaceを写す | ORM・フレームワーク依存が混入する |
-| 1つのinterfaceに複数メソッドを定義する | ISP違反・責務混在（Anti-pattern 3） |
-| フレームワーク固有の型をinterfaceに含める | 言語・FW変更時に全面改修が発生する |
-| 組み立て処理を下位層に書く | 上位層の責務を侵害する（hierarchical-architecture違反） |
-| 同レイヤー間でinterfaceを直接参照する | 横参照禁止（hierarchical-architecture参照） |
-| 「実装してから設計を後付け」する | 設計は必ず実装の前に行う |
+| --- | --- |
+| 既存実装・DB・API・frameworkから契約を写す | 実装が理想契約を支配する |
+| 疑似コードへ具体クラス・外部型を先に書く | 実装都合が設計へ漏れる |
+| 契約をDTOとして状態一覧にする | 利用側が内部状態を解釈する構造になる |
+| primitiveを返し利用側で種別・意味を判定する | 表現隠蔽が破れる |
+| 契約外の操作を具象型へのcastで補う | 契約または責務配置の不備を隠す |
+| DI方式を先に決める | DIが設計目的になる |
+| 将来のためだけのRegistry/Factory/Adapterを追加する | YAGNI違反 |
+| 実装してから契約を後付けする | 設計順序が逆転する |
 
----
+## 出力形式
 
-## アンチパターン集
+設計結果はコードではなく、まず言語非依存の設計資料として出力する。
 
-### ❌ Anti-pattern 1: 実装都合がinterfaceに漏れる
-
-```
-BAD:
-  interface UserRepository
-    findByEmailFromUsersTable(email) -> UserRow   # テーブル名が漏れている
-    executeRawQuery(sql) -> unknown               # SQL言語が漏れている
-
-GOOD:
-  interface UserRepository
-    findByEmail(email) -> User | null
-```
-
-### ❌ Anti-pattern 2: 1メソッドが複数責務を持つ
-
-```
-BAD:
-  interface ReportService
-    fetchAndFormatAndSend(userId) -> void   # andが入ったら要注意
-
-GOOD:
-  interface Fetcher
-  interface Formatter
-  interface Sender
-
-  class ReportFetcher   implements Fetcher   -> fetch(userId) -> RawReport
-  class ReportFormatter implements Formatter -> format(raw)   -> FormattedReport
-  class ReportSender    implements Sender    -> send(report)  -> void
-```
-
-### ❌ Anti-pattern 3: interfaceの肥大化 (ISP違反)
-
-```
-BAD:
-  interface UserService
-    find(id)               -> User
-    save(user)             -> void
-    delete(id)             -> void
-    sendWelcomeEmail(user) -> void    # 通知は別責務
-    exportToCsv(users)     -> string  # エクスポートも別責務
-
-GOOD: (1 interface = 1メソッド = 1責務)
-  interface Reader
-  interface Writer
-  interface Deleter
-  interface Notifier
-  interface Exporter
-
-  class UserReader   implements Reader   -> read(id) -> User
-  class UserWriter   implements Writer   -> write(user) -> void
-  class UserNotifier implements Notifier -> notify(userId, message) -> void
-```
-
-### ❌ Anti-pattern 4: 疑似コードを書かずにinterfaceを作る
-
-```
-BAD:
-  interface ArticleInterface
-    get(id) -> array           # "array" はORM都合の型
-    paginateAll() -> Paginator # ORMのPaginatorが漏れている
-
-GOOD: 疑似コードから「記事一覧表示」フローを先に描く
-  interface Reader
-  interface Lister
-
-  class ArticleReader implements Reader -> read(id)     -> Article | null
-  class ArticleLister implements Lister -> list(filter) -> Article[]
-```
-
----
-
-## 原則
-
-- **クラスの責務は1つ。メソッドの責務も1つ。**
-- interfaceにフレームワーク固有の型を含めない。言語が変わっても同じ構造で書けること
-- 実装側の都合をinterfaceに漏らさない
-- 同じinterfaceの複数インスタンスで差異を表現する
-- 組み立て・方式選択は上位層の責務。カテゴリごとの上位層で分割し、最上位で接続する
-- 徹底すればhierarchical-architectureは自然に満たされる
-
----
-
-## 出力形式（設計ドキュメント）
-
-設計結果は以下の形式で出力する：
-
-```
+```text
 ## [機能名] 設計
 
-### 疑似コード
-[Step 1の内容]
+### 利用目的
+Given / When / Then / Failure
 
-### Interface一覧
-| Interface名 | メソッド | 引数 | 戻り値 |
-| ------------ | --------- | ------ | -------- |
-| FooReader  | read()  | id   | Foo \| null |
+### 役割
+- Role A: ...
+- Role B: ...
 
-### クラス一覧
-| クラス名    | 実装Interface | 責務 |
-| ------------ | -------------- | ------ |
-| FooReader  | Reader       | DBからFooを取得 |
+### 協調
+Role A -> Role B -> Role C
 
-### 上位層の組み立て
-[Step 3の内容]
+### 契約
+Contract A
+  accepts: Contract B
+  provides: Contract C
+
+### 知らなくてよいもの
+- Role Aは...を知らない
+- Role Bは...を知らない
+
+### Contract-only walkthrough
+- 正常系: ...
+- 失敗系: ...
+
+### 実装時の未決定事項
+- framework
+- storage
+- protocol
+- concrete representation
 ```
 
----
+クラス図・シーケンス図等を補助として使ってよいが、具体言語のコードはユーザーが明示要求した場合または実装フェーズまで出さない。
 
 ## 設計完了チェックリスト
 
-```
-[ ] 疑似コードを書いたか（Step 1を省略していないか）
-[ ] 各interfaceのメソッドは1つか（複数なら分割候補）
-[ ] interfaceにフレームワーク固有の型が含まれていないか
-[ ] 実装を差し替えても利用側が変わらないか
-[ ] 組み立て処理は上位層に集約されているか
-[ ] エラーケースがinterfaceの戻り値型に反映されているか
-[ ] interfaceにメソッドを追加しても既存実装が壊れないか（壊れるなら責務混在）
-[ ] 1メソッドが2つ以上の理由で変更されないか
-[ ] 禁止事項をすべて確認したか
-[ ] TDDスキルへの移行準備ができているか
+```text
+[ ] 利用目的から始めたか
+[ ] 役割と協調を実装より先に定義したか
+[ ] 各契約が現在必要な単一責務に収まっているか
+[ ] ドメイン契約からprimitiveや外部型が漏れていないか
+[ ] Value/Raw/Code/Index等の抜け道がないか
+[ ] 相手の状態を取得して利用側で分岐していないか
+[ ] 契約だけで正常系・失敗系を追跡できるか
+[ ] 具象型へのcastを必要としていないか
+[ ] 異なる責務を混ぜていないか
+[ ] DIやAdapter等を実装前提として先回りしていないか
+[ ] 将来予測だけの抽象化がないか
+[ ] TDDへ移行できる状態か
 ```
