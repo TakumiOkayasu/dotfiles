@@ -63,6 +63,28 @@ AとBの違いを利用側が判断する必要があるか
 
 実装上のButton、Encoder、Touch Surface等が存在しても、利用側が同じ操作しか行わないなら1つのControl契約でよい。入力の発生だけを扱えばよいなら、Control契約自体が不要な場合もある。
 
+## 拡張軸を追加する
+
+拡張される箇所が現在のユースケースで明確になった場合、種類ごとの派生interfaceを増やす前に、同じ最小契約で組み合わせられるか確認する。
+
+```text
+Source contract
+  -> Transform contract
+  -> Transform contract
+  -> Consumer
+```
+
+各要素が受け取る契約と提供する契約を同じにできるなら、利用側を変更せずにSource、Transform、順序を差し替えられる。
+
+採用条件:
+
+- 現在、同じ協調を提供する実装が複数ある
+- 新しい要素を追加しても既存Consumerを変更したくない
+- 各要素のbuffer、prefetch、async、cache等を外部へ隠せる
+- wrapperが隣の具象型ではなく共通契約だけを知る
+
+将来組み合わせるかもしれないだけなら作らない。詳細は`composable-contracts.md`を参照する。
+
 ## Factoryを追加する
 
 Factory境界が必要な兆候:
@@ -92,6 +114,15 @@ Factory classを追加しなくてよい場合:
 - 実装familyを切り替える必要がある
 - 単純Factoryの組み合わせでは整合性を十分に隠せない
 
+Root contextからカテゴリ別contextを提供する構造も、関連contract familyを隠して生成・供給する責務が現在必要ならAbstract Factoryとして扱える。
+
+利用側は次を仮定しない。
+
+- 毎回同じinstanceが返る
+- singletonである
+- dataが1箇所に保存される
+- contextが具象memberを保持している
+
 「将来複数providerへ対応するかもしれない」だけでは採用しない。
 
 ## 新要求を受けた時
@@ -119,5 +150,6 @@ Existing contract sufficient:
 Difference the caller must know:
 Contract change:
 Creation boundary:
+Composable extension point:
 Deferred decisions:
 ```
