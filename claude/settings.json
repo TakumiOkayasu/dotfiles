@@ -79,10 +79,6 @@
           },
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/gh-repo-auto-setup.sh"
-          },
-          {
-            "type": "command",
             "command": "$HOME/.claude/hooks/post-cleanup-notes-archive.sh",
             "timeout": 10
           }
