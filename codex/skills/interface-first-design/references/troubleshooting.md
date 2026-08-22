@@ -1,0 +1,78 @@
+# Troubleshooting
+
+<!-- codex-port: managed; source=common/skills/interface-first-design/references/troubleshooting.md; generated-by=scripts/port-claude-assets-to-codex.py -->
+
+## Codex portability notes
+
+- This file was ported from `common/skills/interface-first-design/references/troubleshooting.md`.
+- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${HOME}/.agents/skills` in plugin-only mode.
+- Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.
+- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
+- Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
+
+問題を「抽象化不足」または「抽象化過多」と即断せず、現在のユースケースと利用側の知識から診断する。
+
+## 症状と最初に疑う箇所
+
+| 症状 | 最初に疑う箇所 | 最小修正 |
+| --- | --- | --- |
+| 新実装のたびに既存の`if` / `switch`が増える | 具象選択が利用側へ漏れている | 選択と生成をFactory境界へ移す |
+| 現実の種類ごとにinterfaceがある | 利用側が使わない差異をモデル化している | 共通契約へ集約し、不要なら契約自体を削る |
+| 能力interfaceが大量に増える | 将来予測、物理能力の写経 | 現在利用される能力だけ残す |
+| method追加のたびにbase contractが肥大化する | 複数責務、完成形先行 | 現在の協調に必要なmethodだけへ戻す |
+| `Value` / `Raw` / `Type` / `Kind`を取得して分岐する | 実装表現・状態漏洩 | 目的を表す操作へ置換する |
+| 利用側が具象classを生成する | creation boundary不足 | composition rootまたはFactoryへ移す |
+| Factoryが巨大で多数の生成methodを持つ | familyを先回りしている | 現在使う生成だけへ縮小する |
+| Abstract Factoryの実装が1つしかなくfamily差もない | pattern先行 | 単純Factoryまたはcomposition rootへ戻す |
+| Mockに大量の内部値が必要 | DTO的契約、状態漏洩 | 協調に必要な契約だけをmockする |
+| 外部format変更でdomain contractが変わる | 外部表現が上位へ漏れている | 実装・境界内部へ変換を閉じる |
+| Renderer変更でSourceまで変わる | 責務混在 | 取得と表現を分離する |
+| DI登録だけが複雑になる | 契約・Factory・層の過剰化 | 現在の利用側が使わない境界を削る |
+| 新規要件のたびに全面再設計になる | 完成形の固定、契約粒度不良 | 1ユースケース単位で最小差分を追加する |
+
+## 診断順序
+
+### 1. 現在のユースケースを再固定する
+
+問題箇所が何を達成するために存在するか、1ユースケースに絞る。将来要求、隣接機能、実装候補を一旦外す。
+
+### 2. 利用側が知りすぎていないか確認する
+
+利用側から次を探す。
+
+- 具象型名
+- 種別判定
+- primitiveの意味解釈
+- 生成対象の選択
+- collaboratorの内部状態
+- vendor・protocol・format名
+
+見つかった知識を、契約、Factory、実装内部のどこへ閉じるべきか判断する。
+
+### 3. モデル化しすぎていないか確認する
+
+各interface、派生interface、methodへ質問する。
+
+```text
+これを削除すると、現在のユースケースは成立しないか
+```
+
+成立するなら削除候補である。
+
+### 4. 既存契約の新実装で直せないか確認する
+
+契約変更より先に、実装追加・生成選択・境界変換で解決できるか確認する。
+
+### 5. 最小差分だけ直す
+
+既存projectでは周辺architectureを作り直さない。今回の症状を発生させる最小の知識漏洩・責務混在・生成漏洩だけを修正する。
+
+## 低性能model向け5問
+
+1. 今の1ユースケースに、このinterface・method・分類は必要か
+2. 利用側は相手の内部状態や表現を取得して判断していないか
+3. 利用側が使わない違いをモデル化していないか
+4. 具象データ・インスタンスの選択と生成が利用側へ漏れていないか
+5. 既存契約の新実装だけで対応できないか
+
+どれか1つでも説明できなければ、実装を増やす前に設計を縮小または境界を見直す。
