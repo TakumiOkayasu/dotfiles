@@ -112,7 +112,7 @@ export DOTFILES_PLATFORM
 # ============================================================================
 
 # Windowsホームディレクトリ検出 (Unix形式パスを返す)
-# local/windows.sh, local/wsl.sh から呼ばれる (静的解析では未検出)
+# platform/windows.sh, platform/wsl.sh から呼ばれる (静的解析では未検出)
 # SC2329 (>=0.10) / SC2317 (0.9 は本体を到達不能と誤検出) の両方を抑制する
 # shellcheck disable=SC2317,SC2329
 _dotfiles_detect_win_home() {
@@ -236,7 +236,7 @@ fi
 # ============================================================================
 
 _dotfiles_load_platform() {
-    local platform_file="$DOTFILES_DIR/config/shell/local/${DOTFILES_PLATFORM}.sh"
+    local platform_file="$DOTFILES_DIR/config/shell/platform/${DOTFILES_PLATFORM}.sh"
     if [ -f "$platform_file" ]; then
         . "$platform_file"
     fi

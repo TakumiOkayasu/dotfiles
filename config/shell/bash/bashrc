@@ -146,7 +146,7 @@ __bashrc_shopt histappend cmdhist lithist # ヒストリを追記, 複数行コ�
 # ディレクトリ
 __bashrc_shopt autocd cdspell dirspell direxpand # ディレクトリ名だけで cd, cd のタイプミスを修正, 補完時のディレクトリ名タイプミスを修正, Tab補完で変数を展開
 
-# グロブ
+# glob
 __bashrc_shopt globstar nocaseglob extglob # ** で再帰マッチ, 大文字小文字を無視, !(pattern) 等の拡張グロブ
 
 # その他
@@ -274,18 +274,6 @@ if command -v zoxide >/dev/null 2>&1; then
 fi
 
 # ============================================================================
-# ClaudeCode
-# ============================================================================
-
-# WSL/Git Bash: Claude Code powershell.exe 回避
-# ref: https://github.com/anthropics/claude-code/issues/14352
-case "${DOTFILES_PLATFORM:-}" in
-    wsl|windows)
-        export CLAUDE_CODE_SKIP_WINDOWS_PROFILE=1
-        ;;
-esac
-
-# ============================================================================
 # bash固有エイリアス
 # ============================================================================
 
@@ -327,14 +315,3 @@ unset -f __bashrc_eval_output
 unset -f __bashrc_shopt
 unset -f __bashrc_bind
 unset -f __bashrc_add_prompt_command
-
-# ============================================================================
-# PATH 
-# ============================================================================
-export PATH="/home/okayasu/.bun/bin:$PATH"
-
-# ============================================================================
-# Claude LSP
-# ============================================================================
-export ENABLE_LSP_TOOL=1
-
