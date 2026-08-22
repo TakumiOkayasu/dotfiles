@@ -38,12 +38,18 @@ services:
     build:
       context: ..
       dockerfile: tests/Dockerfile
-    entrypoint: ["/workspace/test_bin.sh"]
+    entrypoint:
+      - sh
+      - -c
+      - |
+        /workspace/test_bin.sh &&
+        sh /workspace/test_git_new_feature_validation.sh
     volumes:
       - ../bin:/workspace/bin:ro
       - ../claude/notes:/workspace/claude/notes:ro
       - ../claude/scratch:/workspace/claude/scratch:ro
       - ./test_bin.sh:/workspace/test_bin.sh:ro
+      - ./test_git_new_feature_validation.sh:/workspace/test_git_new_feature_validation.sh:ro
   shell-lint-test:
     build:
       context: ..
