@@ -86,7 +86,9 @@ projectの既存方針に従う。real dependency seam、fake、stub、mockの�
 
 明示的にこのoptional extensionを選んだ場合に限り、機能単位と判定したら、テストリスト作成に進む前に qa-nightmare subagent を起動して悪夢テストケースを先に列挙する。
 
-### qa-nightmareの安全な起動契約
+### qa-nightmare 起動
+
+Task tool で `subagent_type: qa-nightmare` を起動する。
 
 source selectionの選択理由を記録し、依存観点としてentrypoint、主要依存、状態境界、認可、外部副作用、既存テストを確認する。source_evidence不足ならdispatchせず終了する。
 
@@ -104,6 +106,8 @@ context_limit_tokens、output_reserve_tokens、input_upper_bound_tokensはUTF-8 
 最初に`--source-only`でaccepted_sourcesと読取前後digestを検証する。この段階ではcore slot用のchecklist_snapshotを構築せず、続くfull preflightでsource-onlyとfullの `repo_provenance` が完全一致することを確認する。
 
 ### 結果の扱い
+
+機能単位の場合は `qa-nightmare` subagent の出力を反映する。
 
 採用するcaseは重大度と今回のscopeで選び、全caseの実装を義務化しない。
 
