@@ -8,6 +8,7 @@
 set -euo pipefail
 
 DRY_RUN=false
+OWNER="dotfile-work"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -75,9 +76,15 @@ if [[ -e .ai && ! -d .ai ]]; then
     exit 1
 fi
 
-if [[ -d .ai && ! -f .ai/manifest.toml ]]; then
-    echo "ai-init-project: .ai already exists without manifest.toml; refusing to claim it" >&2
-    exit 1
+if [[ -d .ai ]]; then
+    if [[ ! -f .ai/manifest.toml ]]; then
+        echo "ai-init-project: .ai already exists without manifest.toml; refusing to claim it" >&2
+        exit 1
+    fi
+    if ! grep -qxF "owner = \"$OWNER\"" .ai/manifest.toml; then
+        echo "ai-init-project: .ai/manifest.toml is not owned by $OWNER; refusing to claim it" >&2
+        exit 1
+    fi
 fi
 
 id=$(project_id)
@@ -105,6 +112,7 @@ if [[ ! -f .ai/manifest.toml ]]; then
     else
         cat > .ai/manifest.toml <<EOF
 schema_version = 1
+owner = "$OWNER"
 project_id = "$id"
 
 [export]
