@@ -120,7 +120,7 @@ owner = "$OWNER"
 project_id = "$id"
 
 [export]
-enabled = false
+enabled = true
 EOF
     fi
 fi

@@ -47,7 +47,7 @@ done
 assert_file_contains "$project/.ai/manifest.toml" 'schema_version = 1'
 assert_file_contains "$project/.ai/manifest.toml" 'owner = "dotfile-work"'
 assert_file_contains "$project/.ai/manifest.toml" 'project_id = "github.com/example/example-project"'
-assert_file_contains "$project/.ai/manifest.toml" 'enabled = false'
+assert_file_contains "$project/.ai/manifest.toml" 'enabled = true'
 
 # Idempotent when the directory belongs to this workflow.
 (
