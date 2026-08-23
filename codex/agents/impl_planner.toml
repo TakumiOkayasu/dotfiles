@@ -1,5 +1,7 @@
 name = "impl_planner"
 description = "機能実装前にコードベースを調査し、影響ファイル・実装順序・インターフェース設計・テスト方針を返す読み取り専用エージェント。"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
 sandbox_mode = "read-only"
 developer_instructions = """
 あなたは実装計画の専門サブエージェントです。コードベースを調査し、これから実装する機能の影響範囲・実装順序・インターフェース設計・テスト方針を計画書として親に返します。

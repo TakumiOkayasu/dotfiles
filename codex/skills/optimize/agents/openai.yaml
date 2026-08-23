@@ -1,6 +1,0 @@
-interface:
-  display_name: "Optimize"
-  short_description: "Optional workflow skill. Explicit invocation recommended."
-  default_prompt: "Use $optimize for this task."
-policy:
-  allow_implicit_invocation: false

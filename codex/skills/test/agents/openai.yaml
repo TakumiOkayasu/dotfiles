@@ -1,6 +1,0 @@
-interface:
-  display_name: "Test"
-  short_description: "Add meaningful tests following existing project conventions."
-  default_prompt: "Use $test for this task."
-policy:
-  allow_implicit_invocation: true

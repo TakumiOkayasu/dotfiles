@@ -264,6 +264,33 @@ class PortClaudeAssetsTest(unittest.TestCase):
         self.assertIn("`referent-before-label`", output)
         self.assertIn("`terminology`", output)
 
+    def test_strips_claude_only_skill_frontmatter_from_codex_view(self) -> None:
+        skill = self.repo / "common" / "skills" / "manual-audit" / "SKILL.md"
+        skill.parent.mkdir()
+        source = (
+            "---\n"
+            "name: manual-audit\n"
+            "description: Run a manual audit.\n"
+            "argument-hint: '[scope]'\n"
+            "disable-model-invocation: true\n"
+            "effort: high\n"
+            "---\n\n"
+            "# Manual audit\n"
+        )
+        skill.write_text(source, encoding="utf-8")
+
+        result = self.run_port()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = (
+            self.repo / "codex" / "skills" / "manual-audit" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("name: manual-audit", output)
+        self.assertIn("description: Run a manual audit.", output)
+        for key in ("argument-hint", "disable-model-invocation", "effort"):
+            self.assertNotIn(f"\n{key}:", output)
+        self.assertEqual(skill.read_text(encoding="utf-8"), source)
+
     def test_should_fail_closed_when_codex_tdd_lacks_empty_tool_surface(self) -> None:
         output = self.port_codex_tdd_fixture()
 
@@ -830,27 +857,17 @@ class GenerateStandardWorkflowSkillsTest(unittest.TestCase):
             "common/commands/commit.md",
         )
         workflow = generator.WORKFLOWS["plugin-sync"][2]
-        commands = [
-            "generate-standard-workflow-skills.py",
-            "port-claude-assets-to-codex.py",
-            "apply-codex-performance-profile.py",
-            "sync-codex-plugin.py",
-            "verify-codex-plugin.py",
-        ]
-        positions = [workflow.index(command) for command in commands]
-        self.assertEqual(positions, sorted(positions))
-        self.assertIn("--prune", workflow)
-        for command in commands:
-            self.assertIn(f"uv run python scripts/{command}", workflow)
+        self.assertIn("python3 scripts/generate-ai-assets.py --repo .", workflow)
+        self.assertIn("isolated tracked-source staging tree", workflow)
+        self.assertNotIn("uv run python scripts/port-claude-assets-to-codex.py", workflow)
 
-    def test_generated_assets_workflow_rejects_untracked_views(self) -> None:
+    def test_generated_assets_workflow_verifies_install_time_views(self) -> None:
         workflow_path = REPO_ROOT / ".github" / "workflows" / "verify.yml"
         workflow = workflow_path.read_text(encoding="utf-8")
 
-        self.assertIn(
-            "git ls-files --others --exclude-standard -- codex/skills codex/rules",
-            workflow,
-        )
+        self.assertIn("python3 scripts/generate-ai-assets.py --repo .", workflow)
+        self.assertIn("python3 tests/test_generate_ai_assets.py", workflow)
+        self.assertNotIn("Require generated views to be committed", workflow)
 
 
 if __name__ == "__main__":

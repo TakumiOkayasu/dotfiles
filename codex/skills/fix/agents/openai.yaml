@@ -1,6 +1,0 @@
-interface:
-  display_name: "Fix"
-  short_description: "Root-cause bug fixing with regression tests."
-  default_prompt: "Use $fix for this task."
-policy:
-  allow_implicit_invocation: true

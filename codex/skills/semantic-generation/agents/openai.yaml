@@ -1,6 +1,0 @@
-interface:
-  display_name: "Semantic Generation"
-  short_description: "Build a referent table before drafting or naming."
-  default_prompt: "Use $semantic-generation to create a referent table before drafting."
-policy:
-  allow_implicit_invocation: false

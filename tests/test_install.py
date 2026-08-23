@@ -20,6 +20,9 @@ import pytest
 INSTALL_SH = Path(__file__).resolve().parent.parent / "install.sh"
 BASHRC = INSTALL_SH.parent / "config" / "shell" / "bash" / "bashrc"
 REPO_ROOT = INSTALL_SH.parent
+GENERATED_CLAUDE = REPO_ROOT / ".generated" / "ai-assets" / "claude"
+GENERATED_CODEX = REPO_ROOT / ".generated" / "ai-assets" / "codex"
+GENERATED_PLUGINS = REPO_ROOT / ".generated" / "ai-assets" / "plugins"
 STOW_INSTALL_SH = REPO_ROOT / "scripts" / "stow-install.sh"
 RULES_ENFORCE_PY = REPO_ROOT / "codex" / "hooks" / "rules-enforce.py"
 PERFORMANCE_PROFILE_SCRIPT = (
@@ -286,17 +289,21 @@ def _has_generated_stow_ancestor(link: Path, generated: Path) -> bool:
 
 
 def _assert_generated_stow_link(link: Path, generated: Path, source: Path) -> None:
+    resolved_source = source.resolve()
     assert generated.is_symlink()
-    assert generated.resolve() == source
+    assert generated.resolve() == resolved_source
     assert link.is_symlink()
-    assert link.resolve() == source
+    assert link.resolve() == resolved_source
     assert _has_generated_stow_ancestor(link, generated)
 
 
 def _assert_qa_nightmare_checklists(
-    runtime_dir: Path, generated_dir: Path
+    runtime_dir: Path,
+    generated_dir: Path,
+    source_dir: Path | None = None,
+    manifest_source: Path = QA_NIGHTMARE_MANIFEST,
 ) -> None:
-    source_dir = REPO_ROOT / "common" / "qa-nightmare" / "checklists"
+    source_dir = source_dir or REPO_ROOT / "common" / "qa-nightmare" / "checklists"
     manifest = json.loads(QA_NIGHTMARE_MANIFEST.read_text(encoding="utf-8"))
     manifest_names = [entry["file"] for entry in manifest["checklists"]]
     source_files = {name: source_dir / name for name in manifest_names}
@@ -318,7 +325,7 @@ def _assert_qa_nightmare_checklists(
     _assert_generated_stow_link(
         runtime_dir.parent / "manifest.json",
         generated_dir.parent / "manifest.json",
-        QA_NIGHTMARE_MANIFEST,
+        manifest_source,
     )
 
     for name in manifest_names:
@@ -410,14 +417,16 @@ def _assert_codex_common_links(codex_dir: Path) -> None:
         / ".codex"
         / "agents"
         / "qa-nightmare"
-        / "checklists"
+        / "checklists",
+        GENERATED_CODEX / "agents" / "qa-nightmare" / "checklists",
+        GENERATED_CODEX / "agents" / "qa-nightmare" / "manifest.json",
     )
     assert (codex_dir / "hooks").is_dir()
     destructive_hook = codex_dir / "hooks" / "destructive-command-block.sh"
     assert destructive_hook.is_symlink()
     assert destructive_hook.resolve() == (
-        REPO_ROOT / "common" / "hooks" / "destructive-command-block.sh"
-    )
+        GENERATED_CODEX / "hooks" / "destructive-command-block.sh"
+    ).resolve()
     _assert_generated_stow_link(
         codex_dir / "hooks" / "rules-enforce.py",
         REPO_ROOT
@@ -426,7 +435,7 @@ def _assert_codex_common_links(codex_dir: Path) -> None:
         / ".codex"
         / "hooks"
         / "rules-enforce.py",
-        REPO_ROOT / "codex" / "hooks" / "rules-enforce.py",
+        GENERATED_CODEX / "hooks" / "rules-enforce.py",
     )
 
 
@@ -435,8 +444,8 @@ def _assert_claude_core_links(claude_dir: Path) -> None:
     destructive_hook = claude_dir / "hooks" / "destructive-command-block.sh"
     assert destructive_hook.is_symlink()
     assert destructive_hook.resolve() == (
-        REPO_ROOT / "common" / "hooks" / "destructive-command-block.sh"
-    )
+        GENERATED_CLAUDE / "hooks" / "destructive-command-block.sh"
+    ).resolve()
     assert (claude_dir / "settings.json").is_symlink()
     assert _symlink_target_path(claude_dir / "settings.json") == (
         REPO_ROOT / ".stow-work" / "claude" / ".claude" / "settings.json"
@@ -448,7 +457,7 @@ def _assert_claude_core_links(claude_dir: Path) -> None:
     _assert_generated_stow_link(
         claude_dir / "statusline.json",
         REPO_ROOT / ".stow-work" / "claude" / ".claude" / "statusline.json",
-        REPO_ROOT / "claude" / "statusline.settings.json",
+        GENERATED_CLAUDE / "statusline.settings.json",
     )
     assert not (claude_dir / "statusline.settings.json").is_symlink()
 
@@ -468,7 +477,7 @@ def _assert_claude_common_command_links(claude_dir: Path) -> None:
         / ".claude"
         / "commands"
         / "feat.md",
-        REPO_ROOT / "common" / "commands" / "feat.md",
+        GENERATED_CLAUDE / "commands" / "feat.md",
     )
 
 
@@ -482,7 +491,7 @@ def _assert_claude_common_skill_links(claude_dir: Path) -> None:
         / "skills"
         / "tdd"
         / "SKILL.md",
-        REPO_ROOT / "common" / "skills" / "tdd" / "SKILL.md",
+        GENERATED_CLAUDE / "skills" / "tdd" / "SKILL.md",
     )
     _assert_generated_stow_link(
         claude_dir / "skills" / "bug-hunt" / "references" / "review-lenses.md",
@@ -494,12 +503,7 @@ def _assert_claude_common_skill_links(claude_dir: Path) -> None:
         / "bug-hunt"
         / "references"
         / "review-lenses.md",
-        REPO_ROOT
-        / "common"
-        / "skills"
-        / "bug-hunt"
-        / "references"
-        / "review-lenses.md",
+        GENERATED_CLAUDE / "skills" / "bug-hunt" / "references" / "review-lenses.md",
     )
     _assert_qa_nightmare_checklists(
         claude_dir / "skills" / "qa-nightmare" / "checklists",
@@ -509,7 +513,9 @@ def _assert_claude_common_skill_links(claude_dir: Path) -> None:
         / ".claude"
         / "skills"
         / "qa-nightmare"
-        / "checklists"
+        / "checklists",
+        GENERATED_CLAUDE / "skills" / "qa-nightmare" / "checklists",
+        GENERATED_CLAUDE / "skills" / "qa-nightmare" / "manifest.json",
     )
 
 
@@ -527,6 +533,22 @@ class TestCodexAgentDefinitions:
     """Codex custom agent 定義の基本 schema を検証するテスト"""
 
     REQUIRED_KEYS = ("name", "description", "developer_instructions")
+    CODEX_PROFILES = {
+        "code_reviewer": ("gpt-5.6-terra", "high"),
+        "debugger": ("gpt-5.6-sol", "high"),
+        "design_consultant": ("gpt-5.6-terra", "high"),
+        "impl_planner": ("gpt-5.6-terra", "medium"),
+        "qa_nightmare": ("gpt-5.6-sol", "high"),
+        "test_writer": ("gpt-5.6-terra", "medium"),
+    }
+    CLAUDE_PROFILES = {
+        "code-reviewer": ("sonnet", "high"),
+        "debugger": ("sonnet", "high"),
+        "design-consultant": ("inherit", "high"),
+        "impl-planner": ("sonnet", "medium"),
+        "qa-nightmare": ("sonnet", "high"),
+        "test-writer": ("sonnet", "medium"),
+    }
 
     def _agent_names(self) -> set[str]:
         agent_files = sorted((REPO_ROOT / "codex" / "agents").glob("*.toml"))
@@ -561,12 +583,61 @@ class TestCodexAgentDefinitions:
                 f"{agent_file}: name should match file stem"
             )
 
+    def test_codex_agent_profiles_match_task_complexity(self) -> None:
+        """Codex agentごとのmodel/effortを軽作業と難しい推論で分ける"""
+        actual = {}
+        for agent_file in sorted((REPO_ROOT / "codex" / "agents").glob("*.toml")):
+            data = tomllib.loads(agent_file.read_text(encoding="utf-8"))
+            actual[data["name"]] = (data["model"], data["model_reasoning_effort"])
+
+        assert actual == self.CODEX_PROFILES
+
+    def test_claude_agent_profiles_match_task_complexity(self) -> None:
+        """Claude agentでも常時maxを避け、role別にmodel/effortを固定する"""
+        actual = {}
+        for agent_file in sorted((REPO_ROOT / "claude" / "agents").glob("*.md")):
+            content = agent_file.read_text(encoding="utf-8")
+            fields = {}
+            for key in ("name", "model", "effort"):
+                match = re.search(rf"^{key}:\s*([^\n]+)$", content, re.MULTILINE)
+                assert match is not None, f"{agent_file}: {key} is required"
+                fields[key] = match.group(1).strip()
+            actual[fields["name"]] = (fields["model"], fields["effort"])
+
+        assert actual == self.CLAUDE_PROFILES
+
+    def test_shared_skill_effort_reserves_high_for_complex_workflows(self) -> None:
+        """共有skillは必要なworkflowだけhighとしxhigh/maxを常設しない"""
+        expected_high = {
+            "arch",
+            "design-team",
+            "empirical-prompt-tuning",
+            "feature-pruning",
+            "optimize",
+            "orchestrate",
+            "premise-questioning",
+            "probe",
+            "systematic-debugging",
+        }
+        actual_high = set()
+        skill_files = sorted((REPO_ROOT / "common" / "skills").glob("*/SKILL.md"))
+        for skill_file in skill_files:
+            content = skill_file.read_text(encoding="utf-8")
+            match = re.search(r"^effort:\s*([^\n]+)$", content, re.MULTILINE)
+            if match is None:
+                continue
+            effort = match.group(1).strip()
+            assert effort == "high", f"{skill_file}: unexpected effort {effort}"
+            actual_high.add(skill_file.parent.name)
+
+        assert actual_high == expected_high
+
     def test_should_resolve_agent_references_when_tdd_skills_dispatch(self) -> None:
         """各 TDD skill の agent 参照が対応する実在 agent を指す"""
         reference_specs = (
             (
                 "agent_type",
-                REPO_ROOT / "codex" / "skills" / "tdd" / "SKILL.md",
+                GENERATED_CODEX / "skills" / "tdd" / "SKILL.md",
                 self._agent_names(),
             ),
             (
@@ -633,12 +704,14 @@ class TestCodexConfigTemplate:
             "#:schema https://developers.openai.com/codex/config-schema.json\n"
         )
 
-    def test_config_template_preserves_configured_agent_thread_limit(self) -> None:
-        """agent thread 上限に正式キーと明示設定値を使う"""
+    def test_config_template_delegates_agent_thread_limit_to_runtime(self) -> None:
+        """実行環境ごとに異なる安全なthread上限をCodexへ委ねる"""
         data = tomllib.loads(self.TEMPLATE.read_text(encoding="utf-8"))
 
-        assert data["agents"]["max_concurrent_threads_per_session"] == 100
+        assert "max_concurrent_threads_per_session" not in data["agents"]
         assert "max_threads" not in data["agents"]
+        assert data["agents"]["default_subagent_model"] == "gpt-5.6-luna"
+        assert data["agents"]["default_subagent_reasoning_effort"] == "medium"
 
     def test_config_template_excludes_removed_feature_flags(self) -> None:
         """削除済み feature flag をテンプレートに残さない"""
@@ -835,7 +908,7 @@ class TestRuleDistribution:
         )
         expected = module["SAFETY_RULES"].rstrip() + "\n"
         actual = (
-            REPO_ROOT / "codex" / "rules" / "command-safety.rules"
+            GENERATED_CODEX / "rules" / "command-safety.rules"
         ).read_text(encoding="utf-8")
 
         assert actual == expected
@@ -844,14 +917,37 @@ class TestRuleDistribution:
 
     def test_bug_hunt_skill_includes_its_allowlisted_resource(self) -> None:
         """real port outputにskill本体,reference,optional policyを揃える"""
-        skill = REPO_ROOT / "codex" / "skills" / "bug-hunt"
+        skill = GENERATED_CODEX / "skills" / "bug-hunt"
 
         assert (skill / "SKILL.md").is_file()
         assert (skill / "references" / "review-lenses.md").is_file()
         openai_yaml = (skill / "agents" / "openai.yaml").read_text(
             encoding="utf-8"
         )
-        assert "allow_implicit_invocation: false" in openai_yaml
+        assert "allow_implicit_invocation: true" in openai_yaml
+
+    def test_performance_profile_maps_shared_manual_invocation_policy(
+        self, tmp_path: Path
+    ) -> None:
+        """Claudeの明示起動指定をCodex metadataへ変換する"""
+        module = runpy.run_path(
+            str(REPO_ROOT / "scripts" / "apply-codex-performance-profile.py")
+        )
+        shared = tmp_path / "common" / "skills" / "manual" / "SKILL.md"
+        shared.parent.mkdir(parents=True)
+        shared.write_text(
+            "---\nname: manual\ndescription: Manual.\n"
+            "disable-model-invocation: true\n---\n",
+            encoding="utf-8",
+        )
+
+        assert module["allows_implicit_invocation"](tmp_path, "manual") is False
+
+        shared.write_text(
+            "---\nname: manual\ndescription: Automatic.\n---\n",
+            encoding="utf-8",
+        )
+        assert module["allows_implicit_invocation"](tmp_path, "manual") is True
 
     def test_performance_profile_preserves_existing_global_agents(
         self, tmp_path: Path
@@ -905,7 +1001,7 @@ class TestRuleDistribution:
         )
 
         for source in sorted((REPO_ROOT / "common" / "skills").glob("*/SKILL.md")):
-            port = REPO_ROOT / "codex" / "skills" / source.parent.name / "SKILL.md"
+            port = GENERATED_CODEX / "skills" / source.parent.name / "SKILL.md"
             content = port.read_text(encoding="utf-8")
             for fragment in forbidden_fragments:
                 assert fragment not in content, f"{port}: unsupported {fragment!r}"
@@ -918,7 +1014,7 @@ class TestRuleDistribution:
             "performance-optimization": "measure",
             "plan-and-review": "orchestrate",
         }
-        skills_dir = REPO_ROOT / "codex" / "skills"
+        skills_dir = GENERATED_CODEX / "skills"
         for legacy_name, canonical_name in aliases.items():
             assert (skills_dir / canonical_name / "SKILL.md").is_file()
             assert not (skills_dir / legacy_name).exists()
@@ -927,8 +1023,8 @@ class TestRuleDistribution:
             REPO_ROOT / "scripts" / "generate-standard-workflow-skills.py",
             REPO_ROOT / "scripts" / "apply-codex-performance-profile.py",
             REPO_ROOT / "scripts" / "sync-codex-plugin.py",
-            REPO_ROOT / "codex" / "skills" / "implementation-router" / "SKILL.md",
-            REPO_ROOT / "codex" / "skills" / "plan" / "SKILL.md",
+            GENERATED_CODEX / "skills" / "implementation-router" / "SKILL.md",
+            GENERATED_CODEX / "skills" / "plan" / "SKILL.md",
             REPO_ROOT / "common" / "skills" / "design-team" / "SKILL.md",
         )
         runtime_contract = "\n".join(
@@ -939,27 +1035,27 @@ class TestRuleDistribution:
 
     def test_natural_japanese_is_rule_not_stale_codex_skill(self) -> None:
         """natural-japanese は skill ではなく Claude/Codex 両方の rule として配布される"""
-        codex_index = (REPO_ROOT / "codex" / "rules" / "RULES_INDEX.md").read_text(
+        codex_index = (GENERATED_CODEX / "rules" / "RULES_INDEX.md").read_text(
             encoding="utf-8"
         )
-        codex_bundle = (REPO_ROOT / "codex" / "rules" / "RULES_BUNDLE.md").read_text(
+        codex_bundle = (GENERATED_CODEX / "rules" / "RULES_BUNDLE.md").read_text(
             encoding="utf-8"
         )
 
         assert (REPO_ROOT / "common" / "rules" / "natural-japanese.md").is_file()
-        assert (REPO_ROOT / "codex" / "rules" / "natural-japanese.md").is_file()
+        assert (GENERATED_CODEX / "rules" / "natural-japanese.md").is_file()
         assert "| `codex/rules/natural-japanese.md` |" in codex_index
         assert "## Source: `codex/rules/natural-japanese.md`" in codex_bundle
         assert not (
-            REPO_ROOT / "codex" / "skills" / "natural-japanese" / "SKILL.md"
+            GENERATED_CODEX / "skills" / "natural-japanese" / "SKILL.md"
         ).exists()
         assert not (
-            REPO_ROOT / "codex" / "skills" / "natural-japanese" / "agents" / "openai.yaml"
+            GENERATED_CODEX / "skills" / "natural-japanese" / "agents" / "openai.yaml"
         ).exists()
 
     def test_orchestrate_is_ported_to_codex_skill(self) -> None:
         """Claude の orchestrate は Codex skill としても port される"""
-        skill_path = REPO_ROOT / "codex" / "skills" / "orchestrate" / "SKILL.md"
+        skill_path = GENERATED_CODEX / "skills" / "orchestrate" / "SKILL.md"
         content = skill_path.read_text(encoding="utf-8")
 
         assert "name: orchestrate" in content
@@ -972,7 +1068,7 @@ class TestRuleDistribution:
 
     def test_rule_bundle_header_is_deterministic(self) -> None:
         """RULES_BUNDLEの見出しへ生成時刻や旧injection説明を混ぜない"""
-        bundle = REPO_ROOT / "codex" / "rules" / "RULES_BUNDLE.md"
+        bundle = GENERATED_CODEX / "rules" / "RULES_BUNDLE.md"
         lines = bundle.read_text(encoding="utf-8").splitlines()
 
         assert lines[0] == "# Codex Rules Bundle"
@@ -988,16 +1084,14 @@ class TestRuleDistribution:
 class TestScriptCli:
     """scripts/*.py の CLI 基本動作を検証するテスト"""
 
-    def test_port_claude_assets_dry_run_keeps_home_literal(self) -> None:
-        """port-claude-assets-to-codex.py は `${HOME}` を未定義変数として評価しない"""
+    def test_generate_ai_assets_keeps_home_literal(self) -> None:
+        """install-time pipeline は `${HOME}` を未定義変数として評価しない"""
         result = subprocess.run(
             [
                 "python3",
-                str(REPO_ROOT / "scripts" / "port-claude-assets-to-codex.py"),
+                str(REPO_ROOT / "scripts" / "generate-ai-assets.py"),
                 "--repo",
                 str(REPO_ROOT),
-                "--dry-run",
-                "--overwrite",
             ],
             cwd=str(REPO_ROOT),
             capture_output=True,
@@ -1007,7 +1101,7 @@ class TestScriptCli:
 
         assert result.returncode == 0, result.stderr
         assert "NameError: name 'HOME' is not defined" not in result.stderr
-        assert "Shared assets -> Codex port complete" in result.stdout
+        assert "generated AI assets" in result.stdout
 
     def test_verify_codex_plugin_rejects_skill_sync_drift(
         self, tmp_path: Path
@@ -1681,6 +1775,40 @@ class TestIntegrationInstallUninstall:
         assert not (codex_dir / "skills" / "tdd" / "SKILL.md").exists()
         assert not (codex_dir / "skills" / "natural-japanese" / "SKILL.md").exists()
         assert not (home / ".agents" / "skills" / "tdd" / "SKILL.md").exists()
+        core_skill = (
+            codex_dir
+            / "plugins"
+            / "dotfile-work-codex"
+            / "skills"
+            / "tdd"
+            / "SKILL.md"
+        )
+        marketplace = home / ".agents" / "plugins" / "marketplace.json"
+        assert core_skill.is_file()
+        assert core_skill.resolve() == (
+            GENERATED_PLUGINS / "dotfile-work-codex" / "skills" / "tdd" / "SKILL.md"
+        ).resolve()
+        assert _has_generated_stow_ancestor(
+            core_skill,
+            REPO_ROOT
+            / ".stow-work"
+            / "codex"
+            / ".codex"
+            / "plugins"
+            / "dotfile-work-codex"
+            / "skills"
+            / "tdd"
+            / "SKILL.md",
+        )
+        assert marketplace.is_symlink()
+        assert marketplace.resolve() == (
+            REPO_ROOT
+            / ".generated"
+            / "ai-assets"
+            / ".agents"
+            / "plugins"
+            / "marketplace.json"
+        ).resolve()
 
     def test_install_preserves_existing_codex_config(self, tmp_path: Path) -> None:
         """既存 ~/.codex/config.toml は install で上書きされない"""
@@ -1733,7 +1861,7 @@ class TestIntegrationInstallUninstall:
             filename = Path(profile_path).name
             profile = codex_dir / filename
             assert profile.is_symlink()
-            assert profile.resolve() == REPO_ROOT / profile_path
+            assert profile.resolve() == (GENERATED_CODEX / filename).resolve()
         assert clone_env_log.read_text(encoding="utf-8") == "unset\n"
 
         _run_install_sh(REPO_ROOT, home, uninstall=True, env_overrides=env_overrides)
@@ -1825,6 +1953,10 @@ class TestIntegrationInstallUninstall:
         assert not rules_enforce_helper.exists()
         assert not checklist.exists()
         assert not manifest.exists()
+        core_plugin = home / ".codex" / "plugins" / "dotfile-work-codex"
+        assert not core_plugin.exists()
+        assert not core_plugin.is_symlink()
+        assert not (home / ".agents" / "plugins" / "marketplace.json").exists()
 
     def test_uninstall_removes_legacy_common_hooks(self, tmp_path: Path) -> None:
         """common化前の hook リンクが uninstall で削除される"""
