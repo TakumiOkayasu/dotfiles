@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Choose and learn model/effort routes from verified QCD observations."""
+"""Choose and learn model/effort routes from verified paired QCD observations."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import statistics
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -18,60 +19,61 @@ RUNTIMES = ("codex", "claude")
 DEFAULT_MIN_SAMPLES = 5
 DEFAULT_MIN_PASS_RATE = 1.0
 
-# Safe starting routes. Observed winners can replace these after meeting the
-# quality gate and minimum sample count. Keep runtime-specific names here so a
-# route recommendation is explicit and auditable rather than hidden in prose.
-BASELINES: dict[str, dict[str, list[tuple[str, str]]]] = {
-    "codex": {
-        "lookup": [
-            ("gpt-5.6-luna", "medium"),
-            ("gpt-5.6-terra", "medium"),
-            ("gpt-5.6-sol", "high"),
-        ],
-        "bounded": [
-            ("gpt-5.6-terra", "medium"),
-            ("gpt-5.6-sol", "high"),
-        ],
-        "reasoning": [
-            ("gpt-5.6-terra", "high"),
-            ("gpt-5.6-sol", "high"),
-            ("gpt-5.6-sol", "xhigh"),
-        ],
-        "critical": [
-            ("gpt-5.6-sol", "xhigh"),
-            ("gpt-5.6-sol", "max"),
-        ],
-    },
-    "claude": {
-        "lookup": [
-            ("sonnet", "medium"),
-            ("sonnet", "high"),
-            ("opus", "high"),
-        ],
-        "bounded": [
-            ("sonnet", "high"),
-            ("opus", "high"),
-        ],
-        "reasoning": [
-            ("sonnet", "xhigh"),
-            ("opus", "high"),
-            ("opus", "xhigh"),
-        ],
-        "critical": [
-            ("opus", "xhigh"),
-            ("opus", "max"),
-        ],
-    },
-}
-
 
 class QcdError(RuntimeError):
     pass
 
 
+def default_routes_path() -> Path:
+    override = os.environ.get("AI_QCD_ROUTES")
+    if override:
+        return Path(override).expanduser()
+    return Path(__file__).resolve().parents[1] / "common" / "qcd" / "routes.json"
+
+
+def load_routes(path: Path) -> dict[str, dict[str, list[tuple[str, str]]]]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise QcdError(f"invalid QCD routes {path}: {error}") from error
+    if data.get("schema_version") != 1 or not isinstance(data.get("runtimes"), dict):
+        raise QcdError(f"unsupported QCD routes: {path}")
+
+    result: dict[str, dict[str, list[tuple[str, str]]]] = {}
+    for runtime in RUNTIMES:
+        runtime_data = data["runtimes"].get(runtime)
+        if not isinstance(runtime_data, dict):
+            raise QcdError(f"missing runtime routes for {runtime}: {path}")
+        result[runtime] = {}
+        for task_class in TASK_CLASSES:
+            entries = runtime_data.get(task_class)
+            if not isinstance(entries, list) or not entries:
+                raise QcdError(f"missing routes for {runtime}/{task_class}: {path}")
+            routes: list[tuple[str, str]] = []
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    raise QcdError(f"invalid route for {runtime}/{task_class}: {path}")
+                model = entry.get("model")
+                effort = entry.get("effort")
+                if not isinstance(model, str) or not model or not isinstance(effort, str) or not effort:
+                    raise QcdError(f"invalid route for {runtime}/{task_class}: {path}")
+                pair = (model, effort)
+                if pair in routes:
+                    raise QcdError(f"duplicate route {pair} for {runtime}/{task_class}")
+                routes.append(pair)
+            result[runtime][task_class] = routes
+    return result
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(
         description="Recommend and record evidence-driven model/effort routes."
+    )
+    root.add_argument(
+        "--routes",
+        type=Path,
+        default=default_routes_path(),
+        help="route candidate manifest (default: common/qcd/routes.json)",
     )
     sub = root.add_subparsers(dest="command", required=True)
 
@@ -79,10 +81,9 @@ def parser() -> argparse.ArgumentParser:
     route.add_argument("--runtime", choices=RUNTIMES, required=True)
     route.add_argument("--task-class", choices=TASK_CLASSES, required=True)
     route.add_argument("--observations", type=Path)
+    route.add_argument("--cohort-id")
     route.add_argument("--min-samples", type=int, default=DEFAULT_MIN_SAMPLES)
-    route.add_argument(
-        "--min-pass-rate", type=float, default=DEFAULT_MIN_PASS_RATE
-    )
+    route.add_argument("--min-pass-rate", type=float, default=DEFAULT_MIN_PASS_RATE)
     route.add_argument("--json", action="store_true")
 
     record = sub.add_parser("record", help="append one verified or provisional run")
@@ -93,6 +94,8 @@ def parser() -> argparse.ArgumentParser:
     record.add_argument("--effective-model")
     record.add_argument("--effective-effort")
     record.add_argument("--quality", choices=("pass", "fail"), required=True)
+    record.add_argument("--cohort-id")
+    record.add_argument("--scenario-id")
     record.add_argument("--duration-ms", type=int)
     record.add_argument("--input-tokens", type=int)
     record.add_argument("--cached-input-tokens", type=int)
@@ -104,7 +107,6 @@ def parser() -> argparse.ArgumentParser:
     record.add_argument("--tool-calls", type=int)
     record.add_argument("--task-id")
     record.add_argument("--output", type=Path)
-
     return root
 
 
@@ -120,8 +122,7 @@ def find_project_root(start: Path) -> Path:
 
 
 def default_observation_path() -> Path:
-    root = find_project_root(Path.cwd())
-    return root / ".ai" / "state" / "qcd-observations.jsonl"
+    return find_project_root(Path.cwd()) / ".ai" / "state" / "qcd-observations.jsonl"
 
 
 def validate_nonnegative(name: str, value: int | float | None) -> None:
@@ -133,9 +134,9 @@ def record_observation(args: argparse.Namespace) -> int:
     effective_model = args.effective_model
     effective_effort = args.effective_effort
     if (effective_model is None) != (effective_effort is None):
-        raise QcdError(
-            "--effective-model and --effective-effort must be supplied together"
-        )
+        raise QcdError("--effective-model and --effective-effort must be supplied together")
+    if (args.cohort_id is None) != (args.scenario_id is None):
+        raise QcdError("--cohort-id and --scenario-id must be supplied together")
 
     numeric = {
         "duration_ms": args.duration_ms,
@@ -150,7 +151,6 @@ def record_observation(args: argparse.Namespace) -> int:
     }
     for name, value in numeric.items():
         validate_nonnegative(name, value)
-
     if (
         args.input_tokens is not None
         and args.cached_input_tokens is not None
@@ -160,7 +160,6 @@ def record_observation(args: argparse.Namespace) -> int:
 
     output = args.output.expanduser() if args.output else default_observation_path()
     output.parent.mkdir(parents=True, exist_ok=True)
-
     observation: dict[str, Any] = {
         "schema_version": 1,
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -174,15 +173,15 @@ def record_observation(args: argparse.Namespace) -> int:
         "quality_pass": args.quality == "pass",
         "retries": args.retries,
     }
-    if args.task_id:
-        observation["task_id"] = args.task_id
+    for name in ("cohort_id", "scenario_id", "task_id"):
+        value = getattr(args, name)
+        if value:
+            observation[name] = value
     for name, value in numeric.items():
         if value is not None:
             observation[name] = value
-
     with output.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(observation, ensure_ascii=False, sort_keys=True) + "\n")
-
     print(output)
     return 0
 
@@ -211,7 +210,6 @@ def median_or_none(values: list[float]) -> float | None:
 def route_stats(rows: list[dict[str, Any]]) -> dict[str, Any]:
     passed = sum(row.get("quality_pass") is True for row in rows)
     count = len(rows)
-
     quota = [float(row["quota_delta"]) for row in rows if "quota_delta" in row]
     duration = [float(row["duration_ms"]) for row in rows if "duration_ms" in row]
     usage_proxy: list[float] = []
@@ -222,13 +220,9 @@ def route_stats(rows: list[dict[str, Any]]) -> dict[str, Any]:
         input_tokens = float(row["input_tokens"])
         cached = float(row.get("cached_input_tokens", 0))
         output = float(row.get("output_tokens", 0))
-        # reasoning_output_tokens is a breakdown of output_tokens in current
-        # Codex JSONL and must not be added again. cache-write tokens are also
-        # retained as a separate diagnostic instead of being assumed additive.
         usage_proxy.append(max(input_tokens - cached, 0) + output)
         if input_tokens > 0:
             cache_ratio.append(cached / input_tokens)
-
     return {
         "samples": count,
         "pass_rate": passed / count if count else 0.0,
@@ -239,63 +233,119 @@ def route_stats(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def ranking_key(stats: dict[str, Any]) -> tuple[float, float, float]:
-    # Quota delta is the best direct signal when the runtime exposes it. Otherwise
-    # use uncached input + output as a conservative model-agnostic usage proxy,
-    # then latency. Missing dimensions sort after measured values.
-    quota = stats["median_quota_delta"]
-    usage = stats["median_usage_proxy"]
-    duration = stats["median_duration_ms"]
-    return (
-        float(quota) if quota is not None else float("inf"),
-        float(usage) if usage is not None else float("inf"),
-        float(duration) if duration is not None else float("inf"),
-    )
+def choose_metric(stats: list[dict[str, Any]]) -> str | None:
+    for key in ("median_quota_delta", "median_usage_proxy", "median_duration_ms"):
+        if all(item[key] is not None for item in stats):
+            return key
+    return None
 
 
-def recommend(args: argparse.Namespace) -> dict[str, Any]:
+def paired_cohort_result(
+    cohort_id: str,
+    rows: list[dict[str, Any]],
+    allowed_routes: set[tuple[str, str]],
+    min_samples: int,
+    min_pass_rate: float,
+) -> dict[str, Any] | None:
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        model = row.get("effective_model")
+        effort = row.get("effective_effort")
+        scenario = row.get("scenario_id")
+        if (
+            row.get("effective_verified") is not True
+            or not isinstance(model, str)
+            or not isinstance(effort, str)
+            or not isinstance(scenario, str)
+            or (model, effort) not in allowed_routes
+        ):
+            continue
+        grouped[(model, effort)].append(row)
+
+    eligible: list[tuple[str, str, list[dict[str, Any]], dict[str, Any]]] = []
+    for (model, effort), group in sorted(grouped.items()):
+        stats = route_stats(group)
+        if stats["samples"] >= min_samples and stats["pass_rate"] >= min_pass_rate:
+            eligible.append((model, effort, group, stats))
+    if len(eligible) < 2:
+        return None
+
+    expected = Counter(str(row["scenario_id"]) for row in eligible[0][2])
+    if any(Counter(str(row["scenario_id"]) for row in group) != expected for _, _, group, _ in eligible[1:]):
+        return None
+
+    measured = [
+        {"model": model, "effort": effort, **stats}
+        for model, effort, _, stats in eligible
+    ]
+    metric = choose_metric([stats for _, _, _, stats in eligible])
+    if metric is None:
+        return None
+    winner = min(measured, key=lambda item: float(item[metric]))
+    timestamps = [str(row.get("timestamp", "")) for _, _, group, _ in eligible for row in group]
+    return {
+        "cohort_id": cohort_id,
+        "metric": metric,
+        "winner": winner,
+        "measured_routes": measured,
+        "scenario_count": sum(expected.values()),
+        "latest_timestamp": max(timestamps, default=""),
+    }
+
+
+def recommend(args: argparse.Namespace, routes: dict[str, dict[str, list[tuple[str, str]]]]) -> dict[str, Any]:
     if args.min_samples <= 0:
         raise QcdError("--min-samples must be positive")
     if not 0 <= args.min_pass_rate <= 1:
         raise QcdError("--min-pass-rate must be between 0 and 1")
 
-    if args.observations:
-        path = args.observations.expanduser()
-    else:
-        try:
-            path = default_observation_path()
-        except QcdError:
-            path = Path(".ai/state/qcd-observations.jsonl")
-
+    path = args.observations.expanduser() if args.observations else default_observation_path()
+    candidates = routes[args.runtime][args.task_class]
+    allowed_routes = set(candidates)
     rows = [
         row
         for row in read_observations(path)
-        if row.get("runtime") == args.runtime
-        and row.get("task_class") == args.task_class
-        and row.get("effective_verified") is True
-        and isinstance(row.get("effective_model"), str)
-        and isinstance(row.get("effective_effort"), str)
+        if row.get("runtime") == args.runtime and row.get("task_class") == args.task_class
     ]
 
-    grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    by_cohort: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
-        grouped[(row["effective_model"], row["effective_effort"])].append(row)
+        cohort_id = row.get("cohort_id")
+        if isinstance(cohort_id, str) and cohort_id:
+            by_cohort[cohort_id].append(row)
 
-    eligible: list[tuple[str, str, dict[str, Any]]] = []
-    measured: list[dict[str, Any]] = []
-    for (model, effort), group in sorted(grouped.items()):
-        stats = route_stats(group)
-        measured.append({"model": model, "effort": effort, **stats})
-        if stats["samples"] >= args.min_samples and stats["pass_rate"] >= args.min_pass_rate:
-            eligible.append((model, effort, stats))
+    results: list[dict[str, Any]] = []
+    cohort_ids = [args.cohort_id] if args.cohort_id else sorted(by_cohort)
+    for cohort_id in cohort_ids:
+        if cohort_id is None:
+            continue
+        result = paired_cohort_result(
+            cohort_id,
+            by_cohort.get(cohort_id, []),
+            allowed_routes,
+            args.min_samples,
+            args.min_pass_rate,
+        )
+        if result is not None:
+            results.append(result)
 
-    if eligible:
-        model, effort, stats = min(eligible, key=lambda item: ranking_key(item[2]))
-        source = "observed"
+    if results:
+        selected = max(results, key=lambda item: item["latest_timestamp"])
+        winner = selected["winner"]
+        model = winner["model"]
+        effort = winner["effort"]
+        source = "observed-paired"
+        winner_stats = winner
+        measured = selected["measured_routes"]
+        cohort_id = selected["cohort_id"]
+        metric = selected["metric"]
     else:
-        model, effort = BASELINES[args.runtime][args.task_class][0]
-        stats = None
+        model, effort = candidates[0]
         source = "baseline"
+        winner_stats = None
+        measured = []
+        cohort_id = None
+        metric = None
 
     return {
         "schema_version": 1,
@@ -304,13 +354,15 @@ def recommend(args: argparse.Namespace) -> dict[str, Any]:
         "model": model,
         "effort": effort,
         "source": source,
+        "cohort_id": cohort_id,
+        "ranking_metric": metric,
         "minimum_samples": args.min_samples,
         "minimum_pass_rate": args.min_pass_rate,
-        "winner_stats": stats,
+        "winner_stats": winner_stats,
         "measured_routes": measured,
         "escalation": [
-            {"model": item_model, "effort": item_effort}
-            for item_model, item_effort in BASELINES[args.runtime][args.task_class]
+            {"model": model_name, "effort": effort_name}
+            for model_name, effort_name in candidates
         ],
         "application": (
             "capability-gated-subagent-override"
@@ -320,8 +372,8 @@ def recommend(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
-def print_route(args: argparse.Namespace) -> int:
-    result = recommend(args)
+def print_route(args: argparse.Namespace, routes: dict[str, dict[str, list[tuple[str, str]]]]) -> int:
+    result = recommend(args, routes)
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     else:
@@ -332,10 +384,11 @@ def print_route(args: argparse.Namespace) -> int:
 def main() -> int:
     args = parser().parse_args()
     try:
+        routes = load_routes(args.routes.expanduser())
         if args.command == "record":
             return record_observation(args)
         if args.command == "route":
-            return print_route(args)
+            return print_route(args, routes)
         raise QcdError(f"unknown command: {args.command}")
     except (OSError, QcdError) as error:
         print(f"ai-qcd: {error}", file=sys.stderr)
