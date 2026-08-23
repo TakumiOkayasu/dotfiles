@@ -30,6 +30,8 @@ description: 過去案件や前回セッションで得た再利用可能な判�
 
 単なる作業履歴、raw log、生成物一覧、今のtaskでしか意味を持たないメモは残さない。
 
+保存前に `.ai/manifest.toml` の `owner = "dotfile-work"` を確認する。managed `.ai/` が未作成なら `ai-init-project` が利用可能な場合はそれを使って初期化する。既存 `.ai/` が別tool所有、またはownershipを確認できない場合は勝手にclaimせず保存をskipする。
+
 candidateには最低限、次を含める。
 
 ```markdown
