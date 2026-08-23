@@ -55,13 +55,17 @@ project_id() {
                 ;;
             ssh://git@*/* )
                 value=${remote#ssh://git@}
+                value=${value%%\?*}
+                value=${value%%\#*}
                 printf '%s\n' "$value"
                 return 0
                 ;;
             http://*|https://* )
                 value=${remote#http://}
                 value=${value#https://}
+                value=${value##*@}
                 value=${value%%\?*}
+                value=${value%%\#*}
                 printf '%s\n' "$value"
                 return 0
                 ;;
