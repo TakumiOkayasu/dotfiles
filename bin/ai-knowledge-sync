@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Collect opt-in project .ai/ state into one private Git repository."""
+"""Collect managed project .ai/ state into one private Git repository."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ class SyncError(RuntimeError):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Collect ~/prog/*/.ai into an opt-in private knowledge repository."
+        description="Collect managed ~/prog/*/.ai into a private knowledge repository."
     )
     parser.add_argument(
         "--source-root",
@@ -128,7 +128,7 @@ def load_manifest(path: Path) -> dict[str, object]:
     export = data.get("export", {})
     if not isinstance(export, dict):
         raise SyncError(f"invalid [export] table in {path}")
-    enabled = export.get("enabled", False)
+    enabled = export.get("enabled", True)
     if not isinstance(enabled, bool):
         raise SyncError(f"export.enabled must be boolean in {path}")
 
