@@ -33,6 +33,7 @@ for path in .ai .ai/state .ai/inbox .ai/knowledge; do
 done
 
 assert_file_contains "$project/.ai/manifest.toml" 'schema_version = 1'
+assert_file_contains "$project/.ai/manifest.toml" 'owner = "dotfile-work"'
 assert_file_contains "$project/.ai/manifest.toml" 'project_id = "github.com/example/example-project"'
 assert_file_contains "$project/.ai/manifest.toml" 'enabled = false'
 
@@ -62,6 +63,19 @@ if (
     bash "$script" >/dev/null 2>&1
 ); then
     echo 'expected foreign .ai directory to be rejected' >&2
+    exit 1
+fi
+
+# A generic manifest.toml is not enough to claim ownership.
+foreign_manifest="$work/foreign-manifest"
+mkdir -p "$foreign_manifest/.ai"
+git -C "$foreign_manifest" init -q
+printf 'schema_version = 1\nowner = "another-tool"\n' > "$foreign_manifest/.ai/manifest.toml"
+if (
+    cd "$foreign_manifest"
+    bash "$script" >/dev/null 2>&1
+); then
+    echo 'expected foreign .ai manifest to be rejected' >&2
     exit 1
 fi
 
