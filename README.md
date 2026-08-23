@@ -38,7 +38,8 @@ source ~/.bashrc          # 設定反映
 | コマンド | 説明 |
 | --- | --- |
 | `ai-init-project` | 現在のGitリポジトリへruntime-neutralな `.ai/` knowledge stateを初期化 |
-| `ai-knowledge-sync` | `~/prog/*/.ai/` のopt-in knowledgeを専用Git repositoryへ集約・commit・push |
+| `ai-knowledge-sync` | `~/prog/*/.ai/` のmanaged knowledgeを専用Git repositoryへ集約・commit・push |
+| `ai-knowledge-search` | current projectと集約済み他projectのknowledgeをオンデマンド検索 |
 | `claude-init-project` | 現在のGitリポジトリへ `.claude/notes` と `scratch` の雛形を配置 |
 | `git-new-feature <name>` | ブランチ作成 (`-f` fix / `-d` docs / `-r` refactor / `-c` chore) |
 | `git-cleanup-branch` | マージ済みブランチ削除 (ローカル+リモート) |
@@ -50,19 +51,22 @@ source ~/.bashrc          # 設定反映
 
 ### Cross-project knowledge sync
 
-各projectで `ai-init-project` を実行した後、外部private repositoryへ同期してよいprojectだけ `.ai/manifest.toml` の `export.enabled` を `true` にする。
+`ai-init-project` で管理された `.ai/` は既定で集約対象になる。特定projectだけprivate knowledge repositoryから除外したい場合は `.ai/manifest.toml` の `export.enabled` を `false` にする。
 
-collectorは既定で `~/prog/` の**直下だけ**を探索する。同期先repositoryも `~/prog/` 配下に置いてよく、自分自身は探索対象から除外する。
+collectorは既定で `~/prog/` の**直下だけ**を探索する。同期先repositoryも既定の `~/prog/ai-knowledge-private` として同じ階層に置き、自分自身は探索対象から除外する。
 
 ```bash
-AI_KNOWLEDGE_REPOSITORY="$HOME/prog/ai-knowledge-private" ai-knowledge-sync --dry-run
-AI_KNOWLEDGE_REPOSITORY="$HOME/prog/ai-knowledge-private" ai-knowledge-sync
+ai-knowledge-sync --dry-run
+ai-knowledge-sync
+ai-knowledge-search atomic generation --json
 ```
 
-日次実行はcollectorとschedulerを分離する。cronを使う場合は、同期先を実際のprivate repository checkoutへ置き換えて次のように登録する。
+`AI_PROJECT_ROOT` / `AI_KNOWLEDGE_REPOSITORY` または対応するoptionで既定pathを上書きできる。
+
+日次実行はcollectorとschedulerを分離する。cronを使う場合は次のように登録する。
 
 ```cron
-17 3 * * * AI_KNOWLEDGE_REPOSITORY="$HOME/prog/ai-knowledge-private" "$HOME/.local/bin/ai-knowledge-sync" >> "$HOME/.local/state/ai-knowledge-sync.log" 2>&1
+17 3 * * * "$HOME/.local/bin/ai-knowledge-sync" >> "$HOME/.local/state/ai-knowledge-sync.log" 2>&1
 ```
 
 cron環境で`$HOME`展開や認証agentが利用できない環境では、絶対pathとその環境で利用可能なGit認証方式を使う。collectorはdirtyな同期先、secretらしいpath、binary、symlink、既定2MiB超fileを拒否し、全sourceを検証してから同期先を変更する。
