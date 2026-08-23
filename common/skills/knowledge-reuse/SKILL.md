@@ -1,7 +1,6 @@
 ---
 name: knowledge-reuse
 description: 過去案件や前回セッションで得た再利用可能な判断知識を探す、または現在の発見を将来のAIへ引き継ぐときに使用する。プロジェクト固有のraw logではなく `.ai/` のruntime-neutral knowledgeを扱う。
-effort: low
 ---
 
 # Knowledge Reuse
