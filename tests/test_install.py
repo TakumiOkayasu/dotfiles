@@ -289,10 +289,11 @@ def _has_generated_stow_ancestor(link: Path, generated: Path) -> bool:
 
 
 def _assert_generated_stow_link(link: Path, generated: Path, source: Path) -> None:
+    resolved_source = source.resolve()
     assert generated.is_symlink()
-    assert generated.resolve() == source
+    assert generated.resolve() == resolved_source
     assert link.is_symlink()
-    assert link.resolve() == source
+    assert link.resolve() == resolved_source
     assert _has_generated_stow_ancestor(link, generated)
 
 
@@ -425,7 +426,7 @@ def _assert_codex_common_links(codex_dir: Path) -> None:
     assert destructive_hook.is_symlink()
     assert destructive_hook.resolve() == (
         GENERATED_CODEX / "hooks" / "destructive-command-block.sh"
-    )
+    ).resolve()
     _assert_generated_stow_link(
         codex_dir / "hooks" / "rules-enforce.py",
         REPO_ROOT
@@ -444,7 +445,7 @@ def _assert_claude_core_links(claude_dir: Path) -> None:
     assert destructive_hook.is_symlink()
     assert destructive_hook.resolve() == (
         GENERATED_CLAUDE / "hooks" / "destructive-command-block.sh"
-    )
+    ).resolve()
     assert (claude_dir / "settings.json").is_symlink()
     assert _symlink_target_path(claude_dir / "settings.json") == (
         REPO_ROOT / ".stow-work" / "claude" / ".claude" / "settings.json"
@@ -1696,7 +1697,7 @@ class TestIntegrationInstallUninstall:
         assert core_skill.is_file()
         assert core_skill.resolve() == (
             GENERATED_PLUGINS / "dotfile-work-codex" / "skills" / "tdd" / "SKILL.md"
-        )
+        ).resolve()
         assert _has_generated_stow_ancestor(
             core_skill,
             REPO_ROOT
@@ -1717,7 +1718,7 @@ class TestIntegrationInstallUninstall:
             / ".agents"
             / "plugins"
             / "marketplace.json"
-        )
+        ).resolve()
 
     def test_install_preserves_existing_codex_config(self, tmp_path: Path) -> None:
         """既存 ~/.codex/config.toml は install で上書きされない"""
@@ -1770,7 +1771,7 @@ class TestIntegrationInstallUninstall:
             filename = Path(profile_path).name
             profile = codex_dir / filename
             assert profile.is_symlink()
-            assert profile.resolve() == GENERATED_CODEX / filename
+            assert profile.resolve() == (GENERATED_CODEX / filename).resolve()
         assert clone_env_log.read_text(encoding="utf-8") == "unset\n"
 
         _run_install_sh(REPO_ROOT, home, uninstall=True, env_overrides=env_overrides)
