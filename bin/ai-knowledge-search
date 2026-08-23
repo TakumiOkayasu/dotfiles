@@ -99,7 +99,8 @@ def source_roots(
     current_id: str | None = None
     if current is not None:
         project, current_id = current
-        for kind in (("knowledge",), ("knowledge", "inbox"))[include_inbox]:
+        kinds = ("knowledge", "inbox") if include_inbox else ("knowledge",)
+        for kind in kinds:
             root = project / ".ai" / kind
             if root.is_dir():
                 sources.append((current_id, kind, root))
@@ -152,7 +153,11 @@ def search(args: argparse.Namespace) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     for project_id, kind, root in source_roots(repository, args.include_inbox):
         for path in sorted(root.rglob("*")):
-            if not path.is_file() or path.is_symlink() or path.suffix.lower() not in TEXT_SUFFIXES:
+            if (
+                not path.is_file()
+                or path.is_symlink()
+                or path.suffix.lower() not in TEXT_SUFFIXES
+            ):
                 continue
             try:
                 text = path.read_text(encoding="utf-8")
