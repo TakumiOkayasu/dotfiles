@@ -196,7 +196,7 @@
       ]
     }
   },
-  "defaultMode": "auto"
+  "defaultMode": "auto",
   "effortLevel": "medium",
   "fallbackModel": [],
   "switchModelsOnFlag": false,
