@@ -100,16 +100,25 @@ def is_git_project(path: Path) -> bool:
         return False
 
 
+def manifest_is_owned(path: Path) -> bool:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    marker = f'owner = "{OWNER}"'
+    return any(line.strip() == marker for line in text.splitlines())
+
+
 def load_manifest(path: Path) -> dict[str, object]:
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
-        raise SyncError(f"invalid manifest {path}: {error}") from error
+        raise SyncError(f"invalid managed manifest {path}: {error}") from error
 
     if data.get("schema_version") != SCHEMA_VERSION:
         raise SyncError(f"unsupported schema_version in {path}")
     if data.get("owner") != OWNER:
-        raise SyncError(f"foreign .ai owner in {path}")
+        raise SyncError(f"unexpected .ai owner in managed manifest {path}")
 
     project_id = data.get("project_id")
     if not isinstance(project_id, str) or not project_id.strip():
@@ -179,7 +188,7 @@ def discover_projects(source_root: Path, repository: Path) -> list[tuple[Path, P
             continue
         ai_root = project / ".ai"
         manifest_path = ai_root / "manifest.toml"
-        if not manifest_path.is_file():
+        if not manifest_path.is_file() or not manifest_is_owned(manifest_path):
             continue
         manifest = load_manifest(manifest_path)
         if not manifest["enabled"]:
@@ -205,15 +214,57 @@ def copy_project(ai_root: Path, destination: Path) -> None:
 
 
 def write_index(repository: Path, entries: list[dict[str, str]]) -> None:
-    payload = {"schema_version": 1, "projects": sorted(entries, key=lambda item: item["project_id"])}
+    payload = {
+        "schema_version": 1,
+        "projects": sorted(entries, key=lambda item: item["project_id"]),
+    }
     (repository / "index.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
 
 
+def load_previous_managed_paths(repository: Path) -> set[str]:
+    path = repository / "index.json"
+    if not path.is_file():
+        return set()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        projects = data.get("projects", [])
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise SyncError(f"invalid managed index {path}: {error}") from error
+    if data.get("schema_version") != 1 or not isinstance(projects, list):
+        raise SyncError(f"unsupported managed index: {path}")
+
+    managed: set[str] = set()
+    for item in projects:
+        value = item.get("path") if isinstance(item, dict) else None
+        if not isinstance(value, str):
+            raise SyncError(f"invalid project path in managed index: {path}")
+        relative = Path(value)
+        if relative.is_absolute() or len(relative.parts) != 2:
+            raise SyncError(f"unsafe project path in managed index: {value}")
+        if relative.parts[0] != "projects" or relative.parts[1] in {"", ".", ".."}:
+            raise SyncError(f"unsafe project path in managed index: {value}")
+        managed.add(relative.as_posix())
+    return managed
+
+
+def prune_stale_projects(repository: Path, previous: set[str], desired: set[str]) -> None:
+    for relative in sorted(previous - desired):
+        target = repository / relative
+        if target.exists():
+            if target.is_symlink() or not target.is_dir():
+                raise SyncError(f"managed project path is not a directory: {relative}")
+            shutil.rmtree(target)
+
+
 def stage_and_commit(repository: Path) -> bool:
-    run_git(repository, "add", "--", "projects", "index.json")
+    run_git(repository, "add", "--", "index.json")
+    tracked_projects = run_git(repository, "ls-files", "--", "projects").stdout.strip()
+    if (repository / "projects").exists() or tracked_projects:
+        run_git(repository, "add", "--", "projects")
+
     changed = run_git(repository, "diff", "--cached", "--quiet", check=False)
     if changed.returncode == 0:
         return False
@@ -227,9 +278,7 @@ def stage_and_commit(repository: Path) -> bool:
 
 def sync(args: argparse.Namespace) -> int:
     if not args.repository:
-        raise SyncError(
-            "--repository or AI_KNOWLEDGE_REPOSITORY is required"
-        )
+        raise SyncError("--repository or AI_KNOWLEDGE_REPOSITORY is required")
     if args.max_file_bytes <= 0:
         raise SyncError("--max-file-bytes must be positive")
 
@@ -243,23 +292,34 @@ def sync(args: argparse.Namespace) -> int:
 
     projects = discover_projects(source_root, repository)
     seen_ids: set[str] = set()
+    prepared: list[tuple[Path, str, str]] = []
     entries: list[dict[str, str]] = []
 
+    # Validate every selected source before mutating the destination repository.
     for project, ai_root, project_id in projects:
         if project_id in seen_ids:
             raise SyncError(f"duplicate project_id: {project_id}")
         seen_ids.add(project_id)
         validate_ai_tree(ai_root, args.max_file_bytes)
         key = project_key(project_id)
-        entries.append({"project_id": project_id, "path": f"projects/{key}"})
-        if args.dry_run:
-            print(f"would sync: {project.name} -> projects/{key}")
-            continue
-        copy_project(ai_root, repository / "projects" / key)
+        relative = f"projects/{key}"
+        prepared.append((ai_root, relative, project.name))
+        entries.append({"project_id": project_id, "path": relative})
+
+    previous = load_previous_managed_paths(repository)
+    desired = {entry["path"] for entry in entries}
 
     if args.dry_run:
+        for _, relative, project_name in prepared:
+            print(f"would sync: {project_name} -> {relative}")
+        for relative in sorted(previous - desired):
+            print(f"would prune: {relative}")
         print(f"projects selected: {len(entries)}")
         return 0
+
+    prune_stale_projects(repository, previous, desired)
+    for ai_root, relative, _ in prepared:
+        copy_project(ai_root, repository / relative)
 
     (repository / "projects").mkdir(parents=True, exist_ok=True)
     write_index(repository, entries)
