@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# ai-init-project - initialize project-local cross-runtime AI knowledge state.
+#
+# The .ai/ directory is runtime-neutral durable state shared by Claude Code,
+# Codex, and future adapters. Runtime-owned state stays in .claude/.codex;
+# disposable work stays in claude_tmp/codex_tmp.
+
+set -euo pipefail
+
+DRY_RUN=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -n|--dry-run) DRY_RUN=true; shift ;;
+        -h|--help)
+            cat <<'EOF'
+Usage: ai-init-project [OPTIONS]
+
+Initialize the current Git repository with a private, runtime-neutral .ai/
+knowledge workspace.
+
+OPTIONS:
+  -n, --dry-run  Show what would be created without changing files
+  -h, --help     Show this help
+EOF
+            exit 0
+            ;;
+        *)
+            printf 'ai-init-project: unknown option: %s\n' "$1" >&2
+            exit 2
+            ;;
+    esac
+done
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "ai-init-project: run inside a Git worktree" >&2
+    exit 1
+fi
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+project_id() {
+    remote=$(git remote get-url origin 2>/dev/null || true)
+    if [[ -n "$remote" ]]; then
+        remote=${remote%.git}
+        case "$remote" in
+            git@*:* )
+                host=${remote#git@}
+                host=${host%%:*}
+                path=${remote#*:}
+                printf '%s/%s\n' "$host" "$path"
+                return 0
+                ;;
+            ssh://git@*/* )
+                value=${remote#ssh://git@}
+                printf '%s\n' "$value"
+                return 0
+                ;;
+            http://*|https://* )
+                value=${remote#http://}
+                value=${value#https://}
+                value=${value%%\?*}
+                printf '%s\n' "$value"
+                return 0
+                ;;
+        esac
+    fi
+
+    printf 'local/%s\n' "$(basename "$repo_root")"
+}
+
+if [[ -e .ai && ! -d .ai ]]; then
+    echo "ai-init-project: .ai exists and is not a directory" >&2
+    exit 1
+fi
+
+if [[ -d .ai && ! -f .ai/manifest.toml ]]; then
+    echo "ai-init-project: .ai already exists without manifest.toml; refusing to claim it" >&2
+    exit 1
+fi
+
+id=$(project_id)
+
+create_dir() {
+    path="$1"
+    if [[ -d "$path" ]]; then
+        return 0
+    fi
+    if [[ "$DRY_RUN" == true ]]; then
+        printf '+ mkdir %s\n' "$path"
+    else
+        mkdir -p "$path"
+    fi
+}
+
+create_dir .ai
+create_dir .ai/state
+create_dir .ai/inbox
+create_dir .ai/knowledge
+
+if [[ ! -f .ai/manifest.toml ]]; then
+    if [[ "$DRY_RUN" == true ]]; then
+        printf '+ create .ai/manifest.toml (project_id=%s)\n' "$id"
+    else
+        cat > .ai/manifest.toml <<EOF
+schema_version = 1
+project_id = "$id"
+
+[export]
+enabled = false
+EOF
+    fi
+fi
+
+if [[ "$DRY_RUN" == false ]]; then
+    printf 'initialized .ai for %s\n' "$id"
+fi
