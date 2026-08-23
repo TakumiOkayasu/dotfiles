@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+"""Collect opt-in project .ai/ state into one private Git repository."""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+try:
+    import tomllib
+except ModuleNotFoundError as error:  # pragma: no cover - runtime boundary
+    raise SystemExit("ai-knowledge-sync requires Python 3.11+ (tomllib)") from error
+
+OWNER = "dotfile-work"
+SCHEMA_VERSION = 1
+DEFAULT_MAX_FILE_BYTES = 2 * 1024 * 1024
+SENSITIVE_SUFFIXES = {".pem", ".key", ".p12", ".pfx", ".jks", ".keystore"}
+SENSITIVE_NAMES = {".env", "id_rsa", "id_ed25519"}
+SENSITIVE_PARTS = {"secrets", ".git"}
+
+
+class SyncError(RuntimeError):
+    pass
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Collect ~/prog/*/.ai into an opt-in private knowledge repository."
+    )
+    parser.add_argument(
+        "--source-root",
+        default=os.environ.get("AI_PROJECT_ROOT", str(Path.home() / "prog")),
+        help="directory whose immediate child directories are projects (default: ~/prog)",
+    )
+    parser.add_argument(
+        "--repository",
+        default=os.environ.get("AI_KNOWLEDGE_REPOSITORY"),
+        help="checked-out private Git repository (or AI_KNOWLEDGE_REPOSITORY)",
+    )
+    parser.add_argument(
+        "--max-file-bytes",
+        type=int,
+        default=DEFAULT_MAX_FILE_BYTES,
+        help=f"reject larger .ai files (default: {DEFAULT_MAX_FILE_BYTES})",
+    )
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--no-push",
+        action="store_true",
+        help="commit local changes but do not push (useful for validation)",
+    )
+    return parser.parse_args()
+
+
+def run_git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if check and result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise SyncError(detail or f"git {' '.join(args)} failed")
+    return result
+
+
+def ensure_git_repository(path: Path) -> None:
+    if not path.is_dir():
+        raise SyncError(f"knowledge repository does not exist: {path}")
+    result = run_git(path, "rev-parse", "--is-inside-work-tree", check=False)
+    if result.returncode != 0 or result.stdout.strip() != "true":
+        raise SyncError(f"not a Git worktree: {path}")
+
+
+def ensure_clean(path: Path) -> None:
+    status = run_git(path, "status", "--porcelain").stdout
+    if status.strip():
+        raise SyncError(
+            "knowledge repository has uncommitted changes; refusing to overwrite them"
+        )
+
+
+def is_git_project(path: Path) -> bool:
+    result = run_git(path, "rev-parse", "--show-toplevel", check=False)
+    if result.returncode != 0:
+        return False
+    try:
+        return Path(result.stdout.strip()).resolve() == path.resolve()
+    except OSError:
+        return False
+
+
+def load_manifest(path: Path) -> dict[str, object]:
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        raise SyncError(f"invalid manifest {path}: {error}") from error
+
+    if data.get("schema_version") != SCHEMA_VERSION:
+        raise SyncError(f"unsupported schema_version in {path}")
+    if data.get("owner") != OWNER:
+        raise SyncError(f"foreign .ai owner in {path}")
+
+    project_id = data.get("project_id")
+    if not isinstance(project_id, str) or not project_id.strip():
+        raise SyncError(f"missing project_id in {path}")
+
+    export = data.get("export", {})
+    if not isinstance(export, dict):
+        raise SyncError(f"invalid [export] table in {path}")
+    enabled = export.get("enabled", False)
+    if not isinstance(enabled, bool):
+        raise SyncError(f"export.enabled must be boolean in {path}")
+
+    return {"project_id": project_id, "enabled": enabled}
+
+
+def sensitive_path(relative: Path) -> bool:
+    lowered_parts = {part.lower() for part in relative.parts}
+    if lowered_parts & SENSITIVE_PARTS:
+        return True
+    name = relative.name.lower()
+    if name in SENSITIVE_NAMES or name.startswith(".env."):
+        return True
+    return relative.suffix.lower() in SENSITIVE_SUFFIXES
+
+
+def validate_ai_tree(root: Path, max_file_bytes: int) -> None:
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root)
+        if path.is_symlink():
+            raise SyncError(f"symlink is not exportable: {root / relative}")
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            raise SyncError(f"unsupported filesystem entry: {root / relative}")
+        if sensitive_path(relative):
+            raise SyncError(f"sensitive-looking path is not exportable: {root / relative}")
+        size = path.stat().st_size
+        if size > max_file_bytes:
+            raise SyncError(
+                f"file exceeds --max-file-bytes ({size} > {max_file_bytes}): {root / relative}"
+            )
+        with path.open("rb") as handle:
+            if b"\0" in handle.read(min(size, 8192)):
+                raise SyncError(f"binary file is not exportable: {root / relative}")
+
+
+def project_key(project_id: str) -> str:
+    readable = re.sub(r"[^A-Za-z0-9._-]+", "__", project_id).strip("._-")
+    if not readable:
+        readable = "project"
+    digest = hashlib.sha256(project_id.encode("utf-8")).hexdigest()[:12]
+    return f"{readable[:96]}--{digest}"
+
+
+def discover_projects(source_root: Path, repository: Path) -> list[tuple[Path, Path, str]]:
+    projects: list[tuple[Path, Path, str]] = []
+    repository = repository.resolve()
+    for project in sorted(source_root.iterdir(), key=lambda path: path.name):
+        if not project.is_dir() or project.is_symlink():
+            continue
+        try:
+            if project.resolve() == repository:
+                continue
+        except OSError:
+            continue
+        if not is_git_project(project):
+            continue
+        ai_root = project / ".ai"
+        manifest_path = ai_root / "manifest.toml"
+        if not manifest_path.is_file():
+            continue
+        manifest = load_manifest(manifest_path)
+        if not manifest["enabled"]:
+            continue
+        project_id = str(manifest["project_id"])
+        projects.append((project, ai_root, project_id))
+    return projects
+
+
+def copy_project(ai_root: Path, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = Path(
+        tempfile.mkdtemp(prefix=f".{destination.name}-", dir=destination.parent)
+    )
+    try:
+        shutil.copytree(ai_root, temporary / "tree", dirs_exist_ok=True)
+        staged = temporary / "tree"
+        if destination.exists():
+            shutil.rmtree(destination)
+        os.replace(staged, destination)
+    finally:
+        shutil.rmtree(temporary, ignore_errors=True)
+
+
+def write_index(repository: Path, entries: list[dict[str, str]]) -> None:
+    payload = {"schema_version": 1, "projects": sorted(entries, key=lambda item: item["project_id"])}
+    (repository / "index.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def stage_and_commit(repository: Path) -> bool:
+    run_git(repository, "add", "--", "projects", "index.json")
+    changed = run_git(repository, "diff", "--cached", "--quiet", check=False)
+    if changed.returncode == 0:
+        return False
+    if changed.returncode != 1:
+        raise SyncError("cannot inspect staged knowledge diff")
+
+    date = dt.date.today().isoformat()
+    run_git(repository, "commit", "-m", f"chore: sync ai knowledge {date}")
+    return True
+
+
+def sync(args: argparse.Namespace) -> int:
+    if not args.repository:
+        raise SyncError(
+            "--repository or AI_KNOWLEDGE_REPOSITORY is required"
+        )
+    if args.max_file_bytes <= 0:
+        raise SyncError("--max-file-bytes must be positive")
+
+    source_root = Path(args.source_root).expanduser().resolve()
+    repository = Path(args.repository).expanduser().resolve()
+    if not source_root.is_dir():
+        raise SyncError(f"source root does not exist: {source_root}")
+
+    ensure_git_repository(repository)
+    ensure_clean(repository)
+
+    projects = discover_projects(source_root, repository)
+    seen_ids: set[str] = set()
+    entries: list[dict[str, str]] = []
+
+    for project, ai_root, project_id in projects:
+        if project_id in seen_ids:
+            raise SyncError(f"duplicate project_id: {project_id}")
+        seen_ids.add(project_id)
+        validate_ai_tree(ai_root, args.max_file_bytes)
+        key = project_key(project_id)
+        entries.append({"project_id": project_id, "path": f"projects/{key}"})
+        if args.dry_run:
+            print(f"would sync: {project.name} -> projects/{key}")
+            continue
+        copy_project(ai_root, repository / "projects" / key)
+
+    if args.dry_run:
+        print(f"projects selected: {len(entries)}")
+        return 0
+
+    (repository / "projects").mkdir(parents=True, exist_ok=True)
+    write_index(repository, entries)
+    committed = stage_and_commit(repository)
+    print(f"projects synced: {len(entries)}; committed: {'yes' if committed else 'no'}")
+
+    if not args.no_push:
+        run_git(repository, "push")
+    return 0
+
+
+def main() -> int:
+    args = parse_args()
+    try:
+        return sync(args)
+    except (OSError, SyncError) as error:
+        print(f"ai-knowledge-sync: {error}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
