@@ -84,7 +84,12 @@ def load_index(repository: Path) -> list[dict[str, str]]:
         if not isinstance(project_id, str) or not isinstance(relative, str):
             raise SearchError(f"invalid project entry in {path}")
         value = Path(relative)
-        if value.is_absolute() or len(value.parts) != 2 or value.parts[0] != "projects":
+        if (
+            value.is_absolute()
+            or len(value.parts) != 2
+            or value.parts[0] != "projects"
+            or value.parts[1] in {"", ".", ".."}
+        ):
             raise SearchError(f"unsafe project path in {path}: {relative}")
         entries.append({"project_id": project_id, "path": relative})
     return entries
