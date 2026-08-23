@@ -5,7 +5,6 @@
     "VISUAL": "zed --wait"
   },
   "includeCoAuthoredBy": false,
-  "defaultMode": "auto"
   "permissions": {
     "allow": [
       "Bash",
@@ -196,7 +195,7 @@
       ]
     }
   },
-  "defaultMode": "auto"
+  "defaultMode": "auto",
   "effortLevel": "medium",
   "fallbackModel": [],
   "switchModelsOnFlag": false,
