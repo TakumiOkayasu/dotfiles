@@ -23,6 +23,7 @@ except ModuleNotFoundError as error:  # pragma: no cover - runtime boundary
 OWNER = "dotfile-work"
 SCHEMA_VERSION = 1
 DEFAULT_MAX_FILE_BYTES = 2 * 1024 * 1024
+DEFAULT_REPOSITORY = Path.home() / "prog" / "ai-knowledge-private"
 SENSITIVE_SUFFIXES = {".pem", ".key", ".p12", ".pfx", ".jks", ".keystore"}
 SENSITIVE_NAMES = {".env", "id_rsa", "id_ed25519"}
 SENSITIVE_PARTS = {"secrets", ".git"}
@@ -43,8 +44,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--repository",
-        default=os.environ.get("AI_KNOWLEDGE_REPOSITORY"),
-        help="checked-out private Git repository (or AI_KNOWLEDGE_REPOSITORY)",
+        default=os.environ.get("AI_KNOWLEDGE_REPOSITORY", str(DEFAULT_REPOSITORY)),
+        help="checked-out private Git repository (default: ~/prog/ai-knowledge-private)",
     )
     parser.add_argument(
         "--max-file-bytes",
@@ -277,8 +278,6 @@ def stage_and_commit(repository: Path) -> bool:
 
 
 def sync(args: argparse.Namespace) -> int:
-    if not args.repository:
-        raise SyncError("--repository or AI_KNOWLEDGE_REPOSITORY is required")
     if args.max_file_bytes <= 0:
         raise SyncError("--max-file-bytes must be positive")
 
