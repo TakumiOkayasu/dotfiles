@@ -5,6 +5,7 @@
     "VISUAL": "zed --wait"
   },
   "includeCoAuthoredBy": false,
+  "defaultMode": "auto"
   "permissions": {
     "allow": [
       "Bash",
@@ -20,10 +21,8 @@
       "Bash(git push *)",
       "Bash(rm -rf *)",
       "Bash(rm -f *)"
-    ],
-    "defaultMode": "auto"
+    ]
   },
-  "model": "opus[1m]",
   "hooks": {
     "PreToolUse": [
       {
@@ -197,12 +196,11 @@
       ]
     }
   },
-  "effortLevel": "high",
+  "defaultMode": "auto"
+  "effortLevel": "medium",
   "fallbackModel": [],
   "switchModelsOnFlag": false,
   "theme": "auto",
-  "preferredNotifChannel": "ghostty",
-  "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true
