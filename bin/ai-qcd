@@ -1,0 +1,341 @@
+#!/usr/bin/env python3
+"""Choose and learn model/effort routes from verified QCD observations."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import statistics
+import sys
+from collections import defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+OWNER_MARKER = 'owner = "dotfile-work"'
+TASK_CLASSES = ("lookup", "bounded", "reasoning", "critical")
+RUNTIMES = ("codex", "claude")
+DEFAULT_MIN_SAMPLES = 5
+DEFAULT_MIN_PASS_RATE = 1.0
+
+# Safe starting routes. Observed winners can replace these after meeting the
+# quality gate and minimum sample count. Keep runtime-specific names here so a
+# route recommendation is explicit and auditable rather than hidden in prose.
+BASELINES: dict[str, dict[str, list[tuple[str, str]]]] = {
+    "codex": {
+        "lookup": [
+            ("gpt-5.6-luna", "medium"),
+            ("gpt-5.6-terra", "medium"),
+            ("gpt-5.6-sol", "high"),
+        ],
+        "bounded": [
+            ("gpt-5.6-terra", "medium"),
+            ("gpt-5.6-sol", "high"),
+        ],
+        "reasoning": [
+            ("gpt-5.6-terra", "high"),
+            ("gpt-5.6-sol", "high"),
+            ("gpt-5.6-sol", "xhigh"),
+        ],
+        "critical": [
+            ("gpt-5.6-sol", "xhigh"),
+            ("gpt-5.6-sol", "max"),
+        ],
+    },
+    "claude": {
+        "lookup": [
+            ("sonnet", "medium"),
+            ("sonnet", "high"),
+            ("opus", "high"),
+        ],
+        "bounded": [
+            ("sonnet", "high"),
+            ("opus", "high"),
+        ],
+        "reasoning": [
+            ("sonnet", "xhigh"),
+            ("opus", "high"),
+            ("opus", "xhigh"),
+        ],
+        "critical": [
+            ("opus", "xhigh"),
+            ("opus", "max"),
+        ],
+    },
+}
+
+
+class QcdError(RuntimeError):
+    pass
+
+
+def parser() -> argparse.ArgumentParser:
+    root = argparse.ArgumentParser(
+        description="Recommend and record evidence-driven model/effort routes."
+    )
+    sub = root.add_subparsers(dest="command", required=True)
+
+    route = sub.add_parser("route", help="recommend a route for one task class")
+    route.add_argument("--runtime", choices=RUNTIMES, required=True)
+    route.add_argument("--task-class", choices=TASK_CLASSES, required=True)
+    route.add_argument("--observations", type=Path)
+    route.add_argument("--min-samples", type=int, default=DEFAULT_MIN_SAMPLES)
+    route.add_argument(
+        "--min-pass-rate", type=float, default=DEFAULT_MIN_PASS_RATE
+    )
+    route.add_argument("--json", action="store_true")
+
+    record = sub.add_parser("record", help="append one verified or provisional run")
+    record.add_argument("--runtime", choices=RUNTIMES, required=True)
+    record.add_argument("--task-class", choices=TASK_CLASSES, required=True)
+    record.add_argument("--requested-model", required=True)
+    record.add_argument("--requested-effort", required=True)
+    record.add_argument("--effective-model")
+    record.add_argument("--effective-effort")
+    record.add_argument("--quality", choices=("pass", "fail"), required=True)
+    record.add_argument("--duration-ms", type=int)
+    record.add_argument("--input-tokens", type=int)
+    record.add_argument("--cached-input-tokens", type=int)
+    record.add_argument("--cache-write-input-tokens", type=int)
+    record.add_argument("--output-tokens", type=int)
+    record.add_argument("--reasoning-output-tokens", type=int)
+    record.add_argument("--quota-delta", type=float)
+    record.add_argument("--retries", type=int, default=0)
+    record.add_argument("--tool-calls", type=int)
+    record.add_argument("--task-id")
+    record.add_argument("--output", type=Path)
+
+    return root
+
+
+def find_project_root(start: Path) -> Path:
+    current = start.resolve()
+    for candidate in (current, *current.parents):
+        manifest = candidate / ".ai" / "manifest.toml"
+        if manifest.is_file():
+            text = manifest.read_text(encoding="utf-8")
+            if any(line.strip() == OWNER_MARKER for line in text.splitlines()):
+                return candidate
+    raise QcdError("managed .ai/manifest.toml not found; run ai-init-project first")
+
+
+def default_observation_path() -> Path:
+    root = find_project_root(Path.cwd())
+    return root / ".ai" / "state" / "qcd-observations.jsonl"
+
+
+def validate_nonnegative(name: str, value: int | float | None) -> None:
+    if value is not None and value < 0:
+        raise QcdError(f"{name} must be non-negative")
+
+
+def record_observation(args: argparse.Namespace) -> int:
+    effective_model = args.effective_model
+    effective_effort = args.effective_effort
+    if (effective_model is None) != (effective_effort is None):
+        raise QcdError(
+            "--effective-model and --effective-effort must be supplied together"
+        )
+
+    numeric = {
+        "duration_ms": args.duration_ms,
+        "input_tokens": args.input_tokens,
+        "cached_input_tokens": args.cached_input_tokens,
+        "cache_write_input_tokens": args.cache_write_input_tokens,
+        "output_tokens": args.output_tokens,
+        "reasoning_output_tokens": args.reasoning_output_tokens,
+        "quota_delta": args.quota_delta,
+        "retries": args.retries,
+        "tool_calls": args.tool_calls,
+    }
+    for name, value in numeric.items():
+        validate_nonnegative(name, value)
+
+    if (
+        args.input_tokens is not None
+        and args.cached_input_tokens is not None
+        and args.cached_input_tokens > args.input_tokens
+    ):
+        raise QcdError("cached input tokens cannot exceed input tokens")
+
+    output = args.output.expanduser() if args.output else default_observation_path()
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    observation: dict[str, Any] = {
+        "schema_version": 1,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "runtime": args.runtime,
+        "task_class": args.task_class,
+        "requested_model": args.requested_model,
+        "requested_effort": args.requested_effort,
+        "effective_model": effective_model,
+        "effective_effort": effective_effort,
+        "effective_verified": effective_model is not None,
+        "quality_pass": args.quality == "pass",
+        "retries": args.retries,
+    }
+    if args.task_id:
+        observation["task_id"] = args.task_id
+    for name, value in numeric.items():
+        if value is not None:
+            observation[name] = value
+
+    with output.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(observation, ensure_ascii=False, sort_keys=True) + "\n")
+
+    print(output)
+    return 0
+
+
+def read_observations(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        return []
+    observations: list[dict[str, Any]] = []
+    for line_number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not raw.strip():
+            continue
+        try:
+            value = json.loads(raw)
+        except json.JSONDecodeError as error:
+            raise QcdError(f"invalid JSONL at {path}:{line_number}: {error}") from error
+        if not isinstance(value, dict) or value.get("schema_version") != 1:
+            raise QcdError(f"unsupported observation at {path}:{line_number}")
+        observations.append(value)
+    return observations
+
+
+def median_or_none(values: list[float]) -> float | None:
+    return statistics.median(values) if values else None
+
+
+def route_stats(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    passed = sum(row.get("quality_pass") is True for row in rows)
+    count = len(rows)
+
+    quota = [float(row["quota_delta"]) for row in rows if "quota_delta" in row]
+    duration = [float(row["duration_ms"]) for row in rows if "duration_ms" in row]
+    usage_proxy: list[float] = []
+    for row in rows:
+        if "input_tokens" not in row:
+            continue
+        input_tokens = float(row["input_tokens"])
+        cached = float(row.get("cached_input_tokens", 0))
+        cache_write = float(row.get("cache_write_input_tokens", 0))
+        output = float(row.get("output_tokens", 0))
+        reasoning = float(row.get("reasoning_output_tokens", 0))
+        usage_proxy.append(max(input_tokens - cached, 0) + cache_write + output + reasoning)
+
+    return {
+        "samples": count,
+        "pass_rate": passed / count if count else 0.0,
+        "median_quota_delta": median_or_none(quota),
+        "median_usage_proxy": median_or_none(usage_proxy),
+        "median_duration_ms": median_or_none(duration),
+    }
+
+
+def ranking_key(stats: dict[str, Any]) -> tuple[float, float, float]:
+    # Quota delta is the best direct signal when the runtime exposes it. Otherwise
+    # use uncached/cache-write/output token volume as a model-agnostic proxy, then
+    # latency. Missing dimensions sort after measured values.
+    quota = stats["median_quota_delta"]
+    usage = stats["median_usage_proxy"]
+    duration = stats["median_duration_ms"]
+    return (
+        float(quota) if quota is not None else float("inf"),
+        float(usage) if usage is not None else float("inf"),
+        float(duration) if duration is not None else float("inf"),
+    )
+
+
+def recommend(args: argparse.Namespace) -> dict[str, Any]:
+    if args.min_samples <= 0:
+        raise QcdError("--min-samples must be positive")
+    if not 0 <= args.min_pass_rate <= 1:
+        raise QcdError("--min-pass-rate must be between 0 and 1")
+
+    if args.observations:
+        path = args.observations.expanduser()
+    else:
+        try:
+            path = default_observation_path()
+        except QcdError:
+            path = Path(".ai/state/qcd-observations.jsonl")
+
+    rows = [
+        row
+        for row in read_observations(path)
+        if row.get("runtime") == args.runtime
+        and row.get("task_class") == args.task_class
+        and row.get("effective_verified") is True
+        and isinstance(row.get("effective_model"), str)
+        and isinstance(row.get("effective_effort"), str)
+    ]
+
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        grouped[(row["effective_model"], row["effective_effort"])].append(row)
+
+    eligible: list[tuple[str, str, dict[str, Any]]] = []
+    measured: list[dict[str, Any]] = []
+    for (model, effort), group in sorted(grouped.items()):
+        stats = route_stats(group)
+        measured.append({"model": model, "effort": effort, **stats})
+        if stats["samples"] >= args.min_samples and stats["pass_rate"] >= args.min_pass_rate:
+            eligible.append((model, effort, stats))
+
+    if eligible:
+        model, effort, stats = min(eligible, key=lambda item: ranking_key(item[2]))
+        source = "observed"
+    else:
+        model, effort = BASELINES[args.runtime][args.task_class][0]
+        stats = None
+        source = "baseline"
+
+    return {
+        "schema_version": 1,
+        "runtime": args.runtime,
+        "task_class": args.task_class,
+        "model": model,
+        "effort": effort,
+        "source": source,
+        "minimum_samples": args.min_samples,
+        "minimum_pass_rate": args.min_pass_rate,
+        "winner_stats": stats,
+        "measured_routes": measured,
+        "escalation": [
+            {"model": item_model, "effort": item_effort}
+            for item_model, item_effort in BASELINES[args.runtime][args.task_class]
+        ],
+        "application": (
+            "capability-gated-subagent-override"
+            if args.runtime == "codex"
+            else "prefer-matching-subagent-or-per-invocation-model"
+        ),
+    }
+
+
+def print_route(args: argparse.Namespace) -> int:
+    result = recommend(args)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(f"{result['model']} {result['effort']} ({result['source']})")
+    return 0
+
+
+def main() -> int:
+    args = parser().parse_args()
+    try:
+        if args.command == "record":
+            return record_observation(args)
+        if args.command == "route":
+            return print_route(args)
+        raise QcdError(f"unknown command: {args.command}")
+    except (OSError, QcdError) as error:
+        print(f"ai-qcd: {error}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
