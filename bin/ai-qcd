@@ -215,15 +215,19 @@ def route_stats(rows: list[dict[str, Any]]) -> dict[str, Any]:
     quota = [float(row["quota_delta"]) for row in rows if "quota_delta" in row]
     duration = [float(row["duration_ms"]) for row in rows if "duration_ms" in row]
     usage_proxy: list[float] = []
+    cache_ratio: list[float] = []
     for row in rows:
         if "input_tokens" not in row:
             continue
         input_tokens = float(row["input_tokens"])
         cached = float(row.get("cached_input_tokens", 0))
-        cache_write = float(row.get("cache_write_input_tokens", 0))
         output = float(row.get("output_tokens", 0))
-        reasoning = float(row.get("reasoning_output_tokens", 0))
-        usage_proxy.append(max(input_tokens - cached, 0) + cache_write + output + reasoning)
+        # reasoning_output_tokens is a breakdown of output_tokens in current
+        # Codex JSONL and must not be added again. cache-write tokens are also
+        # retained as a separate diagnostic instead of being assumed additive.
+        usage_proxy.append(max(input_tokens - cached, 0) + output)
+        if input_tokens > 0:
+            cache_ratio.append(cached / input_tokens)
 
     return {
         "samples": count,
@@ -231,13 +235,14 @@ def route_stats(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "median_quota_delta": median_or_none(quota),
         "median_usage_proxy": median_or_none(usage_proxy),
         "median_duration_ms": median_or_none(duration),
+        "median_cache_ratio": median_or_none(cache_ratio),
     }
 
 
 def ranking_key(stats: dict[str, Any]) -> tuple[float, float, float]:
     # Quota delta is the best direct signal when the runtime exposes it. Otherwise
-    # use uncached/cache-write/output token volume as a model-agnostic proxy, then
-    # latency. Missing dimensions sort after measured values.
+    # use uncached input + output as a conservative model-agnostic usage proxy,
+    # then latency. Missing dimensions sort after measured values.
     quota = stats["median_quota_delta"]
     usage = stats["median_usage_proxy"]
     duration = stats["median_duration_ms"]
