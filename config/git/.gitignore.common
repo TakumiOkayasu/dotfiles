@@ -228,6 +228,7 @@ core
 .vagrant/
 
 # === AI / Tool ===
+.ai/
 .claude/
 claude_tmp/
 *.mcp.*
@@ -249,4 +250,3 @@ secrets/
 .profile
 # === Others ===
 .ripgreprc
-
