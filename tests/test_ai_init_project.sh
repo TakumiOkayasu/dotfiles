@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root=$(cd "$(dirname "$0")/.." && pwd -P)
-script="$repo_root/bin/ai-init-project"
+if [[ -n "${AI_INIT_PROJECT_SCRIPT:-}" ]]; then
+    script="$AI_INIT_PROJECT_SCRIPT"
+elif [[ -x /workspace/bin/ai-init-project ]]; then
+    script=/workspace/bin/ai-init-project
+else
+    repo_root=$(cd "$(dirname "$0")/.." && pwd -P)
+    script="$repo_root/bin/ai-init-project"
+fi
+
+[[ -x "$script" ]] || {
+    printf 'ai-init-project not executable: %s\n' "$script" >&2
+    exit 1
+}
+
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
@@ -22,7 +34,7 @@ git -C "$project" remote add origin git@github.com:example/example-project.git
 
 (
     cd "$project"
-    bash "$script"
+    "$script"
 )
 
 for path in .ai .ai/state .ai/inbox .ai/knowledge; do
@@ -40,7 +52,7 @@ assert_file_contains "$project/.ai/manifest.toml" 'enabled = false'
 # Idempotent when the directory belongs to this workflow.
 (
     cd "$project"
-    bash "$script"
+    "$script"
 )
 
 # Dry-run must not create state.
@@ -49,7 +61,7 @@ mkdir -p "$dry"
 git -C "$dry" init -q
 (
     cd "$dry"
-    output=$(bash "$script" --dry-run)
+    output=$("$script" --dry-run)
     [[ ! -e .ai ]]
     [[ "$output" == *'.ai/manifest.toml'* ]]
 )
@@ -60,7 +72,7 @@ mkdir -p "$foreign/.ai"
 git -C "$foreign" init -q
 if (
     cd "$foreign"
-    bash "$script" >/dev/null 2>&1
+    "$script" >/dev/null 2>&1
 ); then
     echo 'expected foreign .ai directory to be rejected' >&2
     exit 1
@@ -73,7 +85,7 @@ git -C "$foreign_manifest" init -q
 printf 'schema_version = 1\nowner = "another-tool"\n' > "$foreign_manifest/.ai/manifest.toml"
 if (
     cd "$foreign_manifest"
-    bash "$script" >/dev/null 2>&1
+    "$script" >/dev/null 2>&1
 ); then
     echo 'expected foreign .ai manifest to be rejected' >&2
     exit 1
