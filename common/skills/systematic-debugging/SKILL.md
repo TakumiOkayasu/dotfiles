@@ -1,7 +1,7 @@
 ---
 name: systematic-debugging
 description: バグやテスト失敗に遭遇した際に使用。修正前の4フェーズ根本原因分析を強制。「エラーが出る」「動かない」「落ちる」「なぜ失敗するか」で発動。
-effort: xhigh
+effort: high
 ---
 
 # Systematic Debugging

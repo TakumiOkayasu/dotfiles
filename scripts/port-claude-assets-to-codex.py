@@ -37,6 +37,11 @@ SHARED_SKILLS_DIR = Path("common/skills")
 SHARED_RULES_DIR = Path("common/rules")
 SHARED_COMMANDS_DIR = Path("common/commands")
 TDD_SKILL_SOURCE = SHARED_SKILLS_DIR / "tdd/SKILL.md"
+CLAUDE_ONLY_SKILL_FRONTMATTER_KEYS = (
+    "argument-hint",
+    "disable-model-invocation",
+    "effort",
+)
 QA_CONTINUATION_START = "<!-- qa-continuation:start -->"
 QA_CONTINUATION_END = "<!-- qa-continuation:end -->"
 CODEX_QA_CONTINUATION_OVERLAY = (
@@ -154,13 +159,18 @@ def split_frontmatter(text: str) -> tuple[str | None, str]:
     return text[: end + 5], text[end + 5 :]
 
 
-def transform_frontmatter(frontmatter: str | None, source: Path) -> str | None:
+def transform_frontmatter(
+    frontmatter: str | None, source: Path, *, kind: str
+) -> str | None:
     if frontmatter is None:
         return None
     fm = frontmatter
     # Keep the skill name stable. Adjust only Claude-specific wording/paths.
     for old, new in COMMON_REPLACEMENTS:
         fm = fm.replace(old, new)
+    if kind == "skill":
+        keys = "|".join(re.escape(key) for key in CLAUDE_ONLY_SKILL_FRONTMATTER_KEYS)
+        fm = re.sub(rf"^(?:{keys}):[^\n]*(?:\n|$)", "", fm, flags=re.MULTILINE)
     # Keep source provenance without adding an unsupported skill frontmatter key.
     fm = re.sub(
         r"^codex_port_source:",
@@ -408,7 +418,7 @@ def transform_text(
     text: str, *, source: Path, kind: str, role: ArtifactRole
 ) -> str:
     frontmatter, body = split_frontmatter(text)
-    fm = transform_frontmatter(frontmatter, source)
+    fm = transform_frontmatter(frontmatter, source, kind=kind)
     new_body = transform_body(body, source=source, kind=kind, role=role)
     return (fm or "") + new_body
 
