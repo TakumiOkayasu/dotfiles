@@ -11,6 +11,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 INSTALL_SH = REPO_ROOT / "install.sh"
 CLAUDE_SETTINGS = REPO_ROOT / "claude" / "settings.json"
+CCSTATUSLINE_UPDATER = REPO_ROOT / ".github" / "workflows" / "update-ccstatusline.yml"
 GH_REPO_AUTO_SETUP_HOOK = REPO_ROOT / "claude" / "hooks" / "gh-repo-auto-setup.sh"
 COMMON_AUDIT_SKILL = (
     REPO_ROOT / "common" / "skills" / "instruction-surface-audit" / "SKILL.md"
@@ -57,6 +58,14 @@ def test_repository_setup_is_explicit_not_a_post_tool_side_effect() -> None:
     assert "gh-repo-auto-setup.sh" not in serialized_hooks
     assert not GH_REPO_AUTO_SETUP_HOOK.exists()
     assert (REPO_ROOT / "bin" / "gh-setup-repo").is_file()
+
+
+def test_ccstatusline_tracks_latest_without_an_update_bot() -> None:
+    """The explicit floating-version policy must not retain a pinned-version updater."""
+    settings = json.loads(CLAUDE_SETTINGS.read_text(encoding="utf-8"))
+
+    assert settings["statusLine"]["command"] == "bunx -y ccstatusline@latest"
+    assert not CCSTATUSLINE_UPDATER.exists()
 
 
 def test_instruction_surface_audit_is_explicit_and_ported() -> None:
