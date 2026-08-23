@@ -1,8 +1,7 @@
 ---
 # codex_port_source: common/skills/tdd/SKILL.md
 name: tdd
-description: 機能実装やバグ修正でテストを書く・変更する作業に使用。RED-GREEN-REFACTORサイクルを適用する。「TDD」「テストから書く」「テスト駆動」「テスト先に」で発動。
-effort: high
+description: 振る舞いをテストで定義し、RED-GREEN-REFACTORで実装する。新しい振る舞い、bug regression、public contract変更で使用する。テスト不能な設定・文書変更には機械的に適用しない。
 ---
 
 # Test-Driven Development
@@ -17,37 +16,86 @@ effort: high
 - Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
-## トリガー条件
+テストを儀式ではなく、期待する振る舞いと回帰証拠として使う。
 
-**以下のすべてに該当する場合に発動する:**
+## 適用判断
 
-| 条件 | 例 |
-| ------ | ---- |
-| キーワード一致 | TDD、テスト駆動、テストファースト、RED-GREEN、失敗するテストを先に |
-| 明示的指示 | 「テストを書いて」「テストから始めて」「再現テストを書いてから直して」 |
-| 作業種別 | 新機能実装・バグ修正・リファクタリングでテストコードの作成・変更を伴う |
+使用する:
 
-**発動しない場合（除外条件）:**
+- 新しい振る舞い
+- bugの回帰防止
+- public contract、state transition、boundary condition
+- 既存テスト可能なcodeの変更
 
-| 除外 | 理由 |
-| ------ | ------ |
-| テストのインポート修正のみ | 振る舞いの変更なし |
-| CIのyaml編集のみ | テストコード変更なし |
-| E2Eテストの新規作成 | 本スキル対象外 |
-| typo修正のみ | 実装変更なし |
+機械的に使用しない:
 
----
+- 文書、comment、formatのみ
+- 実行環境のない外部system
+- generated artifactのみの変更
+- 既存projectでテスト基盤がなく、導入自体が別taskになる場合
 
-## Phase 0: スコープ判定と qa_nightmare 連携
+適用できない時は理由と代替検証を明示する。
 
-着手前に対象スコープを判定する。
+## Cycle
 
-| スコープ | 例 | qa_nightmare の利用 |
+### Test list
+
+現在の変更で証明すべき振る舞いを短く列挙する。
+
+- normal path
+- failure path
+- 変更に固有のboundary
+- regression condition
+
+網羅性を装うため、無関係なnull/empty/max等を機械的に追加しない。
+
+### RED
+
+最小のテストを追加し、期待した理由で失敗することを確認する。
+
+既存bugを再現できない場合は、static trace、contract test、typecheck等の代替証拠を使い、RED未確認を明示する。
+
+### GREEN
+
+現在のテストを通す最小実装を行う。
+
+- 将来用abstract layerを追加しない
+- production codeをtestだけのために歪めない
+- existing seamがあれば再利用する
+
+### REFACTOR
+
+テストが通る状態を維持して、重複、命名、責務だけを必要な範囲で整理する。
+
+### VERIFY
+
+対象テスト、関連テスト、lint、buildをproject commandで実行する。実行していないcheckを成功扱いしない。
+
+## Test doubles
+
+projectの既存方針に従う。real dependency seam、fake、stub、mockのいずれも目的とcostで選ぶ。module mockを一律に要求または禁止しない。
+
+## 追加検証
+
+`qa_nightmare`、property-based test、fuzzing、mutation test、独立reviewは次の場合だけ追加する。
+
+- securityまたはdata integrity boundary
+- state spaceが広い
+- 過去に同種のregressionがある
+- userが明示要求した
+- 通常testでは重大failure modeを十分に表現できない
+
+固定agent数、固定case数、承認roundを設けない。
+
+### qa_nightmare optional extension
+
+この節は上記条件を満たし、かつCodex runtimeで安全なread-only dispatchが可能な場合だけ使用する。通常の機能単位で自動発火させない。
+
+| スコープ | 例 | optional action |
 | --- | --- | --- |
-| ユニット (関数・純粋ロジック) | 値オブジェクト、ユーティリティ関数、純粋な計算 | 利用しない。次フェーズへ進む |
 | 機能単位 (画面 / API / エンドポイント / ジョブ) | ユーザー登録画面、決済 API、夜間バッチ | 現行Codex: 未実行を明示 (dispatch禁止) |
 
-機能単位と判定しても、現行Codexではqa_nightmareをdispatchせず、悪夢テストケース生成が未実行であることを先に明示する。
+明示的にこのoptional extensionを選んだ場合に限り、機能単位と判定しても、現行Codexではqa_nightmareをdispatchせず、悪夢テストケース生成が未実行であることを先に明示する。
 
 ### qa_nightmare の将来有効化仕様
 
@@ -56,47 +104,29 @@ effort: high
 悪夢テストケース生成は未実行としてユーザーへ明示する。
 将来、実行surfaceが全toolを構造的に除外できることを一次情報と実tool eventで確認できた場合だけ、以下のpreflightとdispatchを有効化する。
 
-親はversion管理された `qa-nightmare-preflight` helperだけを使い、最初に `qa-nightmare-preflight --runtime codex --repo <canonical-repo> --source-only --source <relative-file>` を実行する。
-helperはcanonical repo rootを確認し、relative regular fileのみを許可する。
-directory/absolute/./../external symlink/sibling-prefix/gitignored/credential/secret-bearingを拒否し、component-aware配下判定、source個数/size上限、秘密候補scanを行い、`accepted_sources` のpath/digest/sizeだけを返す。
-いずれかを検証できなければ起動しない。
 
-親はaccepted sourceだけを読み、読取前後digestを照合する。
-秘密値をfactへ含めない。
-source_evidenceを作り、schema/auth/state各core slotが確認済みfactまたは根拠付き非該当かを先に検査する。
-不足slotがあれば確認質問を返し、full preflightとchecklist_snapshotを構築せず子agentを起動しない。
 
-親はsource selectionの選択理由と依存観点を `repo_provenance` へ記録し、entrypoint、主要依存、状態境界、認可、外部副作用、既存テストをsource_evidenceで確認する。
-どれかが不足し、根拠付き非該当にもできなければsource_evidence不足としてdispatchせず、対象追加を要求する。
+source selectionの選択理由を記録し、依存観点としてentrypoint、主要依存、状態境界、認可、外部副作用、既存テストを確認する。source_evidence不足ならdispatchせず終了する。
 
-core gate通過後、`qa-nightmare-preflight --runtime codex --repo <canonical-repo> --source <relative-file>` のfull preflightを実行する。
-source-onlyとfullの `repo_provenance` が完全一致しなければ停止する。
-helperはruntime rootをユーザー入力から取らずCodex既知pathから導出し、machine-readable manifestに基づく期待file名/canonical target/digest/ID集合/構造をdispatch直前に検証する。
-helperのprovenanceはopaqueなrepository identity、相対file名、digest、検証結果だけを返し、absolute pathを出力しない。
+親はcanonicalなrepo_provenanceを作り、sourceはrelative regular fileのみ許可する。directory/absolute/./../external symlink/sibling-prefix/gitignored/credential/secret-bearingを拒否し、component-aware配下判定を行い、秘密値をfactへ含めない。sourceは既知pathから導出し、期待file名/canonical target/digest/ID集合/構造をdispatch直前に検証する。absolute pathを出力しない。子agentへabsolute filesystem pathを渡さず、次のfieldを渡す。
 
-子agentへabsolute filesystem pathを渡さず、親が検証したsnapshotだけを渡す。
-
-親は選択model/runtimeの一次情報から `context_limit_tokens` と `output_reserve_tokens` を取得し、agent固定指示、対象機能、URL / パス、4 fieldを直列化したUTF-8 byte数をtoken数の保守的上限 `input_upper_bound_tokens` として計測する。
-いずれかを取得できなければ起動しない。
-3値をrepo_provenanceへ記録し、値を含むpayloadを再直列化して固定点になるまで `input_upper_bound_tokens` を更新する。
-`input_upper_bound_tokens + output_reserve_tokens <= context_limit_tokens` のときだけdispatchする。
-超過時は対象を絞ってpreflightからやり直す。
-
+```text
+repo_provenance:
+source_evidence:
+checklist_snapshot:
+checklist_provenance:
 ```
-対象機能: <機能名>
-URL / パス: <画面 URL or API パス>
-repo_provenance: <親がcanonical repo rootを確認した情報>
-source_evidence: <relative regular fileから抽出し、secret redaction済みの相対file:line付き事実>
-checklist_snapshot: <Codex既知pathから導出し、期待file名/canonical target/ID集合/構造を検証した全データ>
-checklist_provenance: <snapshotの導出/検証結果>
-悪夢テストケースを生成してランク付き一覧で返してください。
-```
+
+context_limit_tokens、output_reserve_tokens、input_upper_bound_tokensはUTF-8 byte数から保守的に見積もる。対象機能、URL / パス、4 fieldを再直列化して固定点へ収束させ、取得できなければ起動しない。
+
+最初に`--source-only`でaccepted_sourcesと読取前後digestを検証する。この段階ではcore slot用のchecklist_snapshotを構築せず、続くfull preflightでsource-onlyとfullの `repo_provenance` が完全一致することを確認する。
 
 ### 将来有効化時の結果の扱い
 
-subagent から返ってきたランク付き一覧 (NM-001, NM-002, ...) をユーザーに提示し、実装対象範囲 (S のみ / S+A / 全部) を確認する。
+機能単位の場合はqa_nightmare未実行を明示し、通常TDD候補を親が作る。
+将来有効化後だけ `qa_nightmare` subagent の出力を反映する。
 
-合意した範囲の各ケースに対して以降の TDD サイクル (RED → GREEN → REFACTOR) を 1 つずつ回す。実装順は S ランク → A → B → C。
+採用するcaseは重大度と今回のscopeで選び、全caseの実装を義務化しない。
 
 <!-- qa-continuation:start -->
 長大出力で継続が必要な場合、Codex parent は完全性索引、`snapshot_digest`、未返却rankを持つcompact continuation_ledgerを受け取る。
@@ -108,366 +138,19 @@ digest検証後、followup_taskでledger digestとrequested_rankだけを指定�
 未返却 S を除外しない。
 <!-- qa-continuation:end -->
 
----
+## 承認
 
-## 前提条件
+通常のRED-GREEN間でユーザー承認を要求しない。次の場合だけ停止する。
 
-本スキルを開始する前に以下が満たされていること:
+- requirementが複数解釈できる
+- public API、DB schema、dependency、destructive operation等の明示承認が必要
+- テストが仕様そのものを変更する
 
-- [ ] プロジェクトにテストランナーが存在する（なければユーザーに確認）
-- [ ] テスト実行コマンドが判明している
-- [ ] 作業ブランチが作成済み（mainブランチ直接作業は禁止）
+## 出力
 
----
-
-## 鉄則（すべてに優先）
-
-1. **REDを確認するまで実装コードを書かない。** テスト実行→FAIL確認→実装の順序を守る。
-2. **テストは仕様。** テストの期待する振る舞いをユーザー確認なしに変えない。
-3. **意味のあるテストを書く。** アサーションは具体的な値を検証し、実装の振る舞いを実際に判定するテストのみ書く。トートロジー・`toBeDefined()` のみ・カバレッジ稼ぎは書いても無駄。
-
-この3つに違反した場合: 実装コードを削除し、テストのRED確認からやり直す。
-
-なぜ重要か: テストを先に書く理由は「正しい問いを立ててから答える」ため。RED確認のスキップは「答えに合う問いを後付けする」行為であり、テストの信頼性を根本から損なう。
-
----
-
-## ステップ0: プロジェクト検出（最初に必ず実行）
-
-テストコードを書く前に、以下を順番に検出する:
-
-1. テストフレームワーク（Jest / Vitest / pytest / JUnit / RSpec / Go testing / Rust `#[test]` 等）
-2. テストファイルの配置規約（`__tests__/`、`*.test.ts`、`*_test.go`、`tests/` 等）
-3. テストの命名規約（既存テストから推測）
-4. テスト実行コマンド（`npm test`、`pytest`、`go test ./...`、`cargo test` 等）
-5. 関連スキルの有無（git-workflow、refactoring、code-review 等）
-
-**1つでも検出できなければユーザーに確認する。推測で補わない。**
-
----
-
-## ステップ1: 適用判断
-
-テストの書き方はコードの状態に依存する。以下のシグナルで判断し、迷ったらユーザーに確認する。
-
-### 仕様の確度を判断するシグナル
-
-| 確度 | シグナル例 |
-| ------ | ----------- |
-| 確定 | 型定義/APIスキーマがある、ユーザーが具体的な入出力を示した、既存テストがある |
-| 方針のみ | 「〜したい」「〜な感じで」、インターフェースは未定だがゴールは明確 |
-| 探索的 | 「試してみたい」「プロトタイプ」「どうなるか見たい」 |
-| 不明 | 途中参加、レガシーコード、ドキュメントなし |
-
-### テスタビリティを判断するシグナル
-
-| 状態 | シグナル例 |
-| ------ | ----------- |
-| テスタブル | 純粋関数、DI済み、モック可能な境界がある |
-| テスタブルでない | グローバル状態依存、DBを直接呼ぶ、外部APIが密結合、テストランナーすらない |
-
-### 判断結果→行動
-
-| 仕様 \ テスタビリティ | テスタブル | テスタブルでない |
-| --- | --- | --- |
-| **確定** | TDDサイクルを回す | 特性テストで安全網→テスタブルにリファクタリング→TDD |
-| **方針のみ** | 統合テストを先に書き、詳細は実装しながら追加 | 特性テスト→テスタブルにする→統合テストから開始 |
-| **探索的** | **ユーザーに確認**: 実装先行でよいか、仕様を先に固めるか | **ユーザーに確認**: 実装先行でよいか |
-| **不明** | 特性テストで現状記録→変更箇所からTDD導入 | 特性テストで現状記録→テスタブルにする→TDD |
-
-「探索的」は常にユーザー申告制。AIが勝手に判断して実装先行しない。
-
----
-
-## ステップ2: テストリスト作成
-
-テストコードを書く前に、テストケースを自然言語でリストアップする。
-
-```
-// テストリスト例: ポイント計算機能
-// [ ]  1000円の購入で10ポイント付与される
-// [ ]  999円の購入ではポイント0
-// [ ]  負の金額ではエラー
-// [ ]  ゴールド会員は2倍のポイント
-// [ ]  0円の購入ではポイント0（境界値）
-```
-
-テストリストにはエッジケース (null / 空 / 0 / 負数 / 境界値) を 3 つ以上含める。
-優先順位はユーザーに確認する。
-機能単位の場合はqa_nightmare未実行を明示し、通常TDD候補を親が作る。
-将来有効化後だけ `qa_nightmare` subagent の出力を反映する。
-
-### 順序の決め方
-
-1. そのテストを通すために核となるインターフェースや型の決定が必要 → 優先度高
-2. 既存の実装に変更なく通せる → 優先度低
-3. 判断がつかない → 最も単純なケースから
-
-テストリストは完璧でなくてよい。サイクル中に気づいたケースはリストに追加し、現在のサイクル完了後に着手する。
-
-**✅ リスト作成後、ユーザーに網羅性と優先順位を確認する。**
-
-> 「以下のテストケースで進めます。追加・変更・優先順位の調整はありますか?」
-
----
-
-## ステップ3: RED-GREEN-REFACTORサイクル
-
-### RED: 失敗するテストを書く
-
-**手順（この順序を守ること）:**
-
-1. テストケースを自然言語で言語化する（「何をテストするか」を明文化）
-2. テストコードを書く（**1サイクルにつき1テストケースのみ**）
-3. テストを実行する
-4. **意図した理由でFAIL**することを出力で確認する（スキップ禁止）
-
-確認ポイント:
-
-- コンパイルエラーや設定ミスではなく、機能が未実装だからFAILしているか?
-- テスト名から「対象」「条件」「期待結果」が読み取れるか?
-
-**❌ FAILを確認できない場合は実装に進まない。テストを見直すかユーザーに報告する。**
-
-#### 例外: サイクルを重ねた結果、追加テストが即PASSする場合
-
-三角測量や明白な実装で一般化が進んだ後、次に書いた境界テストが最初からPASSすることがある（例: サイクルNで一般化した関数が、サイクルN+1で想定した境界値も既にカバーしている）。
-
-この場合の扱い:
-
-| 項目 | 指針 |
-| ------ | ------ |
-| 実装 | **追加しない**（既に一般化済みのため） |
-| テスト | **回帰ガードとして残す**（将来のリファクタでの振る舞い保証） |
-| RED確認 | **不要**。鉄則1違反にならない |
-| 記録 | テスト直上に1行コメント（例: `// covered by generalization at cycle N — kept as regression guard`） |
-
-鉄則1「REDを確認するまで実装コードを書かない」は**新しい振る舞いを実装する前**に適用される。既存の一般化で満たされるテストは「実装を書くためのRED」ではなく「既存実装を固定するガード」であり、鉄則の対象外。
-
-判断に迷う場合の分岐: そのテストを削除しても**実装の振る舞いが変わらない**ならガード扱いでよい。変わるなら一般化が不完全 → 通常のRED-GREENサイクルに戻る。
-
-**連続してガード化が発生する場合の報告**: 3件以上が連続して即PASSするなら、個別のサイクル報告を繰り返さず1つの表にまとめてよい（列: ケース / 即PASSの理由 / ガードコメント）。最後にまとめて「N件ガード化、新規実装なし」と1行で完了報告する。
-
-### GREEN: 最小限の実装でテストを通す
-
-3つのテクニックを状況に応じて使い分ける:
-
-| テクニック | いつ使うか | やること |
-| ----------- | ---------- | --------- |
-| 仮実装（Fake It） | 正しい一般化がすぐ書けない | ハードコードでテストを通す |
-| 三角測量（Triangulation） | 仮実装では2つ目のテストを通せない | テスト追加で仮実装を一般化に追い込む |
-| 明白な実装（Obvious） | 実装が一目で書ける | 直接正しい実装を書く。詰まったら仮実装へ |
-
-**GREENではテストを通す最小限の変更だけ行う。「ついでに」のリファクタリングはしない。**
-
-### REFACTOR: テストを維持しながら改善
-
-GREENの直後に毎回判断する。以下のいずれかに該当すれば実施:
-
-- 直前のGREENで明らかな重複が生まれた
-- 命名が意図を反映していない
-- 1つの関数/メソッドが複数の責務を持っている
-
-該当しなければスキップしてよい。REFACTORは義務ではなく機会。
-
-やること: 重複除去、命名改善、責務分離。全テストがGREENのまま。
-やらないこと: 新機能追加（REDに戻る）、テストの振る舞い変更。
-
----
-
-## ステップ4: 特性テスト（レガシーコード対応）
-
-テストがない/信頼できないコードに対する段階的導入。
-
-### フェーズ1: 現状を記録する
-
-現在の振る舞いを「そのまま記録する」テストを書く。正しいかどうかは問わない。
-
-分離方法はプロジェクトの慣習に合わせる。慣習がなければ以下から選択:
-
-- `describe("CHARACTERIZATION: ...")` / `@Tag("characterization")` / テスト名に `[characterization]` プレフィックス / ファイル名で分離
-
-期待値に確信がない場合は `// TODO: 仕様確認後に修正` コメントを付ける。
-
-### フェーズ2: 変更箇所にTDDを適用
-
-1. 変更対象の周辺に特性テストを書く（安全網）
-2. 新しい振る舞いのテストをRED-GREEN-REFACTORで追加
-3. 仕様が確認できた特性テストを通常テストに昇格
-
-### フェーズ3: 触った箇所から拡大
-
-変更のたびにテストを充実させる。特性テストが減り、TDDテストが増える状態を目指す。
-
----
-
-## テストコード変更のルール
-
-### 変更してよい場合
-
-- テストケースの追加
-- テストの構文エラー修正（意図を変えない範囲）
-- ユーザーからの仕様変更指示に伴う期待値の変更
-- テストヘルパー抽出など、振る舞いを変えないリファクタリング
-- インターフェース変更に伴う呼び出し方の更新（期待する振る舞い自体は不変）
-
-### 禁止
-
-- 振る舞いが変わっていないのにアサーションの期待値を変える
-- FAILするテストを削除して緑にする
-- アサーションを緩くしてPASSさせる（`== 10` → `!= null` 等）
-- ユーザー確認なしでテストの期待する振る舞いを変更する
-
-判断基準: 「テスト対象の公開インターフェースから見て、振る舞いは変わったか?」 変わっていなければ期待値は変えない。
-
----
-
-## 出力形式テンプレート
-
-### 仕様確度の確認時（ステップ1で「方針のみ / 探索的 / 不明」と見立てた場合）
-
-```
-## 仕様確度の確認 📋
-
-発言シグナル: 「[ユーザーの該当文言を引用]」
-
-AI の見立て: [方針のみ / 探索的 / 不明（複数候補なら併記可）]
-  理由: [シグナルとの対応を1行]
-
-| 確度 | 該当時の推奨アプローチ |
-| ------ | ---------------------- |
-| 確定 | RED-GREEN-REFACTOR 通常運用 |
-| 方針のみ | 統合テスト先行 + 詳細は実装しながら追加 |
-| 探索的 | 2択: (a) 実装先行 → 固まったらテスト化 / (b) 先に最小仕様を固める |
-| 不明 | 特性テストで現状記録から |
-
-確認したい点:
-1. 上記のどれに該当しますか? （AI の見立てが正しいかの確認）
-2. [該当確度で必要になる最小情報を1-3件、ここで先取り質問]
-```
-
-「探索的」は常にユーザー申告制。上の出力で申告を促す前に AI 側で実装先行に進まない。
-
-### テストリスト提示時
-
-```
-## テストリスト: [機能名]
-
-□ [正常系1]: [入力] → [期待結果]
-□ [正常系2]: [入力] → [期待結果]
-□ [境界値]: [入力] → [期待結果]
-□ [異常系1]: [入力] → [期待結果（例外/エラー）]
-
-追加・変更・優先順位の調整はありますか?
-```
-
-### RED確認報告時
-
-```
-## RED確認 ✅
-
-テスト: [テスト名]
-実行結果: FAIL
-失敗理由: [実装が未存在 / 期待値 X に対し実際は Y]
-
-→ 実装に進みます。
-```
-
-### GREEN完了報告時
-
-```
-## GREEN完了 ✅
-
-テスト: [テスト名]
-実行結果: PASS
-実装内容: [1〜2行で説明]
-
-→ REFACTORを判断します。[実施する/スキップ（理由）]
-```
-
-### サイクル完了報告時
-
-```
-## サイクル完了
-
-完了: [N]件 PASS / 残り: [M]件
-次のテストケース: [ケース名]
-
-続行しますか?
-```
-
----
-
-## AI固有の注意点
-
-| よくある問題 | 対策 |
-| ------------ | ------ |
-| テストと実装を1回のレスポンスで同時に出す | テスト出力→実行→RED確認→実装出力の順序を守る |
-| 実装を見てからテストを逆算する | テストリストを先に作成する。実装コードを見る前にテストを書く |
-| 弱いアサーション（`toBeDefined()` のみ） | 具体的な値を検証する。最低限「期待する戻り値」をアサート |
-| 境界値・異常系の欠落 | テストリストに `null`、空文字列、0、負数、境界値を明示的に含める |
-| モックの戻り値を推測で決める | モック対象の実際のインターフェース（型定義/APIドキュメント）を確認してから作成 |
-| RED確認をスキップ | テスト実行コマンドを毎回実行し、FAILを出力で確認する |
-
-**RED確認のスキップが最も危険。** テストが最初からPASSする場合、そのテストは何も検証していない可能性がある。「意図した理由でFAILする」ことの確認が品質の要。
-
----
-
-## ユーザー確認ポイント
-
-すべてのステップで確認を求めると開発リズムが崩れる。以下のタイミングで確認する:
-
-| タイミング | 確認テンプレート |
-| ----------- | --------------- |
-| テストリスト作成後 | 「以下のテストケースで進めます。追加・変更・優先順位の調整はありますか?」 |
-| 最初のRED-GREEN完了後 | 「この方向性（テストの書き方、実装アプローチ）で残りも進めてよいですか?」 |
-| 仕様に曖昧さがある時 | 「[具体的な入力]の場合、期待する振る舞いは[A]と[B]のどちらですか?」 |
-| テストの期待値を変更したい時 | 「テスト[名前]の期待値を[旧]→[新]に変更してよいですか? 理由: [理由]」 |
-| 一連のサイクル完了後 | 「[N]件のテストがすべてPASSしています。次のステップに進みますか?」 |
-
-方向性が確定した後の反復的なRED-GREEN-REFACTORは、まとめて進めてよい。
-
----
-
-## コミット戦略
-
-全テストがPASSした状態でのみコミットする。テストの期待値を無断で変更しない。コミットメッセージはプロジェクト慣習に従う（git-workflowスキルがあれば参照）。
-
-| タイミング | コミット例 |
-| ----------- | ---------- |
-| GREEN完了（テスト+実装） | `feat: implement [feature] with tests` |
-| REFACTOR完了 | `refactor: [description]` |
-| 特性テスト追加 | `test: add characterization test for [target]` |
-| バグ修正（再現テスト+修正） | `fix: [description]` |
-
-RED（FAILするテスト）単独ではコミットしない。RED+GREENをセットでコミットする。
-
----
-
-テストリストに未着手ケースが残る場合は、次タスクとして `.codex/progress.md` に記載する。
-
-## 関連スキルとの連携
-
-| スキル | 連携ポイント |
-| ------- | ------------ |
-| refactoring | REFACTORフェーズで参照。テストが緑の状態を維持しながら構造改善 |
-| git-workflow | コミットメッセージ規約、ブランチ命名に従う |
-| code-review | テストの品質レビュー観点を参照 |
-| systematic-debugging | RED確認で予期しないエラーが出た場合の根本原因分析 |
-
----
-
-## アンチパターン
-
-| 禁止操作 | 理由 |
-| ---------- | ------ |
-| RED確認をスキップして実装に進む | テストの信頼性を損なう |
-| テストを書かずに実装する（ユーザー承認なし） | TDDの目的に反する |
-| 振る舞いが変わっていないのにテストの期待値を書き換える | 仕様の改ざん |
-| 複数テストケースを1サイクルで同時に扱う | サイクルの粒度違反 |
-| FAILするテストを削除/無効化して緑にする | 問題の隠蔽 |
-| 既存テストをユーザー確認なしに変更・削除する | 仕様の無断変更 |
-| FAILする状態でコミットする | CI破壊 |
-| モックの戻り値をインターフェース確認なしに推測で決める | ハルシネーション |
-| 「探索的」かどうかをAIが勝手に判断する | ユーザー申告制 |
-| テストと実装を同一レスポンスで同時出力する | RED確認の迂回 |
+- Test list
+- RED evidence
+- GREEN summary
+- REFACTOR summary
+- Verification: passed / failed / skipped
+- Remaining untested risk

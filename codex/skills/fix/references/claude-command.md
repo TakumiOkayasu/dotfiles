@@ -10,86 +10,61 @@
 - Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.
 - Subagent usage must follow `${HOME}/.codex/SUBAGENTS.md` and the current Codex tool contract.
 
-バグを修正する(再現→原因特定→TDD修正)
+症状を証拠へ落とし、根本原因を最小差分で修正し、回帰を防ぐ。
 
-## 引数
+## 入力
 
-ユーザー指定の対象 にバグの現象・状況が渡されます。
+`ユーザー指定の対象`に症状、期待値、環境、既知の再現条件が渡される。
 
-## 入出力
+## 原則
 
-| 項目 | 内容 |
-| ------ | ------ |
-| 入力 | `ユーザー指定の対象`: バグの現象・状況（例: "ログイン時にNullPointerExceptionが発生する"） |
-| 出力 | 修正サマリー（原因・修正内容・変更ファイル一覧・再発防止策） |
+- 再現、境界トレース、原因特定、回帰保護の順で進める
+- 「なぜ」を固定回数繰り返さない。根本原因へ到達するために必要な分だけ掘る
+- methodology skill、subagent、承認stepを一律に追加しない
+- `systematic-debugging`は原因が不明、境界が複数、再現が不安定な時に使う
+- `tdd`は回帰テストを作れる振る舞い変更で使う
+- `premise-questioning`は修正方針が不可逆、高影響、または前提自体を疑う必要がある時だけ使う
+- 親が十分に調査できる場合はsubagentへ委譲しない
 
-## 実行手順
+## 手順
 
-### Phase 0: スキル読み込み
+### 1. 症状を確定する
 
-- **実装スキル** (Phase 1 以降で活用):
-  - `$tdd`
-  - `$systematic-debugging`
-  - `$optimize`
-- **方針検証スキル**: Phase 2.5 で発動条件に該当した場合に `$premise-questioning` を読み込む (利用直前に読む)
+- expected / actual / environment / reproductionを記録する
+- 実行可能なら再現する
+- 再現できない場合は修正を禁止するのではなく、`static trace only`として証拠の強さと未確認事項を明示する
 
-### Phase 1: 現象確認
+### 2. 根本原因を特定する
 
-- バグの症状の画面上での確認、ログの確認 + 正確に記録
-- 再現手順の確立(100%再現可能にする)
-- エラーメッセージ・ログの収集
-- 再現できなければ修正提案禁止
+- 入力から失敗地点まで境界を追跡する
+- 変更履歴、呼び出し元、呼び出し先、設定、テストを一次ソースとして読む
+- 仮説は「原因候補」「予測される観測」「反証方法」の組で検証する
+- 複数の独立仮説を並行調査する価値がある場合だけsubagentを使う
 
-### Phase 2: 根本原因分析
+### 3. 回帰を証明する
 
-- **読み込んだスキルを活用** (Phase 2 は `systematic-debugging` が主、`TDD` は Phase 3 以降で主)
-- `systematic-debugging` skill の 4 フェーズを順に実施:
-  1. **再現** — Phase 1 の再現手順が成立していることを確認
-  2. **境界トレース** — どの層 (クライアント / API / Service / DB / 環境) で問題が発生しているか特定
-  3. **特定** — 「なぜ?」を **5 回以上**繰り返して**根本原因を掘り下げる**
-  4. **仮説** — 根本原因の候補を複数列挙し、各候補の検証方法を併記する
-- 根本原因が複数仮説に分かれた場合、または 3 ファイル以上にまたがる場合は **`debugger` subagent に dispatch する** (仮説生成・検証・最小修正まで担う。起動後は結果を `.codex/notes/{task-id}.md` へ集約し、Phase 3 の RED テスト作成へ進む)
-- 実コードを読まずに推測で決定しない (**一次ソース確認必須**)
-- **推測での修正禁止。根本原因と修正方針をユーザーに報告し、承認を得てから Phase 3 へ**
-  - 承認の定義: ユーザーから明示的な OK（「承認」「このまま進めて」等の文言）が返るまで Phase 3 に進まない。**自己承認・暗黙の承認は禁止**
-  - 情報不足時は `## 承認要求` 節に **確認項目を箇条書きで列挙** して提示する (推測で埋めない)
+可能なら、修正前に失敗し修正後に通る最小テストを追加する。
 
-### Phase 2.5: 方針検証 (Phase 3 前に判定)
+テストが作れない場合は、再現コマンド、静的契約、型検査、ログ等で代替し、代替の限界を明示する。
 
-Taskのscopeとriskを確認し,該当するskill descriptionに従う。Phase 2 で確定した修正方針が以下のいずれかに該当する場合は **premise-questioning skill のワークフロー全体を実行**し、✅ 採用判定が出るまで Phase 3 へ進まない:
+### 4. 最小修正を行う
 
-- 根本原因の修正がアーキテクチャ変更を伴う
-- 公開 API I/F 変更を伴う
-- DB スキーマ変更を伴う
-- 100 行以上の変更見込み
-- 外部依存 (ライブラリ / API / SDK) の追加・削除を伴う
+- 症状を隠すのではなく確定した原因を修正する
+- 無関係な整理、将来用抽象化、広範囲な置換を混ぜない
+- 既存契約の新実装で対応できる場合は契約を変更しない
 
-該当しない局所修正 (null チェック追加 / 境界値修正 / typo 等) の場合は `premise-questioning: skipped (理由: 局所修正)` を 1 行明示してスキップ。
+### 5. 検証とレビュー
 
-feature-pruning は通常不要 (機能追加でないため)。既存機能の削減を伴う場合のみ起動。
+- 回帰テストと関連テストを実行する
+- 同じfailure modeが別経路に残っていないか確認する
+- 禁止操作、承認必須操作、破壊的・不可逆操作に触れる差分は`HUMAN_REVIEW_REQUIRED`とし、人間承認なしでmerge可と判定しない
 
-### Phase 3: 失敗テスト作成 (RED)
+## 出力
 
-- バグを再現するテストを書く
-- テストが失敗することを確認(バグの証明)
-- リグレッション防止のためのテストも検討
-- qa_nightmare を**必ず**使用して嫌なテストを作成
-
-### Phase 4: 修正 (GREEN)
-
-- 根本原因に対する最小限の修正
-- 対症療法禁止(根本原因を直す)
-- 全テストが通ることを確認
-
-### Phase 5: リグレッション確認・報告
-
-- 既存テストが全て通ることを確認
-- 修正サマリー(原因・修正内容・変更ファイル)を出力
-- 再発防止策の提案(あれば)
-
-## 使用例
-
-```text
-$fix ログイン時に特定ユーザーのみ500エラーが返る
-$fix テスト実行時に test_foo が NullPointerException で落ちる
-```
+- Reproduction: reproduced / static trace only / unavailable
+- Root cause and evidence
+- Fix summary
+- Regression protection
+- Tests/checks: passed / failed / skipped
+- Human review gate: required / not required
+- Remaining risk
