@@ -1,0 +1,6 @@
+interface:
+  display_name: "Sanitize Artifacts"
+  short_description: "Optional workflow skill. Explicit invocation recommended."
+  default_prompt: "Use $sanitize-artifacts for this task."
+policy:
+  allow_implicit_invocation: false
