@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+"""Search current and aggregated project knowledge without loading the corpus."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Any
+
+try:
+    import tomllib
+except ModuleNotFoundError as error:  # pragma: no cover - runtime boundary
+    raise SystemExit("ai-knowledge-search requires Python 3.11+ (tomllib)") from error
+
+OWNER = "dotfile-work"
+TEXT_SUFFIXES = {".md", ".txt", ".json", ".jsonl", ".toml", ".yaml", ".yml"}
+
+
+class SearchError(RuntimeError):
+    pass
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Search reusable .ai knowledge across current and collected projects."
+    )
+    parser.add_argument("terms", nargs="+", help="terms that should influence ranking")
+    parser.add_argument(
+        "--repository",
+        default=os.environ.get("AI_KNOWLEDGE_REPOSITORY"),
+        help="aggregated private repository (or AI_KNOWLEDGE_REPOSITORY)",
+    )
+    parser.add_argument("--include-inbox", action="store_true")
+    parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--json", action="store_true")
+    return parser.parse_args()
+
+
+def load_manifest(path: Path) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return None
+    if data.get("owner") != OWNER:
+        return None
+    project_id = data.get("project_id")
+    if not isinstance(project_id, str) or not project_id:
+        return None
+    return data
+
+
+def find_current_project(start: Path) -> tuple[Path, str] | None:
+    current = start.resolve()
+    for candidate in (current, *current.parents):
+        manifest = load_manifest(candidate / ".ai" / "manifest.toml")
+        if manifest is not None:
+            return candidate, str(manifest["project_id"])
+    return None
+
+
+def load_index(repository: Path) -> list[dict[str, str]]:
+    path = repository / "index.json"
+    if not path.is_file():
+        raise SearchError(f"knowledge index not found: {path}")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise SearchError(f"invalid knowledge index {path}: {error}") from error
+    projects = data.get("projects")
+    if data.get("schema_version") != 1 or not isinstance(projects, list):
+        raise SearchError(f"unsupported knowledge index: {path}")
+
+    entries: list[dict[str, str]] = []
+    for item in projects:
+        if not isinstance(item, dict):
+            raise SearchError(f"invalid project entry in {path}")
+        project_id = item.get("project_id")
+        relative = item.get("path")
+        if not isinstance(project_id, str) or not isinstance(relative, str):
+            raise SearchError(f"invalid project entry in {path}")
+        value = Path(relative)
+        if value.is_absolute() or len(value.parts) != 2 or value.parts[0] != "projects":
+            raise SearchError(f"unsafe project path in {path}: {relative}")
+        entries.append({"project_id": project_id, "path": relative})
+    return entries
+
+
+def source_roots(
+    repository: Path | None,
+    include_inbox: bool,
+) -> list[tuple[str, str, Path]]:
+    sources: list[tuple[str, str, Path]] = []
+    current = find_current_project(Path.cwd())
+    current_id: str | None = None
+    if current is not None:
+        project, current_id = current
+        for kind in (("knowledge",), ("knowledge", "inbox"))[include_inbox]:
+            root = project / ".ai" / kind
+            if root.is_dir():
+                sources.append((current_id, kind, root))
+
+    if repository is not None:
+        repository = repository.expanduser().resolve()
+        for entry in load_index(repository):
+            project_id = entry["project_id"]
+            if project_id == current_id:
+                continue
+            base = repository / entry["path"]
+            kinds = ("knowledge", "inbox") if include_inbox else ("knowledge",)
+            for kind in kinds:
+                root = base / kind
+                if root.is_dir():
+                    sources.append((project_id, kind, root))
+    return sources
+
+
+def score_text(text: str, terms: list[str]) -> tuple[int, int, str] | None:
+    folded = text.casefold()
+    counts = [folded.count(term) for term in terms]
+    score = sum(counts)
+    matched_terms = sum(count > 0 for count in counts)
+    if score == 0:
+        return None
+
+    lines = text.splitlines()
+    best_line_number = 1
+    best_line_score = -1
+    best_line = ""
+    for line_number, line in enumerate(lines, 1):
+        line_folded = line.casefold()
+        line_score = sum(line_folded.count(term) for term in terms)
+        if line_score > best_line_score:
+            best_line_number = line_number
+            best_line_score = line_score
+            best_line = line.strip()
+    return score + (matched_terms * 10), best_line_number, best_line[:300]
+
+
+def search(args: argparse.Namespace) -> list[dict[str, Any]]:
+    if args.limit <= 0:
+        raise SearchError("--limit must be positive")
+    terms = [term.casefold().strip() for term in args.terms if term.strip()]
+    if not terms:
+        raise SearchError("at least one non-empty search term is required")
+
+    repository = Path(args.repository) if args.repository else None
+    results: list[dict[str, Any]] = []
+    for project_id, kind, root in source_roots(repository, args.include_inbox):
+        for path in sorted(root.rglob("*")):
+            if not path.is_file() or path.is_symlink() or path.suffix.lower() not in TEXT_SUFFIXES:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            scored = score_text(text, terms)
+            if scored is None:
+                continue
+            score, line, snippet = scored
+            results.append(
+                {
+                    "project_id": project_id,
+                    "kind": kind,
+                    "path": str(path),
+                    "score": score,
+                    "line": line,
+                    "snippet": snippet,
+                }
+            )
+
+    results.sort(key=lambda item: (-item["score"], item["project_id"], item["path"]))
+    return results[: args.limit]
+
+
+def main() -> int:
+    args = parse_args()
+    try:
+        results = search(args)
+    except (OSError, SearchError) as error:
+        print(f"ai-knowledge-search: {error}", file=sys.stderr)
+        return 1
+
+    if args.json:
+        print(json.dumps(results, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        for item in results:
+            print(
+                f"{item['project_id']}:{item['path']}:{item['line']}: "
+                f"{item['snippet']}"
+            )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
