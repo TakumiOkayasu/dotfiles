@@ -1,31 +1,37 @@
-# dotfile-work
+# dotfiles
 
-個人開発・業務環境で使う dotfiles と Claude Code / Codex 設定を管理する。
+個人用dotfilesリポジトリ。Shell/Git/Vim設定とClaude Code/Codex設定を、`install.sh` でシンボリックリンクまたは通常ファイルとして配置する。
 
-## セットアップ
+## クイックスタート
 
 ```bash
-git clone git@github.com:TakumiOkayasu/dotfile-work.git
-cd dotfile-work
-./install.sh
+./install.sh -n           # ドライラン (プレビュー)
+./install.sh -f           # 全ファイルインストール
+source ~/.bashrc          # 設定反映
 ```
 
-source ~/.bashrc          # 設定反映
+## インストールオプション
+
+```bash
+./install.sh              # 対話モード (カテゴリ選択)
+./install.sh -f           # 全ファイル強制インストール
+./install.sh -n           # ドライラン
 ./install.sh -u           # アンインストール (リンク削除、バックアップ復元)
+```
 
 > **Windows**: WSL内で実行する。例: PowerShellから `wsl bash ./install.sh -f`
 
 ## 構成
 
-| ディレクトリ | 配置先 / 用途 |
-| --- | --- |
-| `config/shell/` | `~/` - bash/zsh/fish設定、共通aliases/env |
-| `config/git/` | `~/`, `~/.config/git/` - Git設定、補完、global ignore、attributes |
-| `config/vim/` | `~/` - .vimrc |
-| `claude/` | `~/.claude/` - Claude Code固有の入力 (agent, hook, settings) |
-| `codex/` | `~/.codex/` - Codex固有の入力 (AGENTS.md, SUBAGENTS.md, agent, hook) |
-| `common/` | install時にClaude/Codex形式へ変換 - command/rule/skillの共有正本 |
-| `bin/` | `~/.local/bin` - CLIツール |
+| ディレクトリ | 配置先 | 内容 |
+| --- | --- | --- |
+| `config/shell/` | `~/` | bash/zsh/fish設定、共通aliases/env |
+| `config/git/` | `~/`, `~/.config/git/` | Git設定、補完、global ignore、attributes |
+| `config/vim/` | `~/` | .vimrc |
+| `claude/` | `~/.claude/` | Claude Code固有の入力 (agent, hook, settings) |
+| `codex/` | `~/.codex/` | Codex固有の入力 (AGENTS.md, SUBAGENTS.md, agent, hook) |
+| `common/` | install時にClaude/Codex形式へ変換 | command/rule/skillの共有正本 |
+| `bin/` | `~/.local/bin/` | CLIツール (後述) |
 
 ### CLIツール (bin/)
 
@@ -37,9 +43,9 @@ source ~/.bashrc          # 設定反映
 | `git-cleanup-branch` | マージ済みブランチ削除 (ローカル+リモート) |
 | `gh-setup-repo` | GitHubリポジトリ設定 (ブランチ保護、PR後自動削除) |
 
-`ai-init-project` は `.ai/state/`, `.ai/inbox/`, `.ai/knowledge/` と `manifest.toml` を作る。`.ai/` は Claude Code / Codex 共通のdurable knowledgeだけを持ち、`.claude/`, `.codex/`, `claude_tmp/`, `codex_tmp/` のruntime stateやscratchとは分離する。既存の `.ai/` に本workflowのmanifestが無い場合は、他toolの領域を奪わないよう初期化を拒否する。
+`ai-init-project` は `.ai/state/`, `.ai/inbox/`, `.ai/knowledge/` と `manifest.toml` を作る。`.ai/` はClaude Code / Codex共通のdurable knowledgeだけを持ち、`.claude/`, `.codex/`, `claude_tmp/`, `codex_tmp/` のruntime stateやscratchとは分離する。既存の `.ai/` に本workflowのmanifestが無い場合は、他toolの領域を奪わないよう初期化を拒否する。
 
-`.ai/` はglobal gitignore対象で、元projectのrepositoryにはcommitしない。将来のcross-project collectorは `~/prog/` 直下の各projectから `.ai/` だけを収集し、`.claude/`, `.codex/`, `claude_tmp/`, `codex_tmp/` を直接exportしない。各runtimeの有用な発見は、必要な要点だけ `.ai/inbox/` へharvestしてから共有する。
+`.ai/` はglobal gitignore対象で、元projectのrepositoryにはcommitしない。cross-project collectorは `~/prog/` 直下の各projectから `.ai/` だけを収集し、`.claude/`, `.codex/`, `claude_tmp/`, `codex_tmp/` を直接exportしない。各runtimeの有用な発見は、必要な要点だけ `.ai/inbox/` へharvestしてから共有する。
 
 Codex workflow は plugin skill (`$feat`, `$fix`, `$deep-review` など) から起動する。旧 `codex-cmd` と個別wrapperは配布しない。
 
@@ -64,13 +70,13 @@ Codex workflow は plugin skill (`$feat`, `$fix`, `$deep-review` など) から�
 | ディレクトリ / ファイル | 内容 |
 | --- | --- |
 | `global_AGENTS.md` | `~/.codex/AGENTS.md` にリネームして配置される Codex 常時指示 |
-| `SUBAGENTS.md` | `~/.codex/SUBAGENTS.md` に配置する subagent mechanics |
+| `SUBAGENTS.md` | `~/.codex/SUBAGENTS.md` に配置される subagent mechanics |
 | `config.toml.template` | 初回生成する `~/.codex/config.toml` の雛形。hook定義を含む |
 | `hooks/` | hook 実体スクリプト |
 | `skills/` | Codex固有skillの正本だけを置く。共有skillと標準workflowはinstall時生成 |
 | `.generated/ai-assets/codex/rules/` | Git管理しない生成view。正本は `common/rules/` と生成script |
 
-Codex設定の使い方は `codex/README.md` を参照。初回起動時に hook のレビュー警告が出た場合は、Codex 上で `/hooks` を開いて許可する。
+Codex設定の使い方は `codex/README.md` を参照。初回起動時に hook レビュー警告が出た場合は、Codex 上で `/hooks` を開いて許可する。
 
 ### Codex skills の配置
 
