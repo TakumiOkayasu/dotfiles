@@ -197,7 +197,7 @@
       ]
     }
   },
-  "effortLevel": "high",
+  "effortLevel": "medium",
   "fallbackModel": [],
   "switchModelsOnFlag": false,
   "theme": "auto",
