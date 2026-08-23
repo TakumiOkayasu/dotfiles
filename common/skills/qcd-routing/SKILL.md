@@ -107,7 +107,9 @@ ai-qcd record \
 winnerは以下の順で比較する。
 
 1. quota deltaが測れる場合はその中央値
-2. uncached/cache-write/output/reasoning token量によるusage proxy
+2. `uncached input + output` のusage proxy
 3. duration中央値
+
+cached input、cache write、reasoning outputは別の診断値として保持する。runtimeが出す内訳の包含関係を確認せず加算して「cost」とみなさない。
 
 品質未達routeは、安くてもwinnerにしない。
