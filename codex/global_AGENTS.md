@@ -32,6 +32,7 @@
 ## Delegation
 
 - Independentでboundedな作業を並列化すると品質または速度が実質的に改善する場合にsubagentを使う. 親agentが結果を統合し,根拠,diff,検証結果を確認する.
+- Delegateするtaskは品質gateを先に定め,task complexity/riskと実測QCDに基づいて最小十分なmodel/effortを選ぶ. `qcd-routing` skillが利用可能ならそのrouteを使い,requested model/effortが実効値として確認できないruntimeでは切替成功を仮定しない.
 
 ## Web retrieval
 
