@@ -41,8 +41,10 @@ The project-local `.ai/` directory is the only source that the cross-project col
 
 Runtime-specific adapters may inspect their own state and explicitly harvest reusable findings into `.ai/inbox/`. This keeps backup/export independent from runtime-specific file formats and prevents raw logs or scratch data from becoming durable knowledge by accident.
 
+Managed `.ai/` projects are included in sibling collection by default. Set `[export].enabled = false` only when a specific project must be excluded from the external private knowledge repository.
+
 ## Privacy
 
-`.ai/` is private local state by default and is excluded by the global gitignore. Export to an external private repository is opt-in per project through `.ai/manifest.toml`.
+`.ai/` is private local state and is excluded by the global gitignore. The cross-project repository is also private, but export remains an external write: reusable knowledge must not contain credentials, tokens, private keys, environment files, raw secret-bearing logs, or customer-confidential source contents.
 
-Do not place credentials, tokens, private keys, environment files, raw secret-bearing logs, or customer-confidential source contents in reusable knowledge. Preserve the decision-relevant abstraction and evidence reference instead of copying sensitive source material.
+Preserve the decision-relevant abstraction and evidence reference instead of copying sensitive source material.
