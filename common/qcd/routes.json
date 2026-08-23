@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "runtimes": {
+    "codex": {
+      "lookup": [
+        {"model": "gpt-5.6-luna", "effort": "medium"},
+        {"model": "gpt-5.6-luna", "effort": "low"},
+        {"model": "gpt-5.6-terra", "effort": "medium"},
+        {"model": "gpt-5.6-sol", "effort": "high"}
+      ],
+      "bounded": [
+        {"model": "gpt-5.6-terra", "effort": "medium"},
+        {"model": "gpt-5.6-luna", "effort": "high"},
+        {"model": "gpt-5.6-terra", "effort": "high"},
+        {"model": "gpt-5.6-sol", "effort": "high"}
+      ],
+      "reasoning": [
+        {"model": "gpt-5.6-terra", "effort": "high"},
+        {"model": "gpt-5.6-sol", "effort": "medium"},
+        {"model": "gpt-5.6-sol", "effort": "high"},
+        {"model": "gpt-5.6-sol", "effort": "xhigh"}
+      ],
+      "critical": [
+        {"model": "gpt-5.6-sol", "effort": "xhigh"},
+        {"model": "gpt-5.6-sol", "effort": "high"},
+        {"model": "gpt-5.6-sol", "effort": "max"}
+      ]
+    },
+    "claude": {
+      "lookup": [
+        {"model": "sonnet", "effort": "medium"},
+        {"model": "sonnet", "effort": "low"},
+        {"model": "sonnet", "effort": "high"},
+        {"model": "opus", "effort": "low"}
+      ],
+      "bounded": [
+        {"model": "sonnet", "effort": "high"},
+        {"model": "sonnet", "effort": "medium"},
+        {"model": "opus", "effort": "medium"},
+        {"model": "opus", "effort": "high"}
+      ],
+      "reasoning": [
+        {"model": "sonnet", "effort": "xhigh"},
+        {"model": "sonnet", "effort": "high"},
+        {"model": "opus", "effort": "high"},
+        {"model": "opus", "effort": "xhigh"}
+      ],
+      "critical": [
+        {"model": "opus", "effort": "xhigh"},
+        {"model": "opus", "effort": "high"},
+        {"model": "opus", "effort": "max"}
+      ]
+    }
+  }
+}

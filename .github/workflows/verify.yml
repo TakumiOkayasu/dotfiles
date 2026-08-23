@@ -26,6 +26,7 @@ jobs:
           python3 scripts/generate-ai-assets.py --repo .
           python3 tests/test_generate_ai_assets.py
           python3 tests/test_ai_knowledge_policy.py
+          python3 tests/test_ai_qcd.py
           python3 tests/test_ai_knowledge_sync.py
           python3 tests/test_ai_knowledge_search.py
 
