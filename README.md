@@ -38,6 +38,7 @@ source ~/.bashrc          # 設定反映
 | コマンド | 説明 |
 | --- | --- |
 | `ai-init-project` | 現在のGitリポジトリへruntime-neutralな `.ai/` knowledge stateを初期化 |
+| `ai-knowledge-sync` | `~/prog/*/.ai/` のopt-in knowledgeを専用Git repositoryへ集約・commit・push |
 | `claude-init-project` | 現在のGitリポジトリへ `.claude/notes` と `scratch` の雛形を配置 |
 | `git-new-feature <name>` | ブランチ作成 (`-f` fix / `-d` docs / `-r` refactor / `-c` chore) |
 | `git-cleanup-branch` | マージ済みブランチ削除 (ローカル+リモート) |
@@ -46,6 +47,25 @@ source ~/.bashrc          # 設定反映
 `ai-init-project` は `.ai/state/`, `.ai/inbox/`, `.ai/knowledge/` と `manifest.toml` を作る。`.ai/` はClaude Code / Codex共通のdurable knowledgeだけを持ち、`.claude/`, `.codex/`, `claude_tmp/`, `codex_tmp/` のruntime stateやscratchとは分離する。既存の `.ai/` に本workflowのmanifestが無い場合は、他toolの領域を奪わないよう初期化を拒否する。
 
 `.ai/` はglobal gitignore対象で、元projectのrepositoryにはcommitしない。cross-project collectorは `~/prog/` 直下の各projectから `.ai/` だけを収集し、`.claude/`, `.codex/`, `claude_tmp/`, `codex_tmp/` を直接exportしない。各runtimeの有用な発見は、必要な要点だけ `.ai/inbox/` へharvestしてから共有する。
+
+### Cross-project knowledge sync
+
+各projectで `ai-init-project` を実行した後、外部private repositoryへ同期してよいprojectだけ `.ai/manifest.toml` の `export.enabled` を `true` にする。
+
+collectorは既定で `~/prog/` の**直下だけ**を探索する。同期先repositoryも `~/prog/` 配下に置いてよく、自分自身は探索対象から除外する。
+
+```bash
+AI_KNOWLEDGE_REPOSITORY="$HOME/prog/ai-knowledge-private" ai-knowledge-sync --dry-run
+AI_KNOWLEDGE_REPOSITORY="$HOME/prog/ai-knowledge-private" ai-knowledge-sync
+```
+
+日次実行はcollectorとschedulerを分離する。cronを使う場合は、同期先を実際のprivate repository checkoutへ置き換えて次のように登録する。
+
+```cron
+17 3 * * * AI_KNOWLEDGE_REPOSITORY="$HOME/prog/ai-knowledge-private" "$HOME/.local/bin/ai-knowledge-sync" >> "$HOME/.local/state/ai-knowledge-sync.log" 2>&1
+```
+
+cron環境で`$HOME`展開や認証agentが利用できない環境では、絶対pathとその環境で利用可能なGit認証方式を使う。collectorはdirtyな同期先、secretらしいpath、binary、symlink、既定2MiB超fileを拒否し、全sourceを検証してから同期先を変更する。
 
 Codex workflow は plugin skill (`$feat`, `$fix`, `$deep-review` など) から起動する。旧 `codex-cmd` と個別wrapperは配布しない。
 
