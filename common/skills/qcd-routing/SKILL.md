@@ -9,6 +9,8 @@ description: subagentや別workerへtaskを渡す際に、品質を落とさずm
 
 `高いmodel = 常に良い`、`低effort = 常に安い`とは仮定しない。modelとeffortは組として実測する。
 
+route候補とbaselineは `common/qcd/routes.json` を正本とする。model名やeffortの組を本skillへ重複定義しない。
+
 ## 対象
 
 親agentがpromptから独立したtaskを切り出し、次のいずれかを行う直前に使う。
@@ -37,8 +39,8 @@ main thread内で数十秒で終わる単純処理に、routingだけのため�
 
 1. task classを決める。
 2. `ai-qcd route --runtime <codex|claude> --task-class <class> --json` を使える場合は実行する。
-3. `source = observed` なら、quality gateを満たした実測winnerとして優先する。
-4. `source = baseline` なら安全側の初期routeとして扱い、実測winnerとは呼ばない。
+3. `source = observed-paired` なら、paired experimentのquality gateを満たした実測winnerとして優先する。
+4. `source = baseline` なら `common/qcd/routes.json` の先頭routeを安全側の初期値として扱い、実測winnerとは呼ばない。
 5. semantic roleに合う既存subagentが同じrouteを持つなら、そのagentを優先する。
 6. runtimeがper-invocation overrideを**現在のtool contractで公開しており、effective model/effortを確認できる場合だけ**model/effort overrideを使う。
 7. overrideが公開されない、または実効値を検証できない場合は既存role/defaultを使う。prompt本文にmodel名を書くだけで切替わったとみなさない。
@@ -75,39 +77,52 @@ syntax error、network error、権限不足、test environment不備はmodel esc
 
 ## Observation
 
-routeの改善に使う実測は `.ai/state/qcd-observations.jsonl` へ残す。
+通常業務のrunも `.ai/state/qcd-observations.jsonl` へtelemetryとして残せる。ただしtask難易度が揃っていないため、**通常runだけではrouteを自動昇格しない**。
+
+requested/effectiveの両方を区別して記録する。effective値を確認できないrunはprovisional observationであり、paired experimentにも使わない。
+
+## Paired experiment
+
+routeを自動昇格する場合は、同じtask classで同一scenario集合を複数routeに実行する。
+
+各runに共通の`cohort-id`とscenarioごとの`scenario-id`を付ける。
 
 ```bash
 ai-qcd record \
-  --runtime codex \
-  --task-class bounded \
-  --requested-model gpt-5.6-terra \
-  --requested-effort medium \
-  --effective-model gpt-5.6-terra \
-  --effective-effort medium \
+  --runtime <runtime> \
+  --task-class <class> \
+  --requested-model <requested-model> \
+  --requested-effort <requested-effort> \
+  --effective-model <verified-model> \
+  --effective-effort <verified-effort> \
   --quality pass \
-  --duration-ms 12345 \
-  --input-tokens 10000 \
-  --cached-input-tokens 9000 \
-  --output-tokens 500
+  --cohort-id <experiment-id> \
+  --scenario-id <scenario-id> \
+  --duration-ms <duration> \
+  --input-tokens <input> \
+  --cached-input-tokens <cached> \
+  --output-tokens <output>
 ```
 
-`effective-*` を確認できないrunはprovisional observationとして残してよいが、winner選定には使わない。
+比較対象routeは**同じscenario multiset**を持たなければならない。片方だけ簡単なscenarioを多く実行したcohortは無効とする。
 
 ## Promotion gate
 
-`ai-qcd route` は既定で次を満たすrouteだけをobserved winnerにする。
+`ai-qcd route` は既定で次を全て満たすpaired cohortだけをobserved winnerにする。
 
 - effective model/effort確認済み
-- 同じruntime × task class × routeで5 samples以上
-- quality pass rate 100%
+- routeが `common/qcd/routes.json` の現行candidateに含まれる
+- 2 route以上を比較
+- 全比較routeで同じscenario集合
+- 各route 5 samples以上
+- 各routeのquality pass rate 100%
 
-この閾値は最低限であり、critical taskやrouteのglobal default化ではさらに多いsampleとhold-out検証を使う。
+通常業務telemetryはこのgateを満たさない。`--cohort-id`で特定実験だけを評価でき、省略時は最新の有効paired cohortを使う。
 
-winnerは以下の順で比較する。
+winnerは全比較routeで同じmetricが観測できる場合だけ、次の優先順位で比較する。
 
-1. quota deltaが測れる場合はその中央値
-2. `uncached input + output` のusage proxy
+1. quota delta中央値
+2. `uncached input + output` のusage proxy中央値
 3. duration中央値
 
 cached input、cache write、reasoning outputは別の診断値として保持する。runtimeが出す内訳の包含関係を確認せず加算して「cost」とみなさない。
