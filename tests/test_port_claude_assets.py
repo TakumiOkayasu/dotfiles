@@ -830,27 +830,17 @@ class GenerateStandardWorkflowSkillsTest(unittest.TestCase):
             "common/commands/commit.md",
         )
         workflow = generator.WORKFLOWS["plugin-sync"][2]
-        commands = [
-            "generate-standard-workflow-skills.py",
-            "port-claude-assets-to-codex.py",
-            "apply-codex-performance-profile.py",
-            "sync-codex-plugin.py",
-            "verify-codex-plugin.py",
-        ]
-        positions = [workflow.index(command) for command in commands]
-        self.assertEqual(positions, sorted(positions))
-        self.assertIn("--prune", workflow)
-        for command in commands:
-            self.assertIn(f"uv run python scripts/{command}", workflow)
+        self.assertIn("python3 scripts/generate-ai-assets.py --repo .", workflow)
+        self.assertIn("isolated tracked-source staging tree", workflow)
+        self.assertNotIn("uv run python scripts/port-claude-assets-to-codex.py", workflow)
 
-    def test_generated_assets_workflow_rejects_untracked_views(self) -> None:
+    def test_generated_assets_workflow_verifies_install_time_views(self) -> None:
         workflow_path = REPO_ROOT / ".github" / "workflows" / "verify.yml"
         workflow = workflow_path.read_text(encoding="utf-8")
 
-        self.assertIn(
-            "git ls-files --others --exclude-standard -- codex/skills codex/rules",
-            workflow,
-        )
+        self.assertIn("python3 scripts/generate-ai-assets.py --repo .", workflow)
+        self.assertIn("python3 tests/test_generate_ai_assets.py", workflow)
+        self.assertNotIn("Require generated views to be committed", workflow)
 
 
 if __name__ == "__main__":

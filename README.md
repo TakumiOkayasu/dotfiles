@@ -19,7 +19,7 @@ source ~/.bashrc          # 設定反映
 ./install.sh -u           # アンインストール (リンク削除、バックアップ復元)
 ```
 
-> **Windows**: PowerShell → `wsl bash ./install.sh -f` / Git Bash → 直接実行可
+> **Windows**: WSL内で実行する。例: PowerShellから `wsl bash ./install.sh -f`
 
 ## 構成
 
@@ -28,9 +28,9 @@ source ~/.bashrc          # 設定反映
 | `config/shell/` | `~/` | bash/zsh/fish設定、共通aliases/env |
 | `config/git/` | `~/`, `~/.config/git/` | Git設定、補完、global ignore、attributes |
 | `config/vim/` | `~/` | .vimrc |
-| `claude/` | `~/.claude/` | Claude Code設定一式 (後述) |
-| `codex/` | `~/.codex/` | Codex設定一式 (AGENTS.md, SUBAGENTS.md, hooks, rules)。skills は plugin 配布用 source |
-| `common/` | `~/.claude/`, Codex向け生成物 | Claude/Codexの共有正本 |
+| `claude/` | `~/.claude/` | Claude Code固有の入力 (agent, hook, settings) |
+| `codex/` | `~/.codex/` | Codex固有の入力 (AGENTS.md, SUBAGENTS.md, agent, hook) |
+| `common/` | install時にClaude/Codex形式へ変換 | command/rule/skillの共有正本 |
 | `bin/` | `~/.local/bin/` | CLIツール (後述) |
 
 ### CLIツール (bin/)
@@ -46,7 +46,7 @@ Codex workflow は plugin skill (`$feat`, `$fix`, `$deep-review` など) から�
 
 ### Claude Code設定 (claude/ + common/)
 
-`install.sh` で `claude/` の固有設定と `common/` の共有資産が `~/.claude/` にリンクされる。`global_CLAUDE.md` は `CLAUDE.md` にリネーム。
+`install.sh` はtrackedな `claude/` と `common/` だけを読み、Claude用viewを `.generated/ai-assets/claude/` に生成・検証してから `~/.claude/` へリンクする。`global_CLAUDE.md` は `CLAUDE.md` にリネームされる。
 
 | ディレクトリ | 内容 |
 | --- | --- |
@@ -56,11 +56,11 @@ Codex workflow は plugin skill (`$feat`, `$fix`, `$deep-review` など) から�
 | `claude/hooks/` | Claude固有の自動処理 |
 | `claude/vendor/` | 外部スキル (vercel-labs/agent-skills)。`install.sh` が自動cloneし、SessionStart hookで更新 |
 
-共有するcommand/rule/skillは `common/` に追加する。Claude固有の設定、hook、agentは `claude/` に追加する。`install.sh` はtracked fileを自動検出する。
+共有するcommand/rule/skillは `common/` にだけ追加する。Claude固有の設定、hook、agentは `claude/` に追加する。未追跡ファイルは生成入力に含めない。
 
 ### Codex設定 (codex/)
 
-`install.sh` でCodex設定を `~/.codex/` に配置する。hook定義は初回生成される `~/.codex/config.toml` のinline TOMLから読み込む。旧 `~/.codex/hooks.json` は新規配置しない。
+`install.sh` は同じ `common/` 正本をCodex形式へ変換し、rules index/bundle、skill metadata、plugin bundleまで検証した後で `~/.codex/` と `~/.agents/plugins/marketplace.json` に配置する。hook定義は初回生成される `~/.codex/config.toml` のinline TOMLから読み込む。旧 `~/.codex/hooks.json` は新規配置しない。
 
 | ディレクトリ / ファイル | 内容 |
 | --- | --- |
@@ -68,36 +68,26 @@ Codex workflow は plugin skill (`$feat`, `$fix`, `$deep-review` など) から�
 | `SUBAGENTS.md` | `~/.codex/SUBAGENTS.md` に配置される subagent mechanics |
 | `config.toml.template` | 初回生成する `~/.codex/config.toml` の雛形。hook定義を含む |
 | `hooks/` | hook 実体スクリプト |
-| `skills/` | plugin 配布用 source。`install.sh` では `~/.agents/skills/` に重複配置しない |
-| `rules/` | 参照ルール。常時ロード前提にはしない |
+| `skills/` | Codex固有skillの正本だけを置く。共有skillと標準workflowはinstall時生成 |
+| `.generated/ai-assets/codex/rules/` | Git管理しない生成view。正本は `common/rules/` と生成script |
 
 Codex設定の使い方は `codex/README.md` を参照。初回起動時に hook レビュー警告が出た場合は、Codex 上で `/hooks` を開いて許可する。
 
 ### Codex skills の配置
 
-共有skillは `common/skills/` を正本にし、Codex固有skillは `codex/skills/` で管理する。`codex/skills/` には共有skillのCodex向け生成viewも含まれる。bundleは `plugins/dotfile-work-codex*` に生成され、Git管理しない。
+共有skillは `common/skills/` を正本にし、Codex固有skillだけを `codex/skills/` で管理する。Claude/Codex向けview、標準workflow、rules集約、`plugins/dotfile-work-codex*` は `.generated/ai-assets/` に生成し、Git管理しない。
 
 `scripts/claude-command-map.json` はcommand変換、許可するnested resource、Codex固有skill、core/extra分類の正本である。生成/同期/検証scriptは同じmanifestを読み、分類のずれを検出する。rules indexとbundleも共通rendererから生成し、verifierが元ruleとの一致を検査する。
 
-標準 workflow skills を再生成して plugin bundle に反映する場合は、リポジトリルートで次を実行する。
+通常は `install.sh` が自動生成する。開発中に生成結果だけを確認する場合は次を実行する。
 
 ```bash
-uv run python scripts/generate-standard-workflow-skills.py --repo . --overwrite
-uv run python scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup --prune
-uv run python scripts/apply-codex-performance-profile.py --repo .
-uv run python scripts/sync-codex-plugin.py --repo . --clean
-uv run python scripts/verify-codex-plugin.py --repo .
+python3 scripts/generate-ai-assets.py --repo .
 ```
 
-生成済みの `codex/skills/` をbundleへ反映するだけなら `sync-codex-plugin.py` と `verify-codex-plugin.py` だけでよい。
+生成は一時treeで全pipelineを完走し、成功した場合だけ `.generated/ai-assets` を差し替える。途中で失敗した場合は直前の完全なtreeを保持する。
 
-個人環境の `~/.codex/plugins/` と `~/.agents/plugins/marketplace.json` まで配置する場合は次を実行する。
-
-```bash
-uv run python scripts/install-codex-plugin-personal.py --repo .
-```
-
-配置後は Codex を再起動し、`/plugins` で `dotfile-work-codex` を有効化する。`dotfile-work-codex-extra` は必要な時だけ有効化する。
+Codexを選択したinstallでは `~/.codex/plugins/` と `~/.agents/plugins/marketplace.json` も同時に配置する。`/plugins` で `dotfile-work-codex` を有効化し、`dotfile-work-codex-extra` は必要な時だけ有効化する。
 
 ## Git設定の配置
 

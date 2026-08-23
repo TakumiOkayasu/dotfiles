@@ -1,6 +1,0 @@
-interface:
-  display_name: "Plan"
-  short_description: "Planning-only, no file changes."
-  default_prompt: "Use $plan for this task."
-policy:
-  allow_implicit_invocation: true

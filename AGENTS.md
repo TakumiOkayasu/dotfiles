@@ -6,7 +6,7 @@
 `config/` は通常の dotfiles、`bin/` は `~/.local/bin/` 向け CLI、`claude/` と `codex/` は各ランタイム固有資産を置く。
 共有する command/rule/skill は `common/` を正本とし、`scripts/` で Codex 向け生成物と plugin bundle に変換する。
 `tests/` には shell テスト、pytest、Docker 定義がある。
-`.stow-work/` と `plugins/dotfile-work-codex*` は生成物なので直接編集しない。
+`.stow-work/` と `.generated/ai-assets/` は生成物なので直接編集しない。
 
 ## 開発と検証のコマンド
 
@@ -16,12 +16,12 @@ docker compose -f tests/compose.yml run --rm hooks-test
 docker compose -f tests/compose.yml run --rm codex-hooks-test
 docker compose -f tests/compose.yml run --rm shell-lint-test
 docker compose -f tests/compose.yml run --rm install-test
-uv run python scripts/verify-codex-plugin.py --repo .
+python3 scripts/generate-ai-assets.py --repo .
 ```
 
 `./install.sh -n` は実ホームを変更せず配置予定を確認する。
 Docker サービスは hook、CLI、ShellCheck、installer/asset pipeline を分離して検証する。
-共有資産を変更した場合は README の generate、port、profile、sync、verify の順で再生成する。
+共有資産を変更した場合は `generate-ai-assets.py` で隔離された全pipelineを実行する。
 
 ## コーディング規約
 
@@ -49,7 +49,7 @@ pytest は `Test...` クラスと `test_<behavior>` 関数、shell テストは�
 
 ## AI 駆動開発
 
-作業前に `git status --short`、`README.md`、`codex/rules/RULES_CORE.md`、`RULES_INDEX.md` と該当する full rule を読む。
+作業前に `git status --short`、`README.md`、`common/rules/` の該当ruleを読む。生成後の整合性確認には `.generated/ai-assets/codex/rules/RULES_INDEX.md` を使う。
 機能、修正、レビューは plugin skill の `$feat`、`$fix`、`$review` または `$deep-review` から開始する。
 リポジトリ内の実装、テスト、生成 manifest を一次ソースとして source から生成物、配置先まで追跡する。
 既存差分を戻さず、実行していない検証を成功と報告しない。

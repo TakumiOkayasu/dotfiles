@@ -1,6 +1,0 @@
-interface:
-  display_name: "Arch"
-  short_description: "Optional workflow skill. Explicit invocation recommended."
-  default_prompt: "Use $arch for this task."
-policy:
-  allow_implicit_invocation: false

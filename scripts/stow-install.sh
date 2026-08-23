@@ -391,6 +391,13 @@ prepare_generated_package() {
 
     remove_legacy_generated_targets "$_package"
 
+    # Uninstall must use the exact package that created the current target links.
+    # Rebuilding it from a newer manifest can leave removed assets installed.
+    if [ "$MODE_UNINSTALL" = "true" ] && [ -d "$_package_dir" ] && [ -s "$_manifest" ]; then
+        printf '%s\n' "$_stow_dir"
+        return 0
+    fi
+
     if generated_package_matches_manifest "$_package_dir" "$_manifest"; then
         printf '%s\n' "$_stow_dir"
         return 0

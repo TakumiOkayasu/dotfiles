@@ -11,7 +11,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CLAUDE_AGENT = REPO_ROOT / "claude" / "agents" / "qa-nightmare.md"
 CODEX_AGENT = REPO_ROOT / "codex" / "agents" / "qa_nightmare.toml"
 CLAUDE_TDD = REPO_ROOT / "common" / "skills" / "tdd" / "SKILL.md"
-CODEX_TDD = REPO_ROOT / "codex" / "skills" / "tdd" / "SKILL.md"
+CODEX_TDD = (
+    REPO_ROOT / ".generated" / "ai-assets" / "codex" / "skills" / "tdd" / "SKILL.md"
+)
 PHASE3_HEADING = "## Phase 3: テストケース具体化"
 PHASE4_HEADING = "## Phase 4: ランク付け"
 PHASE5_HEADING = "## Phase 5: 完全性と重大ケースのゲート"

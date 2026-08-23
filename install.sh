@@ -61,6 +61,11 @@ COMMON_QA_NIGHTMARE_MANIFEST="common/qa-nightmare/manifest.json"
 COMMON_COMMANDS="common/commands"
 COMMON_RULES="common/rules"
 COMMON_SKILLS="common/skills"
+AI_ASSET_GENERATOR_REL="scripts/generate-ai-assets.py"
+AI_ASSET_ROOT_REL=".generated/ai-assets"
+AI_CLAUDE_ASSETS=".generated/ai-assets/claude"
+AI_CODEX_ASSETS=".generated/ai-assets/codex"
+AI_PLUGIN_ASSETS=".generated/ai-assets/plugins"
 
 DOTWORK_MARKER_BEGIN="# === dotfile-work: BEGIN ==="
 DOTWORK_MARKER_END="# === dotfile-work: END ==="
@@ -126,7 +131,7 @@ print_info()    { printf "${COLOR_BLUE}→${COLOR_RESET} %s\n" "$1"; }
 print_header()  { printf "\n${COLOR_BOLD}${COLOR_CYAN}%s${COLOR_RESET}\n" "$1"; }
 
 check_requirements() {
-    for cmd in git ln mkdir rm mv cp cmp; do
+    for cmd in git python3 ln mkdir rm mv cp cmp; do
         command -v "$cmd" >/dev/null 2>&1 || die "必須コマンドが見つかりません: $cmd"
     done
 }
@@ -285,6 +290,43 @@ stow_specs_add_dest() {
     _dest="$3"
     _dest_rel=$(home_relative_path "$_dest") || return 1
     stow_specs_add "$_spec_file" "$_source" "$_dest_rel"
+}
+
+generate_ai_assets() {
+    [ "$CLAUDE_SELECTED" = "true" ] || [ "$CODEX_SELECTED" = "true" ] || return 0
+
+    _generator="${DOTFILES_DIR}/${AI_ASSET_GENERATOR_REL}"
+    [ -f "$_generator" ] || die "AI asset generator が見つかりません: $_generator"
+    print_info "common/* から Claude/Codex 用assetを生成・検証"
+    python3 "$_generator" --repo "$DOTFILES_DIR" || die "AI asset の生成・検証に失敗しました"
+    for _generated_dir in "$AI_CLAUDE_ASSETS" "$AI_CODEX_ASSETS" "$AI_PLUGIN_ASSETS"; do
+        [ -d "${DOTFILES_DIR}/${_generated_dir}" ] || die "生成済みAI assetが不足しています: $_generated_dir"
+    done
+}
+
+add_generated_ai_stow_specs() {
+    _spec_file="$1"
+    _target="$2"
+    _package="$3"
+    _previous_manifest="${DOTFILES_DIR}/.stow-work/.manifests/${_package}.links"
+
+    if [ "$MODE_UNINSTALL" = "true" ]; then
+        [ -s "$_previous_manifest" ] && cat "$_previous_manifest" >> "$_spec_file"
+        return 0
+    fi
+
+    _generator="${DOTFILES_DIR}/${AI_ASSET_GENERATOR_REL}"
+    _generated_manifest="${DOTFILES_DIR}/${AI_ASSET_ROOT_REL}/manifest.json"
+    [ -f "$_generated_manifest" ] || return 0
+
+    _generated_specs=$(mktemp)
+    _TMPFILES="$_TMPFILES $_generated_specs"
+    if ! python3 "$_generator" --repo "$DOTFILES_DIR" --list-target "$_target" > "$_generated_specs"; then
+        print_error "生成済み ${_target} asset manifest の読み込みに失敗しました"
+        COUNT_ERROR=$((COUNT_ERROR + 1))
+        return 1
+    fi
+    cat "$_generated_specs" >> "$_spec_file"
 }
 
 prepare_stow_targets_from_file() {
@@ -1230,9 +1272,6 @@ _claude_install_stow_package() {
     new_stow_specs_file
     _spec_file="$_stow_specs_file"
     _claude_add_managed_stow_specs "$_spec_file"
-    add_common_hooks_stow_specs "$_spec_file" ".claude/hooks"
-    add_common_qa_nightmare_checklists_stow_specs "$_spec_file" ".claude/skills/qa-nightmare/checklists"
-    add_common_qa_nightmare_manifest_stow_spec "$_spec_file" ".claude/skills/qa-nightmare"
     install_stow_specs_file "claude" "$_spec_file"
 }
 
@@ -1240,51 +1279,12 @@ _claude_uninstall_stow_package() {
     new_stow_specs_file
     _spec_file="$_stow_specs_file"
     _claude_add_managed_stow_specs "$_spec_file"
-    add_common_hooks_stow_specs "$_spec_file" ".claude/hooks"
-    add_common_qa_nightmare_checklists_stow_specs "$_spec_file" ".claude/skills/qa-nightmare/checklists"
-    add_common_qa_nightmare_manifest_stow_spec "$_spec_file" ".claude/skills/qa-nightmare"
     uninstall_stow_specs_file "claude" "$_spec_file"
 }
 
 _claude_add_managed_stow_specs() {
     _spec_file="$1"
-    [ -d "${DOTFILES_DIR}/claude" ] || return 0
-
-    _filelist=$(mktemp)
-    _TMPFILES="$_TMPFILES $_filelist"
-    (
-        cd "$DOTFILES_DIR" &&
-            git ls-files \
-                claude/ \
-                "${COMMON_COMMANDS}/" \
-                "${COMMON_RULES}/" \
-                "${COMMON_SKILLS}/" 2>/dev/null
-    ) > "$_filelist"
-
-    while IFS= read -r _file; do
-        [ -z "$_file" ] && continue
-        [ -e "${DOTFILES_DIR}/${_file}" ] || [ -L "${DOTFILES_DIR}/${_file}" ] || continue
-
-        case "$_file" in
-            "${COMMON_COMMANDS}"/*)
-                _dest_relative="commands/${_file#"${COMMON_COMMANDS}"/}"
-                ;;
-            "${COMMON_RULES}"/*)
-                _dest_relative="rules/${_file#"${COMMON_RULES}"/}"
-                ;;
-            "${COMMON_SKILLS}"/*)
-                _dest_relative="skills/${_file#"${COMMON_SKILLS}"/}"
-                ;;
-            claude/*)
-                _relative="${_file#claude/}"
-                case "$_relative" in CLAUDE.md) continue ;; esac
-                _dest_relative=$(claude_target_relative "$_relative")
-                ;;
-        esac
-        stow_specs_add "$_spec_file" "$_file" ".claude/${_dest_relative}"
-    done < "$_filelist"
-
-    rm -f "$_filelist"
+    add_generated_ai_stow_specs "$_spec_file" claude claude
 }
 
 _claude_setup_vendor_skills() {
@@ -1453,22 +1453,20 @@ _codex_ensure_directories() {
     ensure_dir "${HOME}/.codex/bin"
     ensure_dir "${HOME}/.codex/hooks"
     ensure_dir "${HOME}/.codex/rules"
-    ensure_dir "${HOME}/.agents/skills"
+    ensure_dir "${HOME}/.codex/plugins"
+    ensure_dir "${HOME}/.agents/plugins"
 }
 
 _codex_cleanup_all() {
-    cleanup_stale_links_in "Codex"       "${HOME}/.codex"  agents bin hooks rules skills
+    cleanup_stale_links_in "Codex"       "${HOME}/.codex"  agents bin hooks plugins rules skills
     cleanup_removed_codex_links
-    cleanup_stale_links_in "Codex skill" "${HOME}/.agents" skills
+    cleanup_stale_links_in "Codex shared" "${HOME}/.agents" plugins skills
 }
 
 _codex_install_stow_package() {
     new_stow_specs_file
     _spec_file="$_stow_specs_file"
     _codex_add_managed_stow_specs "$_spec_file"
-    add_common_hooks_stow_specs "$_spec_file" ".codex/hooks"
-    add_common_qa_nightmare_checklists_stow_specs "$_spec_file" ".codex/agents/qa-nightmare/checklists"
-    add_common_qa_nightmare_manifest_stow_spec "$_spec_file" ".codex/agents/qa-nightmare"
     install_stow_specs_file "codex" "$_spec_file"
 }
 
@@ -1476,30 +1474,12 @@ _codex_uninstall_stow_package() {
     new_stow_specs_file
     _spec_file="$_stow_specs_file"
     _codex_add_managed_stow_specs "$_spec_file"
-    add_common_hooks_stow_specs "$_spec_file" ".codex/hooks"
-    add_common_qa_nightmare_checklists_stow_specs "$_spec_file" ".codex/agents/qa-nightmare/checklists"
-    add_common_qa_nightmare_manifest_stow_spec "$_spec_file" ".codex/agents/qa-nightmare"
     uninstall_stow_specs_file "codex" "$_spec_file"
 }
 
 _codex_add_managed_stow_specs() {
     _spec_file="$1"
-    [ -d "${DOTFILES_DIR}/codex" ] || return 0
-
-    _filelist=$(mktemp)
-    _TMPFILES="$_TMPFILES $_filelist"
-    (cd "$DOTFILES_DIR" && git ls-files codex/ 2>/dev/null) > "$_filelist"
-
-    while IFS= read -r _file; do
-        [ -z "$_file" ] && continue
-        [ -e "${DOTFILES_DIR}/${_file}" ] || [ -L "${DOTFILES_DIR}/${_file}" ] || continue
-
-        _relative="${_file#codex/}"
-        _dest=$(codex_dest_for_relative "$_relative") || continue
-        stow_specs_add_dest "$_spec_file" "$_file" "$_dest"
-    done < "$_filelist"
-
-    rm -f "$_filelist"
+    add_generated_ai_stow_specs "$_spec_file" codex codex
 }
 
 _codex_generate_config_from_template() {
@@ -1819,13 +1799,14 @@ _preview_bin() {
 
 _preview_claude() {
     printf "  ${COLOR_CYAN}Claude Code設定:${COLOR_RESET}\n"
-    printf "    + claude/* と common/{commands,rules,skills} -> ~/.claude/*\n"
+    printf "    + trackedな claude/* と common/* -> 生成・検証 -> ~/.claude/*\n"
     echo ""
 }
 
 _preview_codex() {
     printf "  ${COLOR_CYAN}Codex設定:${COLOR_RESET}\n"
-    printf "    + codex/AGENTS, agents, hooks, rules -> ~/.codex/*\n"
+    printf "    + trackedな codex/* と common/* -> 生成・検証 -> ~/.codex/*\n"
+    printf "    + plugin bundle -> ~/.codex/plugins, ~/.agents/plugins/marketplace.json\n"
     printf "    + codex/config.toml.template -> ~/.codex/config.toml (存在しない場合のみ生成)\n"
     printf "    + codex/*.config.toml -> ~/.codex/*.config.toml (profile)\n"
     printf "    - codex/skills/* は plugin 配布のため install 対象外\n"
@@ -1967,6 +1948,7 @@ _run_install_mode() {
     else
         _apply_force_mode_defaults
     fi
+    generate_ai_assets
     install_files
 }
 

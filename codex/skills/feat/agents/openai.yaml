@@ -1,6 +1,0 @@
-interface:
-  display_name: "Feat"
-  short_description: "Risk-gated feature implementation with TDD."
-  default_prompt: "Use $feat for this task."
-policy:
-  allow_implicit_invocation: true

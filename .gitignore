@@ -1,5 +1,6 @@
 # Temporary files
 claude_tmp/
+__pycache__/
 
 # Claude Code session files (per-project)
 .claude/
@@ -22,6 +23,9 @@ codex/agents-tmp/
 
 # Generated GNU stow packages
 .stow-work/
+
+# Install-time AI-specific views
+.generated/
 
 # Generated Codex plugin bundles
 plugins/dotfile-work-codex/

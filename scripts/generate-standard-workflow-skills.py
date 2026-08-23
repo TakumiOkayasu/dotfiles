@@ -89,12 +89,12 @@ WORKFLOWS: dict[str, tuple[str, str, str]] = {
     "plugin-sync": (
         "Synchronize codex assets into the local plugin bundle and verify plugin packaging.",
         "Plugin Sync",
-        """Run `uv run python scripts/generate-standard-workflow-skills.py --repo . --overwrite`, then `uv run python scripts/port-claude-assets-to-codex.py --repo . --overwrite --no-backup --prune`, then `uv run python scripts/apply-codex-performance-profile.py --repo .`, then `uv run python scripts/sync-codex-plugin.py --repo . --clean`, then `uv run python scripts/verify-codex-plugin.py --repo .`. Stop on the first failure.\n""",
+        """Run `python3 scripts/generate-ai-assets.py --repo .`. It builds the complete pipeline in an isolated tracked-source staging tree, verifies the plugin bundles, and publishes only a complete result under `.generated/ai-assets/`.\n""",
     ),
     "plugin-install": (
         "Install the local dotfile-work Codex plugins into the personal marketplace source.",
         "Plugin Install",
-        """Run `uv run python scripts/install-codex-plugin-personal.py --repo .`. Then restart Codex, open `/plugins`, install/enable core plugin, and trust hooks. Enable extra plugin only when needed.\n""",
+        """Run `./install.sh`, select Codex, then open `/plugins` and enable the core plugin. The installer generates and links the personal plugin source and marketplace. Enable the extra plugin only when needed.\n""",
     ),
 }
 

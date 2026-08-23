@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+GENERATED_CODEX = REPO_ROOT / ".generated" / "ai-assets" / "codex"
 INSTALL_SH = REPO_ROOT / "install.sh"
 CLAUDE_SETTINGS = REPO_ROOT / "claude" / "settings.json"
 CCSTATUSLINE_UPDATER = REPO_ROOT / ".github" / "workflows" / "update-ccstatusline.yml"
@@ -17,11 +18,10 @@ COMMON_AUDIT_SKILL = (
     REPO_ROOT / "common" / "skills" / "instruction-surface-audit" / "SKILL.md"
 )
 CODEX_AUDIT_SKILL = (
-    REPO_ROOT / "codex" / "skills" / "instruction-surface-audit" / "SKILL.md"
+    GENERATED_CODEX / "skills" / "instruction-surface-audit" / "SKILL.md"
 )
 CODEX_AUDIT_METADATA = (
-    REPO_ROOT
-    / "codex"
+    GENERATED_CODEX
     / "skills"
     / "instruction-surface-audit"
     / "agents"

@@ -1,6 +1,0 @@
-interface:
-  display_name: "Rules Compliance Review"
-  short_description: "Optional workflow skill. Explicit invocation recommended."
-  default_prompt: "Use $rules-compliance-review for this task."
-policy:
-  allow_implicit_invocation: false
