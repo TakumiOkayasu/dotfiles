@@ -5,17 +5,19 @@ description: 過去案件や前回セッションで得た再利用可能な判�
 
 # Knowledge Reuse
 
-過去に支払った調査・失敗・判断コストを再利用する。常時コンテキストを増やさず、必要な時だけ `.ai/knowledge/` と `.ai/inbox/` を検索する。
+過去に支払った調査・失敗・判断コストを再利用する。常時コンテキストを増やさず、必要な時だけ関連knowledgeを検索する。
 
 ## 読むとき
 
 1. 現在の問題を表す具体的な語を2-5個選ぶ。
-2. `.ai/knowledge/` を先に検索する。
-3. 十分な根拠がなければ `.ai/inbox/` を候補情報として検索する。
-4. 適用条件、反例、検証時点を確認する。
-5. 現在の一次ソースや実コードと矛盾した場合は現在の証拠を優先する。
+2. `ai-knowledge-search <語...> --json` が利用可能なら使う。current projectの `.ai/knowledge/` と、`AI_KNOWLEDGE_REPOSITORY` が設定されていれば集約済みの他project knowledgeを同時に検索する。
+3. CLIが利用できない場合はcurrent projectの `.ai/knowledge/` を直接検索する。
+4. verified knowledgeで十分な根拠がなければ、必要な場合だけ `--include-inbox` または `.ai/inbox/` を候補情報として検索する。
+5. hitしたfile全体を読む前にpath/snippet/適用条件を確認し、必要なentryだけ読む。
+6. 適用条件、反例、検証時点を確認する。
+7. 現在の一次ソースや実コードと矛盾した場合は現在の証拠を優先する。
 
-全knowledgeをコンテキストへ読み込まない。
+全knowledgeやcentral repository全体をコンテキストへ読み込まない。
 
 ## 残すとき
 
