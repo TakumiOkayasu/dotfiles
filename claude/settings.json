@@ -5,7 +5,6 @@
     "VISUAL": "zed --wait"
   },
   "includeCoAuthoredBy": false,
-  "defaultMode": "auto"
   "permissions": {
     "allow": [
       "Bash",
