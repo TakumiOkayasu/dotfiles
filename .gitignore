@@ -26,3 +26,6 @@ codex/agents-tmp/
 # Generated Codex plugin bundles
 plugins/dotfile-work-codex/
 plugins/dotfile-work-codex-extra/
+
+# other
+audits/*
