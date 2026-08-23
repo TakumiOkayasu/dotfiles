@@ -68,6 +68,21 @@ codex --profile fast
 codex --profile deep-review
 ```
 
+### Subagentのmodel/effort
+
+全subagentの既定値は `gpt-5.6-luna` / `medium` とし、role定義で必要な分だけ上書きする。
+
+| role | model | effort | 理由 |
+| --- | --- | --- | --- |
+| `code_reviewer` | `gpt-5.6-terra` | `high` | 大量の読取とedge case検査を両立 |
+| `debugger` | `gpt-5.6-sol` | `high` | 仮説生成と根本原因追跡を優先 |
+| `design_consultant` | `gpt-5.6-terra` | `high` | 複数案の比較と反証を優先 |
+| `impl_planner` | `gpt-5.6-terra` | `medium` | 読取中心の定型的な計画作成 |
+| `qa_nightmare` | `gpt-5.6-sol` | `high` | 将来有効化時の複雑な境界分析用。現状はdispatch禁止 |
+| `test_writer` | `gpt-5.6-terra` | `medium` | scope済みのテスト生成を低latencyで処理 |
+
+`max_concurrent_threads_per_session` はworker数の要求ではなく、open thread数の上限である。端末、WSL、CI、ChatGPT Workなど実行環境ごとのcapacityに追従させるため未設定とし、Codexのdefaultへ委ねる。
+
 ### 補助スクリプト
 
 `codex/bin/model-context.sh` は model 名から context window を推定し、`maxTokens` と `usableTokens` を JSON で返す。`install.sh` で `~/.codex/bin/model-context.sh` にリンクされる。
@@ -114,6 +129,8 @@ Subdirectory固有の指示が必要な場合は,対象に近い階層へ追加�
 - `.generated/ai-assets/codex/skills/` はinstall時の生成viewであり、直接編集もGit管理もしない。
 - `.generated/ai-assets/plugins/dotfile-work-codex*` は生成viewのskill/ruleとCodex固有hook/binから作るローカルbundle。
 - 共有skillは `port-claude-assets-to-codex.py` でCodexのruntime contractへ変換してから配布する。
+- `common/skills/*/SKILL.md` の `effort` はClaude Code用metadataとして保持する。Codex生成viewではClaude固有frontmatterを除去し、session/profileまたはcustom agentの `model_reasoning_effort` を使う。
+- `disable-model-invocation` はCodex生成viewのfrontmatterへ残さず、`agents/openai.yaml` の `allow_implicit_invocation` へ意味を変換する。
 - `generate-ai-assets.py` はtracked sourceだけを一時treeへ移し、全変換と `verify-codex-plugin.py` を完走した結果だけを公開する。
 - core pluginのrule hookはinline dispatcherを検出した場合に処理を譲り、plugin未導入時はinline hookをfallbackとして使う。
 - `.generated/ai-assets/codex/rules/` は参照資料。Codex が自動的に常時ロードする前提にはしない。

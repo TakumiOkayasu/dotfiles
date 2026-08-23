@@ -533,6 +533,22 @@ class TestCodexAgentDefinitions:
     """Codex custom agent 定義の基本 schema を検証するテスト"""
 
     REQUIRED_KEYS = ("name", "description", "developer_instructions")
+    CODEX_PROFILES = {
+        "code_reviewer": ("gpt-5.6-terra", "high"),
+        "debugger": ("gpt-5.6-sol", "high"),
+        "design_consultant": ("gpt-5.6-terra", "high"),
+        "impl_planner": ("gpt-5.6-terra", "medium"),
+        "qa_nightmare": ("gpt-5.6-sol", "high"),
+        "test_writer": ("gpt-5.6-terra", "medium"),
+    }
+    CLAUDE_PROFILES = {
+        "code-reviewer": ("sonnet", "high"),
+        "debugger": ("sonnet", "high"),
+        "design-consultant": ("inherit", "high"),
+        "impl-planner": ("sonnet", "medium"),
+        "qa-nightmare": ("sonnet", "high"),
+        "test-writer": ("sonnet", "medium"),
+    }
 
     def _agent_names(self) -> set[str]:
         agent_files = sorted((REPO_ROOT / "codex" / "agents").glob("*.toml"))
@@ -566,6 +582,55 @@ class TestCodexAgentDefinitions:
             assert data["name"] == agent_file.stem, (
                 f"{agent_file}: name should match file stem"
             )
+
+    def test_codex_agent_profiles_match_task_complexity(self) -> None:
+        """Codex agentごとのmodel/effortを軽作業と難しい推論で分ける"""
+        actual = {}
+        for agent_file in sorted((REPO_ROOT / "codex" / "agents").glob("*.toml")):
+            data = tomllib.loads(agent_file.read_text(encoding="utf-8"))
+            actual[data["name"]] = (data["model"], data["model_reasoning_effort"])
+
+        assert actual == self.CODEX_PROFILES
+
+    def test_claude_agent_profiles_match_task_complexity(self) -> None:
+        """Claude agentでも常時maxを避け、role別にmodel/effortを固定する"""
+        actual = {}
+        for agent_file in sorted((REPO_ROOT / "claude" / "agents").glob("*.md")):
+            content = agent_file.read_text(encoding="utf-8")
+            fields = {}
+            for key in ("name", "model", "effort"):
+                match = re.search(rf"^{key}:\s*([^\n]+)$", content, re.MULTILINE)
+                assert match is not None, f"{agent_file}: {key} is required"
+                fields[key] = match.group(1).strip()
+            actual[fields["name"]] = (fields["model"], fields["effort"])
+
+        assert actual == self.CLAUDE_PROFILES
+
+    def test_shared_skill_effort_reserves_high_for_complex_workflows(self) -> None:
+        """共有skillは必要なworkflowだけhighとしxhigh/maxを常設しない"""
+        expected_high = {
+            "arch",
+            "design-team",
+            "empirical-prompt-tuning",
+            "feature-pruning",
+            "optimize",
+            "orchestrate",
+            "premise-questioning",
+            "probe",
+            "systematic-debugging",
+        }
+        actual_high = set()
+        skill_files = sorted((REPO_ROOT / "common" / "skills").glob("*/SKILL.md"))
+        for skill_file in skill_files:
+            content = skill_file.read_text(encoding="utf-8")
+            match = re.search(r"^effort:\s*([^\n]+)$", content, re.MULTILINE)
+            if match is None:
+                continue
+            effort = match.group(1).strip()
+            assert effort == "high", f"{skill_file}: unexpected effort {effort}"
+            actual_high.add(skill_file.parent.name)
+
+        assert actual_high == expected_high
 
     def test_should_resolve_agent_references_when_tdd_skills_dispatch(self) -> None:
         """各 TDD skill の agent 参照が対応する実在 agent を指す"""
@@ -639,12 +704,14 @@ class TestCodexConfigTemplate:
             "#:schema https://developers.openai.com/codex/config-schema.json\n"
         )
 
-    def test_config_template_preserves_configured_agent_thread_limit(self) -> None:
-        """agent thread 上限に正式キーと明示設定値を使う"""
+    def test_config_template_delegates_agent_thread_limit_to_runtime(self) -> None:
+        """実行環境ごとに異なる安全なthread上限をCodexへ委ねる"""
         data = tomllib.loads(self.TEMPLATE.read_text(encoding="utf-8"))
 
-        assert data["agents"]["max_concurrent_threads_per_session"] == 100
+        assert "max_concurrent_threads_per_session" not in data["agents"]
         assert "max_threads" not in data["agents"]
+        assert data["agents"]["default_subagent_model"] == "gpt-5.6-luna"
+        assert data["agents"]["default_subagent_reasoning_effort"] == "medium"
 
     def test_config_template_excludes_removed_feature_flags(self) -> None:
         """削除済み feature flag をテンプレートに残さない"""
@@ -857,7 +924,30 @@ class TestRuleDistribution:
         openai_yaml = (skill / "agents" / "openai.yaml").read_text(
             encoding="utf-8"
         )
-        assert "allow_implicit_invocation: false" in openai_yaml
+        assert "allow_implicit_invocation: true" in openai_yaml
+
+    def test_performance_profile_maps_shared_manual_invocation_policy(
+        self, tmp_path: Path
+    ) -> None:
+        """Claudeの明示起動指定をCodex metadataへ変換する"""
+        module = runpy.run_path(
+            str(REPO_ROOT / "scripts" / "apply-codex-performance-profile.py")
+        )
+        shared = tmp_path / "common" / "skills" / "manual" / "SKILL.md"
+        shared.parent.mkdir(parents=True)
+        shared.write_text(
+            "---\nname: manual\ndescription: Manual.\n"
+            "disable-model-invocation: true\n---\n",
+            encoding="utf-8",
+        )
+
+        assert module["allows_implicit_invocation"](tmp_path, "manual") is False
+
+        shared.write_text(
+            "---\nname: manual\ndescription: Automatic.\n---\n",
+            encoding="utf-8",
+        )
+        assert module["allows_implicit_invocation"](tmp_path, "manual") is True
 
     def test_performance_profile_preserves_existing_global_agents(
         self, tmp_path: Path

@@ -3,6 +3,8 @@ description = """
 QAベテラン視点で本番障害になりやすい見落としテストケースを抽出する評価用エージェント。
 現行Codexでは構造的no-toolを保証できないため実運用dispatch禁止。
 """
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 developer_instructions = """
 あなたは QA ベテランとして、対象機能の"本番障害になる見落としケース"をランク付きで列挙する instruction-enforced no-tool 評価用サブエージェントです。

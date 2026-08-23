@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import stat
 import sys
 from pathlib import Path
@@ -215,10 +216,22 @@ def skill_directories(skills_dir: Path) -> tuple[Path, ...]:
     )
 
 
-def add_openai_yaml(skills: tuple[Path, ...]) -> None:
+def allows_implicit_invocation(root: Path, skill_name: str) -> bool:
+    shared_skill = root / "common" / "skills" / skill_name / "SKILL.md"
+    if not shared_skill.is_file():
+        return skill_name in CORE_SKILLS
+    frontmatter = read_text(shared_skill).split("\n---\n", 1)[0]
+    return re.search(
+        r"^disable-model-invocation:\s*(?:true|yes|on|1)\s*$",
+        frontmatter,
+        flags=re.MULTILINE | re.IGNORECASE,
+    ) is None
+
+
+def add_openai_yaml(root: Path, skills: tuple[Path, ...]) -> None:
     for skill in skills:
         name = skill.name
-        implicit = "true" if name in CORE_SKILLS else "false"
+        implicit = "true" if allows_implicit_invocation(root, name) else "false"
         short = CORE_SHORT.get(name, "Optional workflow skill. Explicit invocation recommended.")
         display = name.replace("-", " ").title()
         prompt = DEFAULT_PROMPTS.get(name, f"Use ${name} for this task.")
@@ -282,7 +295,7 @@ def main() -> int:
     root = Path(args.repo).resolve()
     generate_rules(root)
     skills = skill_directories(root / "codex" / "skills")
-    add_openai_yaml(skills)
+    add_openai_yaml(root, skills)
     patch_install_mapping(root)
     chmod_tree(root)
     print("applied Codex performance profile")
