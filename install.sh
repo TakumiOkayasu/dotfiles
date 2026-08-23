@@ -1452,13 +1452,12 @@ _codex_ensure_directories() {
     ensure_dir "${HOME}/.codex/agents"
     ensure_dir "${HOME}/.codex/bin"
     ensure_dir "${HOME}/.codex/hooks"
-    ensure_dir "${HOME}/.codex/prompts"
     ensure_dir "${HOME}/.codex/rules"
     ensure_dir "${HOME}/.agents/skills"
 }
 
 _codex_cleanup_all() {
-    cleanup_stale_links_in "Codex"       "${HOME}/.codex"  agents bin hooks prompts rules skills
+    cleanup_stale_links_in "Codex"       "${HOME}/.codex"  agents bin hooks rules skills
     cleanup_removed_codex_links
     cleanup_stale_links_in "Codex skill" "${HOME}/.agents" skills
 }
@@ -1660,7 +1659,7 @@ show_category_menu() {
     printf "  ${COLOR_BOLD}5)${COLOR_RESET} Claude Code設定\n"
     printf "     hooks, skills, rules, commands を ~/.claude/ に配置\n"
     printf "  ${COLOR_BOLD}6)${COLOR_RESET} Codex設定\n"
-    printf "     agents, inline hooks template, rules, prompts を ~/.codex/ に配置 (skills は plugin 配布)\n"
+    printf "     agents, inline hooks template, rules を ~/.codex/ に配置 (skills は plugin 配布)\n"
     echo ""
     printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべて  ${COLOR_BOLD}q)${COLOR_RESET} 終了\n"
     echo ""
@@ -1826,7 +1825,7 @@ _preview_claude() {
 
 _preview_codex() {
     printf "  ${COLOR_CYAN}Codex設定:${COLOR_RESET}\n"
-    printf "    + codex/AGENTS, agents, hooks, rules, prompts -> ~/.codex/*\n"
+    printf "    + codex/AGENTS, agents, hooks, rules -> ~/.codex/*\n"
     printf "    + codex/config.toml.template -> ~/.codex/config.toml (存在しない場合のみ生成)\n"
     printf "    + codex/*.config.toml -> ~/.codex/*.config.toml (profile)\n"
     printf "    - codex/skills/* は plugin 配布のため install 対象外\n"

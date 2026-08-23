@@ -843,6 +843,15 @@ class GenerateStandardWorkflowSkillsTest(unittest.TestCase):
         for command in commands:
             self.assertIn(f"uv run python scripts/{command}", workflow)
 
+    def test_generated_assets_workflow_rejects_untracked_views(self) -> None:
+        workflow_path = REPO_ROOT / ".github" / "workflows" / "verify.yml"
+        workflow = workflow_path.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "git ls-files --others --exclude-standard -- codex/skills codex/rules",
+            workflow,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

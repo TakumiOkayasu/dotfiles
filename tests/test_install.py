@@ -1677,6 +1677,7 @@ class TestIntegrationInstallUninstall:
         assert not (codex_dir / "hooks.json").exists()
         assert not (codex_dir / "README.md").exists()
         assert not (codex_dir / "settings.json").exists()
+        assert not (codex_dir / "prompts").exists()
         assert not (codex_dir / "skills" / "tdd" / "SKILL.md").exists()
         assert not (codex_dir / "skills" / "natural-japanese" / "SKILL.md").exists()
         assert not (home / ".agents" / "skills" / "tdd" / "SKILL.md").exists()
