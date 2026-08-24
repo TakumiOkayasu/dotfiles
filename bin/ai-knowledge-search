@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Search current and aggregated project knowledge without loading the corpus."""
+"""Search current and aggregated sanitized project knowledge without loading the corpus."""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -16,8 +19,11 @@ except ModuleNotFoundError as error:  # pragma: no cover - runtime boundary
     raise SystemExit("ai-knowledge-search requires Python 3.11+ (tomllib)") from error
 
 OWNER = "dotfile-work"
+INDEX_SCHEMA_VERSION = 2
 DEFAULT_REPOSITORY = Path.home() / "prog" / "ai-knowledge-private"
+DEFAULT_REDACTION_KEY_FILE = Path.home() / ".config" / "dotfiles" / "ai-knowledge-redaction.key"
 TEXT_SUFFIXES = {".md", ".txt", ".json", ".jsonl", ".toml", ".yaml", ".yml"}
+PROJECT_REF_RE = re.compile(r"^[0-9a-f]{20}$")
 
 
 class SearchError(RuntimeError):
@@ -26,13 +32,20 @@ class SearchError(RuntimeError):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Search reusable .ai knowledge across current and collected projects."
+        description="Search reusable .ai knowledge across current and sanitized collected projects."
     )
     parser.add_argument("terms", nargs="+", help="terms that should influence ranking")
     parser.add_argument(
         "--repository",
         default=os.environ.get("AI_KNOWLEDGE_REPOSITORY", str(DEFAULT_REPOSITORY)),
         help="aggregated private repository (default: ~/prog/ai-knowledge-private)",
+    )
+    parser.add_argument(
+        "--redaction-key-file",
+        default=os.environ.get(
+            "AI_KNOWLEDGE_REDACTION_KEY_FILE", str(DEFAULT_REDACTION_KEY_FILE)
+        ),
+        help="HMAC key file used to identify the current project's sanitized aggregate",
     )
     parser.add_argument("--include-inbox", action="store_true")
     parser.add_argument("--limit", type=int, default=20)
@@ -64,6 +77,30 @@ def find_current_project(start: Path) -> tuple[Path, str] | None:
     return None
 
 
+def load_redaction_key(path: Path) -> bytes:
+    path = path.expanduser()
+    if not path.exists():
+        raise SearchError(
+            f"redaction key not found: {path}; create it with ai-knowledge-keygen"
+        )
+    if path.is_symlink() or not path.is_file():
+        raise SearchError(f"redaction key must be a regular non-symlink file: {path}")
+    if os.name == "posix" and path.stat().st_mode & 0o077:
+        raise SearchError(f"redaction key permissions must be 0600 or stricter: {path}")
+    try:
+        key = path.read_bytes().strip()
+    except OSError as error:
+        raise SearchError(f"cannot read redaction key {path}: {error}") from error
+    if len(key) < 32:
+        raise SearchError("redaction key must contain at least 32 bytes")
+    return key
+
+
+def project_ref(key: bytes, project_id: str) -> str:
+    payload = f"project\0{project_id}".encode("utf-8")
+    return hmac.new(key, payload, hashlib.sha256).hexdigest()[:20]
+
+
 def load_index(repository: Path) -> list[dict[str, str]]:
     path = repository / "index.json"
     if not path.is_file():
@@ -73,30 +110,31 @@ def load_index(repository: Path) -> list[dict[str, str]]:
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise SearchError(f"invalid knowledge index {path}: {error}") from error
     projects = data.get("projects")
-    if data.get("schema_version") != 1 or not isinstance(projects, list):
+    if data.get("schema_version") == 1:
+        raise SearchError(
+            "legacy knowledge index schema 1 is intentionally unsupported because it may "
+            "contain unsanitized project identifiers; rebuild the private repository first"
+        )
+    if data.get("schema_version") != INDEX_SCHEMA_VERSION or not isinstance(projects, list):
         raise SearchError(f"unsupported knowledge index: {path}")
 
     entries: list[dict[str, str]] = []
     for item in projects:
         if not isinstance(item, dict):
             raise SearchError(f"invalid project entry in {path}")
-        project_id = item.get("project_id")
+        ref = item.get("project_ref")
         relative = item.get("path")
-        if not isinstance(project_id, str) or not isinstance(relative, str):
-            raise SearchError(f"invalid project entry in {path}")
-        value = Path(relative)
-        if (
-            value.is_absolute()
-            or len(value.parts) != 2
-            or value.parts[0] != "projects"
-            or value.parts[1] in {"", ".", ".."}
-        ):
+        if not isinstance(ref, str) or not PROJECT_REF_RE.fullmatch(ref):
+            raise SearchError(f"invalid project_ref in {path}")
+        if not isinstance(relative, str) or relative != f"projects/{ref}":
             raise SearchError(f"unsafe project path in {path}: {relative}")
-        entries.append({"project_id": project_id, "path": relative})
+        entries.append({"project_ref": ref, "path": relative})
     return entries
 
 
-def source_roots(repository: Path, include_inbox: bool) -> list[tuple[str, str, Path]]:
+def source_roots(
+    repository: Path, include_inbox: bool, redaction_key_file: Path
+) -> list[tuple[str, str, Path]]:
     sources: list[tuple[str, str, Path]] = []
     current = find_current_project(Path.cwd())
     current_id: str | None = None
@@ -110,16 +148,19 @@ def source_roots(repository: Path, include_inbox: bool) -> list[tuple[str, str, 
 
     if repository.is_dir() and (repository / "index.json").is_file():
         repository = repository.expanduser().resolve()
-        for entry in load_index(repository):
-            project_id = entry["project_id"]
-            if project_id == current_id:
+        entries = load_index(repository)
+        key = load_redaction_key(redaction_key_file)
+        current_ref = project_ref(key, current_id) if current_id is not None else None
+        for entry in entries:
+            ref = entry["project_ref"]
+            if ref == current_ref:
                 continue
             base = repository / entry["path"]
             kinds = ("knowledge", "inbox") if include_inbox else ("knowledge",)
             for kind in kinds:
                 root = base / kind
                 if root.is_dir():
-                    sources.append((project_id, kind, root))
+                    sources.append((ref, kind, root))
     return sources
 
 
@@ -153,8 +194,9 @@ def search(args: argparse.Namespace) -> list[dict[str, Any]]:
         raise SearchError("at least one non-empty search term is required")
 
     repository = Path(args.repository).expanduser()
+    key_file = Path(args.redaction_key_file).expanduser()
     results: list[dict[str, Any]] = []
-    for project_id, kind, root in source_roots(repository, args.include_inbox):
+    for project_id, kind, root in source_roots(repository, args.include_inbox, key_file):
         for path in sorted(root.rglob("*")):
             if (
                 not path.is_file()

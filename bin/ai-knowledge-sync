@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Collect managed project .ai/ state into one private Git repository."""
+"""Export sanitized project AI knowledge into one private Git repository."""
 
 from __future__ import annotations
 
 import argparse
 import datetime as dt
 import hashlib
+import hmac
 import json
+import math
 import os
 import re
 import shutil
@@ -21,12 +23,39 @@ except ModuleNotFoundError as error:  # pragma: no cover - runtime boundary
     raise SystemExit("ai-knowledge-sync requires Python 3.11+ (tomllib)") from error
 
 OWNER = "dotfile-work"
-SCHEMA_VERSION = 1
+MANIFEST_SCHEMA_VERSION = 1
+INDEX_SCHEMA_VERSION = 2
 DEFAULT_MAX_FILE_BYTES = 2 * 1024 * 1024
 DEFAULT_REPOSITORY = Path.home() / "prog" / "ai-knowledge-private"
+DEFAULT_REDACTION_KEY_FILE = Path.home() / ".config" / "dotfiles" / "ai-knowledge-redaction.key"
+EXPORT_KINDS = ("knowledge", "inbox")
+TEXT_SUFFIXES = {".md", ".txt", ".json", ".jsonl", ".toml", ".yaml", ".yml"}
 SENSITIVE_SUFFIXES = {".pem", ".key", ".p12", ".pfx", ".jks", ".keystore"}
 SENSITIVE_NAMES = {".env", "id_rsa", "id_ed25519"}
 SENSITIVE_PARTS = {"secrets", ".git"}
+PROJECT_REF_RE = re.compile(r"^[0-9a-f]{20}$")
+PRIVATE_MARKER_RE = re.compile(
+    r"\{\{private:(?P<kind>[a-z][a-z0-9_-]{0,31}):(?P<value>.*?)\}\}", re.DOTALL
+)
+REDACT_MARKER_RE = re.compile(r"\{\{redact:(?P<value>.*?)\}\}", re.DOTALL)
+SECRET_PATTERNS = (
+    ("private key", re.compile(r"-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY-----")),
+    ("GitHub token", re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b")),
+    ("OpenAI-style API key", re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b")),
+    ("AWS access key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+    ("Slack token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{20,}\b")),
+    ("Authorization bearer header", re.compile(r"(?im)^\s*Authorization\s*:\s*Bearer\s+\S+")),
+    ("cookie header", re.compile(r"(?im)^\s*(?:Cookie|Set-Cookie)\s*:\s*\S+")),
+    (
+        "credential assignment",
+        re.compile(
+            r"(?im)\b(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret)\b"
+            r"\s*[:=]\s*[\"']?(?P<value>[^\s\"'`;,]{8,})"
+        ),
+    ),
+)
+SAFE_PLACEHOLDER_RE = re.compile(r"^<(?:redacted|[a-z][a-z0-9_-]{0,31}:[0-9a-f]{12})>$")
+HIGH_ENTROPY_RE = re.compile(r"(?<![A-Za-z0-9+/=_-])([A-Za-z0-9+/=_-]{40,})(?![A-Za-z0-9+/=_-])")
 
 
 class SyncError(RuntimeError):
@@ -35,7 +64,7 @@ class SyncError(RuntimeError):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Collect managed ~/prog/*/.ai into a private knowledge repository."
+        description="Export sanitized managed ~/prog/*/.ai knowledge into a private repository."
     )
     parser.add_argument(
         "--source-root",
@@ -48,10 +77,17 @@ def parse_args() -> argparse.Namespace:
         help="checked-out private Git repository (default: ~/prog/ai-knowledge-private)",
     )
     parser.add_argument(
+        "--redaction-key-file",
+        default=os.environ.get(
+            "AI_KNOWLEDGE_REDACTION_KEY_FILE", str(DEFAULT_REDACTION_KEY_FILE)
+        ),
+        help="HMAC key file used for pseudonymous project/file references",
+    )
+    parser.add_argument(
         "--max-file-bytes",
         type=int,
         default=DEFAULT_MAX_FILE_BYTES,
-        help=f"reject larger .ai files (default: {DEFAULT_MAX_FILE_BYTES})",
+        help=f"reject larger exportable files (default: {DEFAULT_MAX_FILE_BYTES})",
     )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
@@ -116,7 +152,7 @@ def load_manifest(path: Path) -> dict[str, object]:
     except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
         raise SyncError(f"invalid managed manifest {path}: {error}") from error
 
-    if data.get("schema_version") != SCHEMA_VERSION:
+    if data.get("schema_version") != MANIFEST_SCHEMA_VERSION:
         raise SyncError(f"unsupported schema_version in {path}")
     if data.get("owner") != OWNER:
         raise SyncError(f"unexpected .ai owner in managed manifest {path}")
@@ -129,10 +165,51 @@ def load_manifest(path: Path) -> dict[str, object]:
     if not isinstance(export, dict):
         raise SyncError(f"invalid [export] table in {path}")
     enabled = export.get("enabled", True)
+    include_inbox = export.get("include_inbox", False)
     if not isinstance(enabled, bool):
         raise SyncError(f"export.enabled must be boolean in {path}")
+    if not isinstance(include_inbox, bool):
+        raise SyncError(f"export.include_inbox must be boolean in {path}")
 
-    return {"project_id": project_id, "enabled": enabled}
+    return {
+        "project_id": project_id,
+        "enabled": enabled,
+        "include_inbox": include_inbox,
+    }
+
+
+def load_redaction_key(path: Path) -> bytes:
+    path = path.expanduser()
+    if not path.exists():
+        raise SyncError(
+            f"redaction key not found: {path}; create it with ai-knowledge-keygen"
+        )
+    if path.is_symlink() or not path.is_file():
+        raise SyncError(f"redaction key must be a regular non-symlink file: {path}")
+    if os.name == "posix" and path.stat().st_mode & 0o077:
+        raise SyncError(f"redaction key permissions must be 0600 or stricter: {path}")
+    try:
+        key = path.read_bytes().strip()
+    except OSError as error:
+        raise SyncError(f"cannot read redaction key {path}: {error}") from error
+    if len(key) < 32:
+        raise SyncError("redaction key must contain at least 32 bytes")
+    return key
+
+
+def digest_ref(key: bytes, namespace: str, value: str, length: int) -> str:
+    payload = f"{namespace}\0{value}".encode("utf-8")
+    return hmac.new(key, payload, hashlib.sha256).hexdigest()[:length]
+
+
+def project_ref(key: bytes, project_id: str) -> str:
+    return digest_ref(key, "project", project_id, 20)
+
+
+def file_ref(key: bytes, project: str, kind: str, relative: Path) -> str:
+    suffix = relative.suffix.lower() if relative.suffix.lower() in TEXT_SUFFIXES else ".txt"
+    identity = f"{project}\0{kind}\0{relative.as_posix()}"
+    return f"{digest_ref(key, 'file', identity, 20)}{suffix}"
 
 
 def sensitive_path(relative: Path) -> bool:
@@ -145,37 +222,143 @@ def sensitive_path(relative: Path) -> bool:
     return relative.suffix.lower() in SENSITIVE_SUFFIXES
 
 
-def validate_ai_tree(root: Path, max_file_bytes: int) -> None:
-    for path in sorted(root.rglob("*")):
-        relative = path.relative_to(root)
-        if path.is_symlink():
-            raise SyncError(f"symlink is not exportable: {root / relative}")
-        if path.is_dir():
-            continue
-        if not path.is_file():
-            raise SyncError(f"unsupported filesystem entry: {root / relative}")
-        if sensitive_path(relative):
-            raise SyncError(f"sensitive-looking path is not exportable: {root / relative}")
-        size = path.stat().st_size
-        if size > max_file_bytes:
-            raise SyncError(
-                f"file exceeds --max-file-bytes ({size} > {max_file_bytes}): {root / relative}"
+def shannon_entropy(value: str) -> float:
+    counts = {character: value.count(character) for character in set(value)}
+    length = len(value)
+    return -sum(
+        (count / length) * math.log2(count / length) for count in counts.values()
+    )
+
+
+def assert_no_secret(text: str, source: Path) -> None:
+    for label, pattern in SECRET_PATTERNS:
+        for match in pattern.finditer(text):
+            value = match.groupdict().get("value")
+            if value is not None and SAFE_PLACEHOLDER_RE.fullmatch(value):
+                continue
+            raise SyncError(f"{label} detected in exportable knowledge: {source}")
+
+    for match in HIGH_ENTROPY_RE.finditer(text):
+        candidate = match.group(1)
+        classes = sum(
+            (
+                any(character.islower() for character in candidate),
+                any(character.isupper() for character in candidate),
+                any(character.isdigit() for character in candidate),
+                any(character in "+/=_-" for character in candidate),
             )
-        with path.open("rb") as handle:
-            if b"\0" in handle.read(min(size, 8192)):
-                raise SyncError(f"binary file is not exportable: {root / relative}")
+        )
+        if classes >= 3 and shannon_entropy(candidate) >= 4.2:
+            raise SyncError(f"high-entropy token detected in exportable knowledge: {source}")
 
 
-def project_key(project_id: str) -> str:
-    readable = re.sub(r"[^A-Za-z0-9._-]+", "__", project_id).strip("._-")
-    if not readable:
-        readable = "project"
-    digest = hashlib.sha256(project_id.encode("utf-8")).hexdigest()[:12]
-    return f"{readable[:96]}--{digest}"
+def pseudonymize_text(
+    text: str, *, key: bytes, project: Path, project_id: str, source: Path
+) -> str:
+    # Scan raw text before marker substitution so secrets cannot be hidden inside
+    # {{private:...}} or {{redact:...}} and converted into a stored pseudonym.
+    assert_no_secret(text, source)
+
+    def replace_private(match: re.Match[str]) -> str:
+        kind = match.group("kind")
+        value = match.group("value").strip()
+        if not value:
+            raise SyncError(f"empty private marker in {source}")
+        token = digest_ref(key, f"private:{kind}", value, 12)
+        return f"<{kind}:{token}>"
+
+    def replace_redact(match: re.Match[str]) -> str:
+        value = match.group("value")
+        if not value.strip():
+            raise SyncError(f"empty redact marker in {source}")
+        return "<redacted>"
+
+    sanitized = PRIVATE_MARKER_RE.sub(replace_private, text)
+    sanitized = REDACT_MARKER_RE.sub(replace_redact, sanitized)
+    if "{{private:" in sanitized or "{{redact:" in sanitized:
+        raise SyncError(f"malformed redaction marker in {source}")
+
+    replacements = [
+        (str(project.resolve()), "$PROJECT"),
+        (str(Path.home().resolve()), "$HOME"),
+    ]
+    for raw, placeholder in sorted(replacements, key=lambda item: len(item[0]), reverse=True):
+        if raw and raw not in {"/", "."}:
+            sanitized = sanitized.replace(raw, placeholder)
+
+    # A raw project identifier is metadata, not reusable knowledge. Avoid exporting it even
+    # when it appears in a note by accident.
+    sanitized = sanitized.replace(project_id, f"<project:{project_ref(key, project_id)}>")
+    assert_no_secret(sanitized, source)
+    return sanitized
 
 
-def discover_projects(source_root: Path, repository: Path) -> list[tuple[Path, Path, str]]:
-    projects: list[tuple[Path, Path, str]] = []
+def validate_source_file(path: Path, relative: Path, max_file_bytes: int) -> None:
+    if path.is_symlink():
+        raise SyncError(f"symlink is not exportable: {path}")
+    if not path.is_file():
+        raise SyncError(f"unsupported filesystem entry: {path}")
+    if sensitive_path(relative):
+        raise SyncError(f"sensitive-looking path is not exportable: {path}")
+    if path.suffix.lower() not in TEXT_SUFFIXES:
+        raise SyncError(f"unsupported export file type: {path}")
+    size = path.stat().st_size
+    if size > max_file_bytes:
+        raise SyncError(
+            f"file exceeds --max-file-bytes ({size} > {max_file_bytes}): {path}"
+        )
+    with path.open("rb") as handle:
+        if b"\0" in handle.read(min(size, 8192)):
+            raise SyncError(f"binary file is not exportable: {path}")
+
+
+def selected_kinds(include_inbox: bool) -> tuple[str, ...]:
+    return EXPORT_KINDS if include_inbox else ("knowledge",)
+
+
+def prepare_project_export(
+    *,
+    project: Path,
+    ai_root: Path,
+    project_id: str,
+    include_inbox: bool,
+    key: bytes,
+    destination: Path,
+    max_file_bytes: int,
+) -> None:
+    ref = project_ref(key, project_id)
+    for kind in selected_kinds(include_inbox):
+        source_root = ai_root / kind
+        if not source_root.exists():
+            continue
+        if source_root.is_symlink() or not source_root.is_dir():
+            raise SyncError(f"export source must be a directory: {source_root}")
+        output_root = destination / kind
+        for path in sorted(source_root.rglob("*")):
+            if path.is_dir() and not path.is_symlink():
+                continue
+            relative = path.relative_to(source_root)
+            validate_source_file(path, relative, max_file_bytes)
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError) as error:
+                raise SyncError(f"exportable knowledge must be UTF-8 text: {path}") from error
+            sanitized = pseudonymize_text(
+                text,
+                key=key,
+                project=project,
+                project_id=project_id,
+                source=path,
+            )
+            output_root.mkdir(parents=True, exist_ok=True)
+            output = output_root / file_ref(key, ref, kind, relative)
+            output.write_text(sanitized, encoding="utf-8")
+
+
+def discover_projects(
+    source_root: Path, repository: Path
+) -> list[tuple[Path, Path, str, bool]]:
+    projects: list[tuple[Path, Path, str, bool]] = []
     repository = repository.resolve()
     for project in sorted(source_root.iterdir(), key=lambda path: path.name):
         if not project.is_dir() or project.is_symlink():
@@ -194,30 +377,21 @@ def discover_projects(source_root: Path, repository: Path) -> list[tuple[Path, P
         manifest = load_manifest(manifest_path)
         if not manifest["enabled"]:
             continue
-        project_id = str(manifest["project_id"])
-        projects.append((project, ai_root, project_id))
+        projects.append(
+            (
+                project,
+                ai_root,
+                str(manifest["project_id"]),
+                bool(manifest["include_inbox"]),
+            )
+        )
     return projects
-
-
-def copy_project(ai_root: Path, destination: Path) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    temporary = Path(
-        tempfile.mkdtemp(prefix=f".{destination.name}-", dir=destination.parent)
-    )
-    try:
-        shutil.copytree(ai_root, temporary / "tree", dirs_exist_ok=True)
-        staged = temporary / "tree"
-        if destination.exists():
-            shutil.rmtree(destination)
-        os.replace(staged, destination)
-    finally:
-        shutil.rmtree(temporary, ignore_errors=True)
 
 
 def write_index(repository: Path, entries: list[dict[str, str]]) -> None:
     payload = {
-        "schema_version": 1,
-        "projects": sorted(entries, key=lambda item: item["project_id"]),
+        "schema_version": INDEX_SCHEMA_VERSION,
+        "projects": sorted(entries, key=lambda item: item["project_ref"]),
     }
     (repository / "index.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -234,18 +408,29 @@ def load_previous_managed_paths(repository: Path) -> set[str]:
         projects = data.get("projects", [])
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise SyncError(f"invalid managed index {path}: {error}") from error
-    if data.get("schema_version") != 1 or not isinstance(projects, list):
+
+    schema = data.get("schema_version")
+    if schema == 1:
+        raise SyncError(
+            "legacy knowledge index schema 1 detected; it may contain raw .ai content and "
+            "project identifiers in Git history. Recreate the private repository or purge "
+            "its history before using the hardened exporter"
+        )
+    if schema != INDEX_SCHEMA_VERSION or not isinstance(projects, list):
         raise SyncError(f"unsupported managed index: {path}")
 
     managed: set[str] = set()
     for item in projects:
-        value = item.get("path") if isinstance(item, dict) else None
+        if not isinstance(item, dict):
+            raise SyncError(f"invalid project entry in managed index: {path}")
+        ref = item.get("project_ref")
+        value = item.get("path")
+        if not isinstance(ref, str) or not PROJECT_REF_RE.fullmatch(ref):
+            raise SyncError(f"invalid project_ref in managed index: {path}")
         if not isinstance(value, str):
             raise SyncError(f"invalid project path in managed index: {path}")
         relative = Path(value)
-        if relative.is_absolute() or len(relative.parts) != 2:
-            raise SyncError(f"unsafe project path in managed index: {value}")
-        if relative.parts[0] != "projects" or relative.parts[1] in {"", ".", ".."}:
+        if relative.as_posix() != f"projects/{ref}":
             raise SyncError(f"unsafe project path in managed index: {value}")
         managed.add(relative.as_posix())
     return managed
@@ -258,6 +443,15 @@ def prune_stale_projects(repository: Path, previous: set[str], desired: set[str]
             if target.is_symlink() or not target.is_dir():
                 raise SyncError(f"managed project path is not a directory: {relative}")
             shutil.rmtree(target)
+
+
+def replace_project_export(source: Path, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists():
+        if destination.is_symlink() or not destination.is_dir():
+            raise SyncError(f"managed project destination is not a directory: {destination}")
+        shutil.rmtree(destination)
+    shutil.copytree(source, destination)
 
 
 def stage_and_commit(repository: Path) -> bool:
@@ -273,7 +467,7 @@ def stage_and_commit(repository: Path) -> bool:
         raise SyncError("cannot inspect staged knowledge diff")
 
     date = dt.date.today().isoformat()
-    run_git(repository, "commit", "-m", f"chore: sync ai knowledge {date}")
+    run_git(repository, "commit", "-m", f"chore: sync sanitized ai knowledge {date}")
     return True
 
 
@@ -283,47 +477,66 @@ def sync(args: argparse.Namespace) -> int:
 
     source_root = Path(args.source_root).expanduser().resolve()
     repository = Path(args.repository).expanduser().resolve()
+    key_path = Path(args.redaction_key_file).expanduser()
     if not source_root.is_dir():
         raise SyncError(f"source root does not exist: {source_root}")
 
     ensure_git_repository(repository)
     ensure_clean(repository)
-
+    key = load_redaction_key(key_path)
     projects = discover_projects(source_root, repository)
+    previous = load_previous_managed_paths(repository)
+
     seen_ids: set[str] = set()
-    prepared: list[tuple[Path, str, str]] = []
+    seen_refs: set[str] = set()
     entries: list[dict[str, str]] = []
 
-    # Validate every selected source before mutating the destination repository.
-    for project, ai_root, project_id in projects:
-        if project_id in seen_ids:
-            raise SyncError(f"duplicate project_id: {project_id}")
-        seen_ids.add(project_id)
-        validate_ai_tree(ai_root, args.max_file_bytes)
-        key = project_key(project_id)
-        relative = f"projects/{key}"
-        prepared.append((ai_root, relative, project.name))
-        entries.append({"project_id": project_id, "path": relative})
+    # Build every sanitized export in a temporary tree before mutating the destination.
+    with tempfile.TemporaryDirectory(prefix="ai-knowledge-export-") as directory:
+        prepared_root = Path(directory)
+        prepared: list[tuple[Path, str, str]] = []
+        for project, ai_root, project_id, include_inbox in projects:
+            if project_id in seen_ids:
+                raise SyncError(f"duplicate project_id: {project_id}")
+            seen_ids.add(project_id)
+            ref = project_ref(key, project_id)
+            if ref in seen_refs:
+                raise SyncError("pseudonymous project reference collision")
+            seen_refs.add(ref)
+            relative = f"projects/{ref}"
+            staged = prepared_root / ref
+            staged.mkdir(parents=True)
+            prepare_project_export(
+                project=project,
+                ai_root=ai_root,
+                project_id=project_id,
+                include_inbox=include_inbox,
+                key=key,
+                destination=staged,
+                max_file_bytes=args.max_file_bytes,
+            )
+            prepared.append((staged, relative, project.name))
+            entries.append({"project_ref": ref, "path": relative})
 
-    previous = load_previous_managed_paths(repository)
-    desired = {entry["path"] for entry in entries}
+        desired = {entry["path"] for entry in entries}
+        if args.dry_run:
+            for _, relative, project_name in prepared:
+                print(f"would export sanitized: {project_name} -> {relative}")
+            for relative in sorted(previous - desired):
+                print(f"would prune: {relative}")
+            print(f"projects selected: {len(entries)}")
+            return 0
 
-    if args.dry_run:
-        for _, relative, project_name in prepared:
-            print(f"would sync: {project_name} -> {relative}")
-        for relative in sorted(previous - desired):
-            print(f"would prune: {relative}")
-        print(f"projects selected: {len(entries)}")
-        return 0
-
-    prune_stale_projects(repository, previous, desired)
-    for ai_root, relative, _ in prepared:
-        copy_project(ai_root, repository / relative)
+        prune_stale_projects(repository, previous, desired)
+        for staged, relative, _ in prepared:
+            replace_project_export(staged, repository / relative)
 
     (repository / "projects").mkdir(parents=True, exist_ok=True)
     write_index(repository, entries)
     committed = stage_and_commit(repository)
-    print(f"projects synced: {len(entries)}; committed: {'yes' if committed else 'no'}")
+    print(
+        f"projects exported: {len(entries)}; committed: {'yes' if committed else 'no'}"
+    )
 
     if not args.no_push:
         run_git(repository, "push")

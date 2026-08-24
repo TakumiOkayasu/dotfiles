@@ -29,6 +29,7 @@ jobs:
           python3 tests/test_ai_qcd.py
           python3 tests/test_ai_knowledge_sync.py
           python3 tests/test_ai_knowledge_search.py
+          python3 tests/test_ai_knowledge_secret_redaction.py
 
       - name: Require canonical sources to remain unchanged
         run: git diff --exit-code
