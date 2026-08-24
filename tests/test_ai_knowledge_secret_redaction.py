@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import importlib.util
+from importlib.machinery import SourceFileLoader
+from importlib.util import module_from_spec, spec_from_loader
 import tempfile
 from pathlib import Path
 
@@ -11,10 +12,11 @@ SCRIPT = ROOT / "bin" / "ai-knowledge-sync"
 
 
 def load_sync_module():
-    spec = importlib.util.spec_from_file_location("ai_knowledge_sync", SCRIPT)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    loader = SourceFileLoader("ai_knowledge_sync", str(SCRIPT))
+    spec = spec_from_loader(loader.name, loader)
+    assert spec is not None
+    module = module_from_spec(spec)
+    loader.exec_module(module)
     return module
 
 
