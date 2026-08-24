@@ -255,6 +255,10 @@ def assert_no_secret(text: str, source: Path) -> None:
 def pseudonymize_text(
     text: str, *, key: bytes, project: Path, project_id: str, source: Path
 ) -> str:
+    # Scan raw text before marker substitution so secrets cannot be hidden inside
+    # {{private:...}} or {{redact:...}} and converted into a stored pseudonym.
+    assert_no_secret(text, source)
+
     def replace_private(match: re.Match[str]) -> str:
         kind = match.group("kind")
         value = match.group("value").strip()
