@@ -20,7 +20,7 @@
 
 - 現在の機能要件と非機能要件を満たす最も単純な実装を選ぶ. 推測に基づくabstraction,configuration,dependency,indirectionを追加しない.
 - End-to-endで動作する最小単位を保ち,その上に必要な機能を積み上げる.
-- Public contractと永続化済みdataは,taskがbreaking changeを明示的に許可しない限り維持する. Breaking changeが必要ならmigrationまたはrolloutを含める. 未公開の内部codeでは,compatibility layerやfallbackを足すよりobsolete pathを削除する.
+- 既存consumer,released public contract,永続化済みdata,または明示されたcompatibility requirementがあるbehaviorは,taskがbreaking changeを明示的に許可しない限り維持する. Breaking changeが必要ならmigrationまたはrolloutを含める. 未リリースでconsumerが確認できないcontractまたは内部codeでは,compatibility layerやfallbackを足すよりobsolete pathを削除する.
 - 責務をcohesiveに保ち,dependencyを明示する. Abstractionは具体的なboundaryまたは確認済みの必要性がある場合だけ導入する.
 - Packageの追加や一般的な機能の再実装前に,既存dependencyのdocs,types,導入済みversionを確認する. Libraryはmaintenance,security,license,運用costを含むtotal complexityを下げる,またはreliabilityを高める場合だけ追加する.
 - Public API,永続data,auth,security boundaryなど,後から変更するcostが高いdecisionは長期的に設計する. それ以外は単純でreversibleな選択を優先する.
