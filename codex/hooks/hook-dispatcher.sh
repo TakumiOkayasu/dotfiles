@@ -67,7 +67,7 @@ case "$EVENT" in
         run_hook rules-enforce.sh
         ;;
     user-prompt-submit)
-        CODEX_RULES_CONTEXT_MODE=none
+        CODEX_RULES_CONTEXT_MODE=simple-engineering
         export CODEX_RULES_CONTEXT_MODE
         run_hook rules-inject.sh
         unset CODEX_RULES_CONTEXT_MODE

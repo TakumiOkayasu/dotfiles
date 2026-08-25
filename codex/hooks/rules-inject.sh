@@ -53,6 +53,43 @@ needs_enforcement() {
     return 1
 }
 
+emit_simple_engineering_context() {
+    _files="$1"
+    _rule=""
+    while IFS= read -r _file; do
+        case "$_file" in
+            */simple-engineering.md)
+                _rule="$_file"
+                break
+                ;;
+        esac
+    done < "$_files"
+
+    if [ -z "$_rule" ]; then
+        echo "[rules-inject] BLOCK: simple-engineering.md is missing for an enforced coding task." >&2
+        return 2
+    fi
+
+    _context=$(awk '
+        BEGIN { start = 0; end = 0; emit = 0 }
+        $0 == "<!-- simple-engineering-invariants:start -->" { start = 1; emit = 1; next }
+        $0 == "<!-- simple-engineering-invariants:end -->" { end = 1; emit = 0; next }
+        emit { print }
+        END { if (!start || !end) exit 2 }
+    ' "$_rule") || {
+        echo "[rules-inject] BLOCK: simple-engineering.md is missing the mandatory invariant markers." >&2
+        return 2
+    }
+
+    if [ -z "$_context" ]; then
+        echo "[rules-inject] BLOCK: simple-engineering.md contains no mandatory invariants." >&2
+        return 2
+    fi
+
+    printf '%s\n' '[Simple Engineering: mandatory for this coding task]'
+    printf '%s\n' "$_context"
+}
+
 FILES_TMP=$(rules_mktemp_file inject-files)
 rules_collect_rule_files "$CWD" "$FILES_TMP" "$CODEX_ROOT"
 [ ! -s "$FILES_TMP" ] && { rm -f "$FILES_TMP"; exit 0; }
@@ -75,15 +112,27 @@ event=$HOOK_EVENT
 EOF_MARKER
 while IFS= read -r f; do printf 'file=%s\n' "$f"; done < "$FILES_TMP" >> "$MARKER"
 
-# Keep output compact. CODEX_RULES_CONTEXT_MODE=none disables even this short contract.
-if [ "${CODEX_RULES_CONTEXT_MODE:-compact}" != "none" ]; then
-    cat <<EOF_CONTEXT
+CONTEXT_MODE="${CODEX_RULES_CONTEXT_MODE:-compact}"
+case "$CONTEXT_MODE" in
+    none)
+        ;;
+    simple-engineering)
+        if [ "$MODE" = "enforced" ]; then
+            if ! emit_simple_engineering_context "$FILES_TMP"; then
+                rm -f "$MARKER" "$FILES_TMP"
+                exit 2
+            fi
+        fi
+        ;;
+    *)
+        cat <<EOF_CONTEXT
 📚 [Codex rules active: ${MODE}]
 Mandatory rules checksum: ${CHECKSUM}
 Apply RULES_CORE.md and only task-applicable rules selected via RULES_INDEX.md. Deterministic checks run after edits and before final answer.
 Use \$rules-required to read task-applicable rule text. The marker records checksum activation, not read completion.
 EOF_CONTEXT
-fi
+        ;;
+esac
 
 rm -f "$FILES_TMP"
 exit 0

@@ -28,12 +28,14 @@ services:
         cp -a /workspace/source-hooks/. /workspace/hooks/ &&
         cp -a /workspace/common-hooks/. /workspace/hooks/ &&
         chmod +x /workspace/hooks/*.sh &&
-        HOOK_DIR=/workspace/hooks sh /workspace/test_codex_hooks.sh
+        HOOK_DIR=/workspace/hooks sh /workspace/test_codex_hooks.sh &&
+        HOOK_DIR=/workspace/hooks sh /workspace/test_simple_engineering_hook.sh
     volumes:
       - ../codex/hooks:/workspace/source-hooks:ro
       - ../common/hooks:/workspace/common-hooks:ro
       - ../codex/bin:/workspace/bin:ro
       - ./test_codex_hooks.sh:/workspace/test_codex_hooks.sh:ro
+      - ./test_simple_engineering_hook.sh:/workspace/test_simple_engineering_hook.sh:ro
   bin-test:
     build:
       context: ..

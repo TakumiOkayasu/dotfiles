@@ -11,6 +11,7 @@ SUMMARY_BY_NAME = {
     "implementation-policy.md": "dependency, library, DB, validation, logging, crypto, and SQL policy",
     "hallucination-prevention.md": "source verification and uncertainty handling policy",
     "hierarchical-architecture.md": "architecture invariants, dependency direction, composition, interfaces, and layer naming",
+    "simple-engineering.md": "root-cause-first fixes, evidence-based compatibility, reuse, YAGNI/KISS, and minimal-diff invariants",
 }
 
 
