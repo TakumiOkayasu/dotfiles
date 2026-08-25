@@ -75,10 +75,6 @@ case "$EVENT" in
         export CODEX_PRIMARY_SOURCE_CHECK_MODE
         run_hook primary-source-check.sh
         unset CODEX_PRIMARY_SOURCE_CHECK_MODE
-        CODEX_METHODOLOGY_SKILL_REMINDER_MODE=quiet
-        export CODEX_METHODOLOGY_SKILL_REMINDER_MODE
-        run_hook methodology-skill-reminder.sh
-        unset CODEX_METHODOLOGY_SKILL_REMINDER_MODE
         ;;
     pre-compact)
         run_hook pre-compact-backup.sh

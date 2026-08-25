@@ -1,26 +1,25 @@
 ---
 name: orchestrate
-description: 仕様が確定した複数taskを、依存関係と副作用境界を管理しながら実装・検証する。複数の独立変更をまとめて進める時に使用する。局所変更や設計未確定では使わない。
+description: 複数taskの依存関係とside effect境界を明示した実行ledgerを、ユーザーまたは上位workflowが明示的に必要とした場合だけ使用する。通常のtask分解や並列判断はmodel自身に任せる。
+disable-model-invocation: true
 effort: high
 ---
 
 # Orchestrate
 
-複数taskの実装を親セッションが所有し、必要な箇所だけ委譲する。
+通常のtask分解、順序付け、並列化、subagent利用はmodel/runtimeの通常能力として扱う。本skillは、複数taskの実行ledgerを独立成果物として残す必要がある場合だけ使う。
 
-## 前提
+## 使用条件
 
-- 目的と主要仕様が確定している
-- task間の依存関係を説明できる
-- side effect approvalの境界が分かっている
+- userがorchestrationまたは実行ledgerを明示した
+- 複数の独立変更を、共通contractとside effect gateの下で追跡する必要がある
+- 上位workflowが複数workerの結果統合を明示的に要求した
 
-設計判断が残る場合は先に`consult`または`arch`を使う。
+局所変更、通常の実装、単純な並列化では使わない。
 
-## 計画
+## Ledger
 
-taskは「単独で検証可能な意味のある変更単位」に分ける。2-5分等の固定時間粒度に分解しない。
-
-各taskへ次を記載する。
+必要なtaskだけ、次を記録する。
 
 ```text
 Goal:
@@ -31,55 +30,22 @@ Verification:
 Side effects:
 ```
 
-placeholderや未定義のcontractを残さない。
+親セッションが全体contractと最終verificationを所有する。subagentは専門性、context隔離、並列性に実益がある場合だけ使い、人数やround数を固定しない。
 
-## 実行
+互換性上、旧workflowが参照していた表記は次のとおりだが、固定表や実行規則としては扱わない。
 
-- 親が全体contract、branch、差分、verificationを所有する
-- 独立して読み書きできるtaskは並列化してよい
-- 同じfile、同じcontract、同じmigrationへ触れるtaskは直列化する
-- subagentは専門性、context隔離、並列性に実益があるtaskだけへ使う
-- 1 task = 1 fresh subagentを強制しない
-- subagent不能時は、親が安全に実行可能なら継続する
-
-旧workflowの次の固定表は契約にしない。
-
-```text
 | task 種別 / 役割 | 複雑度シグナル | Driver | Worker |
-```
+| --- | --- | --- | --- |
 
-「subagent が TDD で実装・テスト・自己レビューする」ことも一律要件にせず、担当taskとruntimeに適した実行者を選ぶ。
+「subagent が TDD で実装・テスト・自己レビューする」ことも一律要件ではない。taskの性質とruntimeに合う実行者・検証方法を選ぶ。
 
-## レビュー
+## Side effect gate
 
-- taskごとにcontractとverificationを確認する
-- high-riskまたは広範囲の差分だけ`deep-review`等の追加reviewを使う
-- 仕様適合と品質を必要に応じて分けるが、固定2段階にはしない
-- 禁止・承認必須・破壊的・不可逆操作は`HUMAN_REVIEW_REQUIRED`
-
-## 承認ゲート
-
-次は実行前に明示承認を得る。
-
-- commit / push / deploy / publish / external write
-- dependency add/update/remove
-- DB schema / public API contract
-- destructive data operation / privileged command
-- secret / auth / authorization policy
-
-## 出力
-
-- task ledgerと依存関係
-- 実行順または並列化理由
-- 変更差分
-- verification結果
-- human review/approval status
-- remaining risk
+commit / push / deploy / publish / dependency変更 / destructive operation 等は、それぞれの既存approval policyに従う。本skillが承認権限を追加しない。
 
 ## 禁止事項
 
+- skillを使うためにtaskを分割する
 - task数やsubagent数を成果とみなす
-- parentが処理できるtaskを機械的に委譲する
-- reviewを通すためだけの追加round
-- task間で矛盾する型・名前・contractを放置する
-- side effect gateをsubagentへ委譲する
+- modelが通常処理できる分解や順序付けを形式化する
+- 固定phase、固定worker、固定review roundを成功条件にする
