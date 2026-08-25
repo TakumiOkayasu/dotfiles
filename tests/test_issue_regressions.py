@@ -41,6 +41,7 @@ AGENTS_MD = REPO_ROOT / "AGENTS.md"
 EXPLICIT_ONLY_SKILLS = (
     "consult",
     "measure",
+    "orchestrate",
     "probe",
     "refactoring",
     "semantic-generation",
@@ -132,9 +133,14 @@ def test_advisory_methodology_skills_are_explicit_only() -> None:
         assert "disable-model-invocation: true" in content, skill
 
 
-def test_generic_orchestration_skill_is_removed() -> None:
-    """Task orchestration is a native model capability, not a required methodology skill."""
-    assert not (REPO_ROOT / "common" / "skills" / "orchestrate" / "SKILL.md").exists()
+def test_orchestration_is_only_an_explicit_compatibility_workflow() -> None:
+    """Runtime catalog compatibility must not make orchestration implicit."""
+    skill = REPO_ROOT / "common" / "skills" / "orchestrate" / "SKILL.md"
+    content = skill.read_text(encoding="utf-8")
+
+    assert "disable-model-invocation: true" in content
+    assert "通常のtask分解" in content
+    assert "人数やround数を固定しない" in content
 
 
 def test_referent_rule_does_not_require_generation_ceremony() -> None:
