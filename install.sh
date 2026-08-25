@@ -622,11 +622,25 @@ _csl_dir_all_stale() {
 cleanup_legacy_claude_skill_tiers() {
     _skills_dir="${HOME}/.claude/skills"
     [ -d "$_skills_dir" ] || return 0
+
     for _entry in "$_skills_dir"/*; do
-        [ -d "$_entry" ] || continue
         case "$(basename "$_entry")" in
             1-core|2-domain|3-task|4-utility)
-                _remove_stale "$_entry" "旧スキル構造: $(basename "$_entry")" rf
+                if [ -L "$_entry" ]; then
+                    remove_dotfiles_link "$_entry" "旧スキル構造: $(basename "$_entry")"
+                    continue
+                fi
+                [ -d "$_entry" ] || continue
+
+                _legacy_links=$(mktemp)
+                _TMPFILES="$_TMPFILES $_legacy_links"
+                find "$_entry" -type l -print > "$_legacy_links" 2>/dev/null || true
+                while IFS= read -r _legacy_link; do
+                    [ -n "$_legacy_link" ] || continue
+                    remove_dotfiles_link \
+                        "$_legacy_link" \
+                        "旧スキル構造リンク: ${_legacy_link#"$HOME"/}"
+                done < "$_legacy_links"
                 ;;
         esac
     done
@@ -1901,7 +1915,7 @@ dotfiles インストーラー - dotfilesのシンボリックリンクを作成
     ./install.sh              # 対話的にインストール
     ./install.sh -f           # すべてインストール(現在のシェルのみ)
     ./install.sh -n           # インストール内容をプレビュー
-    ./install.sh -u           # すべてのシンボリックリンクを削除
+    ./install.sh -u           # このリポジトリが管理するシンボリックリンクを削除
 EOF
 }
 
