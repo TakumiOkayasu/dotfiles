@@ -5,16 +5,16 @@
       {
         "id": "identity-model-icon",
         "type": "custom-text",
-        "color": "hex:5CCEFF",
-        "backgroundColor": "hex:111B24",
+        "color": "hex:67E8F9",
+        "backgroundColor": "hex:2A4052",
         "customText": " ",
         "merge": "no-padding"
       },
       {
         "id": "identity-model",
         "type": "model",
-        "color": "hex:D8E7F1",
-        "backgroundColor": "hex:111B24",
+        "color": "hex:F1F8FC",
+        "backgroundColor": "hex:2A4052",
         "rawValue": true,
         "bold": true,
         "merge": "no-padding"
@@ -22,48 +22,48 @@
       {
         "id": "identity-version-icon",
         "type": "custom-text",
-        "color": "hex:82AFFF",
-        "backgroundColor": "hex:111B24",
-        "customText": "   ",
+        "color": "hex:A5B4FC",
+        "backgroundColor": "hex:2A4052",
+        "customText": "  ",
         "merge": "no-padding"
       },
       {
         "id": "identity-version",
         "type": "version",
-        "color": "hex:82AFFF",
-        "backgroundColor": "hex:111B24",
+        "color": "hex:DDE7FF",
+        "backgroundColor": "hex:2A4052",
         "rawValue": false,
         "merge": "no-padding"
       },
       {
         "id": "identity-effort-icon",
         "type": "custom-text",
-        "color": "hex:FFC777",
-        "backgroundColor": "hex:111B24",
-        "customText": "  󰧑 ",
+        "color": "hex:FBBF24",
+        "backgroundColor": "hex:2A4052",
+        "customText": " 󰧑 ",
         "merge": "no-padding"
       },
       {
         "id": "identity-effort",
         "type": "thinking-effort",
-        "color": "hex:FFC777",
-        "backgroundColor": "hex:111B24",
+        "color": "hex:FFE29A",
+        "backgroundColor": "hex:2A4052",
         "rawValue": true,
         "bold": true
       },
       {
         "id": "context-icon",
         "type": "custom-text",
-        "color": "hex:4FD6BE",
-        "backgroundColor": "hex:102126",
+        "color": "hex:5EEAD4",
+        "backgroundColor": "hex:24505A",
         "customText": " ",
         "merge": "no-padding"
       },
       {
         "id": "context-bar",
         "type": "context-bar",
-        "color": "hex:D7F4EE",
-        "backgroundColor": "hex:102126",
+        "color": "hex:E7FFFB",
+        "backgroundColor": "hex:24505A",
         "rawValue": true,
         "merge": true,
         "metadata": {
@@ -73,8 +73,8 @@
       {
         "id": "context-compaction",
         "type": "compaction-counter",
-        "color": "hex:FFB86C",
-        "backgroundColor": "hex:102126",
+        "color": "hex:FDBA74",
+        "backgroundColor": "hex:24505A",
         "metadata": {
           "hideZero": "true",
           "nerdFont": "true",
@@ -84,24 +84,24 @@
       {
         "id": "session-clock-icon",
         "type": "custom-text",
-        "color": "hex:FFB454",
-        "backgroundColor": "hex:171C22",
+        "color": "hex:F9A8D4",
+        "backgroundColor": "hex:3B4360",
         "customText": " ",
         "merge": "no-padding"
       },
       {
         "id": "session-clock",
         "type": "session-clock",
-        "color": "hex:FFB454",
-        "backgroundColor": "hex:171C22",
+        "color": "hex:FDECF6",
+        "backgroundColor": "hex:3B4360",
         "rawValue": true,
         "merge": true
       },
       {
         "id": "sandbox-status",
         "type": "sandbox-status",
-        "color": "hex:9ECE6A",
-        "backgroundColor": "hex:171C22",
+        "color": "hex:A3E635",
+        "backgroundColor": "hex:3B4360",
         "rawValue": false,
         "metadata": {
           "format": "glyph",
@@ -113,16 +113,16 @@
       {
         "id": "limit-5h-icon",
         "type": "custom-text",
-        "color": "hex:BB9AF7",
-        "backgroundColor": "hex:181728",
+        "color": "hex:C084FC",
+        "backgroundColor": "hex:4A3F66",
         "customText": " 5h ",
         "merge": "no-padding"
       },
       {
         "id": "limit-5h-usage",
         "type": "session-usage",
-        "color": "hex:E4DEFA",
-        "backgroundColor": "hex:181728",
+        "color": "hex:F5EEFF",
+        "backgroundColor": "hex:4A3F66",
         "rawValue": true,
         "bold": true,
         "merge": "no-padding",
@@ -134,16 +134,16 @@
       {
         "id": "limit-5h-reset-icon",
         "type": "custom-text",
-        "color": "hex:BB9AF7",
-        "backgroundColor": "hex:181728",
-        "customText": "   ",
+        "color": "hex:C084FC",
+        "backgroundColor": "hex:4A3F66",
+        "customText": "  ",
         "merge": "no-padding"
       },
       {
         "id": "limit-5h-reset",
         "type": "reset-timer",
-        "color": "hex:E4DEFA",
-        "backgroundColor": "hex:181728",
+        "color": "hex:F5EEFF",
+        "backgroundColor": "hex:4A3F66",
         "rawValue": true,
         "metadata": {
           "compact": "true"
@@ -152,16 +152,16 @@
       {
         "id": "limit-week-icon",
         "type": "custom-text",
-        "color": "hex:7AA2F7",
-        "backgroundColor": "hex:121D2C",
+        "color": "hex:60A5FA",
+        "backgroundColor": "hex:36577A",
         "customText": " Week ",
         "merge": "no-padding"
       },
       {
         "id": "limit-week-usage",
         "type": "weekly-usage",
-        "color": "hex:DCE6FF",
-        "backgroundColor": "hex:121D2C",
+        "color": "hex:EEF5FF",
+        "backgroundColor": "hex:36577A",
         "rawValue": true,
         "bold": true,
         "merge": "no-padding",
@@ -173,16 +173,16 @@
       {
         "id": "limit-week-reset-icon",
         "type": "custom-text",
-        "color": "hex:7AA2F7",
-        "backgroundColor": "hex:121D2C",
-        "customText": "   ",
+        "color": "hex:60A5FA",
+        "backgroundColor": "hex:36577A",
+        "customText": "  ",
         "merge": "no-padding"
       },
       {
         "id": "limit-week-reset",
         "type": "weekly-reset-timer",
-        "color": "hex:DCE6FF",
-        "backgroundColor": "hex:121D2C",
+        "color": "hex:EEF5FF",
+        "backgroundColor": "hex:36577A",
         "rawValue": true,
         "metadata": {
           "compact": "true"
@@ -191,16 +191,16 @@
       {
         "id": "cache-icon",
         "type": "custom-text",
-        "color": "hex:9ECE6A",
-        "backgroundColor": "hex:10231E",
+        "color": "hex:86EFAC",
+        "backgroundColor": "hex:2F5A4D",
         "customText": " ",
         "merge": "no-padding"
       },
       {
         "id": "cache-hit-rate",
         "type": "cache-hit-rate",
-        "color": "hex:9ECE6A",
-        "backgroundColor": "hex:10231E",
+        "color": "hex:F0FFF4",
+        "backgroundColor": "hex:2F5A4D",
         "rawValue": true,
         "merge": true,
         "metadata": {
@@ -210,8 +210,8 @@
       {
         "id": "cache-timer",
         "type": "cache-timer",
-        "color": "hex:DDF5D5",
-        "backgroundColor": "hex:10231E",
+        "color": "hex:D9FBE6",
+        "backgroundColor": "hex:2F5A4D",
         "rawValue": true,
         "metadata": {
           "hideWhenEmpty": "true",
@@ -228,24 +228,13 @@
       {
         "id": "git-branch",
         "type": "git-branch",
-        "color": "hex:6FC2FF",
-        "backgroundColor": "hex:101D29",
+        "color": "hex:DBF4FF",
+        "backgroundColor": "hex:355A72",
         "rawValue": false,
         "bold": true,
         "merge": true,
         "character": "",
-        "maxWidth": 28,
-        "metadata": {
-          "hideNoGit": "true"
-        }
-      },
-      {
-        "id": "git-clean-status",
-        "type": "git-clean-status",
-        "color": "hex:D5E0EB",
-        "backgroundColor": "hex:101D29",
-        "rawValue": true,
-        "merge": true,
+        "maxWidth": 72,
         "metadata": {
           "hideNoGit": "true"
         }
@@ -253,8 +242,8 @@
       {
         "id": "git-status",
         "type": "git-status",
-        "color": "hex:E0AF68",
-        "backgroundColor": "hex:101D29",
+        "color": "hex:FFE29A",
+        "backgroundColor": "hex:355A72",
         "merge": true,
         "metadata": {
           "hideNoGit": "true",
@@ -267,8 +256,8 @@
       {
         "id": "git-ahead-behind",
         "type": "git-ahead-behind",
-        "color": "hex:82AFFF",
-        "backgroundColor": "hex:101D29",
+        "color": "hex:C7D2FE",
+        "backgroundColor": "hex:355A72",
         "metadata": {
           "hideNoGit": "true",
           "symbolAhead": "",
@@ -276,18 +265,36 @@
         }
       },
       {
+        "id": "diff-icon",
+        "type": "custom-text",
+        "color": "hex:FB923C",
+        "backgroundColor": "hex:5A4336",
+        "customText": " ",
+        "merge": "no-padding"
+      },
+      {
+        "id": "git-changes",
+        "type": "git-changes",
+        "color": "hex:FFF3E8",
+        "backgroundColor": "hex:5A4336",
+        "merge": true,
+        "metadata": {
+          "hideNoGit": "true"
+        }
+      },
+      {
         "id": "review-icon",
         "type": "custom-text",
-        "color": "hex:BB9AF7",
-        "backgroundColor": "hex:1B1728",
+        "color": "hex:C084FC",
+        "backgroundColor": "hex:4A3F66",
         "customText": " ",
         "merge": "no-padding"
       },
       {
         "id": "git-review",
         "type": "git-review",
-        "color": "hex:E7DFFD",
-        "backgroundColor": "hex:1B1728",
+        "color": "hex:F4EEFF",
+        "backgroundColor": "hex:4A3F66",
         "rawValue": false,
         "merge": true,
         "metadata": {
@@ -298,99 +305,25 @@
       {
         "id": "ci-label",
         "type": "custom-text",
-        "color": "hex:BB9AF7",
-        "backgroundColor": "hex:1B1728",
+        "color": "hex:E9D5FF",
+        "backgroundColor": "hex:4A3F66",
         "customText": "CI ",
         "merge": "no-padding"
       },
       {
         "id": "git-ci-status",
         "type": "git-ci-status",
-        "color": "hex:E7DFFD",
-        "backgroundColor": "hex:1B1728",
+        "color": "hex:F4EEFF",
+        "backgroundColor": "hex:4A3F66",
         "rawValue": false,
-        "metadata": {
-          "hideNoGit": "true"
-        }
-      },
-      {
-        "id": "diff-icon",
-        "type": "custom-text",
-        "color": "hex:FF9E64",
-        "backgroundColor": "hex:211A16",
-        "customText": " ",
-        "merge": "no-padding"
-      },
-      {
-        "id": "git-changes",
-        "type": "git-changes",
-        "color": "hex:F2E4D5",
-        "backgroundColor": "hex:211A16",
-        "merge": true,
-        "metadata": {
-          "hideNoGit": "true"
-        }
-      },
-      {
-        "id": "staged-files-icon",
-        "type": "custom-text",
-        "color": "hex:9ECE6A",
-        "backgroundColor": "hex:211A16",
-        "customText": "",
-        "merge": "no-padding"
-      },
-      {
-        "id": "staged-files",
-        "type": "git-staged-files",
-        "color": "hex:9ECE6A",
-        "backgroundColor": "hex:211A16",
-        "rawValue": true,
-        "merge": true,
-        "metadata": {
-          "hideNoGit": "true"
-        }
-      },
-      {
-        "id": "unstaged-files-icon",
-        "type": "custom-text",
-        "color": "hex:E0AF68",
-        "backgroundColor": "hex:211A16",
-        "customText": "",
-        "merge": "no-padding"
-      },
-      {
-        "id": "unstaged-files",
-        "type": "git-unstaged-files",
-        "color": "hex:E0AF68",
-        "backgroundColor": "hex:211A16",
-        "rawValue": true,
-        "merge": true,
-        "metadata": {
-          "hideNoGit": "true"
-        }
-      },
-      {
-        "id": "untracked-files-icon",
-        "type": "custom-text",
-        "color": "hex:F7768E",
-        "backgroundColor": "hex:211A16",
-        "customText": "",
-        "merge": "no-padding"
-      },
-      {
-        "id": "untracked-files",
-        "type": "git-untracked-files",
-        "color": "hex:F7768E",
-        "backgroundColor": "hex:211A16",
-        "rawValue": true,
         "metadata": {
           "hideNoGit": "true"
         }
       }
     ]
   ],
-  "flexMode": "full",
-  "compactThreshold": 60,
+  "flexMode": "full-until-compact",
+  "compactThreshold": 84,
   "colorLevel": 3,
   "defaultPadding": " ",
   "defaultPaddingSide": "both",
