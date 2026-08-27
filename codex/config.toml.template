@@ -10,6 +10,7 @@ default_subagent_model = "gpt-5.6-luna"
 default_subagent_reasoning_effort = "medium"
 # max_concurrent_threads_per_sessionはworker数の要求ではなく上限。
 # WSL/CI/desktopごとの安全なcapacityをCodexに選ばせるため未設定にする。
+max_concurrent_threads_per_session = 8
 
 [tui]
 status_line = [
