@@ -12,10 +12,13 @@
       "WebFetch"
     ],
     "deny": [
+      "Read(.env*)",
+      "Bash(*./tests*)",
       "Read(**/*.env)",
       "Read(**/*.pem)",
       "Read(**/*.key)",
       "Edit(**/*.env)",
+      ”Bash(*.env*)",
       "Bash(git commit *)",
       "Bash(git push *)",
       "Bash(rm -rf *)",
