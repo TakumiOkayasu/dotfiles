@@ -22,22 +22,22 @@ CLAUDE_COMMAND_REFERENCES = {
 
 WORKFLOWS: dict[str, tuple[str, str, str]] = {
     "feat": (
-        "Feature implementation, new behavior, or product change. Use for 'implement', 'add', 'create', 'feat', UI/API changes. Do not use for pure bug fixes or explanation-only tasks.",
+        "Implement new features or change product behavior. Do not use for bug fixes, general file creation, or explanation-only tasks.",
         "Feature Implementation",
         """## Goal\nImplement a feature with minimal scope and risk-gated TDD.\n\n## Steps\n\n1. Read and apply only the rules applicable to this task. If a required rule cannot be read, report the blocker before editing.\n2. Classify risk:\n   - small: <=50 changed lines, no DB/API/dependency/auth/secrets changes\n   - normal: existing architecture, limited files\n   - high-risk: DB schema, public API, auth, secrets, dependency changes, destructive data, 100+ changed lines, unclear requirements\n3. For high-risk tasks, present a short plan and use `premise-questioning` / `feature-pruning` only when the trigger actually applies.\n4. For new modules/classes, use `interface-first-design` before code.\n5. Use `tdd` for behavior changes: test list -> RED -> GREEN -> REFACTOR.\n6. Keep diffs minimal. Do not add unrelated cleanup.\n7. Run project-defined test/lint/build when available.\n\n## Output\n- Risk classification\n- Changed files\n- Tests/checks run\n- Unverified risks\n- Follow-up candidates\n""",
     ),
     "fix": (
-        "Bug fixing, failing tests, runtime errors, unexpected behavior, regression repair. First reproduce and identify root cause. Do not use for new features.",
+        "Diagnose and fix bugs, regressions, runtime errors, or failing tests. Do not use for new features.",
         "Bug Fix",
         """## Goal\nFix a bug by proving the failure, identifying root cause, and adding regression protection.\n\n## Steps\n\n1. Apply mandatory rules.\n2. Record symptom, expected behavior, actual behavior, and environment.\n3. Reproduce. If runtime reproduction is unavailable, enter static trace mode and clearly mark reproduction as unavailable.\n4. Use `systematic-debugging`: boundary trace -> root cause -> hypothesis validation.\n5. Add or update a regression test before the patch when feasible.\n6. Patch the root cause with minimal diff. Avoid symptom-only fixes.\n7. Run relevant tests/checks.\n\n## Output\n- Reproduction status\n- Root cause\n- Fix summary\n- Regression test\n- Verification\n- Unverified risks\n""",
     ),
     "review": (
-        "Code review for a diff, file, PR, or implementation result. Use for 'review', 'check', 'inspect'. Escalate to deep-review for high-risk diffs.",
+        "Review a code diff, file, pull request, or implementation result. Do not use for general investigation or explanation.",
         "Code Review",
         """## Goal\nReview real code evidence only.\n\n## Steps\n\n1. Apply mandatory rules.\n2. Identify target: explicit path/commit/diff, otherwise `git diff HEAD`.\n3. Escalate to `deep-review` if auth, secrets, DB/API contracts, concurrency, payments, or large diff are involved.\n4. Report only issues grounded in code.\n5. Every finding must include file:line, evidence, impact, and fix proposal.\n\n## Output\n- PASS / WARN / BLOCK\n- Findings ordered by severity\n- Fix proposals\n- Checks not performed\n""",
     ),
     "deep-review": (
-        "High-risk or multi-file code review using security, performance, and maintainability perspectives. Use for 'deep review', large diffs, auth/secrets/DB/API, or release gates.",
+        "Review high-risk code changes or perform an explicitly requested multi-perspective code review.",
         "Deep Review",
         """## Goal\nRun a multi-perspective review and synthesize into one severity-ordered result.\n\n## Steps\n\n1. Apply mandatory rules and read target diff.\n2. Split review by perspective: security, performance, maintainability. Use subagents only if available and useful; otherwise use parent-session sections.\n3. Security: auth, authorization, input validation, secrets, SQL/command injection, XSS, SSRF, path traversal, unsafe deserialization, CSRF/CORS.\n4. Performance: N+1, O(n^2), unnecessary recomputation, memory/resource leak, concurrency/race/await issues.\n5. Maintainability: architecture invariants, dependency direction, public contract breakage, test quality, scope creep.\n6. Synthesize duplicates and sort Critical -> Warning -> Suggestion.\n\n## Output\n- `## 判定: BLOCK|WARN|PASS`\n- Counts by severity and perspective\n- Findings with file:line, evidence, fix proposal\n""",
     ),
@@ -67,7 +67,7 @@ WORKFLOWS: dict[str, tuple[str, str, str]] = {
         """## Output format\n\n```md\n🎯 Context\n- 背景:\n- 制約:\n- 決定:\n\n📌 Tasks\n1. [task] - [purpose] - [notes]\n\n📁 Files\n- 変更:\n- 参考:\n\n✅ Done when\n- ...\n\n⚠️ Risks\n- ...\n```\n""",
     ),
     "implementation-router": (
-        "Classify implementation tasks by risk and route to feat, fix, refactor, test, review, or consult.",
+        "Choose a workflow when an implementation request mixes task types or its route is unclear.",
         "Implementation Router",
         """## Routing\n- New behavior -> `feat`\n- Bug/failing test/runtime error -> `fix`\n- Behavior-preserving cleanup -> `refactor`\n- Test-only -> `test`\n- Planning/no edit -> `consult`\n- Code review -> `review` / `deep-review`\n\nAlways apply rules first and escalate high-risk tasks.\n""",
     ),
@@ -115,7 +115,7 @@ def skill_body(name: str, desc: str, title: str, content: str) -> str:
         r"(?m)^(#{2,6} .+)\n(?!\n)", r"\1\n\n", content.strip()
     )
     return (
-        f"""---\nname: {name}\ndescription: {desc} Front-load this description for Codex implicit matching; explicit invocation via ${name} always works.\n---\n\n# {title}\n\n{normalized_content}\n{command_reference}{COMMON}"""
+        f"""---\nname: {name}\ndescription: {desc}\n---\n\n# {title}\n\n{normalized_content}\n{command_reference}{COMMON}"""
     ).rstrip() + "\n"
 
 
