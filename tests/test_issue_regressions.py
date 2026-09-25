@@ -188,3 +188,20 @@ def test_referent_rule_does_not_require_generation_ceremony() -> None:
     assert "IMPORTANT:" not in rule
     assert "対応表なしの本文提出は禁止" not in rule
     assert "本文を破棄" not in rule
+
+
+def test_review_skills_keep_fixed_reports_after_audit() -> None:
+    """Source and generated Codex views retain the established report contract."""
+    cases = {
+        "bug-hunt": ("## 確定バグ", "## 検証内容", "## 調査範囲", "CRITICAL", "HIGH", "MEDIUM", "LOW"),
+        "test-coverage-guard": (
+            "### 🔴 要修正", "### 🟡 改善推奨", "### 🟢 問題なし", "### 📊 サマリー",
+        ),
+    }
+    for name, required in cases.items():
+        source = (REPO_ROOT / "common" / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        generated = (GENERATED_CODEX / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        assert f"source=common/skills/{name}/SKILL.md" in generated
+        for label in required:
+            assert label in source, (name, label)
+            assert label in generated, (name, label)
