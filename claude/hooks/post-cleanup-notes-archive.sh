@@ -2,7 +2,7 @@
 # PostToolUse hook: git-cleanup-branch / git branch -D 実行後、
 # 既に存在しないブランチに対応する notes ファイルを notes/archive/ へ移動する。
 #
-# 規約: ~/.claude/rules/session-memory.md 「File-System Memory」「削除・整理」
+# 規約: ~/.claude/rules/opus-47-policy.md 「File-System Memory」「削除・整理」
 
 set -euo pipefail
 
