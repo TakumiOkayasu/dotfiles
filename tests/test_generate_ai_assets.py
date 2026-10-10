@@ -13,6 +13,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 GENERATOR = REPO_ROOT / "scripts" / "generate-ai-assets.py"
+ASSET_MANIFEST_NAME = "ai-assets-manifest.json"
+ASSET_MANIFEST_SHA256 = "f9322f2773f97a23b74f91984d5b5cd2513e79853ed1eb73437097ae2fe3f05c"
 
 
 def copy_repository(destination: Path) -> Path:
@@ -67,6 +69,41 @@ def tree_digest(root: Path) -> str:
 
 
 class TestGenerateAiAssets(unittest.TestCase):
+    def test_renamed_asset_manifest_preserves_default_pipeline_contract(self) -> None:
+        """正本manifestのschemaとdefault生成先をrename後も変えない。"""
+        manifest_path = REPO_ROOT / "scripts" / ASSET_MANIFEST_NAME
+        manifest_content = manifest_path.read_bytes()
+        self.assertEqual(
+            hashlib.sha256(manifest_content).hexdigest(), ASSET_MANIFEST_SHA256
+        )
+        manifest = json.loads(manifest_content)
+
+        with tempfile.TemporaryDirectory() as directory:
+            repo = copy_repository(Path(directory))
+            result = run_generator(repo)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            generated = repo / ".generated" / "ai-assets"
+            install_manifest = json.loads(
+                (generated / "manifest.json").read_text(encoding="utf-8")
+            )
+            codex_destinations = {
+                entry["destination"] for entry in install_manifest["targets"]["codex"]
+            }
+            for mapping in manifest["commands"]:
+                skill = mapping["skill"]
+                reference = mapping["reference"]
+                source = mapping["source"]
+                generated_reference = (
+                    generated / "codex" / "skills" / skill / reference
+                )
+                self.assertIn(
+                    f"source={source}", generated_reference.read_text(encoding="utf-8")
+                )
+                self.assertIn(
+                    f".codex/skills/{skill}/{reference}", codex_destinations
+                )
+
     def assert_generated_views(self, generated: Path) -> None:
         claude_skill = generated / "claude" / "skills" / "tdd" / "SKILL.md"
         codex_skill = generated / "codex" / "skills" / "tdd" / "SKILL.md"
