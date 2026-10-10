@@ -80,11 +80,6 @@
           {
             "type": "command",
             "command": "$HOME/.claude/hooks/commit-checkpoint.sh"
-          },
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/post-cleanup-notes-archive.sh",
-            "timeout": 10
           }
         ]
       }
