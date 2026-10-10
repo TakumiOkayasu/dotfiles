@@ -408,7 +408,7 @@ assert_eq "既存保護を保持して更新: policy" '[true,["unit"],[{"context
 FAKE_GH_PROTECTION_MODE=error PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo --check octo/example > /tmp/gh-setup-check.out 2>&1
 exit_code=$?
 reported_active=$(grep -c 'ブランチ保護: 有効' /tmp/gh-setup-check.out || true)
-reported_error=$(grep -c '取得に失敗' /tmp/gh-setup-check.out || true)
+reported_error=$(grep -c 'ブランチ保護: 取得に失敗' /tmp/gh-setup-check.out || true)
 assert_eq "保護設定取得失敗の --check: exit 1" "1" "$exit_code"
 assert_eq "保護設定取得失敗の --check: 有効と誤表示しない" "0" "$reported_active"
 assert_eq "保護設定取得失敗の --check: 取得失敗を表示" "1" "$reported_error"
@@ -418,8 +418,9 @@ FAKE_GH_PROTECTION_JSON='{"required_signatures":{"enabled":true}}'
 PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo octo/example > /dev/null 2>&1
 exit_code=$?
 write_count=$(grep -Ec -- '-X (PATCH|PUT)' "$FAKE_GH_CALLS" || true)
-assert_eq "署名必須の既存保護: 更新を中止" "1" "$exit_code"
-assert_eq "署名必須の既存保護: 書き込みなし" "0" "$write_count"
+signature_endpoint_count=$(grep -c 'required_signatures' "$FAKE_GH_CALLS" || true)
+assert_eq "署名必須の既存保護: 更新を継続" "0" "$exit_code"
+assert_eq "署名必須の既存保護: 専用 endpoint は変更しない" "0" "$signature_endpoint_count"
 
 : > "$FAKE_GH_CALLS"
 FAKE_GH_PROTECTION_JSON='{"unknown_policy":{"enabled":true}}'
