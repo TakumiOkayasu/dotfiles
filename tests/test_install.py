@@ -856,7 +856,6 @@ class TestCodexAgentDefinitions:
         expected_high = {
             "arch",
             "design-team",
-            "empirical-prompt-tuning",
             "feature-pruning",
             "optimize",
             "orchestrate",
