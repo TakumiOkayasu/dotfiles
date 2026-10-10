@@ -106,26 +106,58 @@ EOF
 # cannot represent instead of silently weakening them.
 existing_protection_payload() {
     jq -ce '
+      def require_object($description):
+        if type == "object" then . else error($description + " must be an object") end;
       def reject_unknown($allowed):
         (keys - $allowed) as $unknown |
         if ($unknown | length) == 0 then .
         else error("unsupported branch protection fields: " + ($unknown | join(", "))) end;
+      def login_list:
+        if type != "array" then error("users must be an array")
+        else map(if type == "object" and (.login | type == "string") then .login else error("invalid user") end)
+        end;
+      def slug_list($kind):
+        if type != "array" then error($kind + " must be an array")
+        else map(if type == "object" and (.slug | type == "string") then .slug else error("invalid " + $kind) end)
+        end;
       def access_list:
         if . == null then null else
+          require_object("access list") |
           reject_unknown(["url", "users_url", "teams_url", "apps_url", "users", "teams", "apps"]) |
-          {users: [.users[]?.login], teams: [.teams[]?.slug], apps: [.apps[]?.slug]}
+          {users: (.users | login_list), teams: (.teams | slug_list("teams")), apps: (.apps | slug_list("apps"))}
         end;
       def status_checks:
         if . == null then null else
+          require_object("required_status_checks") |
           reject_unknown(["url", "contexts_url", "strict", "contexts", "checks", "enforcement_level"]) |
-          if has("strict") then . else error("required_status_checks.strict is missing") end |
-          if (.checks? != null and ([.checks[] | (keys - ["context", "app_id"] | length > 0)] | any))
+          if (has("strict") and (.strict | type == "boolean") and (.contexts | type == "array") and all(.contexts[]; type == "string")) then .
+          else error("invalid required_status_checks") end |
+          if (.checks? != null and ([.checks[] | require_object("required status check") | (keys - ["context", "app_id"] | length > 0)] | any))
           then error("unsupported required status check fields") else . end |
+          if (.checks? != null and any(.checks[]; (.context | type != "string") or (has("app_id") and (.app_id != null) and (.app_id | type != "number"))))
+          then error("invalid required status check") else . end |
           {strict: .strict, contexts: (.contexts // []), checks: .checks} |
           with_entries(select(.value != null))
         end;
+      def optional_boolean($name):
+        if has($name) then
+          if .[$name] | type == "boolean" then .[$name] else error("invalid " + $name) end
+        else null end;
+      def optional_review_count:
+        if has("required_approving_review_count") then
+          if (.required_approving_review_count | type == "number") and (.required_approving_review_count >= 0 and .required_approving_review_count <= 6)
+          then .required_approving_review_count else error("invalid required_approving_review_count") end
+        else null end;
+      def default_pull_request_reviews:
+        {
+          dismiss_stale_reviews: false,
+          require_code_owner_reviews: false,
+          required_approving_review_count: 0,
+          require_last_push_approval: false
+        };
       def pull_request_reviews:
-        if . == null then null else
+        if . == null then default_pull_request_reviews else
+          require_object("required_pull_request_reviews") |
           reject_unknown([
             "url", "dismissal_restrictions", "dismiss_stale_reviews",
             "require_code_owner_reviews", "required_approving_review_count",
@@ -133,23 +165,27 @@ existing_protection_payload() {
           ]) |
           {
             dismissal_restrictions: (.dismissal_restrictions | access_list),
-            dismiss_stale_reviews: .dismiss_stale_reviews,
-            require_code_owner_reviews: .require_code_owner_reviews,
-            required_approving_review_count: .required_approving_review_count,
-            require_last_push_approval: .require_last_push_approval,
+            dismiss_stale_reviews: optional_boolean("dismiss_stale_reviews"),
+            require_code_owner_reviews: optional_boolean("require_code_owner_reviews"),
+            required_approving_review_count: optional_review_count,
+            require_last_push_approval: optional_boolean("require_last_push_approval"),
             bypass_pull_request_allowances: (.bypass_pull_request_allowances | access_list)
           } |
           with_entries(select(.value != null))
         end;
       def enabled($name; $default):
         if has($name) and .[$name] != null
-        then .[$name] | reject_unknown(["url", "enabled"]) | .enabled
+        then .[$name] | require_object($name) | reject_unknown(["url", "enabled"]) |
+          if .enabled | type == "boolean" then .enabled else error("invalid " + $name) end
         else $default end;
       def signature_protection:
         if .required_signatures == null then .
         else (.required_signatures | reject_unknown(["url", "enabled"])) as $signature | .
         end;
 
+      require_object("branch protection response") |
+      if (has("required_status_checks") and has("enforce_admins") and has("required_pull_request_reviews") and has("restrictions")) then .
+      else error("branch protection response is missing required fields") end |
       reject_unknown([
         "url", "required_status_checks", "enforce_admins",
         "required_pull_request_reviews", "restrictions", "required_signatures",
@@ -194,9 +230,14 @@ check_settings() {
         return 1
     fi
     if protection=$(get_branch_protection "$repo" "$default_branch"); then
-        echo -e "${GREEN}✓${NC} ${default_branch}ブランチ保護: 有効"
-        if jq -e '.required_pull_request_reviews != null' <<<"$protection" >/dev/null 2>&1; then
-            echo "    - PR必須: 有効"
+        if existing_protection_payload <<<"$protection" >/dev/null 2>&1; then
+            echo -e "${GREEN}✓${NC} ${default_branch}ブランチ保護: 有効"
+            if jq -e '.required_pull_request_reviews != null' <<<"$protection" >/dev/null 2>&1; then
+                echo "    - PR必須: 有効"
+            fi
+        else
+            echo -e "${YELLOW}!${NC} ${default_branch}ブランチ保護: 取得に失敗"
+            protection_status=1
         fi
     else
         case $? in
