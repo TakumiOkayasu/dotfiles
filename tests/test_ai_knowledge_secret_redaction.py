@@ -31,9 +31,16 @@ def main() -> int:
 
         # Explicit redaction/pseudonymization must not turn a credential into a
         # committed placeholder. Secret detection runs on raw text first.
-        for text in (
-            "{{redact:ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890}}",
-            "{{private:customer:ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890}}",
+        for text, expected_error in (
+            ("{{redact:ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890}}", "GitHub token detected"),
+            (
+                "{{private:customer:ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890}}",
+                "GitHub token detected",
+            ),
+            (
+                "{{redact:AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_+/=aBcDeFgHiJ}}",
+                "high-entropy token detected",
+            ),
         ):
             try:
                 module.pseudonymize_text(
@@ -44,7 +51,7 @@ def main() -> int:
                     source=source,
                 )
             except module.SyncError as error:
-                assert "GitHub token detected" in str(error)
+                assert expected_error in str(error)
             else:
                 raise AssertionError("secret inside a redaction marker was accepted")
 

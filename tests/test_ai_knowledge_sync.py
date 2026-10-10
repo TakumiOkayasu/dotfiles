@@ -14,6 +14,7 @@ SCRIPT = ROOT / "bin" / "ai-knowledge-sync"
 KEYGEN = ROOT / "bin" / "ai-knowledge-keygen"
 PROJECT_REF_RE = re.compile(r"^[0-9a-f]{20}$")
 FILE_REF_RE = re.compile(r"^[0-9a-f]{20}\.(?:md|txt|json|jsonl|toml|yaml|yml)$")
+HIGH_ENTROPY_ALIAS = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-aBcDeFgHiJ"
 
 
 def run(*args: str, cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -145,6 +146,8 @@ def main() -> int:
         root = Path(directory)
         source = root / "prog"
         source.mkdir()
+        source_alias = root / HIGH_ENTROPY_ALIAS
+        source_alias.symlink_to(source, target_is_directory=True)
         key = root / "config" / "redaction.key"
         make_key(key)
 
@@ -180,7 +183,7 @@ def main() -> int:
                     "",
                     "Customer {{private:customer:Acme Corporation}} hit a reusable lock pattern.",
                     "Ticket {{redact:INC-12345}} supplied the original evidence.",
-                    f"Local path: {project_a}/src/Worker.php",
+                    f"Local path: {source_alias / project_a.name}/src/Worker.php",
                     "Project metadata: github.com/example/project-a",
                     "",
                 ]
@@ -196,7 +199,7 @@ def main() -> int:
         repository = source / "ai-knowledge-private"
         init_repo(repository)
 
-        first = sync(source, repository, key)
+        first = sync(source_alias, repository, key)
         assert "projects exported: 2" in first.stdout
         data = index(repository)
         assert data["schema_version"] == 2
@@ -223,6 +226,7 @@ def main() -> int:
         assert "INC-12345" not in corpus
         assert "github.com/example/project-a" not in corpus
         assert str(project_a) not in corpus
+        assert str(source_alias / project_a.name) not in corpus
         assert "state-only-secret-value" not in corpus
         assert re.search(r"<customer:[0-9a-f]{12}>", corpus)
         assert "<redacted>" in corpus
@@ -230,7 +234,7 @@ def main() -> int:
         assert re.search(r"<project:[0-9a-f]{20}>", corpus)
 
         first_commit_count = int(git(repository, "rev-list", "--count", "HEAD").stdout)
-        second = sync(source, repository, key)
+        second = sync(source_alias, repository, key)
         assert "committed: no" in second.stdout
         assert int(git(repository, "rev-list", "--count", "HEAD").stdout) == first_commit_count
 
@@ -242,7 +246,7 @@ def main() -> int:
             enabled=False,
             include_inbox=True,
         )
-        sync(source, repository, key)
+        sync(source_alias, repository, key)
         data = index(repository)
         assert len(data["projects"]) == 1
         remaining_paths = {item["path"] for item in data["projects"]}
@@ -253,27 +257,49 @@ def main() -> int:
         secret_file = project_a / ".ai" / "knowledge" / "secret.md"
         secret_file.write_text("password=super-secret-value-123\n", encoding="utf-8")
         before = git(repository, "rev-parse", "HEAD").stdout.strip()
-        rejected = sync(source, repository, key, check=False)
+        rejected = sync(source_alias, repository, key, check=False)
         assert rejected.returncode != 0
         assert "credential assignment detected" in rejected.stderr
         assert git(repository, "rev-parse", "HEAD").stdout.strip() == before
         assert git(repository, "status", "--porcelain").stdout.strip() == ""
         secret_file.unlink()
 
+        path_secret = project_a / ".ai" / "knowledge" / "path-secret.md"
+        path_secret.write_text(
+            f"Local path: {source_alias / project_a.name}/ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890\n",
+            encoding="utf-8",
+        )
+        path_secret_rejected = sync(source_alias, repository, key, check=False)
+        assert path_secret_rejected.returncode != 0
+        assert "GitHub token detected" in path_secret_rejected.stderr
+        path_secret.unlink()
+
         entropy_file = project_a / ".ai" / "knowledge" / "entropy.md"
         entropy_file.write_text(
             "Standalone value: AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_+/=aBcDeFgHiJ\n",
             encoding="utf-8",
         )
-        entropy_rejected = sync(source, repository, key, check=False)
+        entropy_rejected = sync(source_alias, repository, key, check=False)
         assert entropy_rejected.returncode != 0
         assert "high-entropy token detected" in entropy_rejected.stderr
         entropy_file.unlink()
 
+        # A known project-root alias may be pseudonymized, but a token appended
+        # after that root remains exportable content and must still be rejected.
+        path_entropy = project_a / ".ai" / "knowledge" / "path-entropy.md"
+        path_entropy.write_text(
+            f"Path: {source_alias / project_a.name}/notes/{HIGH_ENTROPY_ALIAS}\n",
+            encoding="utf-8",
+        )
+        path_entropy_rejected = sync(source_alias, repository, key, check=False)
+        assert path_entropy_rejected.returncode != 0
+        assert "high-entropy token detected" in path_entropy_rejected.stderr
+        path_entropy.unlink()
+
         # Explicit private markers are the only supported deterministic pseudonymization input.
         malformed = project_a / ".ai" / "knowledge" / "malformed.md"
         malformed.write_text("{{private:customer}}\n", encoding="utf-8")
-        rejected = sync(source, repository, key, check=False)
+        rejected = sync(source_alias, repository, key, check=False)
         assert rejected.returncode != 0
         assert "malformed redaction marker" in rejected.stderr
         malformed.unlink()
@@ -297,26 +323,26 @@ def main() -> int:
         )
         git(legacy, "add", "--", "index.json")
         git(legacy, "commit", "-q", "-m", "legacy")
-        legacy_rejected = sync(source, legacy, key, check=False)
+        legacy_rejected = sync(source_alias, legacy, key, check=False)
         assert legacy_rejected.returncode != 0
         assert "legacy knowledge index schema 1" in legacy_rejected.stderr
 
         # Missing or weak keys fail before any export.
         missing = root / "missing.key"
-        key_rejected = sync(source, repository, missing, check=False)
+        key_rejected = sync(source_alias, repository, missing, check=False)
         assert key_rejected.returncode != 0
         assert "redaction key not found" in key_rejected.stderr
         weak = root / "weak.key"
         weak.write_text("too-short\n", encoding="utf-8")
         if os.name == "posix":
             weak.chmod(0o600)
-        weak_rejected = sync(source, repository, weak, check=False)
+        weak_rejected = sync(source_alias, repository, weak, check=False)
         assert weak_rejected.returncode != 0
         assert "at least 32 bytes" in weak_rejected.stderr
 
         # A dirty central repository is never overwritten.
         (repository / "local-note.txt").write_text("unsaved\n", encoding="utf-8")
-        dirty = sync(source, repository, key, check=False)
+        dirty = sync(source_alias, repository, key, check=False)
         assert dirty.returncode != 0
         assert "uncommitted changes" in dirty.stderr
 

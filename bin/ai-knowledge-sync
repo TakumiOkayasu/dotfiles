@@ -230,13 +230,18 @@ def shannon_entropy(value: str) -> float:
     )
 
 
-def assert_no_secret(text: str, source: Path) -> None:
+def assert_no_secret(
+    text: str, source: Path, *, check_high_entropy: bool = True
+) -> None:
     for label, pattern in SECRET_PATTERNS:
         for match in pattern.finditer(text):
             value = match.groupdict().get("value")
             if value is not None and SAFE_PLACEHOLDER_RE.fullmatch(value):
                 continue
             raise SyncError(f"{label} detected in exportable knowledge: {source}")
+
+    if not check_high_entropy:
+        return
 
     for match in HIGH_ENTROPY_RE.finditer(text):
         candidate = match.group(1)
@@ -252,12 +257,29 @@ def assert_no_secret(text: str, source: Path) -> None:
             raise SyncError(f"high-entropy token detected in exportable knowledge: {source}")
 
 
+def local_path_spellings(path: Path) -> set[str]:
+    try:
+        candidates = (path.absolute(), path.resolve())
+    except OSError as error:
+        raise SyncError(f"cannot resolve local path for redaction: {path}: {error}") from error
+
+    return {
+        value
+        for candidate in candidates
+        if (value := str(candidate)) not in {"/", "."}
+    }
+
+
 def pseudonymize_text(
     text: str, *, key: bytes, project: Path, project_id: str, source: Path
 ) -> str:
-    # Scan raw text before marker substitution so secrets cannot be hidden inside
-    # {{private:...}} or {{redact:...}} and converted into a stored pseudonym.
-    assert_no_secret(text, source)
+    # Scan raw text before marker substitution so named secrets cannot be hidden
+    # inside a marker or a known local-path spelling. High-entropy checks run after
+    # known paths are replaced because macOS aliases such as /tmp and /private/tmp
+    # can include harmless random directory components.
+    assert_no_secret(text, source, check_high_entropy=False)
+    for marker in (*PRIVATE_MARKER_RE.finditer(text), *REDACT_MARKER_RE.finditer(text)):
+        assert_no_secret(marker.group("value"), source)
 
     def replace_private(match: re.Match[str]) -> str:
         kind = match.group("kind")
@@ -279,8 +301,8 @@ def pseudonymize_text(
         raise SyncError(f"malformed redaction marker in {source}")
 
     replacements = [
-        (str(project.resolve()), "$PROJECT"),
-        (str(Path.home().resolve()), "$HOME"),
+        *( (raw, "$PROJECT") for raw in local_path_spellings(project) ),
+        *( (raw, "$HOME") for raw in local_path_spellings(Path.home()) ),
     ]
     for raw, placeholder in sorted(replacements, key=lambda item: len(item[0]), reverse=True):
         if raw and raw not in {"/", "."}:
@@ -475,7 +497,7 @@ def sync(args: argparse.Namespace) -> int:
     if args.max_file_bytes <= 0:
         raise SyncError("--max-file-bytes must be positive")
 
-    source_root = Path(args.source_root).expanduser().resolve()
+    source_root = Path(args.source_root).expanduser().absolute()
     repository = Path(args.repository).expanduser().resolve()
     key_path = Path(args.redaction_key_file).expanduser()
     if not source_root.is_dir():
