@@ -1766,6 +1766,47 @@ class TestIntegrationInstallUninstall:
             "scripts/__pycache__": snapshot_tree(REPO_ROOT / "scripts" / "__pycache__"),
         } == before_generated
 
+    def test_dry_run_with_space_in_repo_path_cleans_only_its_stage(
+        self, tmp_path: Path
+    ) -> None:
+        """dry-runの一時stage cleanupは空白入りrepo pathを分割しない"""
+        repo = tmp_path / "dotfiles repo"
+        subprocess.run(
+            ["git", "clone", "--quiet", "--local", str(REPO_ROOT), str(repo)],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        shutil.copy2(INSTALL_SH, repo / "install.sh")
+        _write_executable(repo / "scripts" / "stow-install.sh", "#!/bin/sh\nexit 0\n")
+
+        sentinel = tmp_path / "dotfiles"
+        sentinel.mkdir()
+        (sentinel / "must-survive").write_text("sentinel\n", encoding="utf-8")
+        home = tmp_path / "home"
+        (home / ".claude" / "empty" / "nested").mkdir(parents=True)
+
+        def snapshot_tree(root: Path) -> dict[Path, tuple[str, bytes | None]]:
+            snapshot: dict[Path, tuple[str, bytes | None]] = {}
+            for path in (root, *sorted(root.rglob("*"))):
+                relative = path.relative_to(root)
+                if path.is_file():
+                    snapshot[relative] = ("file", path.read_bytes())
+                elif path.is_dir():
+                    snapshot[relative] = ("directory", None)
+            return snapshot
+
+        before_home = snapshot_tree(home)
+        result = _run_install_sh(repo, home, dry_run=True, use_fake_vendor=False)
+
+        assert result.returncode == 0, result.stderr
+        assert (sentinel / "must-survive").read_text(encoding="utf-8") == "sentinel\n"
+        assert snapshot_tree(home) == before_home
+        assert not (repo / ".generated").exists()
+        assert ".ai-assets-dry-run." not in result.stdout
+        assert f"{repo}/.generated/ai-assets/" in result.stdout
+
     def test_install_succeeds(self, tmp_path: Path) -> None:
         """install.sh -f が正常終了する"""
         home = tmp_path / "home"
