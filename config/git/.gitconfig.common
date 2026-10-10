@@ -26,9 +26,6 @@
     compression = 1
     pager = delta
 
-[safe]
-    directory = ~/prog
-
 [credential "https://github.com"]
     helper = !gh auth git-credential
 [credential "https://gist.github.com"]
