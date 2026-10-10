@@ -17,7 +17,7 @@ from codex_asset_manifest import load_asset_manifest
 CORE_PLUGIN = "dotfile-work-codex"
 EXTRA_PLUGIN = "dotfile-work-codex-extra"
 VERSION = "0.3.0"
-ASSET_MANIFEST_PATH = Path(__file__).with_name("claude-command-map.json")
+ASSET_MANIFEST_PATH = Path(__file__).with_name("ai-assets-manifest.json")
 CORE_SKILLS = load_asset_manifest(ASSET_MANIFEST_PATH).core_skills
 
 def write_json(path: Path, data: dict) -> None:

@@ -13,6 +13,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 GENERATOR = REPO_ROOT / "scripts" / "generate-ai-assets.py"
+ASSET_MANIFEST_NAME = "ai-assets-manifest.json"
 
 
 def copy_repository(destination: Path) -> Path:
@@ -67,6 +68,45 @@ def tree_digest(root: Path) -> str:
 
 
 class TestGenerateAiAssets(unittest.TestCase):
+    def test_renamed_asset_manifest_preserves_default_pipeline_contract(self) -> None:
+        """default生成は正本manifestのcommandとtier分類に従う。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            repo = copy_repository(Path(directory))
+            manifest = json.loads(
+                (repo / "scripts" / ASSET_MANIFEST_NAME).read_text(encoding="utf-8")
+            )
+            self.assertTrue(manifest["commands"])
+            result = run_generator(repo)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            generated = repo / ".generated" / "ai-assets"
+            install_manifest = json.loads(
+                (generated / "manifest.json").read_text(encoding="utf-8")
+            )
+            codex_destinations = {
+                entry["destination"] for entry in install_manifest["targets"]["codex"]
+            }
+            for mapping in manifest["commands"]:
+                skill = mapping["skill"]
+                reference = mapping["reference"]
+                source = mapping["source"]
+                plugin = (
+                    "dotfile-work-codex"
+                    if skill in manifest["core_skills"]
+                    else "dotfile-work-codex-extra"
+                )
+                generated_reference = (
+                    generated / "codex" / "skills" / skill / reference
+                )
+                self.assertIn(
+                    f"source={source}", generated_reference.read_text(encoding="utf-8")
+                )
+                self.assertIn(
+                    f".codex/plugins/{plugin}/skills/{skill}/{reference}",
+                    codex_destinations,
+                )
+
     def assert_generated_views(self, generated: Path) -> None:
         claude_skill = generated / "claude" / "skills" / "tdd" / "SKILL.md"
         codex_skill = generated / "codex" / "skills" / "tdd" / "SKILL.md"

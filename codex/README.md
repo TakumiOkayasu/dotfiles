@@ -159,7 +159,7 @@ Claude command は独立した Codex skill にせず、対応する Codex-native
 | `/feat` | `$feat` |
 | `/fix` | `$fix` |
 
-対応関係の正本は `scripts/claude-command-map.json` とする。
+対応関係の正本は `scripts/ai-assets-manifest.json` とする。
 command の追加/削除時は manifest を更新し、`$plugin-sync` の手順で変換/生成/plugin 同期/検証を続けて実行する。
 
 ## hooks

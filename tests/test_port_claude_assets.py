@@ -19,7 +19,7 @@ GENERATOR_SCRIPT = REPO_ROOT / "scripts" / "generate-standard-workflow-skills.py
 VERIFY_SCRIPT = REPO_ROOT / "scripts" / "verify-codex-plugin.py"
 PROFILE_SCRIPT = REPO_ROOT / "scripts" / "apply-codex-performance-profile.py"
 SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync-codex-plugin.py"
-ASSET_MANIFEST = REPO_ROOT / "scripts" / "claude-command-map.json"
+ASSET_MANIFEST = REPO_ROOT / "scripts" / "ai-assets-manifest.json"
 ASSET_MANIFEST_SCRIPT = REPO_ROOT / "scripts" / "codex_asset_manifest.py"
 CLAUDE_TDD_QA_FIXTURE = """# Test-Driven Development
 

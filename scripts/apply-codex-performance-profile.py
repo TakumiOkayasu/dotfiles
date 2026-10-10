@@ -21,7 +21,7 @@ from codex_rule_renderer import (
     render_rule_index,
 )
 
-ASSET_MANIFEST_PATH = Path(__file__).with_name("claude-command-map.json")
+ASSET_MANIFEST_PATH = Path(__file__).with_name("ai-assets-manifest.json")
 CORE_SKILLS = load_asset_manifest(ASSET_MANIFEST_PATH).core_skills
 
 RULES_CORE = """# RULES_CORE

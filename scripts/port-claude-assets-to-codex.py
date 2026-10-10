@@ -86,7 +86,7 @@ CODEX_QA_SURFACE_REPLACEMENTS = (
     ("### qa_nightmare 起動", "### qa_nightmare の将来有効化仕様"),
     ("### 結果の扱い", "### 将来有効化時の結果の扱い"),
 )
-ASSET_MANIFEST_PATH = Path(__file__).with_name("claude-command-map.json")
+ASSET_MANIFEST_PATH = Path(__file__).with_name("ai-assets-manifest.json")
 MANAGED_SOURCE_PATTERN = re.compile(
     rf"<!-- {re.escape(MANAGED_MARKER)}; source=([^;]+); "
     r"generated-by=scripts/port-claude-assets-to-codex\.py -->"
