@@ -1048,7 +1048,6 @@ class TestCodexAgentDefinitions:
         expected_high = {
             "arch",
             "design-team",
-            "empirical-prompt-tuning",
             "feature-pruning",
             "optimize",
             "orchestrate",
@@ -2807,6 +2806,77 @@ class TestIntegrationInstallUninstall:
         assert not claude_stale.is_symlink()
         assert not claude_bin_stale.is_symlink()
         assert not codex_stale.is_symlink()
+
+    def test_upgrade_removes_deleted_shared_skill_and_keeps_current_skills(
+        self, tmp_path: Path
+    ) -> None:
+        """削除済みshared skillだけをupgrade時にunstowし、残るskillを維持する。"""
+        repo = tmp_path / "repo"
+        shutil.copytree(
+            REPO_ROOT,
+            repo,
+            ignore=shutil.ignore_patterns(
+                ".generated", ".stow-work", ".pytest_cache", "__pycache__"
+            ),
+        )
+        source = repo / "common" / "skills" / "empirical-prompt-tuning" / "SKILL.md"
+        source.parent.mkdir(exist_ok=True)
+        source.write_text(
+            "---\n"
+            "name: empirical-prompt-tuning\n"
+            "description: Legacy upgrade fixture.\n"
+            "---\n\n"
+            "# Legacy skill\n",
+            encoding="utf-8",
+        )
+        subprocess.run(
+            ["git", "add", "--", str(source.relative_to(repo))],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+        )
+        home = tmp_path / "home"
+        home.mkdir()
+
+        initial = _run_install_sh(repo, home)
+
+        removed_skill = home / ".claude" / "skills" / "empirical-prompt-tuning"
+        retained_skill = home / ".claude" / "skills" / "tdd" / "SKILL.md"
+        removed_codex_skill = (
+            home
+            / ".codex"
+            / "plugins"
+            / "dotfile-work-codex-extra"
+            / "skills"
+            / "empirical-prompt-tuning"
+        )
+        retained_codex_skill = (
+            home
+            / ".codex"
+            / "plugins"
+            / "dotfile-work-codex"
+            / "skills"
+            / "tdd"
+            / "SKILL.md"
+        )
+        assert initial.returncode == 0, initial.stderr
+        assert (removed_skill / "SKILL.md").is_file()
+        assert retained_skill.is_file()
+        assert (removed_codex_skill / "SKILL.md").is_file()
+        assert retained_codex_skill.is_file()
+
+        source.unlink()
+        source.parent.rmdir()
+
+        upgraded = _run_install_sh(repo, home)
+
+        assert upgraded.returncode == 0, upgraded.stderr
+        assert not removed_skill.exists()
+        assert not removed_skill.is_symlink()
+        assert retained_skill.is_file()
+        assert not removed_codex_skill.exists()
+        assert not removed_codex_skill.is_symlink()
+        assert retained_codex_skill.is_file()
 
     def test_dry_run_preserves_conflicting_file_and_reports_backup(
         self, tmp_path: Path
