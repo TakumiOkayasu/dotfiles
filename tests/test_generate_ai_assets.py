@@ -241,13 +241,36 @@ class TestGenerateAiAssets(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(list(home.iterdir()), [])
 
-    def test_installer_uses_generated_views_for_shared_ai_assets(self) -> None:
-        install_script = (REPO_ROOT / "install.sh").read_text(encoding="utf-8")
+    def test_generated_manifest_lists_stow_sources_for_ai_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = copy_repository(Path(directory))
+            result = run_generator(repo)
+            self.assertEqual(result.returncode, 0, result.stderr)
 
-        self.assertIn("scripts/generate-ai-assets.py", install_script)
-        self.assertIn(".generated/ai-assets/claude", install_script)
-        self.assertIn(".generated/ai-assets/codex", install_script)
-        self.assertIn(".generated/ai-assets/plugins", install_script)
+            for target, destination_prefixes in (
+                ("claude", (".claude/",)),
+                ("codex", (".codex/", ".agents/")),
+            ):
+                listed = subprocess.run(
+                    [
+                        "python3",
+                        str(repo / "scripts" / GENERATOR.name),
+                        "--repo",
+                        str(repo),
+                        "--list-target",
+                        target,
+                    ],
+                    cwd=repo,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+                self.assertEqual(listed.returncode, 0, listed.stderr)
+                specs = [line.split(":", 1) for line in listed.stdout.splitlines()]
+                self.assertTrue(specs, target)
+                for source, destination in specs:
+                    self.assertTrue((repo / source).is_file(), source)
+                    self.assertTrue(destination.startswith(destination_prefixes), destination)
 
 
 class TestDadsDesignPolicy(unittest.TestCase):
