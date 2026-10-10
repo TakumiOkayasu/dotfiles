@@ -232,7 +232,6 @@ def test_session_memory_policy_name_and_runtime_paths_match_generated_views() ->
         "bin/git-new-feature",
         "bin/git-cleanup-branch",
         "claude/hooks/session-start-notes-loader.sh",
-        "claude/hooks/post-cleanup-notes-archive.sh",
         "claude/notes/README.md",
         "claude/notes/_template.md",
         "claude/scratch/README.md",
