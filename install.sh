@@ -1061,6 +1061,7 @@ add_shell_full_stow_specs() {
         zsh|all)
             stow_specs_add "$_spec_file" "config/shell/zsh/zshrc" ".zshrc"
             stow_specs_add "$_spec_file" "config/shell/zsh/zprofile" ".zprofile"
+            stow_specs_add "$_spec_file" "config/shell/zsh/macos.zprofile" ".zsh/macos.zprofile"
             ;;
     esac
 
@@ -1186,6 +1187,7 @@ uninstall_shell_config() {
     remove_link "config/shell/bash/bash_profile" "${HOME}/.bash_profile"
     remove_link "config/shell/zsh/zshrc"         "${HOME}/.zshrc"
     remove_link "config/shell/zsh/zprofile"      "${HOME}/.zprofile"
+    remove_link "config/shell/zsh/macos.zprofile" "${HOME}/.zsh/macos.zprofile"
     remove_link "config/shell/fish/config.fish"  "${HOME}/.config/fish/config.fish"
 
     remove_link "config/shell/common.sh"         "${HOME}/.shell_common"
@@ -1766,6 +1768,7 @@ _preview_shell() {
                 zsh)
                     printf "    + config/shell/zsh/zshrc -> ~/.zshrc\n"
                     printf "    + config/shell/zsh/zprofile -> ~/.zprofile\n"
+                    printf "    + config/shell/zsh/macos.zprofile -> ~/.zsh/macos.zprofile\n"
                     ;;
                 fish)
                     printf "    + config/shell/fish/config.fish -> ~/.config/fish/config.fish\n"
@@ -1775,6 +1778,7 @@ _preview_shell() {
                     printf "    + config/shell/bash/bash_profile -> ~/.bash_profile\n"
                     printf "    + config/shell/zsh/zshrc -> ~/.zshrc\n"
                     printf "    + config/shell/zsh/zprofile -> ~/.zprofile\n"
+                    printf "    + config/shell/zsh/macos.zprofile -> ~/.zsh/macos.zprofile\n"
                     printf "    + config/shell/fish/config.fish -> ~/.config/fish/config.fish\n"
                     ;;
             esac
