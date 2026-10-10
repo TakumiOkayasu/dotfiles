@@ -36,7 +36,7 @@ for f in $sh_files; do
 done
 
 echo "== zsh -n (zsh 構文チェック) =="
-for f in config/shell/zsh/zshrc config/shell/zsh/zprofile; do
+for f in config/shell/zsh/zshrc config/shell/zsh/zprofile config/shell/zsh/macos.zprofile; do
     [ -f "$f" ] || continue
     if zsh -n "$f"; then
         echo "OK: $f"

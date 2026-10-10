@@ -19,9 +19,14 @@ import pytest
 
 INSTALL_SH = Path(__file__).resolve().parent.parent / "install.sh"
 BASHRC = INSTALL_SH.parent / "config" / "shell" / "bash" / "bashrc"
+BASH_PROFILE = INSTALL_SH.parent / "config" / "shell" / "bash" / "bash_profile"
 COMMON_SH = INSTALL_SH.parent / "config" / "shell" / "common.sh"
 SSH_AGENT_SH = INSTALL_SH.parent / "config" / "shell" / "ssh-agent.sh"
 ZSHRC = INSTALL_SH.parent / "config" / "shell" / "zsh" / "zshrc"
+ZPROFILE = INSTALL_SH.parent / "config" / "shell" / "zsh" / "zprofile"
+MACOS_ZPROFILE = INSTALL_SH.parent / "config" / "shell" / "zsh" / "macos.zprofile"
+GITCONFIG_COMMON = INSTALL_SH.parent / "config" / "git" / ".gitconfig.common"
+README = INSTALL_SH.parent / "README.md"
 REPO_ROOT = INSTALL_SH.parent
 GENERATED_CLAUDE = REPO_ROOT / ".generated" / "ai-assets" / "claude"
 GENERATED_CODEX = REPO_ROOT / ".generated" / "ai-assets" / "codex"
@@ -422,6 +427,191 @@ class TestPortableShellConfiguration:
                 text=True,
             )
             assert ignored_check.returncode == 0, ignored_path
+
+
+class TestScopedConfiguration:
+    def test_safe_directory_requires_an_explicit_project_in_local_config(
+        self, tmp_path: Path
+    ) -> None:
+        home = tmp_path / "home"
+        project = home / "prog" / "project"
+        sibling = home / "prog" / "sibling"
+        for repository in (project, sibling):
+            repository.mkdir(parents=True)
+            subprocess.run(["git", "init", "-q"], cwd=repository, check=True)
+
+        broad_config = tmp_path / "broad.gitconfig"
+        broad_config.write_text("[safe]\n    directory = ~/prog\n", encoding="utf-8")
+        local_config = tmp_path / "gitconfig.local"
+        local_config.write_text(
+            "[safe]\n    directory = ~/prog/project\n", encoding="utf-8"
+        )
+        global_config = tmp_path / "gitconfig"
+        global_config.write_text(
+            f"[include]\n    path = {local_config}\n", encoding="utf-8"
+        )
+        env = os.environ.copy()
+        env.update(
+            {
+                "GIT_CONFIG_NOSYSTEM": "1",
+                "GIT_TEST_ASSUME_DIFFERENT_OWNER": "1",
+                "HOME": str(home),
+            }
+        )
+
+        env["GIT_CONFIG_GLOBAL"] = str(broad_config)
+        parent_only = subprocess.run(
+            ["git", "status", "--short"],
+            cwd=project,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        env["GIT_CONFIG_GLOBAL"] = str(global_config)
+        explicit_project = subprocess.run(
+            ["git", "status", "--short"],
+            cwd=project,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        unrelated_sibling = subprocess.run(
+            ["git", "status", "--short"],
+            cwd=sibling,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+
+        assert parent_only.returncode == 128
+        assert explicit_project.returncode == 0, explicit_project.stderr
+        assert unrelated_sibling.returncode == 128
+        assert "[safe]" not in GITCONFIG_COMMON.read_text(encoding="utf-8")
+        readme = README.read_text(encoding="utf-8")
+        assert "safe.directory" in readme
+        assert "directory = ~/prog/project" in readme
+
+    def _run_zprofile(
+        self, home: Path, fake_bin: Path
+    ) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        env.update({"HOME": str(home), "PATH": f"{fake_bin}:/usr/bin:/bin"})
+        return subprocess.run(
+            [
+                "/usr/bin/zsh",
+                "-f",
+                "-l",
+                "-c",
+                f'source "{ZPROFILE}"; print -r -- "${{ORBSTACK_MARKER:-absent}}"',
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+    def _write_fake_uname(self, fake_bin: Path, platform: str) -> None:
+        _write_executable(
+            fake_bin / "uname",
+            "#!/bin/sh\n"
+            'if [ "$1" = "-s" ]; then\n'
+            f"    printf '%s\\n' '{platform}'\n"
+            "fi\n",
+        )
+
+    def test_macos_login_sources_orbstack_before_zprofile_local(self, tmp_path: Path) -> None:
+        home = tmp_path / "home"
+        fake_bin = tmp_path / "bin"
+        self._write_fake_uname(fake_bin, "Darwin")
+        macos_profile = home / ".zsh" / "macos.zprofile"
+        macos_profile.parent.mkdir(parents=True)
+        macos_profile.symlink_to(MACOS_ZPROFILE)
+        (home / ".orbstack" / "shell").mkdir(parents=True)
+        (home / ".orbstack" / "shell" / "init.zsh").write_text(
+            "print -r -- vendor\nexport ORBSTACK_MARKER=vendor\n", encoding="utf-8"
+        )
+        (home / ".zprofile.local").write_text(
+            "print -r -- local\nexport ORBSTACK_MARKER=local\n", encoding="utf-8"
+        )
+
+        result = self._run_zprofile(home, fake_bin)
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines() == ["vendor", "local", "local"]
+        assert MACOS_ZPROFILE.is_file()
+        assert ".orbstack" not in ZPROFILE.read_text(encoding="utf-8")
+        assert "config/shell/zsh/macos.zprofile" in INSTALL_SH.read_text(
+            encoding="utf-8"
+        )
+
+    def test_linux_login_does_not_source_orbstack(self, tmp_path: Path) -> None:
+        home = tmp_path / "home"
+        fake_bin = tmp_path / "bin"
+        self._write_fake_uname(fake_bin, "Linux")
+        (home / ".orbstack" / "shell").mkdir(parents=True)
+        (home / ".orbstack" / "shell" / "init.zsh").write_text(
+            "print -r -- vendor\nexport ORBSTACK_MARKER=vendor\n", encoding="utf-8"
+        )
+        (home / ".zprofile.local").write_text(
+            "print -r -- local\nexport ORBSTACK_MARKER=local\n", encoding="utf-8"
+        )
+
+        result = self._run_zprofile(home, fake_bin)
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines() == ["local", "local"]
+
+    def test_missing_orbstack_and_bash_login_do_not_source_vendor(self, tmp_path: Path) -> None:
+        home = tmp_path / "home"
+        home.mkdir()
+        fake_bin = tmp_path / "bin"
+        self._write_fake_uname(fake_bin, "Darwin")
+        (home / ".zprofile.local").write_text(
+            "print -r -- local\nexport ORBSTACK_MARKER=local\n", encoding="utf-8"
+        )
+
+        zsh_result = self._run_zprofile(home, fake_bin)
+        bash_env = os.environ.copy()
+        bash_env.update({"HOME": str(home), "PATH": f"{fake_bin}:/usr/bin:/bin"})
+        bash_result = subprocess.run(
+            [
+                "/bin/bash",
+                "--noprofile",
+                "--norc",
+                "-c",
+                f'source "{BASH_PROFILE}"; printf "%s\\n" "${{ORBSTACK_MARKER:-absent}}"',
+            ],
+            env=bash_env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        assert zsh_result.returncode == 0, zsh_result.stderr
+        assert zsh_result.stdout.splitlines() == ["local", "local"]
+        assert bash_result.returncode == 0, bash_result.stderr
+        assert bash_result.stdout == "absent\n"
+
+    def test_full_zsh_install_deploys_macos_login_source(self, tmp_path: Path) -> None:
+        home = tmp_path / "home"
+        home.mkdir()
+
+        result = subprocess.run(
+            ["sh", str(INSTALL_SH)],
+            cwd=REPO_ROOT,
+            env={**os.environ, "HOME": str(home)},
+            input="1\n2\n1\nn\ny\n",
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        _assert_generated_stow_link(
+            home / ".zsh" / "macos.zprofile",
+            REPO_ROOT / ".stow-work" / "shell" / ".zsh" / "macos.zprofile",
+            MACOS_ZPROFILE,
+        )
 
 
 def _run_install_sh(
