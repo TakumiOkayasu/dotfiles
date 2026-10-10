@@ -1683,6 +1683,89 @@ class TestStowInstallScript:
 class TestIntegrationInstallUninstall:
     """実リポジトリ構造で install.sh -f / -u -f を実行するテスト"""
 
+    def test_dry_run_keeps_home_and_repository_generated_state_unchanged(
+        self, tmp_path: Path
+    ) -> None:
+        """dry-runはHOME、生成view、Codex CLIを変更・実行しない"""
+        home = tmp_path / "home"
+        (home / ".claude" / "empty" / "nested").mkdir(parents=True)
+        (home / ".codex" / "empty" / "nested").mkdir(parents=True)
+        local_file = home / ".claude" / "settings.json"
+        local_file.write_text('{"local": true}\n', encoding="utf-8")
+        local_link = home / ".codex" / "local-link"
+        local_link.symlink_to("missing-local-target")
+
+        fake_bin = tmp_path / "bin"
+        codex_marker = tmp_path / "codex-invoked"
+        _write_executable(
+            fake_bin / "codex",
+            "#!/bin/sh\n"
+            'touch "$CODEX_MARKER"\n'
+            "exit 1\n",
+        )
+        environment = {
+            "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
+            "CODEX_MARKER": str(codex_marker),
+        }
+
+        def snapshot_tree(root: Path) -> dict[Path, tuple[str, bytes | str | None]]:
+            if not root.exists() and not root.is_symlink():
+                return {}
+
+            snapshot: dict[Path, tuple[str, bytes | str | None]] = {}
+            for path in (root, *sorted(root.rglob("*"))):
+                relative = path.relative_to(root)
+                if path.is_symlink():
+                    snapshot[relative] = ("symlink", os.readlink(path))
+                elif path.is_file():
+                    snapshot[relative] = ("file", path.read_bytes())
+                elif path.is_dir():
+                    snapshot[relative] = ("directory", None)
+            return snapshot
+
+        before_home = snapshot_tree(home)
+        before_generated = {
+            ".generated": snapshot_tree(REPO_ROOT / ".generated"),
+            "scripts/__pycache__": snapshot_tree(REPO_ROOT / "scripts" / "__pycache__"),
+        }
+
+        install = _run_install_sh(
+            REPO_ROOT,
+            home,
+            dry_run=True,
+            env_overrides=environment,
+            use_fake_vendor=False,
+        )
+
+        assert install.returncode == 0, (
+            f"dry-run install failed:\n{install.stdout}\n{install.stderr}"
+        )
+        assert not codex_marker.exists()
+        assert snapshot_tree(home) == before_home
+        assert {
+            ".generated": snapshot_tree(REPO_ROOT / ".generated"),
+            "scripts/__pycache__": snapshot_tree(REPO_ROOT / "scripts" / "__pycache__"),
+        } == before_generated
+
+        uninstall = _run_install_sh(
+            REPO_ROOT,
+            home,
+            uninstall=True,
+            dry_run=True,
+            env_overrides=environment,
+            use_fake_vendor=False,
+        )
+
+        assert uninstall.returncode == 0, (
+            f"dry-run uninstall failed:\n{uninstall.stdout}\n{uninstall.stderr}"
+        )
+        assert not codex_marker.exists()
+        assert snapshot_tree(home) == before_home
+        assert {
+            ".generated": snapshot_tree(REPO_ROOT / ".generated"),
+            "scripts/__pycache__": snapshot_tree(REPO_ROOT / "scripts" / "__pycache__"),
+        } == before_generated
+
     def test_install_succeeds(self, tmp_path: Path) -> None:
         """install.sh -f が正常終了する"""
         home = tmp_path / "home"
