@@ -274,10 +274,11 @@ apply_settings() {
 
     path=$(branch_protection_path "$repo" "$default_branch")
     echo -e "${BLUE}PRマージ後のブランチ自動削除を設定中...${NC}"
-    if gh api "repos/${repo}" -X PATCH -f delete_branch_on_merge=true >/dev/null 2>&1; then
+    if gh api "repos/${repo}" -X PATCH -F delete_branch_on_merge=true >/dev/null 2>&1; then
         echo -e "${GREEN}✓${NC} ブランチ自動削除を有効化しました"
     else
         echo -e "${RED}✗${NC} ブランチ自動削除の設定に失敗しました"
+        return 1
     fi
     echo -e "${BLUE}${default_branch}ブランチの保護を設定中...${NC}"
     if printf '%s\n' "$payload" | gh api "$path" -X PUT --input - >/dev/null 2>&1; then
