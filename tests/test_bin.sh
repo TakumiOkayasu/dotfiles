@@ -241,6 +241,25 @@ assert_eq "未マージ拒否: ブランチ残存" "feat/unmerged" "$branch_exis
 cleanup_repo
 
 echo ""
+echo "--- default ブランチ以外にだけマージされたブランチ ---"
+
+setup_repo
+
+git checkout -b feat/only-other > /dev/null 2>&1
+git commit --allow-empty -m "feat: only merged into other branch" > /dev/null 2>&1
+git push -u origin feat/only-other > /dev/null 2>&1
+git checkout -b feat/other-head > /dev/null 2>&1
+
+printf 'y\nn\n' | /workspace/bin/git-cleanup-branch feat/only-other > /dev/null 2>&1
+branch_exists=$(git branch --list feat/only-other)
+branch_exists=$(echo "$branch_exists" | sed 's/^[* ]*//')
+remote_exists=$(git --git-dir="$REMOTE_DIR/origin.git" show-ref --verify --quiet refs/heads/feat/only-other; echo "$?")
+assert_eq "default ブランチに未マージ: ローカルブランチを残す" "feat/only-other" "$branch_exists"
+assert_eq "default ブランチに未マージ: リモートブランチを残す" "0" "$remote_exists"
+
+cleanup_repo
+
+echo ""
 echo "--- リモートなしマージ ---"
 
 REPO_DIR=$(mktemp -d)
@@ -292,6 +311,194 @@ branch_exists=$(echo "$branch_exists" | sed 's/^[* ]*//')
 assert_eq "キャンセル: ブランチ残存" "feat/cancel-test" "$branch_exists"
 
 cleanup_repo
+
+echo ""
+echo "=== gh-setup-repo ==="
+echo ""
+
+FAKE_GH_DIR=$(mktemp -d)
+FAKE_GH_CALLS=$(mktemp)
+FAKE_GH_PAYLOAD=$(mktemp)
+cat > "$FAKE_GH_DIR/gh" <<'EOF'
+#!/bin/bash
+set -u
+
+printf '%s\n' "$*" >> "$FAKE_GH_CALLS"
+
+if [[ "$1" == "auth" && "$2" == "status" ]]; then
+    exit 0
+fi
+
+if [[ "$1" != "api" ]]; then
+    exit 1
+fi
+
+case " $* " in
+    *" --jq .default_branch "*)
+        printf '%s\n' "${FAKE_GH_DEFAULT_BRANCH:-main}"
+        exit 0
+        ;;
+esac
+
+case " $* " in
+    *" -X PATCH "*)
+        exit 0
+        ;;
+    *" -X PUT "*)
+        cat > "$FAKE_GH_PAYLOAD"
+        exit 0
+        ;;
+esac
+
+if [[ "${FAKE_GH_PROTECTION_MODE:-ok}" == "error" ]]; then
+    echo "gh: Forbidden (HTTP 403)" >&2
+    exit 1
+fi
+
+if [[ "${FAKE_GH_PROTECTION_MODE:-ok}" == "unprotected" ]]; then
+    echo "gh: Branch not protected (HTTP 404)" >&2
+    exit 1
+fi
+
+printf '%s\n' "$FAKE_GH_PROTECTION_JSON"
+EOF
+chmod +x "$FAKE_GH_DIR/gh"
+
+export FAKE_GH_CALLS FAKE_GH_PAYLOAD
+export FAKE_GH_DEFAULT_BRANCH='release/東京'
+export FAKE_GH_PROTECTION_JSON='{
+  "url":"https://api.github.test/protection",
+  "required_status_checks":{"url":"x","contexts_url":"x","strict":true,"contexts":["unit"],"checks":[{"context":"unit","app_id":42}]},
+  "enforce_admins":{"url":"x","enabled":true},
+  "required_pull_request_reviews":{"url":"x","dismiss_stale_reviews":true,"require_code_owner_reviews":true,"required_approving_review_count":2,"require_last_push_approval":true,"dismissal_restrictions":{"url":"x","users":[{"login":"octocat"}],"teams":[{"slug":"maintainers"}],"apps":[{"slug":"review-bot"}]},"bypass_pull_request_allowances":{"users":[{"login":"octocat"}],"teams":[{"slug":"maintainers"}],"apps":[{"slug":"merge-bot"}]}},
+  "restrictions":{"url":"x","users":[{"login":"octocat"}],"teams":[{"slug":"maintainers"}],"apps":[{"slug":"deploy-bot"}]},
+  "required_signatures":{"url":"x","enabled":false},
+  "required_linear_history":{"enabled":true},
+  "allow_force_pushes":{"enabled":false},
+  "allow_deletions":{"enabled":false},
+  "block_creations":{"enabled":true},
+  "required_conversation_resolution":{"enabled":true},
+  "lock_branch":{"enabled":false},
+  "allow_fork_syncing":{"enabled":false}
+}'
+
+PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo octo/example > /dev/null 2>&1
+exit_code=$?
+encoded_path_count=$(grep -c 'branches/release%2F%E6%9D%B1%E4%BA%AC/protection' "$FAKE_GH_CALLS" || true)
+preserved_policy=$(jq -c '[
+    .required_status_checks.strict,
+    .required_status_checks.contexts,
+    .required_status_checks.checks,
+    .enforce_admins,
+    .required_pull_request_reviews.required_approving_review_count,
+    .required_pull_request_reviews.require_code_owner_reviews,
+    .required_pull_request_reviews.dismissal_restrictions.users,
+    .required_pull_request_reviews.bypass_pull_request_allowances.apps,
+    .restrictions.teams,
+    .required_linear_history,
+    .block_creations,
+    .required_conversation_resolution
+]' "$FAKE_GH_PAYLOAD")
+assert_eq "既存保護を保持して更新: exit 0" "0" "$exit_code"
+assert_eq "保護 API のブランチ名を URL エンコード" "2" "$encoded_path_count"
+assert_eq "既存保護を保持して更新: policy" '[true,["unit"],[{"context":"unit","app_id":42}],true,2,true,["octocat"],["merge-bot"],["maintainers"],true,true,true]' "$preserved_policy"
+
+: > "$FAKE_GH_CALLS"
+FAKE_GH_PROTECTION_JSON='{
+  "required_status_checks": null,
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": null,
+  "restrictions": null
+}'
+PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo octo/example > /dev/null 2>&1
+exit_code=$?
+required_pr=$(jq -c '.required_pull_request_reviews' "$FAKE_GH_PAYLOAD")
+assert_eq "既存保護で不足する PR 要件を追加: exit 0" "0" "$exit_code"
+assert_eq "既存保護で不足する PR 要件を追加: policy" '{"dismiss_stale_reviews":false,"require_code_owner_reviews":false,"required_approving_review_count":0,"require_last_push_approval":false}' "$required_pr"
+
+: > "$FAKE_GH_CALLS"
+FAKE_GH_PROTECTION_JSON='{}'
+PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo octo/example > /dev/null 2>&1
+exit_code=$?
+write_count=$(grep -Ec -- '-X (PATCH|PUT)' "$FAKE_GH_CALLS" || true)
+assert_eq "不正な保護応答: 更新を中止" "1" "$exit_code"
+assert_eq "不正な保護応答: 書き込みなし" "0" "$write_count"
+
+: > "$FAKE_GH_CALLS"
+FAKE_GH_PROTECTION_JSON='null'
+PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo octo/example > /dev/null 2>&1
+exit_code=$?
+write_count=$(grep -Ec -- '-X (PATCH|PUT)' "$FAKE_GH_CALLS" || true)
+assert_eq "null の保護応答: 更新を中止" "1" "$exit_code"
+assert_eq "null の保護応答: 書き込みなし" "0" "$write_count"
+
+: > "$FAKE_GH_CALLS"
+FAKE_GH_PROTECTION_JSON='{
+  "required_status_checks": [],
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": null,
+  "restrictions": null
+}'
+PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo octo/example > /dev/null 2>&1
+exit_code=$?
+write_count=$(grep -Ec -- '-X (PATCH|PUT)' "$FAKE_GH_CALLS" || true)
+assert_eq "不正 shape の保護応答: 更新を中止" "1" "$exit_code"
+assert_eq "不正 shape の保護応答: 書き込みなし" "0" "$write_count"
+
+: > "$FAKE_GH_CALLS"
+FAKE_GH_PROTECTION_JSON='{}'
+PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo --check octo/example > /tmp/gh-setup-check.out 2>&1
+exit_code=$?
+reported_active=$(grep -c 'ブランチ保護: 有効' /tmp/gh-setup-check.out || true)
+reported_error=$(grep -c 'ブランチ保護: 取得に失敗' /tmp/gh-setup-check.out || true)
+assert_eq "不正な保護応答の --check: exit 1" "1" "$exit_code"
+assert_eq "不正な保護応答の --check: 有効と誤表示しない" "0" "$reported_active"
+assert_eq "不正な保護応答の --check: 取得失敗を表示" "1" "$reported_error"
+
+: > "$FAKE_GH_CALLS"
+FAKE_GH_PROTECTION_JSON='null'
+PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo --check octo/example > /tmp/gh-setup-check.out 2>&1
+exit_code=$?
+reported_active=$(grep -c 'ブランチ保護: 有効' /tmp/gh-setup-check.out || true)
+reported_error=$(grep -c 'ブランチ保護: 取得に失敗' /tmp/gh-setup-check.out || true)
+assert_eq "null の保護応答の --check: exit 1" "1" "$exit_code"
+assert_eq "null の保護応答の --check: 有効と誤表示しない" "0" "$reported_active"
+assert_eq "null の保護応答の --check: 取得失敗を表示" "1" "$reported_error"
+
+: > "$FAKE_GH_CALLS"
+: > "$FAKE_GH_PAYLOAD"
+FAKE_GH_PROTECTION_MODE=error PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo --check octo/example > /tmp/gh-setup-check.out 2>&1
+exit_code=$?
+reported_active=$(grep -c 'ブランチ保護: 有効' /tmp/gh-setup-check.out || true)
+reported_error=$(grep -c 'ブランチ保護: 取得に失敗' /tmp/gh-setup-check.out || true)
+assert_eq "保護設定取得失敗の --check: exit 1" "1" "$exit_code"
+assert_eq "保護設定取得失敗の --check: 有効と誤表示しない" "0" "$reported_active"
+assert_eq "保護設定取得失敗の --check: 取得失敗を表示" "1" "$reported_error"
+
+: > "$FAKE_GH_CALLS"
+FAKE_GH_PROTECTION_JSON='{
+  "required_status_checks": null,
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}'
+PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo octo/example > /dev/null 2>&1
+exit_code=$?
+write_count=$(grep -Ec -- '-X (PATCH|PUT)' "$FAKE_GH_CALLS" || true)
+signature_endpoint_count=$(grep -c 'required_signatures' "$FAKE_GH_CALLS" || true)
+assert_eq "署名必須の既存保護: 更新を継続" "0" "$exit_code"
+assert_eq "署名必須の既存保護: 専用 endpoint は変更しない" "0" "$signature_endpoint_count"
+
+: > "$FAKE_GH_CALLS"
+FAKE_GH_PROTECTION_JSON='{"unknown_policy":{"enabled":true}}'
+PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo octo/example > /dev/null 2>&1
+exit_code=$?
+write_count=$(grep -Ec -- '-X (PATCH|PUT)' "$FAKE_GH_CALLS" || true)
+assert_eq "未知の既存保護: 更新を中止" "1" "$exit_code"
+assert_eq "未知の既存保護: 書き込みなし" "0" "$write_count"
+
+rm -rf "$FAKE_GH_DIR" "$FAKE_GH_CALLS" "$FAKE_GH_PAYLOAD" /tmp/gh-setup-check.out
 
 echo ""
 echo "=== 結果: ${PASS}/${TOTAL} passed, ${FAIL} failed ==="
