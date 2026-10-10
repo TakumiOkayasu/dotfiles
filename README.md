@@ -156,6 +156,17 @@ Git設定は環境別設定と共通設定を分けて配置する。
 
 `~/.gitconfig` は `~/.gitconfig.common` をincludeする。common設定とglobal ignoreはcopy/生成ファイルなので、正本を変更した後は `./install.sh` を再実行して反映する。
 
+### 共有repositoryのsafe.directory
+
+common設定には `safe.directory` を入れない。Gitは `~/prog` のような親directoryを、その配下のrepositoryまで再帰的にtrustしない。ownershipが異なる共有repositoryだけを `~/.gitconfig.local` で個別に許可する。
+
+```gitconfig
+[safe]
+    directory = ~/prog/project
+```
+
+この例は `~/prog/project` だけを対象にする。`~/prog/*` や `*` を指定してtrust範囲を広げない。
+
 ### Credential helperの移行
 
 共通設定はgenericな `store` helperを設定しない。既存のcredential fileは削除、移動、書き換えない。共通設定は `~/.gitconfig.local` をincludeするため、GitHub/Gist以外のremoteで使うhelperはこの未追跡fileでhostごとに明示する。Gitは空の `credential.helper` を同じhostのhelper listのリセットとして扱う。次は `example.com` でmacOS Keychainを使う例である。Linuxなどでは導入済みのOS credential helper名に置き換える。

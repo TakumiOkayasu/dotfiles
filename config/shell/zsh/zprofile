@@ -18,13 +18,19 @@ export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 
 # ============================================================================
+# macOS login integration
+# ============================================================================
+
+_zprofile_macos="$HOME/.zsh/macos.zprofile"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    [ -f "$_zprofile_macos" ] && source "$_zprofile_macos"
+fi
+unset _zprofile_macos
+
+# ============================================================================
 # ローカル設定 (Git管理外)
 # ============================================================================
 
 if [[ -f "$HOME/.zprofile.local" ]]; then
     source "$HOME/.zprofile.local"
 fi
-
-# Added by OrbStack: command-line tools and integration
-# This won't be added again if you remove it.
-source ~/.orbstack/shell/init.zsh 2>/dev/null || :
