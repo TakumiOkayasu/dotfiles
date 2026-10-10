@@ -342,6 +342,10 @@ esac
 
 case " $* " in
     *" -X PATCH "*)
+        if [[ "${FAKE_GH_PATCH_MODE:-ok}" == "error" ]]; then
+            echo "gh: Forbidden (HTTP 403)" >&2
+            exit 1
+        fi
         exit 0
         ;;
     *" -X PUT "*)
@@ -402,6 +406,15 @@ preserved_policy=$(jq -c '[
 assert_eq "既存保護を保持して更新: exit 0" "0" "$exit_code"
 assert_eq "保護 API のブランチ名を URL エンコード" "2" "$encoded_path_count"
 assert_eq "既存保護を保持して更新: policy" '[true,["unit"],[{"context":"unit","app_id":42}],true,2,true,["octocat"],["merge-bot"],["maintainers"],true,true,true]' "$preserved_policy"
+typed_auto_delete_count=$(grep -c -- '-F delete_branch_on_merge=true' "$FAKE_GH_CALLS" || true)
+assert_eq "自動削除設定は boolean field を送信" "1" "$typed_auto_delete_count"
+
+: > "$FAKE_GH_CALLS"
+FAKE_GH_PATCH_MODE=error PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo octo/example > /dev/null 2>&1
+exit_code=$?
+protection_write_count=$(grep -c -- '-X PUT' "$FAKE_GH_CALLS" || true)
+assert_eq "自動削除 PATCH 失敗: exit 1" "1" "$exit_code"
+assert_eq "自動削除 PATCH 失敗: 保護設定を書き込まない" "0" "$protection_write_count"
 
 : > "$FAKE_GH_CALLS"
 FAKE_GH_PROTECTION_JSON='{
