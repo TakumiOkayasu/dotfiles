@@ -2635,6 +2635,145 @@ class TestIntegrationInstallUninstall:
         assert f"[ドライラン] バックアップ: {settings}" in result.stdout
 
 
+class TestGitCredentialPolicy:
+    """Git credential helper の共通設定と端末ローカル上書きを検証する。"""
+
+    def test_common_config_keeps_gh_helpers_without_generic_store(
+        self, tmp_path: Path
+    ) -> None:
+        """共通設定はGitHub/gistのgh helperだけを定義する。"""
+        home = tmp_path / "empty-home"
+        home.mkdir()
+        global_config = home / ".gitconfig"
+        global_config.write_text(
+            "[include]\n"
+            f"    path = {REPO_ROOT / 'config' / 'git' / '.gitconfig.common'}\n",
+            encoding="utf-8",
+        )
+        env = {
+            "HOME": str(home),
+            "GIT_CONFIG_GLOBAL": str(global_config),
+            "GIT_CONFIG_NOSYSTEM": "1",
+        }
+
+        generic = subprocess.run(
+            ["git", "config", "--includes", "--global", "--get-all", "credential.helper"],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        github = subprocess.run(
+            [
+                "git",
+                "config",
+                "--includes",
+                "--global",
+                "--get-all",
+                "credential.https://github.com.helper",
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        gist = subprocess.run(
+            [
+                "git",
+                "config",
+                "--includes",
+                "--global",
+                "--get-all",
+                "credential.https://gist.github.com.helper",
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        assert generic.returncode == 1
+        assert generic.stdout == ""
+        assert github.returncode == 0, github.stderr
+        assert github.stdout.splitlines() == ["!gh auth git-credential"]
+        assert gist.returncode == 0, gist.stderr
+        assert gist.stdout.splitlines() == ["!gh auth git-credential"]
+
+    def test_local_config_can_reset_its_host_helper_without_replacing_gh(
+        self, tmp_path: Path
+    ) -> None:
+        """localのhost限定helperは先行chainだけをresetし、gh設定を維持する。"""
+        home = tmp_path / "empty-home"
+        home.mkdir()
+        global_config = home / ".gitconfig"
+        global_config.write_text(
+            '[credential "https://example.test"]\n'
+            '    helper = "!f() { printf \'%s\\\\n\' \'username=common-helper\' \'password=common-helper\'; }; f"\n'
+            "[include]\n"
+            f"    path = {REPO_ROOT / 'config' / 'git' / '.gitconfig.common'}\n",
+            encoding="utf-8",
+        )
+        (home / ".gitconfig.local").write_text(
+            '[credential "https://example.test"]\n'
+            "    helper =\n"
+            '    helper = "!f() { printf \'%s\\\\n\' \'username=local-helper\' \'password=local-helper\'; }; f"\n',
+            encoding="utf-8",
+        )
+        env = {
+            "HOME": str(home),
+            "GIT_CONFIG_GLOBAL": str(global_config),
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_TERMINAL_PROMPT": "0",
+        }
+
+        result = subprocess.run(
+            ["git", "credential", "fill"],
+            input="protocol=https\nhost=example.test\n\n",
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        github = subprocess.run(
+            [
+                "git",
+                "config",
+                "--includes",
+                "--global",
+                "--get-urlmatch",
+                "credential.helper",
+                "https://github.com",
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        gist = subprocess.run(
+            [
+                "git",
+                "config",
+                "--includes",
+                "--global",
+                "--get-urlmatch",
+                "credential.helper",
+                "https://gist.github.com",
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert "username=local-helper\n" in result.stdout
+        assert "password=local-helper\n" in result.stdout
+        assert github.returncode == 0, github.stderr
+        assert github.stdout.splitlines() == ["!gh auth git-credential"]
+        assert gist.returncode == 0, gist.stderr
+        assert gist.stdout.splitlines() == ["!gh auth git-credential"]
+
+
 # ---------------------------------------------------------------------------
 # ヘルパー (疑似リポジトリ用)
 # ---------------------------------------------------------------------------

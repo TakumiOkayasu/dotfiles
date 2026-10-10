@@ -156,6 +156,36 @@ Git設定は環境別設定と共通設定を分けて配置する。
 
 `~/.gitconfig` は `~/.gitconfig.common` をincludeする。common設定とglobal ignoreはcopy/生成ファイルなので、正本を変更した後は `./install.sh` を再実行して反映する。
 
+### Credential helperの移行
+
+共通設定はgenericな `store` helperを設定しない。既存のcredential fileは削除、移動、書き換えない。共通設定は `~/.gitconfig.local` をincludeするため、GitHub/Gist以外のremoteで使うhelperはこの未追跡fileでhostごとに明示する。Gitは空の `credential.helper` を同じhostのhelper listのリセットとして扱う。次は `example.com` でmacOS Keychainを使う例である。Linuxなどでは導入済みのOS credential helper名に置き換える。
+
+```gitconfig
+[credential "https://example.com"]
+    helper =
+    helper = osxkeychain
+```
+
+平文fileへの保存は明示的なopt-inであり、保存先を理解して必要な端末でだけ設定する。Gitの `store` helperはcredentialをディスクへ無期限に保存するため、OS credential helperを使えない場合に限る。
+
+```gitconfig
+[credential "https://example.com"]
+    helper =
+    helper = store --file ~/.git-credentials.local
+```
+
+generic `store` を利用していたremoteは、local helperを設定するまで次回の認証時に再認証を求めることがある。設定前に既存credential fileを削除しない。現在のhelperは `git config --show-origin --get-all credential.helper` で確認できる。元の挙動へ戻す必要があれば、共通設定を編集せず `.gitconfig.local` で対象hostのhelper listをresetしてから、利用者が把握する既存fileを明示する。
+
+```gitconfig
+[credential "https://example.com"]
+    helper =
+    helper = store --file ~/.git-credentials
+```
+
+`[credential]` のようなhostを指定しないresetはGitHub/Gistの `gh` helperも外す。これを使う場合は、同じlocal fileにGitHub/Gist向けの `!gh auth git-credential` を再定義する。
+
+helper chainと `store` の保存特性は [Git credential documentation](https://git-scm.com/docs/gitcredentials) を参照する。
+
 ## プラットフォーム
 
 | 環境 | Git設定 |
