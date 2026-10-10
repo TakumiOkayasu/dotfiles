@@ -2650,9 +2650,28 @@ class TestIntegrationInstallUninstall:
 
         removed_skill = home / ".claude" / "skills" / "empirical-prompt-tuning"
         retained_skill = home / ".claude" / "skills" / "tdd" / "SKILL.md"
+        removed_codex_skill = (
+            home
+            / ".codex"
+            / "plugins"
+            / "dotfile-work-codex-extra"
+            / "skills"
+            / "empirical-prompt-tuning"
+        )
+        retained_codex_skill = (
+            home
+            / ".codex"
+            / "plugins"
+            / "dotfile-work-codex"
+            / "skills"
+            / "tdd"
+            / "SKILL.md"
+        )
         assert initial.returncode == 0, initial.stderr
         assert (removed_skill / "SKILL.md").is_file()
         assert retained_skill.is_file()
+        assert (removed_codex_skill / "SKILL.md").is_file()
+        assert retained_codex_skill.is_file()
 
         source.unlink()
         source.parent.rmdir()
@@ -2663,6 +2682,9 @@ class TestIntegrationInstallUninstall:
         assert not removed_skill.exists()
         assert not removed_skill.is_symlink()
         assert retained_skill.is_file()
+        assert not removed_codex_skill.exists()
+        assert not removed_codex_skill.is_symlink()
+        assert retained_codex_skill.is_file()
 
     def test_dry_run_preserves_conflicting_file_and_reports_backup(
         self, tmp_path: Path
