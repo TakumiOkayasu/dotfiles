@@ -14,9 +14,17 @@ set -eu
 
 # 一時ファイル cleanup
 _TMPFILES=""
+_TMPDIRS=""
+_TMP_EMPTY_DIRS=""
 cleanup_tmpfiles() {
     for _f in $_TMPFILES; do
         rm -f "$_f"
+    done
+    for _d in $_TMPDIRS; do
+        rm -rf "$_d"
+    done
+    for _d in $_TMP_EMPTY_DIRS; do
+        rmdir "$_d" 2>/dev/null || true
     done
 }
 trap cleanup_tmpfiles EXIT INT TERM
@@ -63,9 +71,7 @@ COMMON_RULES="common/rules"
 COMMON_SKILLS="common/skills"
 AI_ASSET_GENERATOR_REL="scripts/generate-ai-assets.py"
 AI_ASSET_ROOT_REL=".generated/ai-assets"
-AI_CLAUDE_ASSETS=".generated/ai-assets/claude"
-AI_CODEX_ASSETS=".generated/ai-assets/codex"
-AI_PLUGIN_ASSETS=".generated/ai-assets/plugins"
+AI_ASSET_ROOT="${DOTFILES_DIR}/${AI_ASSET_ROOT_REL}"
 
 DOTWORK_MARKER_BEGIN="# === dotfile-work: BEGIN ==="
 DOTWORK_MARKER_END="# === dotfile-work: END ==="
@@ -297,10 +303,25 @@ generate_ai_assets() {
 
     _generator="${DOTFILES_DIR}/${AI_ASSET_GENERATOR_REL}"
     [ -f "$_generator" ] || die "AI asset generator が見つかりません: $_generator"
-    print_info "common/* から Claude/Codex 用assetを生成・検証"
-    python3 "$_generator" --repo "$DOTFILES_DIR" || die "AI asset の生成・検証に失敗しました"
-    for _generated_dir in "$AI_CLAUDE_ASSETS" "$AI_CODEX_ASSETS" "$AI_PLUGIN_ASSETS"; do
-        [ -d "${DOTFILES_DIR}/${_generated_dir}" ] || die "生成済みAI assetが不足しています: $_generated_dir"
+    if [ "$MODE_DRY_RUN" = "true" ]; then
+        _asset_stage_parent="${DOTFILES_DIR}/.generated"
+        if [ ! -e "$_asset_stage_parent" ]; then
+            mkdir "$_asset_stage_parent" || die "dry-run用AI asset一時ディレクトリを作成できません: $_asset_stage_parent"
+            _TMP_EMPTY_DIRS="$_TMP_EMPTY_DIRS $_asset_stage_parent"
+        fi
+        _asset_stage=$(mktemp -d "${_asset_stage_parent}/.ai-assets-dry-run.XXXXXX") \
+            || die "dry-run用AI asset一時ディレクトリを作成できません"
+        _TMPDIRS="$_TMPDIRS $_asset_stage"
+        AI_ASSET_ROOT="${_asset_stage}/ai-assets"
+        print_info "[ドライラン] common/* から Claude/Codex 用assetを一時生成・検証"
+        PYTHONDONTWRITEBYTECODE=1 python3 "$_generator" --repo "$DOTFILES_DIR" --output "$AI_ASSET_ROOT" \
+            || die "AI asset の一時生成・検証に失敗しました"
+    else
+        print_info "common/* から Claude/Codex 用assetを生成・検証"
+        python3 "$_generator" --repo "$DOTFILES_DIR" || die "AI asset の生成・検証に失敗しました"
+    fi
+    for _generated_dir in "$AI_ASSET_ROOT/claude" "$AI_ASSET_ROOT/codex" "$AI_ASSET_ROOT/plugins"; do
+        [ -d "$_generated_dir" ] || die "生成済みAI assetが不足しています: $_generated_dir"
     done
 }
 
@@ -316,12 +337,18 @@ add_generated_ai_stow_specs() {
     fi
 
     _generator="${DOTFILES_DIR}/${AI_ASSET_GENERATOR_REL}"
-    _generated_manifest="${DOTFILES_DIR}/${AI_ASSET_ROOT_REL}/manifest.json"
+    _generated_manifest="${AI_ASSET_ROOT}/manifest.json"
     [ -f "$_generated_manifest" ] || return 0
 
     _generated_specs=$(mktemp)
     _TMPFILES="$_TMPFILES $_generated_specs"
-    if ! python3 "$_generator" --repo "$DOTFILES_DIR" --list-target "$_target" > "$_generated_specs"; then
+    if [ "$MODE_DRY_RUN" = "true" ]; then
+        if ! PYTHONDONTWRITEBYTECODE=1 python3 "$_generator" --repo "$DOTFILES_DIR" --output "$AI_ASSET_ROOT" --list-target "$_target" > "$_generated_specs"; then
+            print_error "生成済み ${_target} asset manifest の読み込みに失敗しました"
+            COUNT_ERROR=$((COUNT_ERROR + 1))
+            return 1
+        fi
+    elif ! python3 "$_generator" --repo "$DOTFILES_DIR" --output "$AI_ASSET_ROOT" --list-target "$_target" > "$_generated_specs"; then
         print_error "生成済み ${_target} asset manifest の読み込みに失敗しました"
         COUNT_ERROR=$((COUNT_ERROR + 1))
         return 1
@@ -1435,6 +1462,8 @@ _claude_unlink_vendor_skills() {
 }
 
 _claude_prune_empty_dirs() {
+    [ "$MODE_DRY_RUN" = "true" ] && return 0
+
     _count=$(find "${HOME}/.claude" -mindepth 1 -depth -type d 2>/dev/null \
         | while IFS= read -r _dir; do rmdir "$_dir" 2>/dev/null && echo x; done \
         | wc -l)
@@ -1565,6 +1594,8 @@ _codex_warn_legacy_hooks_json() {
 }
 
 _codex_verify_hooks_feature() {
+    [ "$MODE_DRY_RUN" = "true" ] && return 0
+
     command -v codex >/dev/null 2>&1 || return 0
 
     if codex features list 2>/dev/null | grep -q '^hooks[[:space:]]'; then
@@ -1604,6 +1635,8 @@ _codex_unlink_managed_files() {
 }
 
 _codex_prune_empty_dirs() {
+    [ "$MODE_DRY_RUN" = "true" ] && return 0
+
     _count=$(find "${HOME}/.codex" -mindepth 1 -depth -type d 2>/dev/null \
         | while IFS= read -r _dir; do rmdir "$_dir" 2>/dev/null && echo x; done \
         | wc -l)
