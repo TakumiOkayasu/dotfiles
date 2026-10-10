@@ -2,7 +2,7 @@
 #
 # claude-init-project - .claude/ ディレクトリ構造を idempotent に展開
 #
-# opus-47-policy.md「File-System Memory」規約に基づく構造を展開する。
+# session-memory.md「File-System Memory」規約に基づく構造を展開する。
 # 既存プロジェクト・既に init 済みの場合も安全に実行可能 (冪等)。
 #
 # 使い方:
@@ -33,7 +33,7 @@ while [[ $# -gt 0 ]]; do
 Usage: claude-init-project [OPTIONS]
 
 .claude/ ディレクトリ構造を idempotent に展開する。
-opus-47-policy.md「File-System Memory」規約に基づく。
+session-memory.md「File-System Memory」規約に基づく。
 既存プロジェクト・既に init 済みの場合も安全に実行可能。
 
 OPTIONS:
@@ -184,7 +184,7 @@ deploy_file "$TEMPLATE_ROOT/scratch/README.md"    ".claude/scratch/README.md"
 ensure_gitkeep ".claude/notes/archive/.gitkeep"
 
 # 4. .gitignore 追記
-ensure_gitignore_entry ".claude/scratch/" "Claude Code scratch (opus-47-policy.md)"
+ensure_gitignore_entry ".claude/scratch/" "Claude Code scratch (session-memory.md)"
 
 echo ""
 echo -e "${GREEN}Done.${NC}"

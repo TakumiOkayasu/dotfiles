@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SessionStart hook: 該当する .claude/notes/{task-id}.md を context へ注入する
 #
-# 規約: ~/.claude/rules/opus-47-policy.md 「File-System Memory」
+# 規約: ~/.claude/rules/session-memory.md 「File-System Memory」
 # 動作: カレントブランチ名から task-id を導出、対応する notes ファイルがあれば cat する。
 #       main / master ブランチでは何もしない。
 
@@ -29,7 +29,7 @@ if [[ -f "$notes_file" ]]; then
   cat <<EOF
 ## Session Restored: ${task_id}
 
-以下は前回までの作業ノートです。読み込んでから着手してください (opus-47-policy.md「File-System Memory」規約)。
+以下は前回までの作業ノートです。読み込んでから着手してください (session-memory.md「File-System Memory」規約)。
 
 ---
 

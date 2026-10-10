@@ -49,6 +49,57 @@ EXPLICIT_ONLY_SKILLS = (
 )
 
 
+def test_session_memory_policy_name_and_runtime_paths_match_generated_views() -> None:
+    """Both runtimes receive the current policy and their own failure-log paths."""
+    common_rule = REPO_ROOT / "common" / "rules" / "session-memory.md"
+    assert common_rule.is_file()
+    assert not (common_rule.parent / "opus-47-policy.md").exists()
+
+    for runtime in ("claude", "codex"):
+        generated = REPO_ROOT / ".generated" / "ai-assets" / runtime
+        rule = generated / "rules" / "session-memory.md"
+        assert rule.is_file(), runtime
+        assert not (rule.parent / "opus-47-policy.md").exists(), runtime
+        policy = rule.read_text(encoding="utf-8")
+        skill = (generated / "skills" / "failure-logging" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        failure_log = f"{runtime}_tmp/failure_log/"
+        assert failure_log in policy, runtime
+        assert failure_log in skill, runtime
+        assert "project-ai-knowledge.md" in policy, runtime
+
+    active_references = (
+        "bin/claude-init-project",
+        "bin/git-new-feature",
+        "bin/git-cleanup-branch",
+        "claude/hooks/session-start-notes-loader.sh",
+        "claude/notes/README.md",
+        "claude/notes/_template.md",
+        "claude/scratch/README.md",
+    )
+    for relative in active_references:
+        content = (REPO_ROOT / relative).read_text(encoding="utf-8")
+        assert "session-memory.md" in content, relative
+        assert "opus-47-policy.md" not in content, relative
+
+
+def test_global_output_style_limits_workflow_to_applicable_tasks() -> None:
+    """Installed defaults preserve concise answers without mandatory extra work."""
+    for path in (
+        REPO_ROOT / "codex" / "global_AGENTS.md",
+        GENERATED_CODEX / "global_AGENTS.md",
+    ):
+        content = path.read_text(encoding="utf-8")
+        assert "手順説明が必要な場合だけ" in content, path
+        assert "継続中の作業では" in content, path
+        assert "未完の作業に必要な場合だけ" in content, path
+        assert "各ターンにおいて進捗状況を明示" not in content, path
+        assert "2分未満で実行可能な次のアクション" not in content, path
+        assert "日本語で応答する" in content, path
+        assert "未承認の破壊的" in content, path
+
+
 def test_uninstall_before_install_returns_zero(tmp_path: Path) -> None:
     """A clean HOME is already in the desired uninstalled state."""
     home = tmp_path / "home"

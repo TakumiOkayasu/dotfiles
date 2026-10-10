@@ -2,7 +2,7 @@
 
 長時間・マルチセッションタスクの詳細メモを保持する。`{task-id}.md` 形式で 1 タスク 1 ファイル。
 
-詳細規約: `~/.claude/rules/opus-47-policy.md` の「File-System Memory」セクション。
+詳細規約: `~/.claude/rules/session-memory.md` の「File-System Memory」セクション。
 
 ## 命名規約
 
@@ -22,7 +22,7 @@ cp .claude/notes/_template.md ".claude/notes/$(git branch --show-current | tr '/
 | セッション開始時 | SessionStart hook が自動 read |
 | 設計判断時 | 「決定事項」セクションに 1 行追加 |
 | subagent 利用時 | 「subagent 出力」セクションに集約 |
-| 失敗時 | 「failure-log」セクションに記録 (failure-logging skill 連携) |
+| 失敗時 | 正式な記録はfailure-logging skillの保存先へ。必要な要点だけ「failure-log」に要約 |
 | タスク完了時 | 「完了時の要約」を progress.md へ反映 |
 | ブランチクリーンアップ時 | PostToolUse hook が自動アーカイブ (`notes/archive/` へ移動) |
 

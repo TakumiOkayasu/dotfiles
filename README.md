@@ -58,6 +58,9 @@ PATH上にある `mise`, `oh-my-posh`, `zoxide` はこの順に自動初期化�
 | コマンド | 説明 |
 | --- | --- |
 | `ai-init-project` | 現在のGitリポジトリへruntime-neutralな `.ai/` knowledge stateを初期化 |
+| `ai-knowledge-keygen` | knowledge export 用の private redaction key を生成 |
+| `ai-qcd` | task の model/effort route 候補を選び, 実行結果を記録 |
+| `qa-nightmare-preflight` | runtime checklist と指定 source の provenance を検証 |
 | `ai-knowledge-sync` | `~/prog/*/.ai/` のmanaged knowledgeを専用Git repositoryへ集約・commit・push |
 | `ai-knowledge-search` | current projectと集約済み他projectのknowledgeをオンデマンド検索 |
 | `claude-init-project` | 現在のGitリポジトリへ `.claude/notes` と `scratch` の雛形を配置 |
@@ -68,6 +71,8 @@ PATH上にある `mise`, `oh-my-posh`, `zoxide` はこの順に自動初期化�
 `ai-init-project` は `.ai/state/`, `.ai/inbox/`, `.ai/knowledge/` と `manifest.toml` を作る。`.ai/` はClaude Code / Codex共通のdurable knowledgeだけを持ち、`.claude/`, `.codex/`, `claude_tmp/`, `codex_tmp/` のruntime stateやscratchとは分離する。既存の `.ai/` に本workflowのmanifestが無い場合は、他toolの領域を奪わないよう初期化を拒否する。
 
 `.ai/` はglobal gitignore対象で、元projectのrepositoryにはcommitしない。cross-project collectorは `~/prog/` 直下の各projectから `.ai/` だけを収集し、`.claude/`, `.codex/`, `claude_tmp/`, `codex_tmp/` を直接exportしない。各runtimeの有用な発見は、必要な要点だけ `.ai/inbox/` へharvestしてから共有する。
+
+Shell の `ni` / `nr` / `ns` / `nt` は Bash/Zsh では pnpm, Fish では npm を呼ぶ. shell を切り替えると package manager が変わるため, 必要なら各 shell の local 設定で override する.
 
 ### Cross-project knowledge sync
 

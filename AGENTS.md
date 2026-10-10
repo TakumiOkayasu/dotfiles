@@ -15,12 +15,13 @@
 docker compose -f tests/compose.yml run --rm hooks-test
 docker compose -f tests/compose.yml run --rm codex-hooks-test
 docker compose -f tests/compose.yml run --rm shell-lint-test
-docker compose -f tests/compose.yml run --rm install-test
+docker compose -f tests/compose.yml run --build --rm install-test
 python3 scripts/generate-ai-assets.py --repo .
 ```
 
 `./install.sh -n` は実ホームを変更せず配置予定を確認する。
 Docker サービスは hook、CLI、ShellCheck、installer/asset pipeline を分離して検証する。
+`install-test` はbuild時にsourceを取り込むため、変更後は `--build` を省略しない。
 共有資産を変更した場合は `generate-ai-assets.py` で隔離された全pipelineを実行する。
 
 ## コーディング規約

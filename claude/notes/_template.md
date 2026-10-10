@@ -39,7 +39,7 @@
 
 ## failure-log
 
-> failure-logging skill が書き込む領域。同じ失敗を繰り返さないため。opus-47-policy.md「failure-logging との接続」参照。
+> 継続に必要な失敗の要点を任意にまとめる領域。正式な記録先とschemaは failure-logging skillを参照。session-memory.md「failure-logging との接続」参照。
 
 ### YYYY-MM-DD HH:MM
 
