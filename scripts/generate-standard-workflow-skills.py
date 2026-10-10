@@ -12,7 +12,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from codex_asset_manifest import load_asset_manifest
 
-ASSET_MANIFEST_PATH = Path(__file__).with_name("claude-command-map.json")
+ASSET_MANIFEST_PATH = Path(__file__).with_name("ai-assets-manifest.json")
 
 
 ASSET_MANIFEST = load_asset_manifest(ASSET_MANIFEST_PATH)

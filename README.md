@@ -131,7 +131,7 @@ Codex設定の使い方は `codex/README.md` を参照。初回起動時に hook
 
 共有skillは `common/skills/` を正本にし、Codex固有skillだけを `codex/skills/` で管理する。Claude/Codex向けview、標準workflow、rules集約、`plugins/dotfile-work-codex*` は `.generated/ai-assets/` に生成し、Git管理しない。
 
-`scripts/claude-command-map.json` はcommand変換、許可するnested resource、Codex固有skill、core/extra分類の正本である。生成/同期/検証scriptは同じmanifestを読み、分類のずれを検出する。rules indexとbundleも共通rendererから生成し、verifierが元ruleとの一致を検査する。
+`scripts/ai-assets-manifest.json` はcommand変換、許可するnested resource、Codex固有skill、core/extra分類の正本である。生成/同期/検証scriptは同じmanifestを読み、分類のずれを検出する。rules indexとbundleも共通rendererから生成し、verifierが元ruleとの一致を検査する。
 
 通常は `install.sh` が自動生成する。開発中に生成結果だけを確認する場合は次を実行する。
 

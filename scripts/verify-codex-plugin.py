@@ -50,7 +50,7 @@ FORBIDDEN = [
 CORE_PLUGIN = "dotfile-work-codex"
 EXTRA_PLUGIN = "dotfile-work-codex-extra"
 PORT_SCRIPT = Path(__file__).with_name("port-claude-assets-to-codex.py")
-ASSET_MANIFEST_PATH = Path(__file__).with_name("claude-command-map.json")
+ASSET_MANIFEST_PATH = Path(__file__).with_name("ai-assets-manifest.json")
 _PORTER_MODULE: ModuleType | None = None
 AGGREGATED_RULE_FILES = frozenset({RULE_BUNDLE_NAME, RULE_INDEX_NAME})
 

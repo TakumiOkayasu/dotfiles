@@ -21,7 +21,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from codex_asset_manifest import AssetManifest, load_asset_manifest
 
-ASSET_MANIFEST_PATH = SCRIPTS_DIR / "claude-command-map.json"
+ASSET_MANIFEST_PATH = SCRIPTS_DIR / "ai-assets-manifest.json"
 PIPELINE = (
     ("generate-standard-workflow-skills.py", "--overwrite"),
     (

@@ -94,6 +94,11 @@ class TestGenerateAiAssets(unittest.TestCase):
                 skill = mapping["skill"]
                 reference = mapping["reference"]
                 source = mapping["source"]
+                plugin = (
+                    "dotfile-work-codex"
+                    if skill in manifest["core_skills"]
+                    else "dotfile-work-codex-extra"
+                )
                 generated_reference = (
                     generated / "codex" / "skills" / skill / reference
                 )
@@ -101,7 +106,8 @@ class TestGenerateAiAssets(unittest.TestCase):
                     f"source={source}", generated_reference.read_text(encoding="utf-8")
                 )
                 self.assertIn(
-                    f".codex/skills/{skill}/{reference}", codex_destinations
+                    f".codex/plugins/{plugin}/skills/{skill}/{reference}",
+                    codex_destinations,
                 )
 
     def assert_generated_views(self, generated: Path) -> None:
