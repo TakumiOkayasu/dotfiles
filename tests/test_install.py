@@ -242,6 +242,22 @@ class TestClaudeHookWiring:
         assert "$HOME/.claude/hooks/vendor-skills-update.sh" not in session_start_commands
         assert not (REPO_ROOT / "claude" / "hooks" / "vendor-skills-update.sh").exists()
 
+    def test_post_tool_use_does_not_archive_notes_without_tool_result(self) -> None:
+        """PostToolUseは成功結果を受け取れないためnotesを変更しない。"""
+        settings = json.loads(
+            (REPO_ROOT / "claude" / "settings.json").read_text(encoding="utf-8")
+        )
+        post_tool_commands = [
+            hook["command"]
+            for entry in settings["hooks"]["PostToolUse"]
+            for hook in entry["hooks"]
+        ]
+
+        assert "$HOME/.claude/hooks/post-cleanup-notes-archive.sh" not in post_tool_commands
+        assert not (
+            REPO_ROOT / "claude" / "hooks" / "post-cleanup-notes-archive.sh"
+        ).exists()
+
 
 def _run_install_sh(
     dotfiles: Path,
