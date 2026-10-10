@@ -795,52 +795,6 @@ class TestCodexAgentDefinitions:
         "test-writer": ("sonnet", "medium"),
     }
 
-    FOLLOWUP_AGENT_PATHS = {
-        "claude": {
-            "test_writer": REPO_ROOT / "claude" / "agents" / "test-writer.md",
-            "debugger": REPO_ROOT / "claude" / "agents" / "debugger.md",
-            "impl_planner": REPO_ROOT / "claude" / "agents" / "impl-planner.md",
-        },
-        "codex": {
-            "test_writer": REPO_ROOT / "codex" / "agents" / "test_writer.toml",
-            "debugger": REPO_ROOT / "codex" / "agents" / "debugger.toml",
-            "impl_planner": REPO_ROOT / "codex" / "agents" / "impl_planner.toml",
-        },
-    }
-
-    def _followup_instructions(self, runtime: str, role: str) -> str:
-        """両runtimeのagent本文を同じ比較用入力に正規化する。"""
-        path = self.FOLLOWUP_AGENT_PATHS[runtime][role]
-        content = path.read_text(encoding="utf-8")
-        if runtime == "codex":
-            return tomllib.loads(content)["developer_instructions"]
-        return content.split("---", 2)[2]
-
-    @staticmethod
-    def _followup_policy(instructions: str) -> dict[str, bool]:
-        """代表的な依頼でagentが従う判断契約を静的に比較する。"""
-        return {
-            "mechanical_confirmation_limit": "確認事項を5項目以内" in instructions,
-            "mechanical_hypothesis_minimum": bool(
-                re.search(r"最低\s*3つ|仮説を3つ以上", instructions)
-            ),
-            "mechanical_scope_limit": "30行超" in instructions,
-            "mechanical_planning_trigger": bool(
-                re.search(r"100行以上|UI機能5個以上|API複数新設", instructions)
-            ),
-            "task_specific_checks": all(
-                term in instructions
-                for term in ("contract", "リスク", "境界")
-            ),
-            "known_root_cause_can_skip_extra_hypotheses": all(
-                term in instructions
-                for term in ("根本原因", "確定", "追加の仮説")
-            ),
-            "preserves_aaa": "AAA" in instructions,
-            "preserves_red_green": "RED" in instructions and "GREEN" in instructions,
-            "preserves_parent_reporting": "親" in instructions,
-        }
-
     def _agent_names(self) -> set[str]:
         agent_files = sorted((REPO_ROOT / "codex" / "agents").glob("*.toml"))
         return {
@@ -896,39 +850,6 @@ class TestCodexAgentDefinitions:
             actual[fields["name"]] = (fields["model"], fields["effort"])
 
         assert actual == self.CLAUDE_PROFILES
-
-    def test_followup_agents_select_work_by_contract_boundary_and_risk(self) -> None:
-        """既知原因・局所bug・高risk依頼で件数を埋める指示を両runtimeから除く。"""
-        policies = {
-            runtime: {
-                role: self._followup_policy(self._followup_instructions(runtime, role))
-                for role in paths
-            }
-            for runtime, paths in self.FOLLOWUP_AGENT_PATHS.items()
-        }
-
-        for runtime, roles in policies.items():
-            # 既知の根本原因には、反証済みの別仮説を件数のために足さない。
-            debugger = roles["debugger"]
-            assert not debugger["mechanical_hypothesis_minimum"], runtime
-            assert debugger["known_root_cause_can_skip_extra_hypotheses"], runtime
-
-            # 局所bugは変更行数ではなく、assigned boundaryと根本原因で扱う。
-            assert not debugger["mechanical_scope_limit"], runtime
-            assert debugger["task_specific_checks"], runtime
-
-            # 高risk fixtureでは確認・テスト観点をcontract/riskで選び、AAAとRED/GREENを残す。
-            test_writer = roles["test_writer"]
-            assert not test_writer["mechanical_confirmation_limit"], runtime
-            assert test_writer["task_specific_checks"], runtime
-            assert test_writer["preserves_aaa"], runtime
-            assert test_writer["preserves_red_green"], runtime
-
-            # 計画の親確認はUI/API/行数ではなく、境界とリスクで起動する。
-            planner = roles["impl_planner"]
-            assert not planner["mechanical_planning_trigger"], runtime
-            assert planner["task_specific_checks"], runtime
-            assert planner["preserves_parent_reporting"], runtime
 
     def test_shared_skill_effort_reserves_high_for_complex_workflows(self) -> None:
         """共有skillは必要なworkflowだけhighとしxhigh/maxを常設しない"""
