@@ -243,7 +243,7 @@ class TestClaudeHookWiring:
         assert not (REPO_ROOT / "claude" / "hooks" / "vendor-skills-update.sh").exists()
 
     def test_post_tool_use_does_not_archive_notes_without_tool_result(self) -> None:
-        """PostToolUseは成功結果を受け取れないためnotesを変更しない。"""
+        """ブランチcleanupはCLIが対象noteだけをarchiveし、PostToolUseは広域変更しない。"""
         settings = json.loads(
             (REPO_ROOT / "claude" / "settings.json").read_text(encoding="utf-8")
         )
