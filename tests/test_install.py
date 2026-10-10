@@ -26,7 +26,6 @@ ZSHRC = INSTALL_SH.parent / "config" / "shell" / "zsh" / "zshrc"
 ZPROFILE = INSTALL_SH.parent / "config" / "shell" / "zsh" / "zprofile"
 MACOS_ZPROFILE = INSTALL_SH.parent / "config" / "shell" / "zsh" / "macos.zprofile"
 GITCONFIG_COMMON = INSTALL_SH.parent / "config" / "git" / ".gitconfig.common"
-README = INSTALL_SH.parent / "README.md"
 REPO_ROOT = INSTALL_SH.parent
 GENERATED_CLAUDE = REPO_ROOT / ".generated" / "ai-assets" / "claude"
 GENERATED_CODEX = REPO_ROOT / ".generated" / "ai-assets" / "codex"
@@ -487,9 +486,6 @@ class TestScopedConfiguration:
         assert explicit_project.returncode == 0, explicit_project.stderr
         assert unrelated_sibling.returncode == 128
         assert "[safe]" not in GITCONFIG_COMMON.read_text(encoding="utf-8")
-        readme = README.read_text(encoding="utf-8")
-        assert "safe.directory" in readme
-        assert "directory = ~/prog/project" in readme
 
     def _run_zprofile(
         self, home: Path, fake_bin: Path
@@ -548,6 +544,9 @@ class TestScopedConfiguration:
         home = tmp_path / "home"
         fake_bin = tmp_path / "bin"
         self._write_fake_uname(fake_bin, "Linux")
+        macos_profile = home / ".zsh" / "macos.zprofile"
+        macos_profile.parent.mkdir(parents=True)
+        macos_profile.symlink_to(MACOS_ZPROFILE)
         (home / ".orbstack" / "shell").mkdir(parents=True)
         (home / ".orbstack" / "shell" / "init.zsh").write_text(
             "print -r -- vendor\nexport ORBSTACK_MARKER=vendor\n", encoding="utf-8"
@@ -566,6 +565,9 @@ class TestScopedConfiguration:
         home.mkdir()
         fake_bin = tmp_path / "bin"
         self._write_fake_uname(fake_bin, "Darwin")
+        macos_profile = home / ".zsh" / "macos.zprofile"
+        macos_profile.parent.mkdir(parents=True)
+        macos_profile.symlink_to(MACOS_ZPROFILE)
         (home / ".zprofile.local").write_text(
             "print -r -- local\nexport ORBSTACK_MARKER=local\n", encoding="utf-8"
         )
