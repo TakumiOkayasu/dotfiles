@@ -29,7 +29,9 @@ description: 振る舞いをテストで定義し、RED-GREEN-REFACTORで実装�
 
 ### Test list
 
-現在の変更で証明すべき振る舞いを短く列挙する。
+現在の変更で証明すべき振る舞いを短く列挙する。期待値は合意した要件・public contractから導き、根拠を短く添える。現在の実装や実行結果の写しを正解にしない。
+
+`interface-first-design` の Given / When / Then / Failure を再利用し、前提・操作・期待結果・想定内の失敗を具体化する。要件が曖昧なら `[要確認: ...]` として確認し、期待値を推測で埋めない。
 
 - normal path
 - failure path
@@ -40,13 +42,17 @@ description: 振る舞いをテストで定義し、RED-GREEN-REFACTORで実装�
 
 ### RED
 
-最小のテストを追加し、期待した理由で失敗することを確認する。
+リストから1つの振る舞いを選び、最小のテストを追加して実行する。テスト名・実行コマンド・実際の失敗を短く残し、選んだ契約違反で失敗したことを確認する。テスト生成だけではRED確認にならない。
+
+環境不備や無関係な例外は意図したREDに数えない。新規APIが存在しないことによるcompile/import失敗は初期段階の証拠として区別し、最小の宣言を用意した後、振る舞いの失敗を確認してからGREENへ進む。
 
 既存bugを再現できない場合は、static trace、contract test、typecheck等の代替証拠を使い、RED未確認を明示する。
 
 ### GREEN
 
-現在のテストを通す最小実装を行う。
+現在のテストを通す最小実装を行う。fake-itも許容し、次の振る舞いは次のREDから進める。
+
+通すためだけの期待値の弱体化、assertion削除、skipは禁止する。テスト自体が誤っていた場合は、合意した要件・contractを根拠に訂正理由を示し、REDを再確認する。
 
 - 将来用abstract layerを追加しない
 - production codeをtestだけのために歪めない
@@ -59,6 +65,8 @@ description: 振る舞いをテストで定義し、RED-GREEN-REFACTORで実装�
 ### VERIFY
 
 対象テスト、関連テスト、lint、buildをproject commandで実行する。実行していないcheckを成功扱いしない。
+
+修正前の再現REDは、その不具合への検出力の証拠として再利用する。検出力に疑いが残る場合、または重大なcontractを扱う場合に限り、`test-coverage-guard` の手順で対象を絞った契約破壊・mutationを検討する。全件mutationや追加reviewを一律に要求しない。
 
 ## Test doubles
 
