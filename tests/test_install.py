@@ -19,6 +19,9 @@ import pytest
 
 INSTALL_SH = Path(__file__).resolve().parent.parent / "install.sh"
 BASHRC = INSTALL_SH.parent / "config" / "shell" / "bash" / "bashrc"
+COMMON_SH = INSTALL_SH.parent / "config" / "shell" / "common.sh"
+SSH_AGENT_SH = INSTALL_SH.parent / "config" / "shell" / "ssh-agent.sh"
+ZSHRC = INSTALL_SH.parent / "config" / "shell" / "zsh" / "zshrc"
 REPO_ROOT = INSTALL_SH.parent
 GENERATED_CLAUDE = REPO_ROOT / ".generated" / "ai-assets" / "claude"
 GENERATED_CODEX = REPO_ROOT / ".generated" / "ai-assets" / "codex"
@@ -177,6 +180,168 @@ class TestShellInitialization:
 
         assert settings["env"]["ENABLE_LSP_TOOL"] == "1"
         assert "ENABLE_LSP_TOOL" not in BASHRC.read_text(encoding="utf-8")
+
+
+class TestPortableShellConfiguration:
+    @pytest.mark.parametrize("shell", ("/bin/bash", "/usr/bin/zsh"))
+    def test_common_shell_initializes_with_nounset(self, tmp_path: Path, shell: str) -> None:
+        home = tmp_path / "home"
+        home.mkdir()
+        env = os.environ.copy()
+        for variable in ("DOTFILES_LOADED", "DOTFILES_DIR", "EDITOR", "VISUAL"):
+            env.pop(variable, None)
+        env.update({"HOME": str(home), "PATH": "/usr/bin:/bin"})
+
+        result = subprocess.run(
+            [
+                shell,
+                "-c",
+                f'set -u; . "{COMMON_SH}"; printf "%s:%s\\n" "$DOTFILES_DIR" "$DOTFILES_PLATFORM"',
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.startswith(f"{REPO_ROOT}:")
+
+    def test_ssh_agent_replaces_incomplete_saved_environment_with_nounset(
+        self, tmp_path: Path
+    ) -> None:
+        home = tmp_path / "home"
+        ssh_dir = home / ".ssh"
+        ssh_dir.mkdir(parents=True)
+        (ssh_dir / "agent.env").write_text(
+            "SSH_AUTH_SOCK=/tmp/stale-agent.sock; export SSH_AUTH_SOCK;\n",
+            encoding="utf-8",
+        )
+        fake_bin = tmp_path / "bin"
+        agent_log = tmp_path / "ssh-agent.log"
+        _write_executable(
+            fake_bin / "ssh-agent",
+            "#!/bin/sh\n"
+            'printf "%s\\n" "$*" > "$SSH_AGENT_LOG"\n'
+            'printf "%s\\n" '
+            "'SSH_AUTH_SOCK=/tmp/replacement-agent.sock; export SSH_AUTH_SOCK;' "
+            "'SSH_AGENT_PID=123; export SSH_AGENT_PID;'\n",
+        )
+        _write_executable(fake_bin / "ssh-add", "#!/bin/sh\nexit 0\n")
+        env = os.environ.copy()
+        for variable in ("SSH_AUTH_SOCK", "SSH_AGENT_PID"):
+            env.pop(variable, None)
+        env.update(
+            {
+                "HOME": str(home),
+                "PATH": f"{fake_bin}:/usr/bin:/bin",
+                "SSH_AGENT_LOG": str(agent_log),
+            }
+        )
+
+        result = subprocess.run(
+            [
+                "/bin/bash",
+                "-c",
+                f'set -u; . "{SSH_AGENT_SH}"; printf "%s:%s\\n" "$SSH_AUTH_SOCK" "$SSH_AGENT_PID"',
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == "/tmp/replacement-agent.sock:123\n"
+        assert agent_log.read_text(encoding="utf-8") == "-s\n"
+
+    def test_zsh_uses_existing_lm_studio_binary_from_home_once(
+        self, tmp_path: Path
+    ) -> None:
+        home = tmp_path / "home"
+        lm_studio_bin = home / ".lmstudio" / "bin"
+        _write_executable(lm_studio_bin / "lms", "#!/bin/sh\nexit 0\n")
+        fake_bin = tmp_path / "bin"
+        _write_executable(
+            fake_bin / "ssh-agent",
+            "#!/bin/sh\n"
+            "printf '%s\\n' "
+            "'SSH_AUTH_SOCK=/tmp/fake-agent.sock; export SSH_AUTH_SOCK;' "
+            "'SSH_AGENT_PID=123; export SSH_AGENT_PID;'\n",
+        )
+        _write_executable(fake_bin / "ssh-add", "#!/bin/sh\nexit 0\n")
+        env = os.environ.copy()
+        env.update(
+            {
+                "DOTFILES_DIR": str(REPO_ROOT),
+                "HOME": str(home),
+                "PATH": f"{fake_bin}:/usr/bin:/bin",
+                "ZDOTDIR": str(home),
+            }
+        )
+        for variable in ("SSH_AUTH_SOCK", "SSH_AGENT_PID"):
+            env.pop(variable, None)
+
+        result = subprocess.run(
+            [
+                "/usr/bin/zsh",
+                "-f",
+                "-c",
+                (
+                    f'source "{ZSHRC}"; source "{ZSHRC}"; '
+                    'command -v lms; '
+                    'print -r -- ${(M)#${(@s/:/)PATH}:#${HOME}/.lmstudio/bin}'
+                ),
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines()[-2:] == [str(lm_studio_bin / "lms"), "1"]
+
+    def test_global_gitignore_allows_submodule_metadata(self, tmp_path: Path) -> None:
+        repository = tmp_path / "repository"
+        repository.mkdir()
+        excludes_file = tmp_path / "ignore"
+        shutil.copyfile(REPO_ROOT / "config" / "git" / ".gitignore.common", excludes_file)
+        subprocess.run(["git", "init", "-q"], cwd=repository, check=True)
+        subprocess.run(
+            ["git", "config", "core.excludesFile", str(excludes_file)],
+            cwd=repository,
+            check=True,
+        )
+
+        for path in (".gitmodules", ".DS_Store", "secrets/service.pem"):
+            file_path = repository / path
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_text("fixture\n", encoding="utf-8")
+
+        submodule_check = subprocess.run(
+            ["git", "check-ignore", "-q", "--", ".gitmodules"],
+            cwd=repository,
+            capture_output=True,
+            text=True,
+        )
+        add_result = subprocess.run(
+            ["git", "add", "--", ".gitmodules"],
+            cwd=repository,
+            capture_output=True,
+            text=True,
+        )
+
+        assert submodule_check.returncode == 1
+        assert add_result.returncode == 0, add_result.stderr
+        for ignored_path in (".DS_Store", "secrets/service.pem"):
+            ignored_check = subprocess.run(
+                ["git", "check-ignore", "-q", "--", ignored_path],
+                cwd=repository,
+                capture_output=True,
+                text=True,
+            )
+            assert ignored_check.returncode == 0, ignored_path
 
 
 def _run_install_sh(
