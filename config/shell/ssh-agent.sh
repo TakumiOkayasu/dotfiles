@@ -17,7 +17,7 @@ if command -v keychain >/dev/null 2>&1; then
 fi
 
 # SSH_AUTH_SOCK が既に有効なソケットを指していれば何もしない
-if [ -n "$SSH_AUTH_SOCK" ] && [ -S "$SSH_AUTH_SOCK" ]; then
+if [ -n "${SSH_AUTH_SOCK:-}" ] && [ -S "$SSH_AUTH_SOCK" ]; then
     return 0 2>/dev/null || :
 fi
 
@@ -31,14 +31,14 @@ _setup_ssh_agent() {
     if [ -f "$_ssa_env" ]; then
         . "$_ssa_env" >/dev/null
         # agentプロセスが生きているか確認
-        if ! kill -0 "$SSH_AGENT_PID" 2>/dev/null; then
+        if [ -z "${SSH_AGENT_PID:-}" ] || ! kill -0 "$SSH_AGENT_PID" 2>/dev/null; then
             rm -f "$_ssa_env"
             unset SSH_AUTH_SOCK SSH_AGENT_PID
         fi
     fi
 
     # agentが起動していなければ新規起動
-    if [ -z "$SSH_AUTH_SOCK" ] || [ ! -S "$SSH_AUTH_SOCK" ]; then
+    if [ -z "${SSH_AUTH_SOCK:-}" ] || [ ! -S "$SSH_AUTH_SOCK" ]; then
         ssh-agent -s > "$_ssa_env"
         chmod 600 "$_ssa_env"
         . "$_ssa_env" >/dev/null

@@ -18,7 +18,7 @@
 # 二重読み込み防止
 # ============================================================================
 
-if [ -n "$DOTFILES_LOADED" ]; then
+if [ -n "${DOTFILES_LOADED:-}" ]; then
     # source されていれば return、直接実行なら exit (静的解析は後者を到達不能と誤検出)
     # shellcheck disable=SC2317
     return 0 2>/dev/null || exit 0
@@ -51,13 +51,13 @@ _dotfiles_detect_root() {
 }
 
 # DOTFILES_DIR が未設定なら検出
-if [ -z "$DOTFILES_DIR" ]; then
+if [ -z "${DOTFILES_DIR:-}" ]; then
     # 呼び出し元によって検出方法を変える
     # SC2128: bash では $BASH_SOURCE 先頭要素 (=このファイル) で十分
     # shellcheck disable=SC2128
-    if [ -n "$BASH_SOURCE" ]; then
+    if [ -n "${BASH_SOURCE:-}" ]; then
         DOTFILES_DIR="$(_dotfiles_detect_root "$BASH_SOURCE")"
-    elif [ -n "$ZSH_VERSION" ]; then
+    elif [ -n "${ZSH_VERSION:-}" ]; then
         # SC2296: ${(%):-%x} は zsh 固有 (このパスは zsh でのみ実行される)
         # shellcheck disable=SC2296
         DOTFILES_DIR="$(_dotfiles_detect_root "${(%):-%x}")"
@@ -81,7 +81,7 @@ export DOTFILES_DIR
 _dotfiles_detect_platform() {
     # WSL検出
     if [ -f /proc/sys/fs/binfmt_misc/WSLInterop ] || \
-       [ -n "$WSL_DISTRO_NAME" ] || \
+       [ -n "${WSL_DISTRO_NAME:-}" ] || \
        grep -qi microsoft /proc/version 2>/dev/null; then
         echo "wsl"
         return
@@ -166,7 +166,7 @@ _dotfiles_add_path() {
 
     [ ! -d "$new_path" ] && return
 
-    case ":$PATH:" in
+    case ":${PATH:-}:" in
         *":$new_path:"*)
             # 既に含まれている
             return
@@ -174,9 +174,9 @@ _dotfiles_add_path() {
     esac
 
     if [ "$position" = "append" ]; then
-        PATH="$PATH:$new_path"
+        PATH="${PATH:-}:$new_path"
     else
-        PATH="$new_path:$PATH"
+        PATH="$new_path:${PATH:-}"
     fi
 }
 
@@ -201,7 +201,7 @@ elif command -v vim >/dev/null 2>&1; then
 elif command -v vi >/dev/null 2>&1; then
     export EDITOR="vim"
 fi
-export VISUAL="$EDITOR"
+export VISUAL="${EDITOR:-}"
 
 # ロケール
 export LANG="${LANG:-ja_JP.UTF-8}"

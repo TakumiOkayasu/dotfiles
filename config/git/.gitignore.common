@@ -63,7 +63,6 @@ $RECYCLE.BIN/
 
 # === Git ===
 .gitconfig
-.gitmodules
 
 # === Language: C/C++ ===
 *.o
