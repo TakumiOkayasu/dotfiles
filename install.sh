@@ -14,10 +14,15 @@ set -eu
 
 # 一時ファイル cleanup
 _TMPFILES=""
+_AI_ASSET_STAGE=""
+_AI_ASSET_STAGE_PARENT_CREATED=""
+# shellcheck disable=SC2329 # invoked by the EXIT trap below
 cleanup_tmpfiles() {
     for _f in $_TMPFILES; do
         rm -f "$_f"
     done
+    [ -z "$_AI_ASSET_STAGE" ] || rm -rf "$_AI_ASSET_STAGE"
+    [ -z "$_AI_ASSET_STAGE_PARENT_CREATED" ] || rmdir "$_AI_ASSET_STAGE_PARENT_CREATED" 2>/dev/null || true
 }
 trap cleanup_tmpfiles EXIT INT TERM
 
@@ -56,16 +61,9 @@ UNINSTALL_CODEX=false
 
 VENDOR_SKILLS="composition-patterns react-best-practices web-design-guidelines"
 COMMON_HOOKS="common/hooks"
-COMMON_QA_NIGHTMARE_CHECKLISTS="common/qa-nightmare/checklists"
-COMMON_QA_NIGHTMARE_MANIFEST="common/qa-nightmare/manifest.json"
-COMMON_COMMANDS="common/commands"
-COMMON_RULES="common/rules"
-COMMON_SKILLS="common/skills"
 AI_ASSET_GENERATOR_REL="scripts/generate-ai-assets.py"
 AI_ASSET_ROOT_REL=".generated/ai-assets"
-AI_CLAUDE_ASSETS=".generated/ai-assets/claude"
-AI_CODEX_ASSETS=".generated/ai-assets/codex"
-AI_PLUGIN_ASSETS=".generated/ai-assets/plugins"
+AI_ASSET_ROOT="${DOTFILES_DIR}/${AI_ASSET_ROOT_REL}"
 
 DOTWORK_MARKER_BEGIN="# === dotfile-work: BEGIN ==="
 DOTWORK_MARKER_END="# === dotfile-work: END ==="
@@ -257,19 +255,6 @@ new_stow_specs_file() {
     _TMPFILES="$_TMPFILES $_stow_specs_file"
 }
 
-home_relative_path() {
-    case "$1" in
-        "$HOME"/*)
-            printf '%s\n' "${1#"$HOME"/}"
-            ;;
-        *)
-            print_error "stow target は HOME 配下に限ります: $1"
-            COUNT_ERROR=$((COUNT_ERROR + 1))
-            return 1
-            ;;
-    esac
-}
-
 stow_specs_add() {
     _spec_file="$1"
     _source="$2"
@@ -284,23 +269,29 @@ stow_specs_add() {
     printf '%s:%s\n' "$_source" "$_dest" >> "$_spec_file"
 }
 
-stow_specs_add_dest() {
-    _spec_file="$1"
-    _source="$2"
-    _dest="$3"
-    _dest_rel=$(home_relative_path "$_dest") || return 1
-    stow_specs_add "$_spec_file" "$_source" "$_dest_rel"
-}
-
 generate_ai_assets() {
     [ "$CLAUDE_SELECTED" = "true" ] || [ "$CODEX_SELECTED" = "true" ] || return 0
 
     _generator="${DOTFILES_DIR}/${AI_ASSET_GENERATOR_REL}"
     [ -f "$_generator" ] || die "AI asset generator が見つかりません: $_generator"
-    print_info "common/* から Claude/Codex 用assetを生成・検証"
-    python3 "$_generator" --repo "$DOTFILES_DIR" || die "AI asset の生成・検証に失敗しました"
-    for _generated_dir in "$AI_CLAUDE_ASSETS" "$AI_CODEX_ASSETS" "$AI_PLUGIN_ASSETS"; do
-        [ -d "${DOTFILES_DIR}/${_generated_dir}" ] || die "生成済みAI assetが不足しています: $_generated_dir"
+    if [ "$MODE_DRY_RUN" = "true" ]; then
+        _asset_stage_parent="${DOTFILES_DIR}/.generated"
+        if [ ! -e "$_asset_stage_parent" ]; then
+            mkdir "$_asset_stage_parent" || die "dry-run用AI asset一時ディレクトリを作成できません: $_asset_stage_parent"
+            _AI_ASSET_STAGE_PARENT_CREATED="$_asset_stage_parent"
+        fi
+        _AI_ASSET_STAGE=$(mktemp -d "${_asset_stage_parent}/.ai-assets-dry-run.XXXXXX") \
+            || die "dry-run用AI asset一時ディレクトリを作成できません"
+        AI_ASSET_ROOT="${_AI_ASSET_STAGE}/ai-assets"
+        print_info "[ドライラン] common/* から Claude/Codex 用assetを一時生成・検証"
+        PYTHONDONTWRITEBYTECODE=1 python3 "$_generator" --repo "$DOTFILES_DIR" --output "$AI_ASSET_ROOT" >/dev/null \
+            || die "AI asset の一時生成・検証に失敗しました"
+    else
+        print_info "common/* から Claude/Codex 用assetを生成・検証"
+        python3 "$_generator" --repo "$DOTFILES_DIR" || die "AI asset の生成・検証に失敗しました"
+    fi
+    for _generated_dir in "$AI_ASSET_ROOT/claude" "$AI_ASSET_ROOT/codex" "$AI_ASSET_ROOT/plugins"; do
+        [ -d "$_generated_dir" ] || die "生成済みAI assetが不足しています: $_generated_dir"
     done
 }
 
@@ -316,12 +307,18 @@ add_generated_ai_stow_specs() {
     fi
 
     _generator="${DOTFILES_DIR}/${AI_ASSET_GENERATOR_REL}"
-    _generated_manifest="${DOTFILES_DIR}/${AI_ASSET_ROOT_REL}/manifest.json"
+    _generated_manifest="${AI_ASSET_ROOT}/manifest.json"
     [ -f "$_generated_manifest" ] || return 0
 
     _generated_specs=$(mktemp)
     _TMPFILES="$_TMPFILES $_generated_specs"
-    if ! python3 "$_generator" --repo "$DOTFILES_DIR" --list-target "$_target" > "$_generated_specs"; then
+    if [ "$MODE_DRY_RUN" = "true" ]; then
+        if ! PYTHONDONTWRITEBYTECODE=1 python3 "$_generator" --repo "$DOTFILES_DIR" --output "$AI_ASSET_ROOT" --list-target "$_target" > "$_generated_specs"; then
+            print_error "生成済み ${_target} asset manifest の読み込みに失敗しました"
+            COUNT_ERROR=$((COUNT_ERROR + 1))
+            return 1
+        fi
+    elif ! python3 "$_generator" --repo "$DOTFILES_DIR" --output "$AI_ASSET_ROOT" --list-target "$_target" > "$_generated_specs"; then
         print_error "生成済み ${_target} asset manifest の読み込みに失敗しました"
         COUNT_ERROR=$((COUNT_ERROR + 1))
         return 1
@@ -410,7 +407,14 @@ run_stow_link_specs_file() {
         if [ "$MODE_DRY_RUN" = "true" ]; then
             _source="${_spec%%:*}"
             _dest="${_spec#*:}"
-            print_info "[ドライラン] stow link: ${HOME}/${_dest} <- ${DOTFILES_DIR}/${_source}"
+            _preview_source="$_source"
+            _ai_asset_root_relative=${AI_ASSET_ROOT#"$DOTFILES_DIR"/}
+            case "$_source" in
+                "$_ai_asset_root_relative"/*)
+                    _preview_source="${AI_ASSET_ROOT_REL}/${_source#"$_ai_asset_root_relative"/}"
+                    ;;
+            esac
+            print_info "[ドライラン] stow link: ${HOME}/${_dest} <- ${DOTFILES_DIR}/${_preview_source}"
         fi
         set -- "$@" --link "$_spec"
     done < "$_spec_file"
@@ -879,9 +883,9 @@ select_gitconfig_variant() {
     [ -n "$GITCONFIG_VARIANT" ] && return 0
 
     echo ""
-    printf "${COLOR_BOLD}.gitconfigの環境を選択:${COLOR_RESET}\n"
-    printf "  ${COLOR_BOLD}1)${COLOR_RESET} プライベート用 (macOS: /Users/...)\n"
-    printf "  ${COLOR_BOLD}2)${COLOR_RESET} 仕事用 (Linux: /home/...)\n"
+    printf '%s.gitconfigの環境を選択:%s\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %s1)%s プライベート用 (macOS: /Users/...)\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %s2)%s 仕事用 (Linux: /home/...)\n' "$COLOR_BOLD" "$COLOR_RESET"
     echo ""
     printf "選択 (1/2): "
     read -r _choice
@@ -963,12 +967,12 @@ select_shell_type() {
     _current_shell=$(detect_current_shell)
 
     echo ""
-    printf "${COLOR_BOLD}シェル設定を選択:${COLOR_RESET}\n"
-    printf "  ${COLOR_BOLD}1)${COLOR_RESET} bash のみ\n"
-    printf "  ${COLOR_BOLD}2)${COLOR_RESET} zsh のみ\n"
-    printf "  ${COLOR_BOLD}3)${COLOR_RESET} fish のみ\n"
-    printf "  ${COLOR_BOLD}4)${COLOR_RESET} すべて (bash + zsh + fish)\n"
-    printf "  ${COLOR_BOLD}5)${COLOR_RESET} 現在のシェル (%s) のみ\n" "$_current_shell"
+    printf '%sシェル設定を選択:%s\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %s1)%s bash のみ\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %s2)%s zsh のみ\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %s3)%s fish のみ\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %s4)%s すべて (bash + zsh + fish)\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %s5)%s 現在のシェル (%s) のみ\n' "$COLOR_BOLD" "$COLOR_RESET" "$_current_shell"
     echo ""
     printf "選択 (1-5) [5]: "
     read -r _choice
@@ -990,11 +994,11 @@ select_shell_type() {
 
 select_shell_components() {
     echo ""
-    printf "${COLOR_BOLD}インストールする内容を選択:${COLOR_RESET}\n"
+    printf '%sインストールする内容を選択:%s\n' "$COLOR_BOLD" "$COLOR_RESET"
     _shell_rc=$(get_shell_rc_display "$SHELL_TYPE")
-    printf "  ${COLOR_BOLD}1)${COLOR_RESET} フルセット (既存設定を置き換え) ${COLOR_RED}⚠ 破壊的${COLOR_RESET}\n"
+    printf '  %s1)%s フルセット (既存設定を置き換え) %s⚠ 破壊的%s\n' "$COLOR_BOLD" "$COLOR_RESET" "$COLOR_RED" "$COLOR_RESET"
     printf "     → %s 等をリポジトリのものに置換 (既存は .bak にバックアップ)\n" "$_shell_rc"
-    printf "  ${COLOR_BOLD}2)${COLOR_RESET} 追記モード (既存設定を保持) ${COLOR_GREEN}★推奨${COLOR_RESET}\n"
+    printf '  %s2)%s 追記モード (既存設定を保持) %s★推奨%s\n' "$COLOR_BOLD" "$COLOR_RESET" "$COLOR_GREEN" "$COLOR_RESET"
     printf "     → 既存の %s にsource行を自動挿入\n" "$_shell_rc"
     echo ""
     printf "選択 (1-2) [2]: "
@@ -1107,10 +1111,12 @@ _ensure_trailing_newline() {
 }
 
 inject_source_block() {
+    # shellcheck disable=SC2016 # write the literal source command into the rc file
     _inject_source_with_line "$1" '[ -f "$HOME/.shell_common" ] && . "$HOME/.shell_common"'
 }
 
 inject_source_block_fish() {
+    # shellcheck disable=SC2016 # write the literal source command into the rc file
     _inject_source_with_line "$1" 'bass source "$HOME/.shell_common"'
     print_info "注意: fishでは bass プラグインが必要です (fisher install edc/bass)"
 }
@@ -1227,21 +1233,6 @@ uninstall_bin_files() {
     done
 }
 
-# ============================================================================
-# Common shared assets
-# ============================================================================
-
-add_common_hooks_stow_specs() {
-    _spec_file="$1"
-    _dest_prefix="$2"
-
-    for _file_path in "$DOTFILES_DIR"/"$COMMON_HOOKS"/*.sh; do
-        [ -f "$_file_path" ] || continue
-        _relative=$(basename "$_file_path")
-        stow_specs_add "$_spec_file" "${COMMON_HOOKS}/${_relative}" "${_dest_prefix}/${_relative}"
-    done
-}
-
 remove_legacy_common_hook_links() {
     _dest_dir="$1"
 
@@ -1252,24 +1243,6 @@ remove_legacy_common_hook_links() {
         [ -e "$_dest" ] || [ -L "$_dest" ] || continue
         remove_dotfiles_link "$_dest" "旧common hook: ${_relative}"
     done
-}
-
-add_common_qa_nightmare_checklists_stow_specs() {
-    _spec_file="$1"
-    _dest_prefix="$2"
-
-    for _file_path in "$DOTFILES_DIR"/"$COMMON_QA_NIGHTMARE_CHECKLISTS"/*.md; do
-        [ -f "$_file_path" ] || continue
-        _relative=$(basename "$_file_path")
-        stow_specs_add "$_spec_file" "${COMMON_QA_NIGHTMARE_CHECKLISTS}/${_relative}" "${_dest_prefix}/${_relative}"
-    done
-}
-
-add_common_qa_nightmare_manifest_stow_spec() {
-    _spec_file="$1"
-    _dest_prefix="$2"
-
-    stow_specs_add "$_spec_file" "$COMMON_QA_NIGHTMARE_MANIFEST" "${_dest_prefix}/manifest.json"
 }
 
 remove_legacy_qa_nightmare_checklist_links() {
@@ -1435,6 +1408,8 @@ _claude_unlink_vendor_skills() {
 }
 
 _claude_prune_empty_dirs() {
+    [ "$MODE_DRY_RUN" = "true" ] && return 0
+
     _count=$(find "${HOME}/.claude" -mindepth 1 -depth -type d 2>/dev/null \
         | while IFS= read -r _dir; do rmdir "$_dir" 2>/dev/null && echo x; done \
         | wc -l)
@@ -1565,6 +1540,8 @@ _codex_warn_legacy_hooks_json() {
 }
 
 _codex_verify_hooks_feature() {
+    [ "$MODE_DRY_RUN" = "true" ] && return 0
+
     command -v codex >/dev/null 2>&1 || return 0
 
     if codex features list 2>/dev/null | grep -q '^hooks[[:space:]]'; then
@@ -1604,6 +1581,8 @@ _codex_unlink_managed_files() {
 }
 
 _codex_prune_empty_dirs() {
+    [ "$MODE_DRY_RUN" = "true" ] && return 0
+
     _count=$(find "${HOME}/.codex" -mindepth 1 -depth -type d 2>/dev/null \
         | while IFS= read -r _dir; do rmdir "$_dir" 2>/dev/null && echo x; done \
         | wc -l)
@@ -1618,14 +1597,14 @@ _codex_prune_empty_dirs() {
 
 select_uninstall_components() {
     echo ""
-    printf "${COLOR_BOLD}アンインストールするカテゴリを選択 (複数可、スペース区切り):${COLOR_RESET}\n"
-    printf "  ${COLOR_BOLD}1)${COLOR_RESET} シェル設定\n"
-    printf "  ${COLOR_BOLD}2)${COLOR_RESET} Git設定\n"
-    printf "  ${COLOR_BOLD}3)${COLOR_RESET} Vim設定\n"
-    printf "  ${COLOR_BOLD}4)${COLOR_RESET} CLIツール\n"
-    printf "  ${COLOR_BOLD}5)${COLOR_RESET} Claude Code設定\n"
-    printf "  ${COLOR_BOLD}6)${COLOR_RESET} Codex設定\n"
-    printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべて\n"
+    printf '%sアンインストールするカテゴリを選択 (複数可、スペース区切り):%s\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %s1)%s シェル設定\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %s2)%s Git設定\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %s3)%s Vim設定\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %s4)%s CLIツール\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %s5)%s Claude Code設定\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %s6)%s Codex設定\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %sa)%s すべて\n' "$COLOR_BOLD" "$COLOR_RESET"
     echo ""
     printf "選択 (例: 1 3 / a) [a]: "
     read -r _choices
@@ -1670,20 +1649,20 @@ select_uninstall_components() {
 show_category_menu() {
     print_header "インストールするカテゴリを選択"
     echo ""
-    printf "  ${COLOR_BOLD}1)${COLOR_RESET} シェル設定\n"
+    printf '  %s1)%s シェル設定\n' "$COLOR_BOLD" "$COLOR_RESET"
     printf "     PATH, エイリアス, プロンプト, SSH Agent を設定\n"
-    printf "  ${COLOR_BOLD}2)${COLOR_RESET} Git設定\n"
+    printf '  %s2)%s Git設定\n' "$COLOR_BOLD" "$COLOR_RESET"
     printf "     gitconfig, 補完, gitignore を設定\n"
-    printf "  ${COLOR_BOLD}3)${COLOR_RESET} Vim設定\n"
+    printf '  %s3)%s Vim設定\n' "$COLOR_BOLD" "$COLOR_RESET"
     printf "     .vimrc を配置\n"
-    printf "  ${COLOR_BOLD}4)${COLOR_RESET} CLIツール\n"
+    printf '  %s4)%s CLIツール\n' "$COLOR_BOLD" "$COLOR_RESET"
     printf "     git-new-feature 等を ~/.local/bin/ に配置\n"
-    printf "  ${COLOR_BOLD}5)${COLOR_RESET} Claude Code設定\n"
+    printf '  %s5)%s Claude Code設定\n' "$COLOR_BOLD" "$COLOR_RESET"
     printf "     hooks, skills, rules, commands を ~/.claude/ に配置\n"
-    printf "  ${COLOR_BOLD}6)${COLOR_RESET} Codex設定\n"
+    printf '  %s6)%s Codex設定\n' "$COLOR_BOLD" "$COLOR_RESET"
     printf "     agents, inline hooks template, rules を ~/.codex/ に配置 (skills は plugin 配布)\n"
     echo ""
-    printf "  ${COLOR_BOLD}a)${COLOR_RESET} すべて  ${COLOR_BOLD}q)${COLOR_RESET} 終了\n"
+    printf '  %sa)%s すべて  %sq)%s 終了\n' "$COLOR_BOLD" "$COLOR_RESET" "$COLOR_BOLD" "$COLOR_RESET"
     echo ""
 }
 
@@ -1778,7 +1757,7 @@ _validate_selection() {
 _preview_shell() {
     case "$SHELL_COMPONENTS" in
         full)
-            printf "  ${COLOR_CYAN}シェル設定 - フルセット (${SHELL_TYPE}):${COLOR_RESET}\n"
+            printf '  %sシェル設定 - フルセット (%s):%s\n' "$COLOR_CYAN" "$SHELL_TYPE" "$COLOR_RESET"
             case "$SHELL_TYPE" in
                 bash)
                     printf "    + config/shell/bash/bashrc -> ~/.bashrc\n"
@@ -1801,7 +1780,7 @@ _preview_shell() {
             esac
             ;;
         append)
-            printf "  ${COLOR_CYAN}シェル設定 - 追記モード (${SHELL_TYPE}):${COLOR_RESET}\n"
+            printf '  %sシェル設定 - 追記モード (%s):%s\n' "$COLOR_CYAN" "$SHELL_TYPE" "$COLOR_RESET"
             printf "    + config/shell/common.sh -> ~/.shell_common\n"
             case "$SHELL_TYPE" in
                 bash) printf "    → ~/.bashrc にsource行を自動挿入\n" ;;
@@ -1815,7 +1794,7 @@ _preview_shell() {
 }
 
 _preview_git() {
-    printf "  ${COLOR_CYAN}Git設定:${COLOR_RESET}\n"
+    printf '  %sGit設定:%s\n' "$COLOR_CYAN" "$COLOR_RESET"
     printf "    + config/git/.git-completion.bash -> ~/.git-completion.bash\n"
     printf "    + config/git/.git-prompt.sh -> ~/.git-prompt.sh\n"
     printf "    + config/git/.gitattributes -> ~/.config/git/attributes\n"
@@ -1828,25 +1807,25 @@ _preview_git() {
 }
 
 _preview_vim() {
-    printf "  ${COLOR_CYAN}Vim設定:${COLOR_RESET}\n"
+    printf '  %sVim設定:%s\n' "$COLOR_CYAN" "$COLOR_RESET"
     printf "    + config/vim/.vimrc -> ~/.vimrc\n"
     echo ""
 }
 
 _preview_bin() {
-    printf "  ${COLOR_CYAN}CLIツール:${COLOR_RESET}\n"
+    printf '  %sCLIツール:%s\n' "$COLOR_CYAN" "$COLOR_RESET"
     printf "    + bin/* -> ~/.local/bin/*\n"
     echo ""
 }
 
 _preview_claude() {
-    printf "  ${COLOR_CYAN}Claude Code設定:${COLOR_RESET}\n"
+    printf '  %sClaude Code設定:%s\n' "$COLOR_CYAN" "$COLOR_RESET"
     printf "    + trackedな claude/* と common/* -> 生成・検証 -> ~/.claude/*\n"
     echo ""
 }
 
 _preview_codex() {
-    printf "  ${COLOR_CYAN}Codex設定:${COLOR_RESET}\n"
+    printf '  %sCodex設定:%s\n' "$COLOR_CYAN" "$COLOR_RESET"
     printf "    + trackedな codex/* と common/* -> 生成・検証 -> ~/.codex/*\n"
     printf "    + plugin bundle -> ~/.codex/plugins, ~/.agents/plugins/marketplace.json\n"
     printf "    + codex/config.toml.template -> ~/.codex/config.toml (存在しない場合のみ生成)\n"
@@ -1960,6 +1939,7 @@ parse_args() {
     done
 }
 
+# shellcheck disable=SC2329 # invoked by the INT and TERM traps in main
 cleanup() {
     echo ""
     print_info "中断されました"

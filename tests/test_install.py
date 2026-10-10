@@ -1928,6 +1928,130 @@ class TestStowInstallScript:
 class TestIntegrationInstallUninstall:
     """実リポジトリ構造で install.sh -f / -u -f を実行するテスト"""
 
+    def test_dry_run_keeps_home_and_repository_generated_state_unchanged(
+        self, tmp_path: Path
+    ) -> None:
+        """dry-runはHOME、生成view、Codex CLIを変更・実行しない"""
+        home = tmp_path / "home"
+        (home / ".claude" / "empty" / "nested").mkdir(parents=True)
+        (home / ".codex" / "empty" / "nested").mkdir(parents=True)
+        local_file = home / ".claude" / "settings.json"
+        local_file.write_text('{"local": true}\n', encoding="utf-8")
+        local_link = home / ".codex" / "local-link"
+        local_link.symlink_to("missing-local-target")
+
+        fake_bin = tmp_path / "bin"
+        codex_marker = tmp_path / "codex-invoked"
+        _write_executable(
+            fake_bin / "codex",
+            "#!/bin/sh\n"
+            'touch "$CODEX_MARKER"\n'
+            "exit 1\n",
+        )
+        environment = {
+            "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
+            "CODEX_MARKER": str(codex_marker),
+        }
+
+        def snapshot_tree(root: Path) -> dict[Path, tuple[str, bytes | str | None]]:
+            if not root.exists() and not root.is_symlink():
+                return {}
+
+            snapshot: dict[Path, tuple[str, bytes | str | None]] = {}
+            for path in (root, *sorted(root.rglob("*"))):
+                relative = path.relative_to(root)
+                if path.is_symlink():
+                    snapshot[relative] = ("symlink", os.readlink(path))
+                elif path.is_file():
+                    snapshot[relative] = ("file", path.read_bytes())
+                elif path.is_dir():
+                    snapshot[relative] = ("directory", None)
+            return snapshot
+
+        before_home = snapshot_tree(home)
+        before_generated = {
+            ".generated": snapshot_tree(REPO_ROOT / ".generated"),
+            "scripts/__pycache__": snapshot_tree(REPO_ROOT / "scripts" / "__pycache__"),
+        }
+
+        install = _run_install_sh(
+            REPO_ROOT,
+            home,
+            dry_run=True,
+            env_overrides=environment,
+            use_fake_vendor=False,
+        )
+
+        assert install.returncode == 0, (
+            f"dry-run install failed:\n{install.stdout}\n{install.stderr}"
+        )
+        assert not codex_marker.exists()
+        assert snapshot_tree(home) == before_home
+        assert {
+            ".generated": snapshot_tree(REPO_ROOT / ".generated"),
+            "scripts/__pycache__": snapshot_tree(REPO_ROOT / "scripts" / "__pycache__"),
+        } == before_generated
+
+        uninstall = _run_install_sh(
+            REPO_ROOT,
+            home,
+            uninstall=True,
+            dry_run=True,
+            env_overrides=environment,
+            use_fake_vendor=False,
+        )
+
+        assert uninstall.returncode == 0, (
+            f"dry-run uninstall failed:\n{uninstall.stdout}\n{uninstall.stderr}"
+        )
+        assert not codex_marker.exists()
+        assert snapshot_tree(home) == before_home
+        assert {
+            ".generated": snapshot_tree(REPO_ROOT / ".generated"),
+            "scripts/__pycache__": snapshot_tree(REPO_ROOT / "scripts" / "__pycache__"),
+        } == before_generated
+
+    def test_dry_run_with_space_in_repo_path_cleans_only_its_stage(
+        self, tmp_path: Path
+    ) -> None:
+        """dry-runの一時stage cleanupは空白入りrepo pathを分割しない"""
+        repo = tmp_path / "dotfiles repo"
+        subprocess.run(
+            ["git", "clone", "--quiet", "--local", str(REPO_ROOT), str(repo)],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        shutil.copy2(INSTALL_SH, repo / "install.sh")
+        _write_executable(repo / "scripts" / "stow-install.sh", "#!/bin/sh\nexit 0\n")
+
+        sentinel = tmp_path / "dotfiles"
+        sentinel.mkdir()
+        (sentinel / "must-survive").write_text("sentinel\n", encoding="utf-8")
+        home = tmp_path / "home"
+        (home / ".claude" / "empty" / "nested").mkdir(parents=True)
+
+        def snapshot_tree(root: Path) -> dict[Path, tuple[str, bytes | None]]:
+            snapshot: dict[Path, tuple[str, bytes | None]] = {}
+            for path in (root, *sorted(root.rglob("*"))):
+                relative = path.relative_to(root)
+                if path.is_file():
+                    snapshot[relative] = ("file", path.read_bytes())
+                elif path.is_dir():
+                    snapshot[relative] = ("directory", None)
+            return snapshot
+
+        before_home = snapshot_tree(home)
+        result = _run_install_sh(repo, home, dry_run=True, use_fake_vendor=False)
+
+        assert result.returncode == 0, result.stderr
+        assert (sentinel / "must-survive").read_text(encoding="utf-8") == "sentinel\n"
+        assert snapshot_tree(home) == before_home
+        assert not (repo / ".generated").exists()
+        assert ".ai-assets-dry-run." not in result.stdout
+        assert f"{repo}/.generated/ai-assets/" in result.stdout
+
     def test_install_succeeds(self, tmp_path: Path) -> None:
         """install.sh -f が正常終了する"""
         home = tmp_path / "home"
