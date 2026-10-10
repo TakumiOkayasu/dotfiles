@@ -404,6 +404,37 @@ assert_eq "保護 API のブランチ名を URL エンコード" "2" "$encoded_p
 assert_eq "既存保護を保持して更新: policy" '[true,["unit"],[{"context":"unit","app_id":42}],true,2,true,["octocat"],["merge-bot"],["maintainers"],true,true,true]' "$preserved_policy"
 
 : > "$FAKE_GH_CALLS"
+FAKE_GH_PROTECTION_JSON='{
+  "required_status_checks": null,
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": null,
+  "restrictions": null
+}'
+PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo octo/example > /dev/null 2>&1
+exit_code=$?
+required_pr=$(jq -c '.required_pull_request_reviews' "$FAKE_GH_PAYLOAD")
+assert_eq "既存保護で不足する PR 要件を追加: exit 0" "0" "$exit_code"
+assert_eq "既存保護で不足する PR 要件を追加: policy" '{"dismiss_stale_reviews":false,"require_code_owner_reviews":false,"required_approving_review_count":0,"require_last_push_approval":false}' "$required_pr"
+
+: > "$FAKE_GH_CALLS"
+FAKE_GH_PROTECTION_JSON='{}'
+PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo octo/example > /dev/null 2>&1
+exit_code=$?
+write_count=$(grep -Ec -- '-X (PATCH|PUT)' "$FAKE_GH_CALLS" || true)
+assert_eq "不正な保護応答: 更新を中止" "1" "$exit_code"
+assert_eq "不正な保護応答: 書き込みなし" "0" "$write_count"
+
+: > "$FAKE_GH_CALLS"
+FAKE_GH_PROTECTION_JSON='{}'
+PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo --check octo/example > /tmp/gh-setup-check.out 2>&1
+exit_code=$?
+reported_active=$(grep -c 'ブランチ保護: 有効' /tmp/gh-setup-check.out || true)
+reported_error=$(grep -c 'ブランチ保護: 取得に失敗' /tmp/gh-setup-check.out || true)
+assert_eq "不正な保護応答の --check: exit 1" "1" "$exit_code"
+assert_eq "不正な保護応答の --check: 有効と誤表示しない" "0" "$reported_active"
+assert_eq "不正な保護応答の --check: 取得失敗を表示" "1" "$reported_error"
+
+: > "$FAKE_GH_CALLS"
 : > "$FAKE_GH_PAYLOAD"
 FAKE_GH_PROTECTION_MODE=error PATH="$FAKE_GH_DIR:$PATH" /workspace/bin/gh-setup-repo --check octo/example > /tmp/gh-setup-check.out 2>&1
 exit_code=$?
