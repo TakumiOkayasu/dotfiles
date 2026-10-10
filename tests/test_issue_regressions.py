@@ -256,4 +256,3 @@ def test_review_skills_keep_fixed_reports_after_audit() -> None:
         for label in required:
             assert label in source, (name, label)
             assert label in generated, (name, label)
-
