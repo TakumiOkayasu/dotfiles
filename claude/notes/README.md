@@ -24,7 +24,7 @@ cp .claude/notes/_template.md ".claude/notes/$(git branch --show-current | tr '/
 | subagent 利用時 | 「subagent 出力」セクションに集約 |
 | 失敗時 | 正式な記録はfailure-logging skillの保存先へ。必要な要点だけ「failure-log」に要約 |
 | タスク完了時 | 「完了時の要約」を progress.md へ反映 |
-| ブランチクリーンアップ時 | PostToolUse hook が自動アーカイブ (`notes/archive/` へ移動) |
+| ブランチクリーンアップ時 | `git-cleanup-branch` が対象タスクのnoteを `notes/archive/` へ移動 |
 
 ## ディレクトリ構造
 

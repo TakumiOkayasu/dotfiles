@@ -110,6 +110,86 @@ def _run_performance_profile(repo: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
+class TestClaudeHookWiring:
+    def test_destructive_guard_is_registered_and_blocks_dangerous_payload(
+        self, tmp_path: Path
+    ) -> None:
+        """ClaudeのBash PreToolUseは生成済み共通guardへ到達する。"""
+        settings = json.loads(
+            (REPO_ROOT / "claude" / "settings.json").read_text(encoding="utf-8")
+        )
+        pre_tool_commands = [
+            hook["command"]
+            for entry in settings["hooks"]["PreToolUse"]
+            if entry.get("matcher") == "Bash"
+            for hook in entry["hooks"]
+        ]
+        assert "$HOME/.claude/hooks/destructive-command-block.sh" in pre_tool_commands
+
+        fake_jq = tmp_path / "jq"
+        _write_executable(
+            fake_jq,
+            "#!/usr/bin/env python3\n"
+            "import json\n"
+            "import sys\n"
+            "print(json.load(sys.stdin).get('tool_input', {}).get('command', ''))\n",
+        )
+        env = os.environ.copy()
+        env["PATH"] = f"{tmp_path}:{env['PATH']}"
+        hook = REPO_ROOT / "common" / "hooks" / "destructive-command-block.sh"
+
+        dangerous = subprocess.run(
+            ["sh", str(hook)],
+            input=json.dumps({"tool_input": {"command": "git reset --hard HEAD"}}),
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        safe = subprocess.run(
+            ["sh", str(hook)],
+            input=json.dumps({"tool_input": {"command": "git status --short"}}),
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+
+        assert dangerous.returncode == 2, dangerous.stderr
+        assert safe.returncode == 0, safe.stderr
+
+    def test_session_start_avoids_unchecked_vendor_pull_hook(self) -> None:
+        """SessionStartのvendor更新は検証済みのskills-update経路だけを使う。"""
+        settings = json.loads(
+            (REPO_ROOT / "claude" / "settings.json").read_text(encoding="utf-8")
+        )
+        session_start_commands = [
+            hook["command"]
+            for entry in settings["hooks"]["SessionStart"]
+            for hook in entry["hooks"]
+        ]
+
+        assert "$HOME/.claude/hooks/session-start-reminder.sh" in session_start_commands
+        assert "$HOME/.claude/hooks/vendor-skills-update.sh" not in session_start_commands
+        assert not (REPO_ROOT / "claude" / "hooks" / "vendor-skills-update.sh").exists()
+
+    def test_post_tool_use_does_not_archive_notes_without_tool_result(self) -> None:
+        """ブランチcleanupはCLIが対象noteだけをarchiveし、PostToolUseは広域変更しない。"""
+        settings = json.loads(
+            (REPO_ROOT / "claude" / "settings.json").read_text(encoding="utf-8")
+        )
+        post_tool_commands = [
+            hook["command"]
+            for entry in settings["hooks"]["PostToolUse"]
+            for hook in entry["hooks"]
+        ]
+
+        assert "$HOME/.claude/hooks/post-cleanup-notes-archive.sh" not in post_tool_commands
+        assert not (
+            REPO_ROOT / "claude" / "hooks" / "post-cleanup-notes-archive.sh"
+        ).exists()
+
+
 class TestShellInitialization:
     def test_bash_selects_mise_eza_on_first_start(self, tmp_path: Path) -> None:
         home, fake_bin, eza_bin = _create_fake_mise_shell_runtime(tmp_path)
@@ -2817,128 +2897,6 @@ class TestVendorUninstall:
         result = _run_install_sh(REPO_ROOT, home, uninstall=True)
         # vendor がなくてもクラッシュしない
         assert "エラー" not in result.stdout
-
-
-# ---------------------------------------------------------------------------
-# テスト: vendor-skills-update.sh hook
-# ---------------------------------------------------------------------------
-
-
-class TestVendorSkillsUpdateHook:
-    """vendor-skills-update.sh hook のテスト"""
-
-    HOOK = REPO_ROOT / "claude" / "hooks" / "vendor-skills-update.sh"
-
-    def _run_hook(self, home: Path) -> subprocess.CompletedProcess[str]:
-        env = os.environ.copy()
-        env["HOME"] = str(home)
-        return subprocess.run(
-            ["sh", str(self.HOOK)],
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-
-    def test_exit_0_when_no_vendor(self, tmp_path: Path) -> None:
-        """vendor 未導入時に exit 0 で正常終了する"""
-        home = tmp_path / "home"
-        home.mkdir()
-        result = self._run_hook(home)
-        assert result.returncode == 0
-
-    def test_skip_when_stamp_recent(self, tmp_path: Path) -> None:
-        """スタンプファイルが新しい場合に pull をスキップする"""
-        home = tmp_path / "home"
-        home.mkdir()
-        vendor_dir = _create_fake_vendor(home)
-        stamp = vendor_dir / ".last-update"
-
-        # 現在時刻をスタンプに書き込み
-        import time
-        stamp.write_text(str(int(time.time())))
-
-        result = self._run_hook(home)
-        assert result.returncode == 0
-
-    def test_pull_when_stamp_old(self, tmp_path: Path) -> None:
-        """スタンプファイルが古い場合に pull を試行し、exit 0 で終了する"""
-        home = tmp_path / "home"
-        home.mkdir()
-        vendor_dir = _create_fake_vendor(home)
-        stamp = vendor_dir / ".last-update"
-
-        # 2日前のタイムスタンプ
-        import time
-        old_stamp = str(int(time.time()) - 200000)
-        stamp.write_text(old_stamp)
-
-        result = self._run_hook(home)
-        assert result.returncode == 0
-        # リモートがないので pull 自体は失敗するが、hook は exit 0 で終了する
-        # スタンプは更新されない (pull 失敗時はスタンプを書き込まない)
-
-    def test_pull_succeeds_with_remote(self, tmp_path: Path) -> None:
-        """リモートがある場合に pull 成功でスタンプが更新される"""
-        home = tmp_path / "home"
-        home.mkdir()
-
-        # 初期コミット付きのリポジトリを作成して bare に push
-        src = tmp_path / "src"
-        src.mkdir()
-        subprocess.run(["git", "init", str(src)], check=True, capture_output=True)
-        (src / "README.md").write_text("# test")
-        subprocess.run(["git", "-C", str(src), "add", "."], check=True, capture_output=True)
-        subprocess.run(
-            ["git", "-C", str(src), "commit", "-m", "init"],
-            check=True, capture_output=True,
-        )
-
-        bare = tmp_path / "remote.git"
-        subprocess.run(
-            ["git", "clone", "--bare", str(src), str(bare)],
-            check=True, capture_output=True,
-        )
-
-        # vendor を bare からクローン
-        vendor_dir = home / ".claude" / "vendor" / "agent-skills"
-        vendor_dir.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(
-            ["git", "clone", str(bare), str(vendor_dir)],
-            check=True, capture_output=True,
-        )
-
-        # スタンプを古い時刻で作成
-        import time
-        stamp = vendor_dir / ".last-update"
-        stamp.write_text(str(int(time.time()) - 200000))
-
-        result = self._run_hook(home)
-        assert result.returncode == 0
-
-        # pull 成功 → スタンプが更新される
-        new_stamp = int(stamp.read_text().strip())
-        assert new_stamp > int(time.time()) - 10, "stamp should be updated after successful pull"
-
-    def test_pull_when_no_stamp(self, tmp_path: Path) -> None:
-        """スタンプファイルがない場合に pull を試行する"""
-        home = tmp_path / "home"
-        home.mkdir()
-        _create_fake_vendor(home)
-
-        result = self._run_hook(home)
-        assert result.returncode == 0
-
-    def test_corrupted_stamp_file(self, tmp_path: Path) -> None:
-        """スタンプファイルが破損していても exit 0 で終了する"""
-        home = tmp_path / "home"
-        home.mkdir()
-        vendor_dir = _create_fake_vendor(home)
-        stamp = vendor_dir / ".last-update"
-        stamp.write_text("not-a-number\n")
-
-        result = self._run_hook(home)
-        assert result.returncode == 0
 
 
 # ---------------------------------------------------------------------------
