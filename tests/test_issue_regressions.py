@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -37,6 +38,9 @@ CODEX_AUDIT_METADATA = (
 CLAUDE_CODE_REVIEWER = REPO_ROOT / "claude" / "agents" / "code-reviewer.md"
 CODEX_CODE_REVIEWER = REPO_ROOT / "codex" / "agents" / "code_reviewer.toml"
 AGENTS_MD = REPO_ROOT / "AGENTS.md"
+TEST_COVERAGE_GUARD = (
+    REPO_ROOT / "common" / "skills" / "test-coverage-guard" / "SKILL.md"
+)
 
 EXPLICIT_ONLY_SKILLS = (
     "consult",
@@ -205,3 +209,31 @@ def test_review_skills_keep_fixed_reports_after_audit() -> None:
         for label in required:
             assert label in source, (name, label)
             assert label in generated, (name, label)
+
+
+def test_test_coverage_guard_delegations_resolve_in_shared_and_codex_catalogs() -> None:
+    """Named delegation targets must be available in both distributed catalogs."""
+    source = TEST_COVERAGE_GUARD.read_text(encoding="utf-8")
+    codex = (
+        GENERATED_CODEX / "skills" / "test-coverage-guard" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+
+    delegated_from_non_target = set(re.findall(r"→ `([a-z0-9-]+)`", source))
+    related_section = source.split("## 関連スキルとの連携", maxsplit=1)[1]
+    delegated_from_related = set(
+        re.findall(r"\| \*\*([a-z0-9-]+)\*\* \|", related_section)
+    )
+    delegated = delegated_from_non_target | delegated_from_related
+
+    shared_catalog = {
+        path.parent.name
+        for path in (REPO_ROOT / "common" / "skills").glob("*/SKILL.md")
+    }
+    codex_catalog = {
+        path.parent.name for path in (GENERATED_CODEX / "skills").glob("*/SKILL.md")
+    }
+
+    assert delegated == {"tdd", "measure"}
+    assert delegated <= shared_catalog
+    assert delegated <= codex_catalog
+    assert "→ `tdd`" in codex
