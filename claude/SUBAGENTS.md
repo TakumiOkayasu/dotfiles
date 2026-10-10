@@ -72,14 +72,4 @@ dispatch 不能環境 (既に subagent として動作している / Task tool �
 
 skill / command 固有の dispatch 内容 (手法名 / 評価軸 / 採点ルール) は各 skill / command 内に書く。本ファイルは共通の mechanics のみ扱う。
 
-| skill / command | 固有契約の所在 |
-| --- | --- |
-| `premise-questioning` | 「subagent 起動契約」節 (第一原理 / Inversion / 5 Whys + 3 軸スコア) |
-| `feature-pruning` | 「subagent 起動契約」節 (YAGNI Probe / Convention Audit / Existing Substitute + 機能 × 3 軸マトリクス) |
-| `empirical-prompt-tuning` | 「subagent 起動契約」節 (プロンプト実行者として dispatch + 自己申告レポート) |
-| `systematic-debugging` | Phase 3.5「並列仮説検証」(原因層別 3 並列深掘り) |
-| `test-coverage-guard` | Step 2「観点別 subagent 並列化」(P1 / P2 / P3 観点別スキャン) |
-| `arch` | 「複数設計案の並列出し」(明示要求時のみ) |
-| `commands/deep-review` | Step 4「3 並列 subagent dispatch」(`general-purpose` / security・performance・maintainability 担当割り) |
-| `commands/feat` | Phase 1 影響範囲特定 (本文 inline、見出しなし。`/feat` 起動時の必要時のみ並列化) |
-| `agents/qa-nightmare` | 単独 subagent (悪夢テストケース網羅) |
+skill / command を使うときは、該当する正本で現在の起動条件、制約、出力契約を確認する。本ファイルへ固有契約の一覧を複製しない。
