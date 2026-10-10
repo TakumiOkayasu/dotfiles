@@ -14,18 +14,14 @@ set -eu
 
 # 一時ファイル cleanup
 _TMPFILES=""
-_TMPDIRS=""
-_TMP_EMPTY_DIRS=""
+_AI_ASSET_STAGE=""
+_AI_ASSET_STAGE_PARENT_CREATED=""
 cleanup_tmpfiles() {
     for _f in $_TMPFILES; do
         rm -f "$_f"
     done
-    for _d in $_TMPDIRS; do
-        rm -rf "$_d"
-    done
-    for _d in $_TMP_EMPTY_DIRS; do
-        rmdir "$_d" 2>/dev/null || true
-    done
+    [ -z "$_AI_ASSET_STAGE" ] || rm -rf "$_AI_ASSET_STAGE"
+    [ -z "$_AI_ASSET_STAGE_PARENT_CREATED" ] || rmdir "$_AI_ASSET_STAGE_PARENT_CREATED" 2>/dev/null || true
 }
 trap cleanup_tmpfiles EXIT INT TERM
 
@@ -307,14 +303,13 @@ generate_ai_assets() {
         _asset_stage_parent="${DOTFILES_DIR}/.generated"
         if [ ! -e "$_asset_stage_parent" ]; then
             mkdir "$_asset_stage_parent" || die "dry-run用AI asset一時ディレクトリを作成できません: $_asset_stage_parent"
-            _TMP_EMPTY_DIRS="$_TMP_EMPTY_DIRS $_asset_stage_parent"
+            _AI_ASSET_STAGE_PARENT_CREATED="$_asset_stage_parent"
         fi
-        _asset_stage=$(mktemp -d "${_asset_stage_parent}/.ai-assets-dry-run.XXXXXX") \
+        _AI_ASSET_STAGE=$(mktemp -d "${_asset_stage_parent}/.ai-assets-dry-run.XXXXXX") \
             || die "dry-run用AI asset一時ディレクトリを作成できません"
-        _TMPDIRS="$_TMPDIRS $_asset_stage"
-        AI_ASSET_ROOT="${_asset_stage}/ai-assets"
+        AI_ASSET_ROOT="${_AI_ASSET_STAGE}/ai-assets"
         print_info "[ドライラン] common/* から Claude/Codex 用assetを一時生成・検証"
-        PYTHONDONTWRITEBYTECODE=1 python3 "$_generator" --repo "$DOTFILES_DIR" --output "$AI_ASSET_ROOT" \
+        PYTHONDONTWRITEBYTECODE=1 python3 "$_generator" --repo "$DOTFILES_DIR" --output "$AI_ASSET_ROOT" >/dev/null \
             || die "AI asset の一時生成・検証に失敗しました"
     else
         print_info "common/* から Claude/Codex 用assetを生成・検証"
@@ -437,7 +432,14 @@ run_stow_link_specs_file() {
         if [ "$MODE_DRY_RUN" = "true" ]; then
             _source="${_spec%%:*}"
             _dest="${_spec#*:}"
-            print_info "[ドライラン] stow link: ${HOME}/${_dest} <- ${DOTFILES_DIR}/${_source}"
+            _preview_source="$_source"
+            _ai_asset_root_relative=${AI_ASSET_ROOT#"$DOTFILES_DIR"/}
+            case "$_source" in
+                "$_ai_asset_root_relative"/*)
+                    _preview_source="${AI_ASSET_ROOT_REL}/${_source#"$_ai_asset_root_relative"/}"
+                    ;;
+            esac
+            print_info "[ドライラン] stow link: ${HOME}/${_dest} <- ${DOTFILES_DIR}/${_preview_source}"
         fi
         set -- "$@" --link "$_spec"
     done < "$_spec_file"
