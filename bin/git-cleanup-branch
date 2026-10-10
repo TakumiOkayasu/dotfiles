@@ -11,7 +11,7 @@
 #   - 指定したブランチをローカル・リモート両方から削除
 #   - マージされていないブランチは削除しない (安全)
 #   - 対応する .claude/notes/{task-id}.md を .claude/notes/archive/ へ移動
-#     (opus-47-policy.md「File-System Memory」規約)
+#     (session-memory.md「File-System Memory」規約)
 
 set -euo pipefail
 
@@ -36,7 +36,7 @@ is_squash_merged() {
 }
 
 # notes ファイルをアーカイブ
-# opus-47-policy.md「File-System Memory」規約に基づき、削除済みブランチに対応する
+# session-memory.md「File-System Memory」規約に基づき、削除済みブランチに対応する
 # .claude/notes/{task-id}.md を .claude/notes/archive/ へ移動する
 archive_notes_for_branch() {
     local branch="$1"
@@ -132,7 +132,7 @@ main() {
         fi
     fi
 
-    # notes アーカイブ (opus-47-policy.md 規約)
+    # notes アーカイブ (session-memory.md 規約)
     if [[ "$local_deleted" == "true" ]]; then
         archive_notes_for_branch "$branch_to_delete"
     fi

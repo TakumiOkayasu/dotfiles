@@ -22,7 +22,7 @@ GRAY='\033[0;90m'
 NC='\033[0m' # No Color
 
 # notes ファイルを雛形から生成
-# opus-47-policy.md「File-System Memory」規約に基づく
+# session-memory.md「File-System Memory」規約に基づく
 # - _template.md がなければ警告のみ (ブランチ作成は完了済み)
 # - 既存ファイルがあれば上書きしない (冪等)
 # - macOS BSD sed / GNU sed 両対応

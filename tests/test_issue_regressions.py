@@ -228,6 +228,9 @@ def test_session_memory_policy_name_and_runtime_paths_match_generated_views() ->
         assert "project-ai-knowledge.md" in policy, runtime
 
     active_references = (
+        "bin/claude-init-project",
+        "bin/git-new-feature",
+        "bin/git-cleanup-branch",
         "claude/hooks/session-start-notes-loader.sh",
         "claude/hooks/post-cleanup-notes-archive.sh",
         "claude/notes/README.md",
