@@ -2,12 +2,16 @@
 
 長時間 / マルチセッションタスクの継続性を、ファイルシステム上の 3 層で担保する。
 
+このruleはruntime固有の作業状態を扱う。以下の `.claude/` と `claude_tmp/` は、対象runtime向けviewの生成時に対応するpathへ変換される。
+これらはGit管理対象外であり、再利用する知識だけを `knowledge-reuse` に従って `.ai/inbox/` へ候補として残す。
+durable knowledgeの所有権、昇格、exportは `project-ai-knowledge.md` を正本とする。既存のruntime stateを自動移動しない。
+
 ## 📂 File-System Memory (3 層構造)
 
 ```text
 .claude/
-├── progress.md       # 主帳簿 (既存)
-├── notes/            # 詳細メモ (新規)
+├── progress.md       # タスクの継続状態
+├── notes/            # 必要な調査・判断の詳細
 │   └── {task-id}.md
 └── scratch/          # 試行錯誤 (新規、gitignore)
     └── {task-id}.md
@@ -15,8 +19,8 @@
 
 | 層 | 用途 | git 管理 | 更新頻度 |
 | --- | --- | --- | --- |
-| `progress.md` | タスク履歴・判断ログ・完了状況 | ✅ | 着手時 / 判断時 / 完了時 |
-| `notes/{task-id}.md` | 長時間タスクの調査結果・参考リンク・中間成果 | ✅ | セッション中随時 |
+| `progress.md` | タスク履歴・判断ログ・完了状況 | ❌ (runtime state) | 着手時 / 判断時 / 完了時 |
+| `notes/{task-id}.md` | 長時間タスクの調査結果・参考リンク・中間成果 | ❌ (runtime state) | セッション中随時 |
 | `scratch/{task-id}.md` | REPL 風メモ・没アイデア・実験コード | ❌ (gitignore) | 自由 |
 
 ### 規約
@@ -49,13 +53,14 @@
 
 ### failure-logging との接続
 
-`failure-logging` skill は試した内容と失敗理由を **`.claude/notes/{task-id}.md` の `## failure-log` セクション**へ追記する。これにより:
+失敗記録の保存先とschemaは `failure-logging` skillを正本とする。
 
-- 失敗履歴と決定事項・調査メモが**同一ファイルに集約**される
-- SessionStart hook で失敗履歴も自動 read され、4.7 のファイルメモリ強化で「同じ失敗を繰り返さない」が機械的に支援される
-- `systematic-debugging` skill の「失敗パターン」節 (「試した内容と失敗理由は failure-logging スキルで記録する」) と整合する
+- `failure-log` hookが登録されている場合だけ、コマンド失敗が `claude_tmp/failure_log/auto-fail.log` へ自動捕捉される。hook登録が無いruntimeでは自動捕捉を前提にしない。
+- 判断を伴う構造化記録は `claude_tmp/failure_log/[連番範囲]-fail.md` に置く。
+- `.claude/notes/{task-id}.md` の `## failure-log` は、継続に必要な失敗の要点を任意にまとめる領域であり、skillの正式な書き込み先ではない。
+- SessionStartのnotes loaderが登録されている場合は対応するnotesを読む。scratchの失敗ログ全体を自動注入することはない。
 
-#### failure-log エントリのフォーマット
+#### notesへ要約する場合のフォーマット
 
 ```markdown
 ### YYYY-MM-DD HH:MM
@@ -64,12 +69,6 @@
 - 理由: (根本原因。推測なら推測と明示)
 - 次に試すこと: (1 文で)
 ```
-
-#### 書き込み先の決定
-
-- 通常は `.claude/notes/{task-id}.md` の `## failure-log` セクションへ追記
-- notes ファイルが未作成なら `_template.md` をコピーして作成してから追記
-- task-id (ブランチ名 → ハイフン置換) は `git branch --show-current | tr '/' '-'` で取得
 
 ## 🔄 削除・整理
 

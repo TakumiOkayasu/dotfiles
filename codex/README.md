@@ -83,16 +83,6 @@ codex --profile deep-review
 
 `max_concurrent_threads_per_session` はworker数の要求ではなく、open thread数の上限である。端末、WSL、CI、ChatGPT Workなど実行環境ごとのcapacityに追従させるため未設定とし、Codexのdefaultへ委ねる。
 
-### 補助スクリプト
-
-`codex/bin/model-context.sh` は model 名から context window を推定し、`maxTokens` と `usableTokens` を JSON で返す。`install.sh` で `~/.codex/bin/model-context.sh` にリンクされる。
-
-```bash
-~/.codex/bin/model-context.sh "gpt-test (1.5m)"
-~/.codex/bin/model-context.sh --context-window-size 128000 "unknown"
-~/.codex/bin/model-context.sh --id model-id --display-name "Model [300k]"
-```
-
 ### 初回確認
 
 Codex 起動時に hook のレビュー警告が出た場合は、Codex 上で `/hooks` を開いて内容を確認し、許可する。
@@ -111,7 +101,7 @@ codex debug prompt-input ping
 
 確認観点:
 
-- `~/.codex/AGENTS.md` が `codex/global_AGENTS.md` を指していること
+- `~/.codex/AGENTS.md` が `.generated/ai-assets/codex/global_AGENTS.md` を指していること
 - `hooks` / `multi_agent` の feature flag が有効なこと
 - `codex debug prompt-input ping` の出力に AGENTS 指示が含まれること
 - `codex/config.toml.template` ではなく `~/.codex/config.toml` が Codex の実行時設定であること

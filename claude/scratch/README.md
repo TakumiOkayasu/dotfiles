@@ -2,7 +2,7 @@
 
 試行錯誤用の使い捨てメモ。**コミット対象外** (`.gitignore`)。
 
-詳細規約: `~/.claude/rules/opus-47-policy.md` の「File-System Memory」セクション。
+詳細規約: `~/.claude/rules/session-memory.md` の「File-System Memory」セクション。
 
 ## 用途
 
