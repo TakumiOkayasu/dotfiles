@@ -179,6 +179,70 @@ class TestShellInitialization:
         assert "ENABLE_LSP_TOOL" not in BASHRC.read_text(encoding="utf-8")
 
 
+class TestClaudeHookWiring:
+    def test_destructive_guard_is_registered_and_blocks_dangerous_payload(
+        self, tmp_path: Path
+    ) -> None:
+        """ClaudeのBash PreToolUseは生成済み共通guardへ到達する。"""
+        settings = json.loads(
+            (REPO_ROOT / "claude" / "settings.json").read_text(encoding="utf-8")
+        )
+        pre_tool_commands = [
+            hook["command"]
+            for entry in settings["hooks"]["PreToolUse"]
+            if entry.get("matcher") == "Bash"
+            for hook in entry["hooks"]
+        ]
+        assert "$HOME/.claude/hooks/destructive-command-block.sh" in pre_tool_commands
+
+        fake_jq = tmp_path / "jq"
+        _write_executable(
+            fake_jq,
+            "#!/usr/bin/env python3\n"
+            "import json\n"
+            "import sys\n"
+            "print(json.load(sys.stdin).get('tool_input', {}).get('command', ''))\n",
+        )
+        env = os.environ.copy()
+        env["PATH"] = f"{tmp_path}:{env['PATH']}"
+        hook = REPO_ROOT / "common" / "hooks" / "destructive-command-block.sh"
+
+        dangerous = subprocess.run(
+            ["sh", str(hook)],
+            input=json.dumps({"tool_input": {"command": "git reset --hard HEAD"}}),
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        safe = subprocess.run(
+            ["sh", str(hook)],
+            input=json.dumps({"tool_input": {"command": "git status --short"}}),
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+
+        assert dangerous.returncode == 2, dangerous.stderr
+        assert safe.returncode == 0, safe.stderr
+
+    def test_session_start_avoids_unchecked_vendor_pull_hook(self) -> None:
+        """SessionStartのvendor更新は検証済みのskills-update経路だけを使う。"""
+        settings = json.loads(
+            (REPO_ROOT / "claude" / "settings.json").read_text(encoding="utf-8")
+        )
+        session_start_commands = [
+            hook["command"]
+            for entry in settings["hooks"]["SessionStart"]
+            for hook in entry["hooks"]
+        ]
+
+        assert "$HOME/.claude/hooks/session-start-reminder.sh" in session_start_commands
+        assert "$HOME/.claude/hooks/vendor-skills-update.sh" not in session_start_commands
+        assert not (REPO_ROOT / "claude" / "hooks" / "vendor-skills-update.sh").exists()
+
+
 def _run_install_sh(
     dotfiles: Path,
     home: Path,
