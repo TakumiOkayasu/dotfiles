@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     stow \
     bash \
+    zsh \
     coreutils \
     && rm -rf /var/lib/apt/lists/*
 

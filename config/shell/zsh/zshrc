@@ -101,7 +101,7 @@ setopt NO_BEEP               # ビープ音を無効化
 autoload -Uz compinit
 
 # 補完キャッシュ (1日1回だけ再生成)
-if [[ -n ${ZDOTDIR}/.zcompdump(#qN.mh+24) ]]; then
+if [[ -n ${ZDOTDIR:-$HOME}/.zcompdump(#qN.mh+24) ]]; then
     compinit
 else
     compinit -C
@@ -170,7 +170,7 @@ _setup_oh_my_posh() {
 }
 
 # preztoでプロンプトが設定されていなければoh-my-poshまたはフォールバック
-if [[ -z "$PROMPT" ]] || [[ "$PROMPT" == '%m%# ' ]]; then
+if [[ -z "${PROMPT:-}" ]] || [[ "$PROMPT" == '%m%# ' ]]; then
     if ! _setup_oh_my_posh; then
         # Git情報付きのシンプルなプロンプト
         autoload -Uz vcs_info
@@ -233,7 +233,10 @@ if command -v zoxide &>/dev/null; then
     eval "$(zoxide init zsh)"
 fi
 
-# Added by LM Studio CLI (lms)
-export PATH="$PATH:/Users/yamazaki/.lmstudio/bin"
-# End of LM Studio CLI section
+# LM Studio CLI (lms) が導入済みならユーザーごとの配置先を追加する
+_lm_studio_bin="$HOME/.lmstudio/bin"
+if [[ -x "$_lm_studio_bin/lms" ]] && [[ ":${PATH:-}:" != *":$_lm_studio_bin:"* ]]; then
+    export PATH="${PATH:-}:$_lm_studio_bin"
+fi
+unset _lm_studio_bin
 
