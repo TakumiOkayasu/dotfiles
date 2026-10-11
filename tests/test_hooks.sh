@@ -493,6 +493,38 @@ else printf "  FAIL: offset dedup (count=%s, expected 1)\n" "$_cnt"; FAIL=$((FAI
 rm -rf "$_wd"
 
 echo ""
+echo "=== checkpoint continuity without commit hooks ==="
+_checkpoint_dir=$(mktemp -d)
+mkdir -p "$_checkpoint_dir/.claude/checkpoints"
+printf '%s\n' 'manual checkpoint marker' > "$_checkpoint_dir/.claude/checkpoints/latest.md"
+for _source in resume compact startup clear; do
+    TOTAL=$((TOTAL + 1))
+    _input=$(printf '{"cwd":"%s","source":"%s"}' "$_checkpoint_dir" "$_source")
+    _output=$(printf '%s\n' "$_input" | "$HOOK_DIR/session-resume.sh")
+    _ok=0
+    case "$_source:$_output" in
+        resume:*'manual checkpoint marker'*|compact:*'manual checkpoint marker'*) _ok=1 ;;
+        startup:|clear:) _ok=1 ;;
+    esac
+    if [ "$_ok" -eq 1 ]; then
+        printf '  PASS: manual checkpoint on %s\n' "$_source"; PASS=$((PASS + 1))
+    else
+        printf '  FAIL: manual checkpoint on %s\n' "$_source"; FAIL=$((FAIL + 1))
+    fi
+done
+printf '%s\n' '## 現在のタスク' '- [ ] compact progress marker' > "$_checkpoint_dir/.claude/progress.md"
+_input=$(printf '{"cwd":"%s","trigger":"manual"}' "$_checkpoint_dir")
+printf '%s\n' "$_input" | "$HOOK_DIR/pre-compact-backup.sh"
+_input=$(printf '{"cwd":"%s","source":"compact"}' "$_checkpoint_dir")
+_output=$(printf '%s\n' "$_input" | "$HOOK_DIR/session-resume.sh")
+TOTAL=$((TOTAL + 1))
+case "$_output" in
+    *'Pre-Compact Backup'*'compact progress marker'*)
+        printf '  PASS: compact backup survives resume\n'; PASS=$((PASS + 1)) ;;
+    *) printf '  FAIL: compact backup survives resume\n'; FAIL=$((FAIL + 1)) ;;
+esac
+rm -rf "$_checkpoint_dir"
+
 echo "=== 結果: ${PASS}/${TOTAL} passed, ${FAIL} failed ==="
 
 if [ "$FAIL" -gt 0 ]; then

@@ -288,3 +288,30 @@ def test_test_coverage_guard_delegations_resolve_in_shared_and_codex_catalogs() 
     assert delegated <= shared_catalog
     assert delegated <= codex_catalog
     assert "→ `tdd`" in codex
+
+
+def test_commit_policy_has_no_unreachable_checkpoint_hook() -> None:
+    """Denied commits must not leave a parser on every successful Bash call."""
+    for root in (REPO_ROOT / "claude", REPO_ROOT / ".generated/ai-assets/claude"):
+        settings = json.loads((root / "settings.json").read_text(encoding="utf-8"))
+        commands = {
+            hook["command"]
+            for entries in settings["hooks"].values()
+            for entry in entries
+            for hook in entry["hooks"]
+        }
+        assert "$HOME/.claude/hooks/commit-checkpoint.sh" not in commands
+        assert not (root / "hooks/commit-checkpoint.sh").exists()
+        assert "Bash(git commit *)" in settings["permissions"]["deny"]
+        assert "Bash(git push *)" in settings["permissions"]["deny"]
+        for event, name in (
+            ("PreToolUse", "destructive-command-block.sh"),
+            ("PreToolUse", "docker-build-check.sh"),
+            ("PreCompact", "pre-compact-backup.sh"),
+            ("SessionStart", "session-resume.sh"),
+        ):
+            assert any(
+                hook["command"] == f"$HOME/.claude/hooks/{name}"
+                for entry in settings["hooks"][event]
+                for hook in entry["hooks"]
+            ), (root, event, name)
