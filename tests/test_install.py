@@ -187,7 +187,7 @@ class TestClaudeHookWiring:
         )
         post_tool_commands = [
             hook["command"]
-            for entry in settings["hooks"]["PostToolUse"]
+            for entry in settings["hooks"].get("PostToolUse", [])
             for hook in entry["hooks"]
         ]
 
@@ -2761,6 +2761,46 @@ class TestIntegrationInstallUninstall:
         result = _run_install_sh(REPO_ROOT, home)
         assert result.returncode == 0
         assert "古い" not in result.stdout
+
+    @pytest.mark.parametrize("target_root", ("claude", ".generated/ai-assets/claude", ".stow-work/claude/.claude"))
+    def test_install_removes_retired_commit_checkpoint_link(
+        self, tmp_path: Path, target_root: str
+    ) -> None:
+        home = tmp_path / "home"
+        hook = home / ".claude/hooks/commit-checkpoint.sh"
+        hook.parent.mkdir(parents=True)
+        hook.symlink_to(REPO_ROOT / target_root / "hooks/commit-checkpoint.sh")
+        checkpoint = home / ".claude/checkpoints/latest.md"
+        checkpoint.parent.mkdir()
+        checkpoint.write_text("saved checkpoint\n", encoding="utf-8")
+
+        for _ in range(2):
+            result = _run_install_sh(REPO_ROOT, home)
+            assert result.returncode == 0, result.stdout + result.stderr
+            assert not hook.is_symlink()
+            assert not hook.exists()
+            assert checkpoint.read_text(encoding="utf-8") == "saved checkpoint\n"
+            settings = json.loads((home / ".claude/settings.json").read_text())
+            assert "commit-checkpoint.sh" not in json.dumps(settings["hooks"])
+
+    @pytest.mark.parametrize("external_link", (False, True))
+    def test_install_preserves_unmanaged_commit_checkpoint(
+        self, tmp_path: Path, external_link: bool
+    ) -> None:
+        home = tmp_path / "home"
+        hook = home / ".claude/hooks/commit-checkpoint.sh"
+        hook.parent.mkdir(parents=True)
+        if external_link:
+            target = tmp_path / "user-hook.sh"
+            target.write_text("user hook\n", encoding="utf-8")
+            hook.symlink_to(target)
+        else:
+            hook.write_text("user hook\n", encoding="utf-8")
+
+        result = _run_install_sh(REPO_ROOT, home)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert hook.read_text(encoding="utf-8") == "user hook\n"
+        assert hook.is_symlink() == external_link
 
     def test_install_removes_stale_generated_links(self, tmp_path: Path) -> None:
         """installは削除・rename済みの旧stowリンクを除去する"""

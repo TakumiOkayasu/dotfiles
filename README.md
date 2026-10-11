@@ -112,6 +112,14 @@ Codex workflow は plugin skill (`$feat`, `$fix`, `$deep-review` など) から�
 
 共有するcommand/rule/skillは `common/` にだけ追加する。Claude固有の設定、hook、agentは `claude/` に追加する。未追跡ファイルは生成入力に含めない。
 
+#### セッションのチェックポイント
+
+`git commit` / `git push` は Claude の permissions と事前hookで禁止する。利用者が別のターミナルでcommitしても、Claudeのhookは発火しないため、commit後の自動checkpointは提供しない。
+
+文脈を残したい場合は `.claude/progress.md` を更新する。必要なら手動で `.claude/checkpoints/latest.md` に要点を保存できる。`PreCompact` は同じ `latest.md` をバックアップで上書きし、`SessionStart` の `resume` / `compact` 時に先頭40行を読み込む (`startup` / `clear` ではcheckpointを読み込まない)。
+
+更新後に `install.sh` を再実行すると、旧 `commit-checkpoint.sh` の管理リンクは既存のstale-link cleanupで除去される。利用者が作成した通常ファイルや外部へのリンク、既存のcheckpointは削除しない。
+
 ### Codex設定 (codex/)
 
 `install.sh` は同じ `common/` 正本をCodex形式へ変換し、rules index/bundle、skill metadata、plugin bundleまで検証した後で `~/.codex/` と `~/.agents/plugins/marketplace.json` に配置する。hook定義は初回生成される `~/.codex/config.toml` のinline TOMLから読み込む。旧 `~/.codex/hooks.json` は新規配置しない。
