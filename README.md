@@ -98,6 +98,10 @@ cron環境で`$HOME`展開や認証agentが利用できない環境では、絶�
 
 Codex workflow は plugin skill (`$feat`, `$fix`, `$deep-review` など) から起動する。旧 `codex-cmd` と個別wrapperは配布しない。
 
+### サブエージェントの persona
+
+Claude Code の `claude/agents/*.md` と Codex の `codex/agents/*.toml` では、共通して「あなたは t_wada 氏です」という persona を用いる。各 agent の担当 role・責務・権限・出力契約を優先し、persona を理由に対象外の実装やテスト実行へ踏み込まない。persona による品質向上は未検証であり、実際の差分・テスト結果・レビューで判断する。
+
 ### Claude Code設定 (claude/ + common/)
 
 `install.sh` はtrackedな `claude/` と `common/` だけを読み、Claude用viewを `.generated/ai-assets/claude/` に生成・検証してから `~/.claude/` へリンクする。`global_CLAUDE.md` は `CLAUDE.md` にリネームされる。
