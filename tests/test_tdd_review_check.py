@@ -3,7 +3,10 @@ import copy
 import importlib.machinery
 import importlib.util
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 
@@ -48,6 +51,27 @@ def setup(tmp_path):
     bundle = tmp_path / 'bundle.json'
     bundle.write_text(json.dumps({'requirements': 'Adding an item increases the cart count.', 'sources': ['source.py']}))
     return bundle
+
+
+@pytest.fixture
+def claude_cli(tmp_path, monkeypatch):
+    executable = tmp_path / 'bin/claude'
+    executable.parent.mkdir()
+    calls = tmp_path / 'cli-calls.jsonl'
+    executable.write_text(
+        f'#!{sys.executable}\n'
+        'import json, sys\n'
+        'from pathlib import Path\n'
+        f'sys.path.insert(0, {str(ROOT / "tests")!r})\n'
+        'from test_tdd_review_check import Worker\n'
+        'request = json.loads(sys.stdin.read().splitlines()[-1])\n'
+        f'with Path({str(calls)!r}).open("a") as log:\n'
+        '    log.write(json.dumps({"args": sys.argv[1:], "phase": request["phase"]}) + "\\n")\n'
+        'print(json.dumps({"structured_output": Worker()(request)}))\n'
+    )
+    executable.chmod(0o755)
+    monkeypatch.setenv('PATH', str(executable.parent) + os.pathsep + os.environ['PATH'])
+    return executable, calls
 
 
 class TestReviewPipeline:
@@ -166,6 +190,117 @@ class TestCliBoundary:
         (tmp_path / 'source.py').symlink_to('/etc/hostname')
         with pytest.raises(ValueError, match='symlink'):
             review.run(bundle, tmp_path / 'out', Worker())
+
+    @pytest.mark.parametrize('source', [
+        'client.pem', 'client.key', 'client.pem/', 'client.key/',
+        'client.PEM//', 'keys/client.KEY///',
+        'secret-dir/source.py/', 'credential-dir/source.py/',
+    ])
+    def test_rejects_secret_extensions_before_read_or_dispatch(self, tmp_path, source):
+        target = tmp_path / source.rstrip('/')
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text('synthetic private-key fixture')
+        bundle = tmp_path / 'bundle.json'
+        bundle.write_text(json.dumps({'requirements': 'contract', 'sources': [source]}))
+        worker = Worker()
+
+        with pytest.raises(ValueError, match='secret-bearing path'):
+            review.run(bundle, tmp_path / 'out', worker)
+
+        assert worker.inputs == []
+        assert not (tmp_path / 'out/snapshot.json').exists()
+        assert not (tmp_path / 'out/ready.json').exists()
+
+    @pytest.mark.parametrize('source', ['source.py', 'src/source.py', 'src//source.py'])
+    def test_preserves_safe_relative_source_ids(self, tmp_path, source):
+        target = tmp_path / source
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text('def count(cart): return len(cart)\n')
+        bundle = tmp_path / 'bundle.json'
+        bundle.write_text(json.dumps({'requirements': 'contract', 'sources': [source]}))
+
+        ready = review.run(bundle, tmp_path / 'out', Worker())
+
+        assert review.verify(bundle, tmp_path / 'out') == ready
+        frozen = json.loads((tmp_path / 'out/snapshot.json').read_text())
+        assert frozen['sources'] == [dict(id=source, content=target.read_text(),
+                                          digest=review.digest(target.read_text()))]
+
+
+class TestCliCommands:
+    def test_run_then_verify_through_cli(self, tmp_path, claude_cli):
+        _, calls = claude_cli
+        bundle = setup(tmp_path)
+        output = tmp_path / 'out'
+        command = [str(ROOT / 'bin/tdd-review-check')]
+
+        result = subprocess.run(command + ['run', '--bundle', str(bundle), '--output', str(output),
+                                          '--runtime', 'claude'], capture_output=True, text=True, timeout=30)
+        verified = subprocess.run(command + ['verify', '--bundle', str(bundle), '--output', str(output)],
+                                  capture_output=True, text=True, timeout=30)
+
+        assert result.returncode == verified.returncode == 0, result.stderr + verified.stderr
+        ready = json.loads((output / 'ready.json').read_text())
+        assert json.loads(result.stdout) == json.loads(verified.stdout) == {
+            'run_id': ready['run_id'], 'procedural_status': 'ready'}
+        invocations = [json.loads(line) for line in calls.read_text().splitlines()]
+        assert [call['phase'] for call in invocations] == (
+            ['derive'] * 3 + ['expectations'] * 3 + ['review'] * 3 + ['integrate'])
+        for call in invocations:
+            assert call['args'][call['args'].index('--tools') + 1] == ''
+            assert call['args'][call['args'].index('--disallowedTools') + 1] == 'mcp__*'
+            assert '--no-session-persistence' in call['args']
+
+    def test_rejects_secret_alias_before_starting_cli(self, tmp_path, claude_cli):
+        _, calls = claude_cli
+        (tmp_path / 'client.pem').write_text('synthetic private-key fixture')
+        bundle = tmp_path / 'bundle.json'
+        bundle.write_text(json.dumps({'requirements': 'contract', 'sources': ['client.pem/']}))
+
+        result = subprocess.run([str(ROOT / 'bin/tdd-review-check'), 'run', '--bundle', str(bundle),
+                                 '--output', str(tmp_path / 'out'), '--runtime', 'claude'],
+                                capture_output=True, text=True, timeout=30)
+
+        assert result.returncode == 2
+        assert result.stdout == ''
+        assert 'secret-bearing path' in result.stderr
+        assert not calls.exists()
+        assert not (tmp_path / 'out/snapshot.json').exists()
+        assert not (tmp_path / 'out/ready.json').exists()
+
+    @pytest.mark.parametrize(('stdout', 'exit_code', 'error'), [
+        ('{}', 1, 'CLI failed (exit 1)'),
+        ('not json', 0, 'Expecting value'),
+        ('{"is_error": true}', 0, 'CLI reported an error'),
+        ('{}', 0, 'CLI did not return structured_output'),
+    ])
+    def test_cli_failure_blocks_following_phases(self, tmp_path, claude_cli, stdout, exit_code, error):
+        executable, _ = claude_cli
+        executable.write_text(f'#!{sys.executable}\nimport sys\nprint({stdout!r})\nsys.exit({exit_code})\n')
+
+        result = subprocess.run([str(ROOT / 'bin/tdd-review-check'), 'run', '--bundle', str(setup(tmp_path)),
+                                 '--output', str(tmp_path / 'out'), '--runtime', 'claude'],
+                                capture_output=True, text=True, timeout=30)
+
+        assert result.returncode == 2
+        assert result.stdout == ''
+        assert error in result.stderr
+        assert json.loads((tmp_path / 'out/error.json').read_text())['procedural_status'] == 'blocked'
+        assert not (tmp_path / 'out/expectations-contract.input.json').exists()
+        assert not (tmp_path / 'out/ready.json').exists()
+
+    def test_unsupported_codex_never_starts_claude(self, tmp_path, claude_cli):
+        _, calls = claude_cli
+
+        result = subprocess.run([str(ROOT / 'bin/tdd-review-check'), 'run', '--bundle', str(setup(tmp_path)),
+                                 '--output', str(tmp_path / 'out'), '--runtime', 'codex'],
+                                capture_output=True, text=True, timeout=30)
+
+        assert result.returncode == 2
+        assert result.stdout == ''
+        assert 'no fallback is selected' in result.stderr
+        assert not calls.exists()
+        assert not (tmp_path / 'out').exists()
 
 class TestConsumedResult:
     def test_verify_rechecks_snapshot_and_complete_protocol(self, tmp_path):

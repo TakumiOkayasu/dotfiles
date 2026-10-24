@@ -48,7 +48,7 @@ def snapshot(bundle: Path) -> dict:
         path = Path(name)
         require(not path.is_absolute() and all(p not in ('.', '..') for p in name.split('/')), 'unsafe source path')
         require(not any(p.startswith('.') for p in path.parts), 'hidden sources are not accepted')
-        require(not re.search(r'(?i)(secret|credential|\.pem$|\.key$)', name), 'secret-bearing path is not accepted')
+        require(not re.search(r'(?i)(secret|credential|\.pem$|\.key$)', path.as_posix()), 'secret-bearing path is not accepted')
         target = root / path
         require(all(not p.is_symlink() for p in [target, *target.parents] if p != root.parent), 'symlink source rejected')
         require(target.resolve().is_relative_to(root) and target.is_file(), 'source must be a regular file within bundle root')
