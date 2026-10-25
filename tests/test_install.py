@@ -977,6 +977,7 @@ class TestCodexAgentDefinitions:
         "impl_planner": ("gpt-5.6-terra", "medium"),
         "qa_nightmare": ("gpt-5.6-sol", "high"),
         "test_writer": ("gpt-5.6-terra", "medium"),
+        "test_analyst": ("gpt-5.6-terra", "high"),
     }
     CLAUDE_PROFILES = {
         "code-reviewer": ("sonnet", "high"),
@@ -985,6 +986,7 @@ class TestCodexAgentDefinitions:
         "impl-planner": ("sonnet", "medium"),
         "qa-nightmare": ("sonnet", "high"),
         "test-writer": ("sonnet", "medium"),
+        "test-analyst": ("sonnet", "high"),
     }
 
     def _agent_names(self) -> set[str]:

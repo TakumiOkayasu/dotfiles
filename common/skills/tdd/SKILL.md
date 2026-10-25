@@ -40,6 +40,16 @@ description: 振る舞いをテストで定義し、RED-GREEN-REFACTORで実装�
 
 網羅性を装うため、無関係なnull/empty/max等を機械的に追加しない。
 
+### Independent test design review (explicit opt-in)
+
+ユーザーが独立した複数観点の設計審査を明示要求した時、または今回この mode を明示選択した時だけ、RED の前に [独立したテスト設計と審査](references/test-design-review.md) を行う。通常の TDD は上の Test list から RED へ進む従来の流れを維持し、この runner を必須にしない。選択済みの mode が実行できない場合は basic TDD へ黙って降格しない。
+対象実装/呼び出し元/仕様/要件から 3〜5 観点で候補を独立に導き、別の reviewer が候補開示前に期待事項を記録する。
+標準 runner は contract/state/dependencies の 3 観点で derive → expectations → review → integrate を実行する。
+段階、入力開示、出力契約はモデルと runtime に依存させない。model/effort の選択と CLI 形式は実行 adapter の責務とし、共有手順の都合で別 runtime を選ばない。
+runtime は明示選択し、[実行 adapter](references/test-design-review.md#実行-adapter) の対応状況と起動形式を確認する。実行後は `tdd-review-check verify --bundle FILE --output DIR` で snapshot/全段階/結果を再検証する。親は `ready.json` の実行境界と全候補/全指摘の処遇・根拠を読んでから RED へ進む。未対応 runtime は停止し、別 runtime へ自動代替しない。
+runner は project code を編集せず、`ready.json` は品質ではなく手続きを検証する。
+未解決の仕様判断や CLI failure は停止する。厳密な隔離が必要な場合は `--require-strict-isolation` を指定すると未対応として停止する。ambient hooks/global context と書込可能な親は runner の制御外であり、hook を無効にして回避しない。
+
 ### RED
 
 リストから1つの振る舞いを選び、最小のテストを追加して実行する。テスト名・実行コマンド・実際の失敗を短く残し、選んだ契約違反で失敗したことを確認する。テスト生成だけではRED確認にならない。
@@ -74,7 +84,8 @@ projectの既存方針に従う。real dependency seam、fake、stub、mockの�
 
 ## 追加検証
 
-`qa-nightmare`、property-based test、fuzzing、mutation test、独立reviewは次の場合だけ追加する。
+`qa-nightmare`、property-based test、fuzzing、mutation test は次の場合だけ追加する。
+RED 前の独立したテスト設計審査とは分けて判断する。
 
 - securityまたはdata integrity boundary
 - state spaceが広い
@@ -82,7 +93,7 @@ projectの既存方針に従う。real dependency seam、fake、stub、mockの�
 - userが明示要求した
 - 通常testでは重大failure modeを十分に表現できない
 
-固定agent数、固定case数、承認roundを設けない。
+追加検証には固定 agent 数、固定 case 数、承認 round を設けない。
 
 ### qa-nightmare optional extension
 
@@ -133,7 +144,8 @@ context_limit_tokens、output_reserve_tokens、input_upper_bound_tokensはUTF-8 
 
 ## 出力
 
-- Test list
+- Test list (opt-in 時は独立審査の統合結果/全項目の処遇も含む)
+- opt-in 時は今回の入力に対応する `ready.json` の確認結果
 - RED evidence
 - GREEN summary
 - REFACTOR summary

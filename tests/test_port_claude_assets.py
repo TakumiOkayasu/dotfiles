@@ -164,6 +164,22 @@ class PortClaudeAssetsTest(unittest.TestCase):
         self.assertIn("source=common/skills/bug-hunt/references/review-lenses.md", reference_text)
         self.assertIn("Codex contract.", reference_text)
 
+    def test_should_preserve_explicit_runtime_contracts_in_test_design_reference(self) -> None:
+        porter = load_script(PORT_SCRIPT, "port_test_design_runtime_contract_test")
+        relative = Path("common/skills/tdd/references/test-design-review.md")
+        reference = self.repo / relative
+        reference.parent.mkdir(parents=True)
+        contract = (
+            "`--runtime` accepts `claude` or `codex`.\n"
+            "Claude uses `--tools \"\" --no-session-persistence`.\n"
+            "Codex has no supported adapter; do not fall back to Claude.\n"
+        )
+        reference.write_text("# Runtime contracts\n\n" + contract, encoding="utf-8")
+
+        output, _role = porter.transform_source(reference, repo=self.repo, kind="skill_resource")
+
+        self.assertIn(contract, output)
+
     def test_ports_known_command_as_reference_without_overwriting_native_skill(self) -> None:
         native = self.write_native_skill("feat")
         commands = self.repo / "common" / "commands"
