@@ -60,7 +60,7 @@ PATH上にある `mise`, `oh-my-posh`, `zoxide` はこの順に自動初期化�
 | `ai-init-project` | 現在のGitリポジトリへruntime-neutralな `.ai/` knowledge stateを初期化 |
 | `ai-knowledge-keygen` | knowledge export 用の private redaction key を生成 |
 | `ai-qcd` | task の model/effort route 候補を選び, 実行結果を記録 |
-| `tdd-review-check` | 独立したテスト設計・blind review の段階と全項目の処遇を検証 (Claude CLI、Codex runtime は現在 fail-closed) |
+| `tdd-review-check` | 独立したテスト設計・blind review の段階と全項目の処遇を検証 (Claude CLI / Codex app-server、Codex worker 内は plugin 無効、安全境界未確認時は停止) |
 | `qa-nightmare-preflight` | runtime checklist と指定 source の provenance を検証 |
 | `ai-knowledge-sync` | `~/prog/*/.ai/` のmanaged knowledgeを専用Git repositoryへ集約・commit・push |
 | `ai-knowledge-search` | current projectと集約済み他projectのknowledgeをオンデマンド検索 |

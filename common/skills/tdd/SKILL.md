@@ -45,7 +45,8 @@ description: 振る舞いをテストで定義し、RED-GREEN-REFACTORで実装�
 ユーザーが独立した複数観点の設計審査を明示要求した時、または今回この mode を明示選択した時だけ、RED の前に [独立したテスト設計と審査](references/test-design-review.md) を行う。通常の TDD は上の Test list から RED へ進む従来の流れを維持し、この runner を必須にしない。選択済みの mode が実行できない場合は basic TDD へ黙って降格しない。
 対象実装/呼び出し元/仕様/要件から 3〜5 観点で候補を独立に導き、別の reviewer が候補開示前に期待事項を記録する。
 標準 runner は contract/state/dependencies の 3 観点で derive → expectations → review → integrate を実行する。
-runtime は明示選択する。`tdd-review-check run --bundle FILE --runtime claude --output DIR` の後、`tdd-review-check verify --bundle FILE --output DIR` で snapshot/全段階/結果を再検証する。親は `ready.json` の実行境界と全候補/全指摘の処遇・根拠を読んでから RED へ進む。Codex runtime は現在未対応で停止し、Claude へ自動代替しない。
+段階、入力開示、出力契約はモデルと runtime に依存させない。model/effort の選択と CLI 形式は実行 adapter の責務とし、共有手順の都合で別 runtime を選ばない。
+runtime は明示選択し、[実行 adapter](references/test-design-review.md#実行-adapter) の対応状況と起動形式を確認する。実行後は `tdd-review-check verify --bundle FILE --output DIR` で snapshot/全段階/結果を再検証する。親は `ready.json` の実行境界と全候補/全指摘の処遇・根拠を読んでから RED へ進む。未対応 runtime は停止し、別 runtime へ自動代替しない。
 runner は project code を編集せず、`ready.json` は品質ではなく手続きを検証する。
 未解決の仕様判断や CLI failure は停止する。厳密な隔離が必要な場合は `--require-strict-isolation` を指定すると未対応として停止する。ambient hooks/global context と書込可能な親は runner の制御外であり、hook を無効にして回避しない。
 

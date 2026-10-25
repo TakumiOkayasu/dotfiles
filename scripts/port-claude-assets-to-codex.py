@@ -37,6 +37,7 @@ SHARED_SKILLS_DIR = Path("common/skills")
 SHARED_RULES_DIR = Path("common/rules")
 SHARED_COMMANDS_DIR = Path("common/commands")
 TDD_SKILL_SOURCE = SHARED_SKILLS_DIR / "tdd/SKILL.md"
+TDD_REVIEW_REFERENCE_SOURCE = SHARED_SKILLS_DIR / "tdd/references/test-design-review.md"
 CLAUDE_ONLY_SKILL_FRONTMATTER_KEYS = (
     "argument-hint",
     "disable-model-invocation",
@@ -106,11 +107,14 @@ ALLOWED_SKILL_FILES = ASSET_MANIFEST.allowed_skill_files
 class ArtifactRole(enum.Enum):
     GENERIC = "generic"
     TDD_SKILL = "tdd_skill"
+    RUNTIME_CONTRACT = "runtime_contract"
 
 
 def classify_artifact_role(source: Path, *, kind: str) -> ArtifactRole:
     if kind == "skill" and source == TDD_SKILL_SOURCE:
         return ArtifactRole.TDD_SKILL
+    if kind == "skill_resource" and source == TDD_REVIEW_REFERENCE_SOURCE:
+        return ArtifactRole.RUNTIME_CONTRACT
     return ArtifactRole.GENERIC
 
 
@@ -407,6 +411,9 @@ def add_portability_notes(body: str, *, source: Path, kind: str) -> str:
 def transform_body(
     body: str, *, source: Path, kind: str, role: ArtifactRole
 ) -> str:
+    # Adapter names and flags describe actual runtimes, not the document's host.
+    if role is ArtifactRole.RUNTIME_CONTRACT:
+        return add_portability_notes(body, source=source, kind=kind)
     out = replace_runtime_fragments(body, source=source, kind=kind)
     out = replace_codex_paths(out)
     out = replace_codex_surface_contracts(out, role=role)

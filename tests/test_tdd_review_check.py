@@ -5,12 +5,14 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+CODEX_CLI_TEMPLATE = ROOT / 'tests/fixtures/tdd_codex_cli.py'
 loader = importlib.machinery.SourceFileLoader('tdd_review_check', str(ROOT / 'bin/tdd-review-check'))
 spec = importlib.util.spec_from_loader(loader.name, loader)
 review = importlib.util.module_from_spec(spec)
@@ -53,6 +55,11 @@ def setup(tmp_path):
     return bundle
 
 
+def schema_request(phase):
+    return {'schema_version': review.VERSION, 'run_id': 'run', 'snapshot_digest': 'snapshot',
+            'phase': phase, 'view': 'contract', 'input_digest': 'input'}
+
+
 @pytest.fixture
 def claude_cli(tmp_path, monkeypatch):
     executable = tmp_path / 'bin/claude'
@@ -72,6 +79,332 @@ def claude_cli(tmp_path, monkeypatch):
     executable.chmod(0o755)
     monkeypatch.setenv('PATH', str(executable.parent) + os.pathsep + os.environ['PATH'])
     return executable, calls
+
+
+@pytest.fixture
+def codex_cli(tmp_path, monkeypatch):
+    executable = tmp_path / 'bin/codex'
+    executable.parent.mkdir()
+    calls = tmp_path / 'codex-calls.jsonl'
+    executable.write_text(CODEX_CLI_TEMPLATE.read_text().replace('__PYTHON__', sys.executable)
+                          .replace('__TESTS__', repr(str(ROOT / 'tests')))
+                          .replace('__CALLS__', repr(str(calls))))
+    executable.chmod(0o755)
+    monkeypatch.setenv('PATH', str(executable.parent) + os.pathsep + os.environ['PATH'])
+    monkeypatch.delenv('TDD_CODEX_FIXTURE_MODE', raising=False)
+    return executable, calls
+
+
+def codex_entries(calls):
+    return [json.loads(line) for line in calls.read_text().splitlines()]
+
+
+def codex_requests(calls):
+    return [entry for entry in codex_entries(calls) if entry['kind'] == 'request']
+
+
+def assert_restricted_app_server(args):
+    assert '--strict-config' in args
+    assert '--ignore-user-config' not in args
+    assert '--ignore-rules' not in args
+    assert '--disable-hooks' not in args
+    assert 'features.hooks=false' not in args
+    assert 'agents.enabled=false' in args
+    assert 'features.multi_agent_v2=false' in args
+    assert 'mcp_servers.configured={command="false",enabled=false}' in args
+    assert 'mcp_servers.local_tools={command="false",enabled=false}' in args
+    for feature in ('apps', 'browser_use', 'image_generation', 'view_image', 'tool_suggest',
+                    'sleep_tool', 'in_app_browser', 'plugins'):
+        assert f'features.{feature}=false' in args
+
+
+def assert_blind_turn(turn, index):
+    params = turn['params']
+    assert params['threadId'] == 'thread-safe'
+    assert params['environments'] == []
+    request = json.loads(params['input'][0]['text'].rsplit('\n', 1)[-1])
+    assert params['outputSchema'] == review.codex_response_schema(request)
+    if index < 6:
+        assert 'candidates' not in request and 'all_items' not in request
+        assert 'expectations' not in request
+
+
+class TestCodexCliAdapter:
+    def test_codex_starts_fresh_restricted_app_servers_per_phase(self, tmp_path, codex_cli):
+        _, calls = codex_cli
+
+        ready = review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+
+        assert ready['procedural_status'] == 'ready'
+        assert review.verify(setup(tmp_path), tmp_path / 'out') == ready
+        entries = codex_entries(calls)
+        commands = [entry for entry in entries if entry['kind'] == 'command']
+        app_servers = [entry for entry in commands if entry['args'][0] == 'app-server']
+        assert len(app_servers) == 10
+        assert len({entry['pid'] for entry in app_servers}) == 10
+        for app_server in app_servers:
+            sent = [entry['message'] for entry in entries
+                    if entry['kind'] == 'sent' and entry['pid'] == app_server['pid']]
+            completion = next(index for index, message in enumerate(sent)
+                              if message.get('method') == 'turn/completed')
+            turn_reply = next(index for index, message in enumerate(sent)
+                              if 'turn' in message.get('result', {}))
+            assert completion < turn_reply
+        for entry in app_servers:
+            assert_restricted_app_server(entry['args'])
+
+    def test_codex_turn_payloads_are_blind_and_schema_constrained(self, tmp_path, codex_cli):
+        _, calls = codex_cli
+
+        ready = review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+
+        assert ready['procedural_status'] == 'ready'
+        requests = codex_requests(calls)
+        starts = [entry['request'] for entry in requests if entry['request']['method'] == 'thread/start']
+        turns = [entry['request'] for entry in requests if entry['request']['method'] == 'turn/start']
+        assert len(starts) == len(turns) == 10
+        assert all(start['params']['ephemeral'] is True for start in starts)
+        assert all(start['params']['environments'] == [] for start in starts)
+        assert all(start['params']['approvalPolicy'] == 'never' for start in starts)
+        assert all(start['params']['sandbox'] == 'read-only' for start in starts)
+        for index, turn in enumerate(turns):
+            assert_blind_turn(turn, index)
+
+    @pytest.mark.parametrize('mode', [
+        'thread-missing-environments', 'thread-unsafe-environments',
+        'thread-unsafe-sandbox', 'thread-unsafe-approval',
+    ])
+    def test_unsafe_or_unverified_thread_echo_blocks_before_model_turn(self, tmp_path, monkeypatch, codex_cli, mode):
+        _, calls = codex_cli
+        monkeypatch.setenv('TDD_CODEX_FIXTURE_MODE', mode)
+
+        with pytest.raises(ValueError):
+            review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+
+        methods = [entry['request']['method'] for entry in codex_requests(calls)]
+        assert 'thread/start' in methods
+        assert 'turn/start' not in methods
+        assert not (tmp_path / 'out/ready.json').exists()
+
+    @pytest.mark.parametrize('mode', [
+        'mcp-missing-metadata', 'mcp-active', 'mcp-tools', 'mcp-paginated-active',
+    ])
+    def test_unknown_or_live_mcp_metadata_blocks_before_model_turn(self, tmp_path, monkeypatch, codex_cli, mode):
+        _, calls = codex_cli
+        monkeypatch.setenv('TDD_CODEX_FIXTURE_MODE', mode)
+
+        with pytest.raises(ValueError):
+            review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+
+        requests = [entry['request'] for entry in codex_requests(calls)]
+        mcp_pages = [request for request in requests if request['method'] == 'mcpServerStatus/list']
+        assert mcp_pages
+        if mode == 'mcp-paginated-active':
+            assert len(mcp_pages) == 2
+            assert mcp_pages[1]['params']['cursor'] == 'page-2'
+        assert not any(request['method'] == 'turn/start' for request in requests)
+
+    def test_rejects_unsafe_mcp_server_name_before_starting_app_server(self, tmp_path, monkeypatch, codex_cli):
+        _, calls = codex_cli
+        monkeypatch.setenv('TDD_CODEX_FIXTURE_MODE', 'unsafe-server-name')
+
+        with pytest.raises(ValueError):
+            review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+
+        commands = [entry['args'] for entry in (json.loads(line) for line in calls.read_text().splitlines())
+                    if entry['kind'] == 'command']
+        assert commands == [['--version'], ['mcp', 'list', '--json']]
+
+    def test_unverified_cli_version_blocks_before_app_server_or_model(self, tmp_path, monkeypatch, codex_cli):
+        _, calls = codex_cli
+        monkeypatch.setenv('TDD_CODEX_FIXTURE_MODE', 'unsupported-version')
+
+        with pytest.raises(ValueError, match='version'):
+            review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+
+        commands = [json.loads(line)['args'] for line in calls.read_text().splitlines()]
+        assert commands == [['--version']]
+        assert not (tmp_path / 'out/ready.json').exists()
+
+    @pytest.mark.parametrize('mode', ['oversized-version-output', 'oversized-mcp-output'])
+    def test_preflight_output_limit_terminates_child_before_flood_finishes(self, tmp_path, monkeypatch, codex_cli, mode):
+        _, calls = codex_cli
+        monkeypatch.setenv('TDD_CODEX_FIXTURE_MODE', mode)
+        launches = []
+        original = review.subprocess.Popen
+
+        def record(*args, **kwargs):
+            process = original(*args, **kwargs)
+            launches.append((process, kwargs))
+            return process
+
+        monkeypatch.setattr(review.subprocess, 'Popen', record)
+        with pytest.raises(ValueError, match='preflight output too large'):
+            review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+
+        assert launches and all(process.poll() is not None for process, _ in launches)
+        assert all(kwargs['stderr'] is review.subprocess.DEVNULL for _, kwargs in launches)
+        assert 'flood-complete' not in {entry['kind'] for entry in codex_entries(calls)}
+        assert not (tmp_path / 'out/ready.json').exists()
+
+    @pytest.mark.parametrize('mode', ['mcp-malformed', 'mcp-nonzero', 'app-eof', 'app-nonzero', 'app-malformed', 'rpc-error'])
+    def test_malformed_eof_nonzero_and_protocol_errors_fail_closed(self, tmp_path, monkeypatch, codex_cli, mode):
+        _, calls = codex_cli
+        monkeypatch.setenv('TDD_CODEX_FIXTURE_MODE', mode)
+
+        with pytest.raises((ValueError, OSError, RuntimeError, json.JSONDecodeError)):
+            review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+
+        assert calls.exists()
+        assert not (tmp_path / 'out/ready.json').exists()
+
+    def test_stalled_phase_times_out_and_reaps_its_process(self, tmp_path, monkeypatch, codex_cli):
+        monkeypatch.setenv('TDD_CODEX_FIXTURE_MODE', 'app-stall')
+        monkeypatch.setattr(review, 'PHASE_TIMEOUT', 0.1)
+        processes = []
+        original = review.subprocess.Popen
+        def record(*args, **kwargs):
+            process = original(*args, **kwargs)
+            processes.append(process)
+            return process
+        monkeypatch.setattr(review.subprocess, 'Popen', record)
+
+        with pytest.raises(ValueError, match='timed out'):
+            review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+
+        assert all(process.poll() is not None for process in processes)
+        assert not (tmp_path / 'out/ready.json').exists()
+
+    def test_large_turn_input_respects_phase_deadline_when_app_server_stops_reading(self, tmp_path, monkeypatch, codex_cli):
+        _, calls = codex_cli
+        monkeypatch.setenv('TDD_CODEX_FIXTURE_MODE', 'app-block-turn-input')
+        monkeypatch.setattr(review, 'GUIDANCE', 'x' * (review.LIMIT // 2))
+        monkeypatch.setattr(review, 'PHASE_TIMEOUT', 0.2)
+        processes = []
+        original = review.subprocess.Popen
+
+        def record(*args, **kwargs):
+            process = original(*args, **kwargs)
+            processes.append(process)
+            return process
+
+        monkeypatch.setattr(review.subprocess, 'Popen', record)
+        with pytest.raises(ValueError, match='timed out'):
+            review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+
+        assert processes and all(process.poll() is not None for process in processes)
+        assert 'turn-input-unblocked' not in {entry['kind'] for entry in codex_entries(calls)}
+        assert not (tmp_path / 'out/ready.json').exists()
+
+    @pytest.mark.parametrize('mode', ['server-request', 'tool-event'])
+    def test_server_requests_and_tool_events_fail_closed(self, tmp_path, monkeypatch, codex_cli, mode):
+        _, calls = codex_cli
+        monkeypatch.setenv('TDD_CODEX_FIXTURE_MODE', mode)
+
+        with pytest.raises(ValueError):
+            review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+
+        requests = [entry['request'] for entry in codex_requests(calls)]
+        assert any(request['method'] == 'turn/start' for request in requests)
+        assert not (tmp_path / 'out/ready.json').exists()
+
+    @pytest.mark.parametrize('mode', ['failed-turn', 'wrong-thread', 'wrong-turn'])
+    def test_failed_or_wrong_provenance_completion_is_not_accepted(self, tmp_path, monkeypatch, codex_cli, mode):
+        _, calls = codex_cli
+        monkeypatch.setenv('TDD_CODEX_FIXTURE_MODE', mode)
+
+        with pytest.raises(ValueError):
+            review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+
+        assert any(entry['request']['method'] == 'turn/start' for entry in codex_requests(calls))
+        assert not (tmp_path / 'out/ready.json').exists()
+
+    @pytest.mark.parametrize('mode', ['missing-thread-turn', 'missing-thread-item'])
+    def test_completion_lifecycle_event_requires_thread_provenance(self, tmp_path, monkeypatch, codex_cli, mode):
+        _, calls = codex_cli
+        monkeypatch.setenv('TDD_CODEX_FIXTURE_MODE', mode)
+
+        with pytest.raises(ValueError, match='thread'):
+            review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+
+        assert any(entry['request']['method'] == 'turn/start' for entry in codex_requests(calls))
+        assert not (tmp_path / 'out/ready.json').exists()
+
+    def test_missing_codex_never_falls_back_to_claude(self, tmp_path, monkeypatch, claude_cli):
+        claude, calls = claude_cli
+        monkeypatch.setenv('PATH', str(claude.parent) + os.pathsep + str(Path(sys.executable).parent))
+
+        with pytest.raises(FileNotFoundError):
+            review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+
+        assert not calls.exists()
+        assert not (tmp_path / 'out/ready.json').exists()
+
+
+class TestCodexResponseSchema:
+    @pytest.mark.parametrize('phase', ['derive', 'expectations', 'review', 'integrate'])
+    def test_every_codex_value_has_an_explicit_native_schema_type(self, phase):
+        request = schema_request(phase)
+        schema = review.codex_response_schema(request)
+
+        def check_value(node):
+            if 'anyOf' in node:
+                for choice in node['anyOf']:
+                    check_value(choice)
+                return
+            assert node.get('type') in {'string', 'integer', 'number', 'boolean', 'object', 'array', 'null'}
+            for child in node.get('properties', {}).values():
+                check_value(child)
+            if 'items' in node:
+                check_value(node['items'])
+
+        check_value(schema)
+        for name in ('schema_version', 'run_id', 'snapshot_digest', 'phase', 'view', 'input_digest'):
+            field = schema['properties'][name]
+            assert field['const'] == request[name]
+            assert field['type'] == ('integer' if name == 'schema_version' else 'string')
+            assert review.response_schema(request)['properties'][name] == {'const': request[name]}
+
+    @pytest.mark.parametrize('phase, names', [
+        ('derive', ('id', 'given', 'when', 'then', 'failure')),
+        ('expectations', ('id', 'given', 'when', 'then', 'failure')),
+        ('integrate', ('id', 'given', 'when', 'then', 'failure')),
+    ])
+    @pytest.mark.parametrize(('text', 'valid'), [
+        ('', False), (' \t\n', False), ('observable outcome', True), ('  observable outcome  ', True),
+    ])
+    def test_contract_text_patterns_reject_only_blank_text(self, phase, names, text, valid):
+        fields = review.codex_response_schema(schema_request(phase))['properties']['items']['items']['properties']
+        assert all(bool(re.search(fields[name]['pattern'], text)) is valid for name in names)
+
+    @pytest.mark.parametrize(('text', 'valid'), [
+        ('', False), ('\n ', False), ('review rationale', True),
+    ])
+    def test_review_text_patterns_reject_only_blank_text(self, text, valid):
+        schema = review.codex_response_schema(schema_request('review'))
+        fields = schema['properties']['items']['items']['properties']
+        patterns = (fields['id']['pattern'], fields['detail']['pattern'], schema['properties']['rationale']['pattern'])
+        assert all(bool(re.search(pattern, text)) is valid for pattern in patterns)
+
+    @pytest.mark.parametrize(('text', 'valid'), [
+        ('', False), ('\t', False), ('preserves the original concern', True),
+    ])
+    def test_every_integrate_status_requires_nonblank_reason(self, text, valid):
+        choices = review.codex_response_schema(schema_request('integrate'))['properties']['dispositions']['items']['anyOf']
+        assert {choice['properties']['status']['enum'][0] for choice in choices} == {'accepted', 'rejected', 'deferred'}
+        assert all(bool(re.search(choice['properties']['reason']['pattern'], text)) is valid for choice in choices)
+
+    def test_codex_nonblank_patterns_do_not_leak_to_opaque_references_or_claude(self):
+        codex_review = review.codex_response_schema(schema_request('review'))['properties']
+        codex_integrate = review.codex_response_schema(schema_request('integrate'))['properties']
+        review_item = codex_review['items']['items']['properties']
+        dispositions = codex_integrate['dispositions']['items']['anyOf']
+        opaque = [review_item['evidence']['items'], review_item['refs']['items'], codex_review['reviewed']['items'],
+                  *[choice['properties']['ref'] for choice in dispositions],
+                  *[choice['properties']['test_ids']['items'] for choice in dispositions]]
+        claude_fields = review.response_schema(schema_request('expectations'))['properties']['items']['items']['properties']
+        assert all(field.get('type') == 'string' and 'pattern' not in field for field in opaque)
+        assert all('pattern' not in field for field in claude_fields.values())
 
 
 class TestReviewPipeline:
@@ -138,9 +471,8 @@ class TestReviewPipeline:
         with pytest.raises(FileExistsError):
             review.run(bundle, tmp_path / 'out', Worker())
 
-    def test_codex_without_read_isolation_is_blocked(self):
-        with pytest.raises(ValueError, match='isolation'):
-            review.cli_worker('codex')
+    def test_codex_factory_identifies_its_own_runtime(self):
+        assert review.cli_worker('codex').runtime == 'codex'
 
 class TestCliBoundary:
     def test_claude_is_fresh_toolless_and_not_in_project(self, tmp_path, monkeypatch):
@@ -289,8 +621,9 @@ class TestCliCommands:
         assert not (tmp_path / 'out/expectations-contract.input.json').exists()
         assert not (tmp_path / 'out/ready.json').exists()
 
-    def test_unsupported_codex_never_starts_claude(self, tmp_path, claude_cli):
+    def test_missing_codex_cli_never_starts_claude(self, tmp_path, monkeypatch, claude_cli):
         _, calls = claude_cli
+        monkeypatch.setenv('PATH', str(calls.parent) + os.pathsep + str(Path(sys.executable).parent))
 
         result = subprocess.run([str(ROOT / 'bin/tdd-review-check'), 'run', '--bundle', str(setup(tmp_path)),
                                  '--output', str(tmp_path / 'out'), '--runtime', 'codex'],
@@ -298,9 +631,9 @@ class TestCliCommands:
 
         assert result.returncode == 2
         assert result.stdout == ''
-        assert 'no fallback is selected' in result.stderr
+        assert 'codex' in result.stderr.lower()
         assert not calls.exists()
-        assert not (tmp_path / 'out').exists()
+        assert not (tmp_path / 'out/ready.json').exists()
 
 class TestConsumedResult:
     def test_verify_rechecks_snapshot_and_complete_protocol(self, tmp_path):
@@ -354,7 +687,7 @@ class TestReviewEvidence:
         assert not (tmp_path / 'out').exists()
 
 class TestWorkflowIntegration:
-    def test_unsupported_codex_does_not_disable_basic_tdd(self):
+    def test_codex_adapter_opt_in_does_not_disable_basic_tdd(self):
         skill = (ROOT / 'common/skills/tdd/SKILL.md').read_text()
         assert 'explicit opt-in' in skill
         assert '通常の TDD' in skill and 'runner を必須にしない' in skill

@@ -1,6 +1,15 @@
 # 独立したテスト設計と審査
 
-この段階式審査は explicit opt-in。通常の basic TDD を置き換えない。mode を選択済みなら失敗時の省略や basic TDD / 別 provider への自動降格は禁止する。Codex runtime 未対応を理由に一般の Codex TDD 自体を停止させない。
+この段階式審査は explicit opt-in。通常の basic TDD を置き換えない。mode を選択済みなら失敗時の省略や basic TDD / 別 provider への自動降格は禁止する。選択した CLI が実行境界に未対応であっても、一般の basic TDD 自体を停止させない。
+
+## 共通契約と runtime 固有形式
+
+`unknowns` は、明示された test scope 内で oracle を決めるために必要な情報が不足する場合に使う。scope 外の事項、明示的な除外、assertion を必要としない未規定の性質は blocker にしない。scope 内の未解決事項が残る場合は従来どおり停止し、ready のために隠さない。
+
+モデルは、与えられた根拠から phase の出力契約を満たす分析 worker として扱う。段階順序、入力開示、source provenance、出力検証と処遇はモデル名や CLI に依存させない。runner は worker を呼び出し、CLI の起動と応答形式の解釈は adapter が担当する。
+skill の共有正本は `common/skills/tdd/` に置き、`scripts/generate-ai-assets.py` で runtime ごとの形式へ生成する。role は `claude/agents/test-analyst.md` と `codex/agents/test_analyst.toml` にそれぞれの形式で記述する。モデルごとに共有手順を複製せず、model/effort は runtime 側の設定で選ぶ。現 runner は role file を読み込まないため、その metadata を実行時に適用したとはみなさない。
+この reference は両 runtime の実行契約を併記する。以下の固有名、CLI 引数、対応状況は配布先の runtime 名に置換しない。
+出力の意味上の検証は共通とし、生成 schema の制約は runtime の対応範囲に合わせる。Codex は必須の契約文に非空白の pattern、disposition の status ごとに test_ids の件数制約を付ける。参照 ID は解決先との一致で検証し、一律に非空白の pattern を付けない。既存 Claude CLI 用 schema へ未対応の maxItems を持ち込まず、どちらも最終的な参照・処遇の検証は省略しない。
 
 ## 入力の準備
 
@@ -53,14 +62,19 @@ bundle は以下の JSON。source path は bundle 自身のディレクトリを
 source snapshot と run ID、schema version、snapshot/input digest を各出力へ結び付ける。新規 output directory だけを許可し、過去の成功結果を再使用しない。input/output/snapshot/error は追跡用に保存する。これらは対象 source を含むため repository に commit せず、適切な私的保存先を使う。
 
 ```sh
-tdd-review-check run --bundle FILE --runtime claude --output DIR
+tdd-review-check run --bundle FILE --runtime RUNTIME --output DIR
 tdd-review-check verify --bundle FILE --output DIR
 ```
 
-`--runtime` は `claude` または `codex` を指定する。
+## 実行 adapter
+
+`RUNTIME` には親が明示選択した `claude` または `codex` を指定する。adapter の対応可否はモデルの能力ではなく、必要な実行境界をその runtime で強制できるかによって判断する。共通手順の抽象化は全 adapter の実装済みを意味しない。
 Claude は fresh subprocess に `--tools "" --disallowedTools "mcp__*" --no-session-persistence` を指定する。runner は role file を起動せず、段階別契約の inline prompt と JSON schema を渡す。role の model/effort 設定を使ったと主張しない。
-これは runner が渡す payload と model tool 設定の境界であり、ambient hooks/global context の注入や外部親 session の書込を封じるものではない。policy hooks は無効にしない。per-run `execution_boundary` へその制限を記録する。strict isolation が必要なら `--require-strict-isolation` で未対応として停止する。CLI flags の mock 検証は実 runtime の edit/read denial 検証ではない。
-Codex の read-only sandbox は候補ファイルの読み取りを防げず、role TOML も親の権限を上書きしない。現 adapter は常に未対応として停止する。別 provider や弱い sandbox へ自動代替しない。
+これは runner が渡す payload と model tool 設定の境界であり、ambient hooks/global context の注入や外部親 session の書込を封じるものではない。user/managed config から直接読み込まれる policy hooks は無効にしない。per-run `execution_boundary` へその制限を記録する。strict isolation が必要なら `--require-strict-isolation` で未対応として停止する。CLI flags の mock 検証は実 runtime の edit/read denial 検証ではない。
+Codex は各 phase を新しい `codex app-server` process の ephemeral thread で実行する。`thread/start` と `turn/start` の `environments: []` を指定し、`agents.enabled=false` と `features.multi_agent_v2=false` で peer/subagent 操作も無効にする。専用 worker 内では `features.plugins=false` を指定し、遅延追加される plugin 由来 MCP を含む plugin capabilities と plugin manifest hooks を無効化する。plugin policy hooks が必要な workflow ではこの経路を選択しない。通常の user/managed `config.toml` / `hooks.json` の policy hooks とその trust 設定は保持し、`--ignore-user-config` や hook trust の bypass は使わない。設定済み MCP もその process だけで全て無効化し、全ページの状態が disabled で tools/resources/resourceTemplates が空であることをモデル要求前に検証する。shell、apps、browser、web search、image generation、tool suggestion も無効化する。
+この経路には experimental な環境選択 API と実行時確認が必要であり、応答で環境なし・ephemeral・read-only・MCP 無効を確認できなければ停止する。read-only だけでは読み取り隔離にならず、role TOML だけでも同じ制限を強制できない。非 I/O の builtin が残る可能性があるため「全 tool がゼロ」とは扱わず、worker の tool 呼出しや承認要求を検出した場合も停止する。別 provider や弱い sandbox へ自動代替しない。
+対応する Codex CLI は `0.164.0` に限定し、未確認の版はモデル要求前に停止する。解決済み executable path を run 中に固定する。環境なしでも tool schema が残る場合があるが、この版のローカル I/O handler は実行環境の解決に失敗すると filesystem/process 操作より前に拒否する。CLI 更新時はこの契約の一次ソースと実 CLI 試験を再確認してから対応版を変更する。
+一次ソース: [app-server API](https://learn.chatgpt.com/docs/app-server)、[0.164.0 の環境解決](https://github.com/openai/codex/blob/rust-v0.164.0/codex-rs/core/src/tools/handlers/mod.rs)、[plugin MCP の gate](https://github.com/openai/codex/blob/rust-v0.164.0/codex-rs/core/src/mcp.rs)、[direct policy hooks の読込](https://github.com/openai/codex/blob/rust-v0.164.0/codex-rs/hooks/src/engine/discovery.rs)。
 別の working directory やプロンプトの禁止文だけで読み取り隔離済みとみなさない。
 CLI の存在だけで実行済みとはせず、実際の起動結果と未確認範囲を残す。
 

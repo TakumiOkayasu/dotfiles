@@ -68,6 +68,21 @@ def tree_digest(root: Path) -> str:
 
 
 class TestGenerateAiAssets(unittest.TestCase):
+    def test_should_preserve_test_design_runtime_contracts_in_generated_views(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = copy_repository(Path(directory))
+            relative = Path("skills/tdd/references/test-design-review.md")
+            contract = (repo / "common" / relative).read_text(encoding="utf-8").partition("\n")[2]
+
+            result = run_generator(repo)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            generated = repo / ".generated/ai-assets"
+            for runtime in ("claude", "codex", "plugins/dotfile-work-codex"):
+                with self.subTest(runtime=runtime):
+                    output = (generated / runtime / relative).read_text(encoding="utf-8")
+                    self.assertTrue(output.endswith(contract), runtime)
+
     def test_renamed_asset_manifest_preserves_default_pipeline_contract(self) -> None:
         """default生成は正本manifestのcommandとtier分類に従う。"""
 
