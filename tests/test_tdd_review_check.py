@@ -2,6 +2,7 @@
 import copy
 import importlib.machinery
 import importlib.util
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -92,6 +93,8 @@ def codex_cli(tmp_path, monkeypatch):
     executable.chmod(0o755)
     monkeypatch.setenv('PATH', str(executable.parent) + os.pathsep + os.environ['PATH'])
     monkeypatch.delenv('TDD_CODEX_FIXTURE_MODE', raising=False)
+    monkeypatch.setattr(review, 'latest_codex', lambda directory: (str(executable),
+        {'executable_sha256': hashlib.sha256(executable.read_bytes()).hexdigest()}))
     return executable, calls
 
 
@@ -130,12 +133,19 @@ def assert_blind_turn(turn, index):
 
 
 class TestCodexCliAdapter:
-    def test_codex_starts_fresh_restricted_app_servers_per_phase(self, tmp_path, codex_cli):
+    def test_codex_starts_fresh_restricted_app_servers_per_phase(self, tmp_path, monkeypatch, codex_cli):
         _, calls = codex_cli
+        resolver = review.latest_codex
+        resolutions = []
+        def resolve_once(directory):
+            resolutions.append(directory)
+            return resolver(directory)
+        monkeypatch.setattr(review, 'latest_codex', resolve_once)
 
         ready = review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
 
         assert ready['procedural_status'] == 'ready'
+        assert len(resolutions) == 1 and not resolutions[0].exists()
         assert review.verify(setup(tmp_path), tmp_path / 'out') == ready
         entries = codex_entries(calls)
         commands = [entry for entry in entries if entry['kind'] == 'command']
@@ -215,16 +225,12 @@ class TestCodexCliAdapter:
                     if entry['kind'] == 'command']
         assert commands == [['--version'], ['mcp', 'list', '--json']]
 
-    def test_unverified_cli_version_blocks_before_app_server_or_model(self, tmp_path, monkeypatch, codex_cli):
+    def test_new_cli_version_uses_runtime_boundary_checks(self, tmp_path, monkeypatch, codex_cli):
         _, calls = codex_cli
         monkeypatch.setenv('TDD_CODEX_FIXTURE_MODE', 'unsupported-version')
-
-        with pytest.raises(ValueError, match='version'):
-            review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
-
-        commands = [json.loads(line)['args'] for line in calls.read_text().splitlines()]
-        assert commands == [['--version']]
-        assert not (tmp_path / 'out/ready.json').exists()
+        ready = review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
+        assert ready['procedural_status'] == 'ready'
+        assert any(entry['request']['method'] == 'thread/start' for entry in codex_requests(calls))
 
     @pytest.mark.parametrize('mode', ['oversized-version-output', 'oversized-mcp-output'])
     def test_preflight_output_limit_terminates_child_before_flood_finishes(self, tmp_path, monkeypatch, codex_cli, mode):
@@ -330,13 +336,13 @@ class TestCodexCliAdapter:
         assert any(entry['request']['method'] == 'turn/start' for entry in codex_requests(calls))
         assert not (tmp_path / 'out/ready.json').exists()
 
-    def test_missing_codex_never_falls_back_to_claude(self, tmp_path, monkeypatch, claude_cli):
-        claude, calls = claude_cli
-        monkeypatch.setenv('PATH', str(claude.parent) + os.pathsep + str(Path(sys.executable).parent))
-
-        with pytest.raises(FileNotFoundError):
+    def test_release_failure_never_falls_back_to_claude(self, tmp_path, monkeypatch, claude_cli):
+        _, calls = claude_cli
+        def unavailable(directory):
+            raise OSError('official release unavailable')
+        monkeypatch.setattr(review, 'latest_codex', unavailable)
+        with pytest.raises(OSError):
             review.run(setup(tmp_path), tmp_path / 'out', review.cli_worker('codex'))
-
         assert not calls.exists()
         assert not (tmp_path / 'out/ready.json').exists()
 
@@ -472,7 +478,11 @@ class TestReviewPipeline:
             review.run(bundle, tmp_path / 'out', Worker())
 
     def test_codex_factory_identifies_its_own_runtime(self):
-        assert review.cli_worker('codex').runtime == 'codex'
+        worker = review.cli_worker('codex')
+        try:
+            assert worker.runtime == 'codex'
+        finally:
+            worker.close()
 
 class TestCliBoundary:
     def test_claude_is_fresh_toolless_and_not_in_project(self, tmp_path, monkeypatch):
@@ -621,19 +631,6 @@ class TestCliCommands:
         assert not (tmp_path / 'out/expectations-contract.input.json').exists()
         assert not (tmp_path / 'out/ready.json').exists()
 
-    def test_missing_codex_cli_never_starts_claude(self, tmp_path, monkeypatch, claude_cli):
-        _, calls = claude_cli
-        monkeypatch.setenv('PATH', str(calls.parent) + os.pathsep + str(Path(sys.executable).parent))
-
-        result = subprocess.run([str(ROOT / 'bin/tdd-review-check'), 'run', '--bundle', str(setup(tmp_path)),
-                                 '--output', str(tmp_path / 'out'), '--runtime', 'codex'],
-                                capture_output=True, text=True, timeout=30)
-
-        assert result.returncode == 2
-        assert result.stdout == ''
-        assert 'codex' in result.stderr.lower()
-        assert not calls.exists()
-        assert not (tmp_path / 'out/ready.json').exists()
 
 class TestConsumedResult:
     def test_verify_rechecks_snapshot_and_complete_protocol(self, tmp_path):
@@ -724,3 +721,55 @@ class TestKnownOracleFixtures:
         with pytest.raises(AssertionError):
             assert isinstance(self.correct(()), list)
         assert list(self.correct(())) == ['apple']
+
+class TestLatestCodexRelease:
+    @pytest.mark.parametrize('fault', [None, 'digest', 'missing-digest', 'url', 'symlink', 'prerelease'])
+    def test_only_verified_official_regular_executable_is_published(self, tmp_path, monkeypatch, fault):
+        import io
+        import tarfile
+        payload = b'synthetic executable, never invoked'
+        stream = io.BytesIO()
+        with tarfile.open(fileobj=stream, mode='w:gz') as archive:
+            entry = tarfile.TarInfo('codex-x86_64-unknown-linux-musl')
+            entry.size = len(payload)
+            if fault == 'symlink':
+                entry.type = tarfile.SYMTYPE
+                entry.linkname = '/outside'
+            archive.addfile(entry, io.BytesIO(payload))
+        packed = stream.getvalue()
+        url = 'https://github.com/openai/codex/releases/download/rust-v99.0.0/codex-x86_64-unknown-linux-musl.tar.gz'
+        metadata = {'tag_name': 'rust-v99.0.0', 'draft': False, 'prerelease': fault == 'prerelease', 'assets': [{
+            'name': 'codex-x86_64-unknown-linux-musl.tar.gz', 'size': len(packed),
+            'digest': None if fault == 'missing-digest' else 'sha256:' + ('0' * 64 if fault == 'digest' else hashlib.sha256(packed).hexdigest()),
+            'browser_download_url': 'https://example.com/untrusted' if fault == 'url' else url}]}
+        calls = []
+        def download(address, target, limit):
+            calls.append(address)
+            target.write_bytes(json.dumps(metadata).encode() if address.endswith('/latest') else packed)
+        monkeypatch.setattr(review, 'release_download', download)
+        monkeypatch.setattr(review.platform, 'system', lambda: 'Linux')
+        monkeypatch.setattr(review.platform, 'machine', lambda: 'x86_64')
+        if fault:
+            with pytest.raises(ValueError):
+                review.latest_codex(tmp_path)
+            assert not (tmp_path / 'codex').exists()
+        else:
+            executable, provenance = review.latest_codex(tmp_path)
+            assert Path(executable).read_bytes() == payload
+            assert Path(executable).stat().st_mode & 0o777 == 0o700
+            assert provenance['release'] == 'rust-v99.0.0'
+            assert provenance['executable_sha256'] == hashlib.sha256(payload).hexdigest()
+            assert calls == ['https://api.github.com/repos/openai/codex/releases/latest', url]
+
+    def test_changed_binary_blocks_next_phase_and_cleans_release(self, tmp_path, monkeypatch, codex_cli):
+        executable, calls = codex_cli
+        worker = review.codex_worker()
+        original = review.CodexServer.close
+        def tamper(server):
+            original(server)
+            executable.write_text('tampered executable')
+        monkeypatch.setattr(review.CodexServer, 'close', tamper)
+        with pytest.raises(ValueError, match='executable changed'):
+            review.run(setup(tmp_path), tmp_path / 'out', worker)
+        assert len([entry for entry in codex_entries(calls) if entry['kind'] == 'command' and entry['args'][0] == 'app-server']) == 1
+        assert not (tmp_path / 'out/ready.json').exists()

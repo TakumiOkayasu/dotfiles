@@ -1,0 +1,4 @@
+{
+  "requirements": "Synthetic smoke fixture. echo_flag(flag) accepts only Python bool inputs and returns the same bool value without changing state or doing I/O. Both True and False are in scope. Non-bool inputs, timing, concurrency, packaging and integrations are explicitly outside this test scope. There are no external dependencies or unresolved requirements. Derive only observable contracts within this scope.",
+  "sources": ["flag.py"]
+}

@@ -69,6 +69,8 @@ PATH上にある `mise`, `oh-my-posh`, `zoxide` はこの順に自動初期化�
 | `git-cleanup-branch` | マージ済みブランチ削除 (ローカル+リモート) |
 | `gh-setup-repo` | GitHubリポジトリ設定 (ブランチ保護、PR後自動削除) |
 
+`tdd-review-check` の実Codex CLI試験は [明示実行のスモーク手順](docs/tdd-codex-smoke.md) を参照。通常のpytest/CIではモデルを呼び出さない。
+
 `ai-init-project` は `.ai/state/`, `.ai/inbox/`, `.ai/knowledge/` と `manifest.toml` を作る。`.ai/` はClaude Code / Codex共通のdurable knowledgeだけを持ち、`.claude/`, `.codex/`, `claude_tmp/`, `codex_tmp/` のruntime stateやscratchとは分離する。既存の `.ai/` に本workflowのmanifestが無い場合は、他toolの領域を奪わないよう初期化を拒否する。
 
 `.ai/` はglobal gitignore対象で、元projectのrepositoryにはcommitしない。cross-project collectorは `~/prog/` 直下の各projectから `.ai/` だけを収集し、`.claude/`, `.codex/`, `claude_tmp/`, `codex_tmp/` を直接exportしない。各runtimeの有用な発見は、必要な要点だけ `.ai/inbox/` へharvestしてから共有する。
