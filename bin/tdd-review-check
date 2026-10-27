@@ -3,18 +3,22 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
 import hashlib
 import json
 import os
 from pathlib import Path
+import platform
 import re
 import selectors
 import shutil
 import subprocess
 import sys
 import tempfile
+import tarfile
 import time
 import uuid
+import urllib.request
 
 VERSION = 1
 VIEWS = ('contract', 'state-and-boundaries', 'dependencies-and-failures')
@@ -378,14 +382,65 @@ def codex_output(command: list) -> str:
                 process.wait(timeout=5)
 
 
-def codex_command() -> list:
-    executable = shutil.which('codex')
-    if executable is None:
-        raise FileNotFoundError('Codex CLI not found; no fallback is selected')
-    executable = str(Path(executable).resolve())
+def release_download(url: str, target: Path, limit: int) -> None:
+    require(url.startswith('https://'), 'release transport must use HTTPS')
+    deadline = time.monotonic() + 180
+    request = urllib.request.Request(url, headers={'User-Agent': 'tdd-review-check'})
+    with urllib.request.urlopen(request, timeout=30) as response, target.open('wb') as output:
+        size = 0
+        while True:
+            require(time.monotonic() < deadline, 'release download exceeds size/time limit')
+            block = response.read1(1024 * 1024)
+            require(time.monotonic() < deadline, 'release download exceeds size/time limit')
+            if not block:
+                break
+            size += len(block)
+            require(size <= limit, 'release download exceeds size limit')
+            output.write(block)
+
+
+def latest_codex(directory: Path) -> tuple[str, dict]:
+    metadata = directory / 'release.json'
+    release_download('https://api.github.com/repos/openai/codex/releases/latest', metadata, 4 * 1024 * 1024)
+    release = json.loads(metadata.read_text())
+    require(release.get('draft') is False and release.get('prerelease') is False, 'latest must be a stable release')
+    tag = release.get('tag_name')
+    require(isinstance(tag, str) and re.fullmatch(r'rust-v[0-9]+\.[0-9]+\.[0-9]+', tag), 'invalid release tag')
+    machine = {'x86_64': 'x86_64', 'AMD64': 'x86_64', 'arm64': 'aarch64', 'aarch64': 'aarch64'}.get(platform.machine())
+    system = {'Linux': 'unknown-linux-musl', 'Darwin': 'apple-darwin'}.get(platform.system())
+    require(machine is not None and system is not None, 'unsupported Codex release platform')
+    member = f'codex-{machine}-{system}'
+    name = member + '.tar.gz'
+    assets = [asset for asset in release['assets'] if asset.get('name') == name]
+    require(len(assets) == 1, 'official platform asset missing or ambiguous')
+    asset = assets[0]
+    expected = asset.get('digest')
+    require(isinstance(expected, str) and re.fullmatch(r'sha256:[a-f0-9]{64}', expected), 'official SHA-256 missing')
+    url = 'https://github.com/openai/codex/releases/download/' + tag + '/' + name
+    require(asset.get('browser_download_url') == url, 'unexpected release asset URL')
+    size = asset.get('size')
+    require(type(size) is int and 0 < size <= 512 * 1024 * 1024, 'invalid release asset size')
+    archive = directory / name
+    release_download(url, archive, size)
+    with archive.open('rb') as source:
+        actual = hashlib.file_digest(source, 'sha256').hexdigest()
+    require(archive.stat().st_size == size and 'sha256:' + actual == expected, 'official release SHA-256 mismatch')
+    executable = directory / 'codex'
+    with tarfile.open(archive) as package:
+        entries = [entry for entry in package.getmembers() if entry.name == member]
+        require(len(entries) == 1 and entries[0].isfile() and entries[0].size <= 1024 * 1024 * 1024,
+                'invalid Codex executable archive member')
+        with package.extractfile(entries[0]) as source, executable.open('wb') as output:
+            shutil.copyfileobj(source, output)
+    executable.chmod(0o700)
+    with executable.open('rb') as source:
+        binary_digest = hashlib.file_digest(source, 'sha256').hexdigest()
+    return str(executable), {'release': tag, 'asset_url': url, 'archive_sha256': actual, 'executable_sha256': binary_digest}
+
+
+def codex_command(executable: str) -> list:
     version = codex_output([executable, '--version'])
-    require(version.strip() == 'codex-cli 0.164.0',
-            'Codex version has no verified I/O boundary; supported: 0.164.0')
+    require(re.fullmatch(r'codex-cli [\w.\-]+', version.strip()) is not None, 'invalid Codex version response')
     servers = json.loads(codex_output([executable, 'mcp', 'list', '--json']))
     require(isinstance(servers, list), 'invalid Codex MCP configuration')
     command = [executable, 'app-server', '--strict-config']
@@ -401,26 +456,41 @@ def codex_command() -> list:
     return command
 
 
-def codex_worker():
-    command = None
-    def invoke(request: dict) -> dict:
-        nonlocal command
-        if command is None:
-            command = codex_command()
+class CodexWorker:
+    """Own one verified release for the complete staged review."""
+
+    runtime = 'codex'
+
+    def __init__(self) -> None:
+        self.provenance = {}
+        self._command = None
+        self._resources = ExitStack()
+
+    def __call__(self, request: dict) -> dict:
+        if self._command is None:
+            directory = self._resources.enter_context(tempfile.TemporaryDirectory(prefix='tdd-codex-release-'))
+            executable, provenance = latest_codex(Path(directory))
+            self.provenance.update(provenance)
+            self._command = codex_command(executable)
+            self.provenance['cli_version'] = codex_output([executable, '--version']).strip()
+        with Path(self._command[0]).open('rb') as source:
+            require(hashlib.file_digest(source, 'sha256').hexdigest() == self.provenance['executable_sha256'],
+                    'Codex executable changed during run')
         with tempfile.TemporaryDirectory(prefix='tdd-review-worker-') as directory:
-            server = CodexServer(command, directory)
+            server = CodexServer(self._command, directory)
             try:
                 server.start(directory)
                 return server.result(request)
             finally:
                 server.close()
-    invoke.runtime = 'codex'
-    return invoke
+
+    def close(self) -> None:
+        self._resources.close()
 
 
 def cli_worker(runtime: str):
     if runtime == 'codex':
-        return codex_worker()
+        return CodexWorker()
     require(runtime == 'claude', 'unknown CLI runtime; no fallback is selected')
     def invoke(request: dict) -> dict:
         # Fresh process, empty working directory, no conversation resume/fork and no model tools.
@@ -469,28 +539,35 @@ def run(bundle: Path, output: Path, worker, views=None) -> dict:
     def save(name: str, value: object) -> None:
         (output / name).write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
     try:
-        frozen = snapshot(bundle)
-        base = {'schema_version': VERSION, 'run_id': str(uuid.uuid4()), 'snapshot_digest': digest(frozen),
-                'execution_boundary': {'runtime': getattr(worker, 'runtime', 'injected-worker'),
-                    'runner_disclosure': 'staged', 'strict_isolation': 'not-established',
-                    **({'runtime_plugins': 'disabled', 'plugin_hooks': 'disabled'}
-                       if getattr(worker, 'runtime', None) == 'codex' else {}),
-                    'ambient_hooks_and_context': 'trusted-not-inspected',
-                    'main_session_write_access': 'not-controlled'}}
-        save('snapshot.json', frozen)
-        save('run.json', {**base, 'views': views})
-        def ask(phase: str, view: str, **extra) -> dict:
+        with ExitStack() as resources:
+            if hasattr(worker, 'close'):
+                resources.callback(worker.close)
+            frozen = snapshot(bundle)
+            base = {'schema_version': VERSION, 'run_id': str(uuid.uuid4()), 'snapshot_digest': digest(frozen),
+                    'execution_boundary': {'runtime': getattr(worker, 'runtime', 'injected-worker'),
+                        'runner_disclosure': 'staged', 'strict_isolation': 'not-established',
+                        **({'runtime_plugins': 'disabled', 'plugin_hooks': 'disabled'}
+                           if getattr(worker, 'runtime', None) == 'codex' else {}),
+                        'ambient_hooks_and_context': 'trusted-not-inspected',
+                        'main_session_write_access': 'not-controlled'}}
+            save('snapshot.json', frozen)
+            save('run.json', {**base, 'views': views})
+            def ask(phase: str, view: str, **extra) -> dict:
+                require(snapshot(bundle) == frozen, 'source snapshot changed; restart')
+                request = {**base, 'phase': phase, 'view': view, 'snapshot': frozen, **extra}
+                request['input_digest'] = digest(request)
+                require(len(encoded(request).encode()) <= LIMIT, 'phase input too large; narrow scope')
+                name = phase + '-' + view
+                save(name + '.input.json', request)
+                try:
+                    result = worker(request)
+                finally:
+                    if hasattr(worker, 'provenance'):
+                        save('runtime.json', worker.provenance)
+                save(name + '.output.json', result)
+                return validate(result, request)
+            integrated = design(ask, views)
             require(snapshot(bundle) == frozen, 'source snapshot changed; restart')
-            request = {**base, 'phase': phase, 'view': view, 'snapshot': frozen, **extra}
-            request['input_digest'] = digest(request)
-            require(len(encoded(request).encode()) <= LIMIT, 'phase input too large; narrow scope')
-            name = phase + '-' + view
-            save(name + '.input.json', request)
-            result = worker(request)
-            save(name + '.output.json', result)
-            return validate(result, request)
-        integrated = design(ask, views)
-        require(snapshot(bundle) == frozen, 'source snapshot changed; restart')
         ready = ready_result(base, integrated)
         save('ready.json', ready)
         return ready
@@ -523,7 +600,18 @@ def verify(bundle: Path, output: Path) -> dict:
     return expected
 
 
+def require_python() -> None:
+    require(sys.version_info >= (3, 14),
+            'Python 3.14 or newer is required. Upgrade with `uv python install 3.14`, '
+            'then run this command with `uv run --python 3.14` or `python3.14`.')
+
+
 def main() -> int:
+    try:
+        require_python()
+    except ValueError as error:
+        print(f'tdd-review-check: {error}', file=sys.stderr)
+        return 2
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='command', required=True)
     command = sub.add_parser('run')
@@ -544,7 +632,7 @@ def main() -> int:
                   run(args.bundle, args.output, cli_worker(args.runtime), args.views))
         print(encoded({'run_id': result['run_id'], 'procedural_status': result['procedural_status']}))
         return 0
-    except (ValueError, OSError, RuntimeError, KeyError, TypeError, subprocess.TimeoutExpired) as error:
+    except (ValueError, OSError, RuntimeError, KeyError, TypeError, subprocess.TimeoutExpired, tarfile.TarError) as error:
         print(f'tdd-review-check: blocked: {error}', file=sys.stderr)
         return 2
 

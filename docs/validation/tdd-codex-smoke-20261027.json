@@ -1,0 +1,55 @@
+{
+  "recorded_at": "2026-10-27T03:57:26.680971+00:00",
+  "checks": {
+    "pipeline": {
+      "status": "skipped",
+      "detail": "compatible CLI and explicit authentication required"
+    },
+    "io_read_process_network": {
+      "status": "skipped",
+      "detail": "compatible CLI and explicit authentication required"
+    },
+    "io_write": {
+      "status": "skipped",
+      "detail": "compatible CLI and explicit authentication required"
+    },
+    "process_failure": {
+      "status": "skipped",
+      "detail": "compatible CLI and explicit authentication required"
+    },
+    "release_integrity": {
+      "status": "passed",
+      "detail": "latest official asset SHA-256 verified"
+    },
+    "boundary_preflight": {
+      "status": "passed",
+      "pid": 41,
+      "thread_id": "01a17b82-13bd-75e1-8a85-cf6fc9c247bf",
+      "ephemeral": true,
+      "environments": [],
+      "sandbox": {
+        "type": "readOnly",
+        "networkAccess": false
+      },
+      "approval_policy": "never",
+      "mcp_canary": "disabled-empty",
+      "model_turns": 0,
+      "reaped": true
+    },
+    "mcp_canary": {
+      "status": "passed",
+      "detail": "real disabled/empty status; launch marker absent"
+    }
+  },
+  "python_version": "3.14.8",
+  "adapter_sha256": "2665e21198ed1f3849a65f65eae5ef22b938d36e4943f472eff4aeae38b4ea43",
+  "fixture_snapshot_digest": "ba42b96f73c4eb2b8ca81ff56600c0d8440303b2a24a50236541043066e41dca",
+  "scope": "runner inputs are synthetic; no review-quality or global-isolation claim",
+  "runtime": {
+    "release": "rust-v0.164.0",
+    "asset_url": "https://github.com/openai/codex/releases/download/rust-v0.164.0/codex-x86_64-unknown-linux-musl.tar.gz",
+    "archive_sha256": "90dd0b03b28afcb7fa733a4f73b413db2916a47347efd43fb669cc1c774ee8e4",
+    "executable_sha256": "b93f6811d3f653f0fb83be4050d857fb9abbb111dfa2ce160563327daff7f306"
+  },
+  "cli_version": "codex-cli 0.164.0"
+}

@@ -51,7 +51,7 @@ review は各 reviewer 自身の記録と全候補を使い、他 reviewer の�
 
 ## runner と停止条件
 
-実行資産の正本は `bin/tdd-review-check`、配布先は `~/.local/bin/tdd-review-check`。
+実行資産の正本は `bin/tdd-review-check`、配布先は `~/.local/bin/tdd-review-check`。Python 3.14以降を必須とし、古い環境では処理開始前にアップグレードを案内する。`uv python install 3.14` 後に `uv run --python 3.14 python ~/.local/bin/tdd-review-check ...`、または `python3.14` で実行する。
 この references 配下には手順文書だけを置き、実行スクリプトを置かない。
 bundle は以下の JSON。source path は bundle 自身のディレクトリを起点とする明示的な相対 regular file のリスト。requirements は合意した要求を含め、既存変更では仕様/呼び出し元/対象実装を不足なく選ぶ。source がない新規設計でも要求は必須。秘密値を含めないことは入力準備側の責務であり、path 検査だけでは内容の安全性や十分性を保証しない。合計 256 KiB を越える場合は対象を分割する。
 
@@ -73,7 +73,8 @@ Claude は fresh subprocess に `--tools "" --disallowedTools "mcp__*" --no-sess
 これは runner が渡す payload と model tool 設定の境界であり、ambient hooks/global context の注入や外部親 session の書込を封じるものではない。user/managed config から直接読み込まれる policy hooks は無効にしない。per-run `execution_boundary` へその制限を記録する。strict isolation が必要なら `--require-strict-isolation` で未対応として停止する。CLI flags の mock 検証は実 runtime の edit/read denial 検証ではない。
 Codex は各 phase を新しい `codex app-server` process の ephemeral thread で実行する。`thread/start` と `turn/start` の `environments: []` を指定し、`agents.enabled=false` と `features.multi_agent_v2=false` で peer/subagent 操作も無効にする。専用 worker 内では `features.plugins=false` を指定し、遅延追加される plugin 由来 MCP を含む plugin capabilities と plugin manifest hooks を無効化する。plugin policy hooks が必要な workflow ではこの経路を選択しない。通常の user/managed `config.toml` / `hooks.json` の policy hooks とその trust 設定は保持し、`--ignore-user-config` や hook trust の bypass は使わない。設定済み MCP もその process だけで全て無効化し、全ページの状態が disabled で tools/resources/resourceTemplates が空であることをモデル要求前に検証する。shell、apps、browser、web search、image generation、tool suggestion も無効化する。
 この経路には experimental な環境選択 API と実行時確認が必要であり、応答で環境なし・ephemeral・read-only・MCP 無効を確認できなければ停止する。read-only だけでは読み取り隔離にならず、role TOML だけでも同じ制限を強制できない。非 I/O の builtin が残る可能性があるため「全 tool がゼロ」とは扱わず、worker の tool 呼出しや承認要求を検出した場合も停止する。別 provider や弱い sandbox へ自動代替しない。
-対応する Codex CLI は `0.164.0` に限定し、未確認の版はモデル要求前に停止する。解決済み executable path を run 中に固定する。環境なしでも tool schema が残る場合があるが、この版のローカル I/O handler は実行環境の解決に失敗すると filesystem/process 操作より前に拒否する。CLI 更新時はこの契約の一次ソースと実 CLI 試験を再確認してから対応版を変更する。
+Codex CLI は実行開始時に公式GitHub Releasesのlatest安定版を1回解決する。対象OS/CPUの配布物を公式metadataのSHA-256と照合した後、privateな一時領域へ実行ファイルだけを配置する。PATH上のCLIやユーザー設定を上書きしない。run内では同じ実行ファイルを使い、各phase起動前に実行ファイルのSHA-256を再照合する。release tag、配布URL、archive/executable digest、CLIの版表示はruntime.jsonへ記録する。終了時は一時領域を回収する。
+版番号の固定allowlistは使わない。取得不能、digest欠落・不一致、実行中の改変、実行時の環境/MCP境界不成立は停止し、古いCLIや別providerへ代替しない。照合は公式配布物との同一性確認であり、隔離動作の保証や独立した署名検証ではない。実行時確認に加えて実CLIスモークの結果と未検証範囲を確認する。ローカルI/O handlerの環境解決契約を調査した版は以下の一次ソースに示す。latest更新後の全handler動作を自動的に保証するものではない。
 一次ソース: [app-server API](https://learn.chatgpt.com/docs/app-server)、[0.164.0 の環境解決](https://github.com/openai/codex/blob/rust-v0.164.0/codex-rs/core/src/tools/handlers/mod.rs)、[plugin MCP の gate](https://github.com/openai/codex/blob/rust-v0.164.0/codex-rs/core/src/mcp.rs)、[direct policy hooks の読込](https://github.com/openai/codex/blob/rust-v0.164.0/codex-rs/hooks/src/engine/discovery.rs)。
 別の working directory やプロンプトの禁止文だけで読み取り隔離済みとみなさない。
 CLI の存在だけで実行済みとはせず、実際の起動結果と未確認範囲を残す。
