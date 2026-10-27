@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T02:55:24.513597+00:00",
+  "recorded_at": "2026-10-27T03:57:26.680971+00:00",
   "checks": {
     "pipeline": {
       "status": "skipped",
@@ -23,8 +23,8 @@
     },
     "boundary_preflight": {
       "status": "passed",
-      "pid": 44,
-      "thread_id": "01a17b49-1f90-7801-8ce3-8329f01bcb41",
+      "pid": 41,
+      "thread_id": "01a17b82-13bd-75e1-8a85-cf6fc9c247bf",
       "ephemeral": true,
       "environments": [],
       "sandbox": {
@@ -41,7 +41,8 @@
       "detail": "real disabled/empty status; launch marker absent"
     }
   },
-  "adapter_sha256": "65773c3f91059903cf9d2cb2671f250cc8e4a88a15d25d2f44c222320f954ce2",
+  "python_version": "3.14.8",
+  "adapter_sha256": "2665e21198ed1f3849a65f65eae5ef22b938d36e4943f472eff4aeae38b4ea43",
   "fixture_snapshot_digest": "ba42b96f73c4eb2b8ca81ff56600c0d8440303b2a24a50236541043066e41dca",
   "scope": "runner inputs are synthetic; no review-quality or global-isolation claim",
   "runtime": {

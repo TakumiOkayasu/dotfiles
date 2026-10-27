@@ -6,15 +6,17 @@
 
 ## 実行
 
-リポジトリのルートで実行する。Python 3.11以降の標準ライブラリだけを使う。各runで配布物を1回取得するため、GitHubへの接続と一時領域が必要。Linux/WSLとmacOSのx86_64/aarch64が対象。
+リポジトリのルートで実行する。Python 3.14以降の標準ライブラリだけを使う。各runで配布物を1回取得するため、GitHubへの接続と一時領域が必要。Linux/WSLとmacOSのx86_64/aarch64が対象。
+
+Python 3.14未満では、入力の読込・出力作成・ダウンロード前に停止し、アップグレード方法を表示する。既存環境が古い場合は `uv python install 3.14` を実行し、下記を `uv run --python 3.14 python` で起動する。`python3.14` を直接指定してもよい。検証用Dockerも `python:3.14-slim` を使用する。
 
 ```sh
 # latest取得・照合と、モデル呼び出し前の実境界確認。
-python3 tests/smoke_tdd_codex.py \
+uv run --python 3.14 python tests/smoke_tdd_codex.py \
   --output /tmp/tdd-codex-boundary-check
 
 # 認証を指定して全試験を実行する。outputは毎回新しいディレクトリを指定する。
-python3 tests/smoke_tdd_codex.py \
+uv run --python 3.14 python tests/smoke_tdd_codex.py \
   --auth-file /path/to/auth.json \
   --output /tmp/tdd-codex-smoke
 ```

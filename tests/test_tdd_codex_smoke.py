@@ -59,3 +59,32 @@ class TestFaultEvidence:
         monkeypatch.setattr(smoke.review, 'run', failed_send)
         with pytest.raises(AssertionError, match='fault not injected'):
             smoke.process_failure(output)
+
+class TestSmokeRuntime:
+    def test_old_python_requests_upgrade_before_output_creation(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(smoke.review.sys, 'version_info', (3, 13, 0))
+        monkeypatch.setattr(smoke.sys, 'argv', ['smoke_tdd_codex.py', '--output', str(tmp_path / 'out')])
+        assert smoke.main() == 2
+        assert 'Python 3.14' in capsys.readouterr().err
+        assert not (tmp_path / 'out').exists()
+
+class TestSmokeResults:
+    def test_io_setup_failure_preserves_completed_checks(self, tmp_path, monkeypatch):
+        auth = tmp_path / 'auth.json'
+        auth.write_text('{}')
+        monkeypatch.setattr(smoke.review, 'latest_codex', lambda directory: ('unused', {'archive_sha256': 'synthetic-hash'}))
+        monkeypatch.setattr(smoke.review, 'codex_output', lambda command: 'codex-cli synthetic')
+        monkeypatch.setattr(smoke.review, 'codex_command', lambda executable: ['unused'])
+        monkeypatch.setattr(smoke, 'boundary_preflight', lambda command: {'model_turns': 0})
+        monkeypatch.setattr(smoke, 'pipeline', lambda output: {'ready_and_verify': True})
+        monkeypatch.setattr(smoke, 'process_failure', lambda output: {'ready': False})
+        def unavailable(*args):
+            raise OSError('synthetic listener bind denied')
+        monkeypatch.setattr(smoke, 'io_probes', unavailable)
+        report = smoke.smoke(auth, tmp_path / 'out', None)
+        assert report['checks']['pipeline']['status'] == 'passed'
+        assert report['checks']['process_failure']['status'] == 'passed'
+        assert report['checks']['boundary_preflight']['status'] == 'passed'
+        assert report['runtime']['archive_sha256'] == 'synthetic-hash'
+        for name in ('io_read_process_network', 'io_write'):
+            assert report['checks'][name] == {'status': 'failed', 'detail': 'synthetic listener bind denied'}

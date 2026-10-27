@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import argparse
-from contextlib import ExitStack
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 from datetime import datetime, timezone
 import hashlib
 import importlib.machinery
@@ -245,15 +246,9 @@ def process_failure(output: Path) -> dict:
     raise AssertionError('interrupted app-server did not block')
 
 
-def smoke(auth_file: Path | None, output: Path, model: str | None) -> dict:
-    report = {'recorded_at': datetime.now(timezone.utc).isoformat(), 'checks': {},
-              'adapter_sha256': hashlib.sha256((ROOT / 'bin/tdd-review-check').read_bytes()).hexdigest(),
-              'fixture_snapshot_digest': review.digest(review.snapshot(FIXTURE)),
-              'scope': 'runner inputs are synthetic; no review-quality or global-isolation claim'}
-    checks = report['checks']
-    for name in LIVE_CHECKS:
-        checks[name] = {'status': 'skipped', 'detail': 'compatible CLI and explicit authentication required'}
-    with ExitStack() as stack, tempfile.TemporaryDirectory(prefix='tdd-codex-smoke-') as temporary:
+@contextmanager
+def smoke_environment(auth_file: Path | None, model: str | None) -> Iterator[Path]:
+    with tempfile.TemporaryDirectory(prefix='tdd-codex-smoke-') as temporary:
         directory = Path(temporary)
         isolated_home = directory / 'home'
         isolated_home.mkdir(mode=0o700)
@@ -265,6 +260,11 @@ def smoke(auth_file: Path | None, output: Path, model: str | None) -> dict:
         if model:
             config = 'model = ' + json.dumps(model) + '\n' + config
         (isolated_home / 'config.toml').write_text(config)
+        if auth_file is not None:
+            check(auth_file.stat().st_size <= review.LIMIT, 'authentication file too large')
+            auth_copy = isolated_home / 'auth.json'
+            auth_copy.touch(mode=0o600)
+            auth_copy.write_bytes(auth_file.read_bytes())
         # Carry transport/proxy settings only. Never inherit user rules, projects or hooks.
         environment = {key: value for key, value in os.environ.items()
                        if key.upper().endswith('_PROXY') or key in ('SSL_CERT_FILE', 'SSL_CERT_DIR', 'SYSTEMROOT')}
@@ -272,47 +272,64 @@ def smoke(auth_file: Path | None, output: Path, model: str | None) -> dict:
                            HOME=str(isolated_home), CODEX_HOME=str(isolated_home),
                            XDG_CONFIG_HOME=str(isolated_home / 'config'), XDG_DATA_HOME=str(isolated_home / 'data'))
         with patch.dict(os.environ, environment, clear=True):
-            release_directory = directory / 'release'
-            release_directory.mkdir()
-            binary, provenance = review.latest_codex(release_directory)
-            report['runtime'] = provenance
-            report['cli_version'] = review.codex_output([binary, '--version']).strip()
-            # Reuse the single resolved release for all phases, through the existing resolver seam.
-            release_patch = patch.object(review, 'latest_codex', lambda unused: (binary, provenance))
-            stack.enter_context(release_patch)
-            if auth_file is not None:
-                check(auth_file.stat().st_size <= review.LIMIT, 'authentication file too large')
-                auth_copy = isolated_home / 'auth.json'
-                auth_copy.touch(mode=0o600)
-                auth_copy.write_bytes(auth_file.read_bytes())
-            command = review.codex_command(binary)
-            checks['release_integrity'] = {'status': 'passed', 'detail': 'latest official asset SHA-256 verified'}
-            try:
-                checks['boundary_preflight'] = {'status': 'passed', **boundary_preflight(command)}
-                check(not marker.exists(), 'disabled MCP server actually launched')
-                checks['mcp_canary'] = {'status': 'passed', 'detail': 'real disabled/empty status; launch marker absent'}
-            except FAILURES as error:
-                checks['boundary_preflight'] = {'status': 'failed', 'detail': str(error)}
-                return report
-            if auth_file is None:
-                return report
-            for name, action in (('pipeline', lambda: pipeline(output / 'pipeline')),
-                                 ('process_failure', lambda: process_failure(output / 'process-failure'))):
-                try:
-                    checks[name] = {'status': 'passed', **action()}
-                except FAILURES as error:
-                    checks[name] = {'status': 'failed', 'detail': str(error)}
-            checks.update(io_probes(command, directory))
-            if marker.exists():
-                checks['mcp_canary'] = {'status': 'failed', 'detail': 'disabled MCP server actually launched'}
-            elif checks['boundary_preflight']['status'] == 'passed':
-                checks['mcp_canary'] = {'status': 'passed', 'detail': 'configured MCP launch marker absent'}
-            else:
-                checks['mcp_canary'] = {'status': 'skipped', 'detail': 'marker absent but pipeline boundary not verified'}
+            yield directory
+
+
+def collect_live_checks(checks: dict, command: list, directory: Path, output: Path) -> None:
+    for name, action in (('pipeline', lambda: pipeline(output / 'pipeline')),
+                         ('process_failure', lambda: process_failure(output / 'process-failure'))):
+        try:
+            checks[name] = {'status': 'passed', **action()}
+        except FAILURES as error:
+            checks[name] = {'status': 'failed', 'detail': str(error)}
+    try:
+        checks.update(io_probes(command, directory))
+    except FAILURES as error:
+        for name in ('io_read_process_network', 'io_write'):
+            checks[name] = {'status': 'failed', 'detail': str(error)}
+
+
+def smoke(auth_file: Path | None, output: Path, model: str | None) -> dict:
+    report = {'recorded_at': datetime.now(timezone.utc).isoformat(), 'checks': {},
+              'python_version': sys.version.split()[0],
+              'adapter_sha256': hashlib.sha256((ROOT / 'bin/tdd-review-check').read_bytes()).hexdigest(),
+              'fixture_snapshot_digest': review.digest(review.snapshot(FIXTURE)),
+              'scope': 'runner inputs are synthetic; no review-quality or global-isolation claim'}
+    checks = report['checks']
+    for name in LIVE_CHECKS:
+        checks[name] = {'status': 'skipped', 'detail': 'compatible CLI and explicit authentication required'}
+    with ExitStack() as stack, smoke_environment(auth_file, model) as directory:
+        marker = directory / 'mcp-started'
+        release_directory = directory / 'release'
+        release_directory.mkdir()
+        binary, provenance = review.latest_codex(release_directory)
+        report['runtime'] = provenance
+        report['cli_version'] = review.codex_output([binary, '--version']).strip()
+        # Reuse the single resolved release for all phases, through the existing resolver seam.
+        stack.enter_context(patch.object(review, 'latest_codex', lambda unused: (binary, provenance)))
+        command = review.codex_command(binary)
+        checks['release_integrity'] = {'status': 'passed', 'detail': 'latest official asset SHA-256 verified'}
+        try:
+            checks['boundary_preflight'] = {'status': 'passed', **boundary_preflight(command)}
+            check(not marker.exists(), 'disabled MCP server actually launched')
+            checks['mcp_canary'] = {'status': 'passed', 'detail': 'real disabled/empty status; launch marker absent'}
+        except FAILURES as error:
+            checks['boundary_preflight'] = {'status': 'failed', 'detail': str(error)}
+            return report
+        if auth_file is None:
+            return report
+        collect_live_checks(checks, command, directory, output)
+        if marker.exists():
+            checks['mcp_canary'] = {'status': 'failed', 'detail': 'disabled MCP server actually launched'}
     return report
 
 
 def main() -> int:
+    try:
+        review.require_python()
+    except ValueError as error:
+        print(f'smoke_tdd_codex: {error}', file=sys.stderr)
+        return 2
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--auth-file', type=Path, help='explicit auth.json only; copied privately, never logged')
     parser.add_argument('--model', help='optional runtime model selection, not a test oracle')

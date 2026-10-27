@@ -763,7 +763,7 @@ class TestLatestCodexRelease:
 
     def test_changed_binary_blocks_next_phase_and_cleans_release(self, tmp_path, monkeypatch, codex_cli):
         executable, calls = codex_cli
-        worker = review.codex_worker()
+        worker = review.CodexWorker()
         original = review.CodexServer.close
         def tamper(server):
             original(server)
@@ -773,3 +773,45 @@ class TestLatestCodexRelease:
             review.run(setup(tmp_path), tmp_path / 'out', worker)
         assert len([entry for entry in codex_entries(calls) if entry['kind'] == 'command' and entry['args'][0] == 'app-server']) == 1
         assert not (tmp_path / 'out/ready.json').exists()
+
+class TestPythonRuntime:
+    def test_old_python_requests_upgrade_before_touching_inputs(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(review.sys, 'version_info', (3, 13, 0))
+        monkeypatch.setattr(review.sys, 'argv', ['tdd-review-check', 'run', '--bundle', 'missing', '--runtime', 'codex', '--output', str(tmp_path / 'out')])
+        assert review.main() == 2
+        assert 'Python 3.14' in capsys.readouterr().err
+        assert not (tmp_path / 'out').exists()
+
+class TestReleaseLifecycle:
+    def test_worker_does_not_allocate_release_directory_until_invocation(self, monkeypatch):
+        def unexpected(**kwargs):
+            pytest.fail('release directory created before input validation')
+        monkeypatch.setattr(review.tempfile, 'TemporaryDirectory', unexpected)
+        worker = review.CodexWorker()
+        worker.close()
+
+    def test_cleanup_failure_blocks_readiness(self, tmp_path):
+        class FailedCleanup(Worker):
+            def close(self):
+                raise OSError('synthetic cleanup error')
+        with pytest.raises(OSError, match='cleanup'):
+            review.run(setup(tmp_path), tmp_path / 'out', FailedCleanup())
+        assert not (tmp_path / 'out/ready.json').exists()
+        assert json.loads((tmp_path / 'out/error.json').read_text())['procedural_status'] == 'blocked'
+
+    def test_download_deadline_is_checked_between_partial_reads(self, tmp_path, monkeypatch):
+        clock = [0]
+        reads = []
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read1(self, size):
+                reads.append(size)
+                clock[0] += 100
+                return b'x'
+        monkeypatch.setattr(review.time, 'monotonic', lambda: clock[0])
+        monkeypatch.setattr(review.urllib.request, 'urlopen', lambda *args, **kwargs: Response())
+        with pytest.raises(ValueError, match='time limit'):
+            review.release_download('https://example.com/synthetic', tmp_path / 'archive', 10)
+        assert len(reads) == 2
+        assert (tmp_path / 'archive').read_bytes() == b'x'

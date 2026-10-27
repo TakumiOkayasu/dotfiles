@@ -1101,11 +1101,11 @@ class TestCodexAgentDefinitions:
 
 
 class TestInstallTestDockerfile:
-    def test_should_track_latest_python_and_fail_on_warnings(self) -> None:
-        """install-test は最新Pythonを正とし、warningを見逃さない"""
+    def test_should_use_python_314_and_fail_on_warnings(self) -> None:
+        """install-test はPython 3.14を正とし、warningを見逃さない"""
         content = INSTALL_TEST_DOCKERFILE.read_text(encoding="utf-8")
 
-        assert content.startswith("FROM python:slim\n")
+        assert content.startswith("FROM python:3.14-slim\n")
         assert "PYTHONWARNINGS=error" in content
         assert "python3-pytest" not in content
         assert 'ENTRYPOINT ["python", "-m", "pytest"' in content

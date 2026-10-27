@@ -51,7 +51,7 @@ review は各 reviewer 自身の記録と全候補を使い、他 reviewer の�
 
 ## runner と停止条件
 
-実行資産の正本は `bin/tdd-review-check`、配布先は `~/.local/bin/tdd-review-check`。
+実行資産の正本は `bin/tdd-review-check`、配布先は `~/.local/bin/tdd-review-check`。Python 3.14以降を必須とし、古い環境では処理開始前にアップグレードを案内する。`uv python install 3.14` 後に `uv run --python 3.14 python ~/.local/bin/tdd-review-check ...`、または `python3.14` で実行する。
 この references 配下には手順文書だけを置き、実行スクリプトを置かない。
 bundle は以下の JSON。source path は bundle 自身のディレクトリを起点とする明示的な相対 regular file のリスト。requirements は合意した要求を含め、既存変更では仕様/呼び出し元/対象実装を不足なく選ぶ。source がない新規設計でも要求は必須。秘密値を含めないことは入力準備側の責務であり、path 検査だけでは内容の安全性や十分性を保証しない。合計 256 KiB を越える場合は対象を分割する。
 
