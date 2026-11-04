@@ -11,3 +11,5 @@
 
 [core]
     quotePath = false
+[push]
+	autoSetupRemote = true
