@@ -39,9 +39,20 @@ try {
 
     # Mock optional tools so tests never activate the developer/runner toolchain.
     function mise {
-        Assert-Equal ($args -join ' ') 'activate pwsh' 'mise activation arguments'
         $global:LASTEXITCODE = 0
-        'function Test-MiseActivation { "active" }'
+        switch ($args -join ' ') {
+            'activate pwsh' { 'function Test-MiseActivation { "active" }' }
+            'completion powershell' {
+                'Register-ArgumentCompleter -Native -CommandName mise -ScriptBlock { param($wordToComplete, $commandAst, $cursorPosition) "mise-completion-probe" }'
+            }
+            default { throw "Unexpected mise arguments: $args" }
+        }
+    }
+    function Register-ArgumentCompleter {
+        param([switch] $Native, [string[]] $CommandName, [scriptblock] $ScriptBlock)
+        Assert-Equal $Native.IsPresent $true 'mise must register a native completer'
+        Assert-Equal ($CommandName -join ' ') 'mise' 'mise completer command'
+        $script:miseCompleter = $ScriptBlock
     }
     function oh-my-posh {
         Assert-Equal ($args -join ' ') 'init pwsh' 'Oh My Posh initialization arguments'
@@ -61,6 +72,7 @@ try {
     . ([scriptblock]::Create($loader)) -LocalProfilePath $localProfile
     Assert-Equal $env:DOTFILES_DIR $fixtureRepo 'Loader must handle spaces and quotes in repository paths'
     Assert-Equal (Test-MiseActivation) 'active' 'mise definitions must survive initialization'
+    Assert-Equal (& $script:miseCompleter '' $null 5) 'mise-completion-probe' 'mise completer must be registered'
     Assert-Equal (Test-PoshActivation) 'active' 'Prompt definitions must survive initialization'
     Assert-Equal (Test-ZoxideActivation) 'active' 'zoxide definitions must survive initialization'
     Assert-Equal (gs) 'local override' 'Local configuration must run last'
@@ -74,7 +86,7 @@ try {
         'throw "Failed initializer output must not execute"'
     }
     . $template -LocalProfilePath $localProfile -WarningVariable activationWarnings
-    Assert-Equal ($activationWarnings -match 'mise' | Measure-Object).Count 1 'Failed activation must warn'
+    Assert-Equal ($activationWarnings -match 'mise' | Measure-Object).Count 2 'Failed activation and completion must warn'
     Assert-Equal (gs) 'local override' 'Failed activation must not stop local configuration'
 
     # Test absent tools in the same process without depending on runner installations.

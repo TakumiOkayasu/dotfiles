@@ -107,6 +107,14 @@ else
     compinit -C
 fi
 
+# mise の補完は compdef を使うため compinit の後で登録する。
+if command -v mise &>/dev/null; then
+    _mise_completion="$(mise completion zsh)" && eval "$_mise_completion"
+elif [[ -x "$HOME/.local/bin/mise" ]]; then
+    _mise_completion="$("${HOME}/.local/bin/mise" completion zsh)" && eval "$_mise_completion"
+fi
+unset _mise_completion
+
 # 補完スタイル
 zstyle ':completion:*' menu select                          # メニュー選択
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'         # 大文字小文字を無視
