@@ -25,6 +25,7 @@ function glog { git log --oneline --graph --decorate @args }
 # Evaluate in the profile scope so generated functions/hooks remain available.
 $dotfilesInitializers = @(
     @{ Name = 'mise'; Arguments = @('activate', 'pwsh') }
+    @{ Name = 'mise'; Arguments = @('completion', 'powershell') }
     @{ Name = 'oh-my-posh'; Arguments = @('init', 'pwsh') }
     @{ Name = 'zoxide'; Arguments = @('init', 'powershell') }
 )

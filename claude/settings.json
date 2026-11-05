@@ -177,8 +177,7 @@
     }
   },
   "defaultMode": "auto",
-  "effortLevel": "medium",
-  "fallbackModel": [],
+  "effortLevel": "xhigh",
   "switchModelsOnFlag": false,
   "theme": "auto",
   "inputNeededNotifEnabled": true,

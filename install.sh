@@ -497,7 +497,6 @@ detect_current_shell() {
     case "${SHELL:-}" in
         */bash) echo "bash" ;;
         */zsh)  echo "zsh" ;;
-        */fish) echo "fish" ;;
         *)      echo "bash" ;;
     esac
 }
@@ -506,8 +505,7 @@ get_shell_rc_display() {
     case "$1" in
         bash) echo "$HOME/.bashrc" ;;
         zsh)  echo "$HOME/.zshrc" ;;
-        fish) echo "$HOME/.config/fish/config.fish" ;;
-        all)  echo "$HOME/.bashrc, $HOME/.zshrc, $HOME/.config/fish/config.fish" ;;
+        all)  echo "$HOME/.bashrc, $HOME/.zshrc" ;;
         *)    echo "$HOME/.bashrc" ;;
     esac
 }
@@ -970,19 +968,17 @@ select_shell_type() {
     printf '%sシェル設定を選択:%s\n' "$COLOR_BOLD" "$COLOR_RESET"
     printf '  %s1)%s bash のみ\n' "$COLOR_BOLD" "$COLOR_RESET"
     printf '  %s2)%s zsh のみ\n' "$COLOR_BOLD" "$COLOR_RESET"
-    printf '  %s3)%s fish のみ\n' "$COLOR_BOLD" "$COLOR_RESET"
-    printf '  %s4)%s すべて (bash + zsh + fish)\n' "$COLOR_BOLD" "$COLOR_RESET"
-    printf '  %s5)%s 現在のシェル (%s) のみ\n' "$COLOR_BOLD" "$COLOR_RESET" "$_current_shell"
+    printf '  %s3)%s すべて (bash + zsh)\n' "$COLOR_BOLD" "$COLOR_RESET"
+    printf '  %s4)%s 現在のシェル (%s) のみ\n' "$COLOR_BOLD" "$COLOR_RESET" "$_current_shell"
     echo ""
-    printf "選択 (1-5) [5]: "
+    printf "選択 (1-4) [4]: "
     read -r _choice
 
     case "$_choice" in
         1)    SHELL_TYPE="bash" ;;
         2)    SHELL_TYPE="zsh" ;;
-        3)    SHELL_TYPE="fish" ;;
-        4)    SHELL_TYPE="all" ;;
-        5|"") SHELL_TYPE="$_current_shell" ;;
+        3)    SHELL_TYPE="all" ;;
+        4|"") SHELL_TYPE="$_current_shell" ;;
         *)
             print_error "無効な選択です。現在のシェルを使用します"
             SHELL_TYPE="$_current_shell"
@@ -1035,9 +1031,6 @@ install_shell_full() {
         zsh)
             add_shell_full_stow_specs "$_spec_file" zsh
             ;;
-        fish)
-            add_shell_full_stow_specs "$_spec_file" fish
-            ;;
         all)
             add_shell_full_stow_specs "$_spec_file" all
             ;;
@@ -1062,12 +1055,6 @@ add_shell_full_stow_specs() {
             stow_specs_add "$_spec_file" "config/shell/zsh/zshrc" ".zshrc"
             stow_specs_add "$_spec_file" "config/shell/zsh/zprofile" ".zprofile"
             stow_specs_add "$_spec_file" "config/shell/zsh/macos.zprofile" ".zsh/macos.zprofile"
-            ;;
-    esac
-
-    case "$_shell" in
-        fish|all)
-            stow_specs_add "$_spec_file" "config/shell/fish/config.fish" ".config/fish/config.fish"
             ;;
     esac
 }
@@ -1116,12 +1103,6 @@ inject_source_block() {
     _inject_source_with_line "$1" '[ -f "$HOME/.shell_common" ] && . "$HOME/.shell_common"'
 }
 
-inject_source_block_fish() {
-    # shellcheck disable=SC2016 # write the literal source command into the rc file
-    _inject_source_with_line "$1" 'bass source "$HOME/.shell_common"'
-    print_info "注意: fishでは bass プラグインが必要です (fisher install edc/bass)"
-}
-
 remove_source_block() {
     _target_rc="$1"
     [ -f "$_target_rc" ] || return 0
@@ -1157,15 +1138,9 @@ install_shell_append() {
     case "$SHELL_TYPE" in
         bash) inject_source_block "${HOME}/.bashrc" ;;
         zsh)  inject_source_block "${HOME}/.zshrc" ;;
-        fish)
-            ensure_dir "${HOME}/.config/fish"
-            inject_source_block_fish "${HOME}/.config/fish/config.fish"
-            ;;
         all)
             inject_source_block "${HOME}/.bashrc"
             inject_source_block "${HOME}/.zshrc"
-            ensure_dir "${HOME}/.config/fish"
-            inject_source_block_fish "${HOME}/.config/fish/config.fish"
             ;;
     esac
 }
@@ -1770,16 +1745,12 @@ _preview_shell() {
                     printf "    + config/shell/zsh/zprofile -> ~/.zprofile\n"
                     printf "    + config/shell/zsh/macos.zprofile -> ~/.zsh/macos.zprofile\n"
                     ;;
-                fish)
-                    printf "    + config/shell/fish/config.fish -> ~/.config/fish/config.fish\n"
-                    ;;
                 all)
                     printf "    + config/shell/bash/bashrc -> ~/.bashrc\n"
                     printf "    + config/shell/bash/bash_profile -> ~/.bash_profile\n"
                     printf "    + config/shell/zsh/zshrc -> ~/.zshrc\n"
                     printf "    + config/shell/zsh/zprofile -> ~/.zprofile\n"
                     printf "    + config/shell/zsh/macos.zprofile -> ~/.zsh/macos.zprofile\n"
-                    printf "    + config/shell/fish/config.fish -> ~/.config/fish/config.fish\n"
                     ;;
             esac
             ;;
@@ -1789,8 +1760,7 @@ _preview_shell() {
             case "$SHELL_TYPE" in
                 bash) printf "    → ~/.bashrc にsource行を自動挿入\n" ;;
                 zsh)  printf "    → ~/.zshrc にsource行を自動挿入\n" ;;
-                fish) printf "    → ~/.config/fish/config.fish にsource行を自動挿入\n" ;;
-                all)  printf "    → ~/.bashrc, ~/.zshrc, ~/.config/fish/config.fish にsource行を自動挿入\n" ;;
+                all)  printf "    → ~/.bashrc, ~/.zshrc にsource行を自動挿入\n" ;;
             esac
             ;;
     esac
@@ -1915,7 +1885,7 @@ dotfiles インストーラー - dotfilesのシンボリックリンクを作成
     -u, --uninstall     作成したシンボリックリンクを削除
 
 カテゴリ:
-    shell   シェル設定 (bash/zsh/fish 選択可能)
+    shell   シェル設定 (bash/zsh 選択可能)
     git     Git設定(.gitconfig.work/private, .git-completion.bash等)
     vim     Vim設定(.vimrc)
     bin     CLIツール (git-new-feature等 → ~/.local/bin/)

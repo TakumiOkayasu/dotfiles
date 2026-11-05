@@ -45,7 +45,7 @@ PATH上にある `mise`, `oh-my-posh`, `zoxide` はこの順に自動初期化�
 
 | ディレクトリ | 配置先 | 内容 |
 | --- | --- | --- |
-| `config/shell/` | `~/`, `$PROFILE.CurrentUserAllHosts` | bash/zsh/fish設定、共通aliases/env、PowerShell雛形 |
+| `config/shell/` | `~/`, `$PROFILE.CurrentUserAllHosts` | bash/zsh設定、共通aliases/env、PowerShell雛形 |
 | `config/git/` | `~/`, `~/.config/git/` | Git設定、補完、global ignore、attributes |
 | `config/vim/` | `~/` | .vimrc |
 | `claude/` | `~/.claude/` | Claude Code固有の入力 (agent, hook, settings) |
@@ -75,7 +75,7 @@ PATH上にある `mise`, `oh-my-posh`, `zoxide` はこの順に自動初期化�
 
 `.ai/` はglobal gitignore対象で、元projectのrepositoryにはcommitしない。cross-project collectorは `~/prog/` 直下の各projectから `.ai/` だけを収集し、`.claude/`, `.codex/`, `claude_tmp/`, `codex_tmp/` を直接exportしない。各runtimeの有用な発見は、必要な要点だけ `.ai/inbox/` へharvestしてから共有する。
 
-Shell の `ni` / `nr` / `ns` / `nt` は Bash/Zsh では pnpm, Fish では npm を呼ぶ. shell を切り替えると package manager が変わるため, 必要なら各 shell の local 設定で override する.
+Bash/Zsh の `ni` / `nr` / `ns` / `nt` は pnpm を呼ぶ。必要なら各 shell の local 設定で override する。Fish 設定は配布しない。
 
 ### Cross-project knowledge sync
 

@@ -115,6 +115,7 @@ fi
 # mise
 if command -v mise >/dev/null 2>&1; then
     __bashrc_eval_output mise activate bash
+    __bashrc_eval_output mise completion bash
     shopt -s checkhash 2>/dev/null || true
 fi
 
