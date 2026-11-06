@@ -71,7 +71,7 @@ if [ "${USE_VCXSRV:-0}" = "1" ]; then
     _wsl_host_ip="$(ip route show default 2>/dev/null | awk '{print $3}')"
     export DISPLAY="${_wsl_host_ip}:0"
     unset _wsl_host_ip
-elif [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ]; then
+elif [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
     # WSLg が無効な場合のフォールバック
     if grep -qi "microsoft.*WSL2" /proc/version 2>/dev/null; then
         _wsl_ns_ip="$(grep nameserver /etc/resolv.conf | awk '{print $2}')"
@@ -97,7 +97,7 @@ if command -v gsettings >/dev/null 2>&1; then
     gsettings set org.gnome.desktop.interface cursor-theme Adwaita 2>/dev/null
 fi
 # X11: Xリソースでカーソルサイズを指定 (GTK4設定ファイルと併用)
-if command -v xrdb >/dev/null 2>&1 && [ -n "$DISPLAY" ]; then
+if command -v xrdb >/dev/null 2>&1 && [ -n "${DISPLAY:-}" ]; then
     echo "Xcursor.size: 24" | xrdb -merge 2>/dev/null
 fi
 
