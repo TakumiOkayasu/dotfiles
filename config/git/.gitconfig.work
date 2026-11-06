@@ -1,7 +1,4 @@
-# Git設定 - 仕事用
-
-[include]
-    path = ~/.gitconfig.common
+# Git設定 - 仕事用 (install.sh が .gitconfig.common の後ろに結合する)
 
 [user]
     email = t.okayasu@twb.jp
@@ -13,3 +10,11 @@
     quotePath = false
 [push]
 	autoSetupRemote = true
+
+[credential "https://github.com"]
+	helper = 
+	helper = !~/.local/share/mise/shims/gh auth git-credential
+
+[credential "https://gist.github.com"]
+	helper =
+	helper = !~/.local/share/mise/shims/gh auth git-credential

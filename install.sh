@@ -766,30 +766,38 @@ cleanup_legacy_git_artifacts() {
 
 install_gitignore() {
     [ -z "$GITCONFIG_VARIANT" ] && return 0
+    _install_merged_file \
+        "${DOTFILES_DIR}/config/git/.gitignore.common" \
+        "${DOTFILES_DIR}/config/git/.gitignore.${GITCONFIG_VARIANT}" \
+        "${HOME}/.config/git/ignore"
+}
 
-    _target="${HOME}/.config/git/ignore"
-    _base="${DOTFILES_DIR}/config/git/.gitignore.common"
-    _variant="${DOTFILES_DIR}/config/git/.gitignore.${GITCONFIG_VARIANT}"
+# base + variant を結合した実体ファイルを target に置く。
+# 内容が一致すれば何もしない。既存の実体はバックアップし、リンクは置き換える。
+_install_merged_file() {
+    _base="$1"
+    _variant="$2"
+    _target="$3"
 
     if [ "$MODE_DRY_RUN" = "true" ]; then
         printf "%s[DRY-RUN]%s Would create: %s (base + %s)\n" "$COLOR_YELLOW" "$COLOR_RESET" "$_target" "$GITCONFIG_VARIANT"
         return 0
     fi
 
-    _gitignore_validate_variant "$_variant" || return 1
-    ensure_dir "${HOME}/.config/git" || return 1
-    _gitignore_target_matches_merged "$_base" "$_variant" "$_target" && return 0
-    _gitignore_backup_existing "$_target"
-    _gitignore_merge_and_write "$_base" "$_variant" "$_target"
+    _merged_validate_variant "$_variant" || return 1
+    ensure_dir "$(dirname "$_target")" || return 1
+    _merged_target_matches "$_base" "$_variant" "$_target" && return 0
+    _merged_backup_existing "$_target"
+    _merged_write "$_base" "$_variant" "$_target"
 }
 
-_gitignore_validate_variant() {
+_merged_validate_variant() {
     [ -f "$1" ] && return 0
     printf "%s[ERROR]%s variant not found: %s\n" "$COLOR_RED" "$COLOR_RESET" "$1"
     return 1
 }
 
-_gitignore_target_matches_merged() {
+_merged_target_matches() {
     _base="$1"
     _variant="$2"
     _target="$3"
@@ -802,7 +810,7 @@ _gitignore_target_matches_merged() {
     cmp -s "$_merged" "$_target"
 }
 
-_gitignore_backup_existing() {
+_merged_backup_existing() {
     _target="$1"
     [ -f "$_target" ] || [ -L "$_target" ] || return 0
 
@@ -815,35 +823,24 @@ _gitignore_backup_existing() {
     fi
 }
 
-_gitignore_merge_and_write() {
+_merged_write() {
     cat "$1" "$2" > "$3"
     printf "%s[CREATE]%s %s (base + %s)\n" "$COLOR_GREEN" "$COLOR_RESET" "$3" "$GITCONFIG_VARIANT"
 }
 
-install_gitconfig_common() {
+# 旧方式 (~/.gitconfig.common のコピーを variant から include) の残骸を除去する。
+# 正本と同一のコピーとdotfilesリンクだけを消し、編集済みの実体は残す。
+remove_legacy_gitconfig_common() {
     _target="${HOME}/.gitconfig.common"
-    _source="${DOTFILES_DIR}/config/git/.gitconfig.common"
-
-    if [ "$MODE_DRY_RUN" = "true" ]; then
-        printf "%s[DRY-RUN]%s Would create: %s (copy)\n" "$COLOR_YELLOW" "$COLOR_RESET" "$_target"
-        return 0
-    fi
-
-    ensure_dir "$(dirname "$_target")" || return 1
-    if [ -f "$_target" ] && [ ! -L "$_target" ] && cmp -s "$_source" "$_target"; then
-        return 0
-    fi
-
-    if [ -L "$_target" ]; then
+    if [ -f "$_target" ] && [ ! -L "$_target" ] \
+        && cmp -s "${DOTFILES_DIR}/config/git/.gitconfig.common" "$_target"; then
         rm "$_target"
-    elif [ -e "$_target" ]; then
-        _backup=$(next_backup_path "$_target")
-        mv "$_target" "$_backup"
-        printf "%s[BACKUP]%s %s -> %s\n" "$COLOR_YELLOW" "$COLOR_RESET" "$_target" "$_backup"
+        printf "%s[REMOVE]%s %s (旧gitconfig.commonコピー)\n" "$COLOR_RED" "$COLOR_RESET" "$_target"
+    elif [ -e "$_target" ] || [ -L "$_target" ]; then
+        remove_dotfiles_link "$_target" "旧gitconfig.commonリンク"
+        [ -f "$_target" ] && print_info "残骸の可能性: ${_target} (現在は参照されない)。不要なら手動削除してください"
     fi
-
-    cp "$_source" "$_target"
-    printf "%s[CREATE]%s %s (copy)\n" "$COLOR_GREEN" "$COLOR_RESET" "$_target"
+    return 0
 }
 
 uninstall_gitconfig_common() {
@@ -900,22 +897,26 @@ select_gitconfig_variant() {
     print_success ".gitconfig: ${GITCONFIG_VARIANT} を選択しました"
 }
 
+# ~/.gitconfig は common + variant を結合した実体ファイルにする。
+# リンクにすると `git config --global` の書込みが repo の正本へ流れ込むため。
 install_gitconfig() {
     [ -z "$GITCONFIG_VARIANT" ] && return 0
-    install_gitconfig_common || return 1
-
-    new_stow_specs_file
-    _spec_file="$_stow_specs_file"
-    stow_specs_add "$_spec_file" "config/git/.gitconfig.${GITCONFIG_VARIANT}" ".gitconfig"
-    install_stow_specs_file "gitconfig" "$_spec_file"
+    [ "$MODE_DRY_RUN" = "true" ] || remove_legacy_gitconfig_common
+    _install_merged_file \
+        "${DOTFILES_DIR}/config/git/.gitconfig.common" \
+        "${DOTFILES_DIR}/config/git/.gitconfig.${GITCONFIG_VARIANT}" \
+        "${HOME}/.gitconfig"
 }
 
 uninstall_gitconfig() {
     _variant="${GITCONFIG_VARIANT:-work}"
-    new_stow_specs_file
-    _spec_file="$_stow_specs_file"
-    stow_specs_add "$_spec_file" "config/git/.gitconfig.${_variant}" ".gitconfig"
-    uninstall_stow_specs_file "gitconfig" "$_spec_file"
+    # 旧方式 (stow link + ~/.gitconfig.common コピー) で配置済みの環境を片付ける
+    if [ -L "${HOME}/.gitconfig" ]; then
+        new_stow_specs_file
+        _spec_file="$_stow_specs_file"
+        stow_specs_add "$_spec_file" "config/git/.gitconfig.${_variant}" ".gitconfig"
+        uninstall_stow_specs_file "gitconfig" "$_spec_file"
+    fi
 
     uninstall_gitconfig_common
     _target=$(readlink "${HOME}/.gitconfig" 2>/dev/null) || true
@@ -923,6 +924,30 @@ uninstall_gitconfig() {
         */.gitconfig.work)    remove_link "config/git/.gitconfig.work"    "${HOME}/.gitconfig" ;;
         */.gitconfig.private) remove_link "config/git/.gitconfig.private" "${HOME}/.gitconfig" ;;
     esac
+
+    _uninstall_merged_gitconfig \
+        "${DOTFILES_DIR}/config/git/.gitconfig.common" \
+        "${DOTFILES_DIR}/config/git/.gitconfig.${_variant}" \
+        "${HOME}/.gitconfig"
+}
+
+# 生成時から変更のない ~/.gitconfig だけを削除する。
+# `git config --global` で追記された値を失わないよう、差分があれば残す。
+_uninstall_merged_gitconfig() {
+    _target="$3"
+    [ -f "$_target" ] && [ ! -L "$_target" ] || return 0
+
+    if ! _merged_target_matches "$1" "$2" "$_target"; then
+        print_info "${_target} は生成後に変更されているため残します。不要なら手動削除してください"
+        return 0
+    fi
+
+    rm "$_target"
+    printf "%s[REMOVE]%s %s\n" "$COLOR_RED" "$COLOR_RESET" "$_target"
+    if [ -f "${_target}.bak" ]; then
+        mv "${_target}.bak" "$_target"
+        printf "%s[RESTORE]%s %s.bak -> %s\n" "$COLOR_GREEN" "$COLOR_RESET" "$_target" "$_target"
+    fi
 }
 
 # ============================================================================
@@ -1773,8 +1798,7 @@ _preview_git() {
     printf "    + config/git/.git-prompt.sh -> ~/.git-prompt.sh\n"
     printf "    + config/git/.gitattributes -> ~/.config/git/attributes\n"
     if [ -n "$GITCONFIG_VARIANT" ]; then
-        printf "    + config/git/.gitconfig.common => ~/.gitconfig.common (copy)\n"
-        printf "    + config/git/.gitconfig.%s -> ~/.gitconfig\n" "$GITCONFIG_VARIANT"
+        printf "    + config/git/.gitconfig.common + .gitconfig.%s -> ~/.gitconfig\n" "$GITCONFIG_VARIANT"
         printf "    + config/git/.gitignore.common + .gitignore.%s -> ~/.config/git/ignore\n" "$GITCONFIG_VARIANT"
     fi
     echo ""

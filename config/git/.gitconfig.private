@@ -1,7 +1,4 @@
-# Git設定 - プライベート用
-
-[include]
-    path = ~/.gitconfig.common
+# Git設定 - プライベート用 (install.sh が .gitconfig.common の後ろに結合する)
 
 [user]
     email = takumi_okys@icloud.com

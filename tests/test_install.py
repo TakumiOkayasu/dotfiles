@@ -208,6 +208,15 @@ class TestShellInitialization:
             in result.stdout
         )
 
+    # common.sh はカーネル情報で WSL を判定するため、WSL2 上の Docker では非WSLを再現できない
+    @pytest.mark.skipif(
+        Path("/proc/sys/fs/binfmt_misc/WSLInterop").exists()
+        or (
+            Path("/proc/version").is_file()
+            and "microsoft" in Path("/proc/version").read_text(encoding="utf-8").lower()
+        ),
+        reason="host kernel is WSL; non-WSL platform cannot be reproduced",
+    )
     def test_bash_does_not_export_windows_profile_outside_wsl(
         self, tmp_path: Path
     ) -> None:
@@ -290,6 +299,32 @@ class TestPortableShellConfiguration:
 
         assert result.returncode == 0, result.stderr
         assert result.stdout.startswith(f"{REPO_ROOT}:")
+
+    @pytest.mark.parametrize("shell", ("/bin/bash", "/usr/bin/zsh"))
+    def test_wsl_platform_initializes_with_nounset_without_display(
+        self, tmp_path: Path, shell: str
+    ) -> None:
+        """WSL判定時、DISPLAY/WAYLAND_DISPLAY未設定でも set -u で初期化が止まらない"""
+        home = tmp_path / "home"
+        home.mkdir()
+        env = os.environ.copy()
+        for variable in (
+            "DOTFILES_LOADED", "DOTFILES_DIR", "EDITOR", "VISUAL",
+            "DISPLAY", "WAYLAND_DISPLAY", "USE_VCXSRV",
+        ):
+            env.pop(variable, None)
+        env.update({"HOME": str(home), "PATH": "/usr/bin:/bin", "WSL_DISTRO_NAME": "Ubuntu"})
+
+        result = subprocess.run(
+            [shell, "-c", f'set -u; . "{COMMON_SH}"; printf "%s\\n" "$DOTFILES_PLATFORM"'],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines()[-1] == "wsl"
 
     def test_ssh_agent_replaces_incomplete_saved_environment_with_nounset(
         self, tmp_path: Path
@@ -2292,26 +2327,45 @@ class TestIntegrationInstallUninstall:
             REPO_ROOT / "config" / "git" / ".gitattributes",
         )
 
-    def test_install_creates_gitconfig_file_and_variant_symlink(
+    def test_install_merges_gitconfig_common_and_variant_into_one_file(
         self, tmp_path: Path
     ) -> None:
-        """gitconfig common は実体ファイル、variant は stow link で配置される"""
+        """~/.gitconfig は common + variant を結合した実体ファイルで、~/.gitconfig.common に依存しない"""
         home = tmp_path / "home"
         home.mkdir()
         result = _run_install_sh(REPO_ROOT, home)
 
         assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
-        common = home / ".gitconfig.common"
-        assert common.is_file()
-        assert not common.is_symlink()
-        assert common.read_text() == (
-            REPO_ROOT / "config" / "git" / ".gitconfig.common"
-        ).read_text()
-        _assert_generated_stow_link(
-            home / ".gitconfig",
-            REPO_ROOT / ".stow-work" / "gitconfig" / ".gitconfig",
-            REPO_ROOT / "config" / "git" / ".gitconfig.work",
+        gitconfig = home / ".gitconfig"
+        assert gitconfig.is_file()
+        assert not gitconfig.is_symlink()
+        git_dir = REPO_ROOT / "config" / "git"
+        assert gitconfig.read_text(encoding="utf-8") == (
+            (git_dir / ".gitconfig.common").read_text(encoding="utf-8")
+            + (git_dir / ".gitconfig.work").read_text(encoding="utf-8")
         )
+        assert not (home / ".gitconfig.common").exists()
+
+        def git_get(key: str) -> str:
+            return subprocess.run(
+                ["git", "config", "--file", str(gitconfig), "--get", key],
+                capture_output=True, text=True, timeout=10, check=True,
+            ).stdout.strip()
+
+        assert git_get("alias.s") == "status"
+        assert git_get("user.email") == "t.okayasu@twb.jp"
+
+    def test_uninstall_removes_merged_gitconfig(self, tmp_path: Path) -> None:
+        """uninstall 後に生成した ~/.gitconfig が残らない"""
+        home = tmp_path / "home"
+        home.mkdir()
+        _run_install_sh(REPO_ROOT, home)
+
+        result = _run_install_sh(REPO_ROOT, home, uninstall=True)
+
+        assert result.returncode == 0, f"uninstall failed:\n{result.stdout}\n{result.stderr}"
+        assert not (home / ".gitconfig").exists()
+        assert not (home / ".gitconfig").is_symlink()
 
     def test_install_creates_vim_symlink_from_stow_package(
         self, tmp_path: Path
