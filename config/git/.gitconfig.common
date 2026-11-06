@@ -1,5 +1,5 @@
 # Git共通設定
-# work/privateの.gitconfigから include で読み込む
+# install.sh が .gitconfig.work / .gitconfig.private と結合して ~/.gitconfig を生成する
 
 [user]
     name = TakumiOkayasu

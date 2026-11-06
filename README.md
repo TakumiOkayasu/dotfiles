@@ -164,12 +164,12 @@ Git設定は環境別設定と共通設定を分けて配置する。
 
 | 配置先 | 形式 | 生成元 |
 | --- | --- | --- |
-| `~/.gitconfig` | シンボリックリンク | Linux/WSLでは `config/git/.gitconfig.work`、macOSでは `config/git/.gitconfig.private` |
-| `~/.gitconfig.common` | 通常ファイル | `config/git/.gitconfig.common` のコピー |
+| `~/.gitconfig` | 通常ファイル | `config/git/.gitconfig.common` と環境別variant (Linux/WSLでは `.gitconfig.work`、macOSでは `.gitconfig.private`) の結合 |
 | `~/.config/git/ignore` | 通常ファイル | `config/git/.gitignore.common` と環境別variantの結合 |
 | `~/.config/git/attributes` | シンボリックリンク | `config/git/.gitattributes` |
 
-`~/.gitconfig` は `~/.gitconfig.common` をincludeする。common設定とglobal ignoreはcopy/生成ファイルなので、正本を変更した後は `./install.sh` を再実行して反映する。
+`~/.gitconfig` とglobal ignoreは生成ファイルなので、正本を変更した後は `./install.sh` を再実行して反映する。
+`git config --global` の書込みは生成された `~/.gitconfig` に入り、正本には戻らない。端末固有の値は `~/.gitconfig.local` に置く。
 
 ### 共有repositoryのsafe.directory
 
