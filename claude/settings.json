@@ -7,11 +7,7 @@
   },
   "includeCoAuthoredBy": false,
   "permissions": {
-    "allow": [
-      "Bash",
-      "Read",
-      "WebFetch"
-    ],
+    "allow": ["Bash", "Read", "WebFetch"],
     "deny": [
       "Read(**/*.env)",
       "Read(**/*.pem)",
@@ -20,7 +16,9 @@
       "Bash(git commit *)",
       "Bash(git push *)",
       "Bash(rm -rf *)",
-      "Bash(rm -f *)"
+      "Bash(rm -f *)",
+      "Bash(rm *)",
+      "Bash(**/*.env*)"
     ]
   },
   "hooks": {
@@ -154,14 +152,20 @@
   "extraKnownMarketplaces": {
     "claude-plugins-official": {
       "source": {
-        "source": "git",
-        "url": "git@github.com:anthropics/claude-plugins-official.git"
+        "source": "github",
+        "url": "anthropics/claude-plugins-official"
       }
     },
     "openai-codex": {
       "source": {
         "source": "github",
         "repo": "openai/codex-plugin-cc"
+      }
+    },
+    "cloudflare-security-audit": {
+      "source": {
+        "source": "github",
+        "repo": "cloudflare/security-audit-skill"
       }
     }
   },
@@ -170,10 +174,7 @@
     "enabled": true,
     "allowUnsandboxedCommands": false,
     "filesystem": {
-      "allowWrite": [
-        "$HOME/.claude/plugins/data",
-        "$HOME/.codex"
-      ]
+      "allowWrite": ["$HOME/.claude/plugins/data", "$HOME/.codex"]
     }
   },
   "defaultMode": "auto",
@@ -182,5 +183,7 @@
   "theme": "auto",
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "outputStyle": "Concise",
+  "spinnerTipsEnabled": false
 }
