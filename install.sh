@@ -1120,7 +1120,9 @@ _ensure_trailing_newline() {
     _file="$1"
     [ -s "$_file" ] || return 0
     _tail=$(tail -c 1 "$_file" 2>/dev/null | wc -l)
-    [ "$_tail" -eq 0 ] && printf '\n' >> "$_file"
+    if [ "$_tail" -eq 0 ]; then
+        printf '\n' >> "$_file"
+    fi
 }
 
 inject_source_block() {
