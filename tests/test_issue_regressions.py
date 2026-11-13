@@ -9,6 +9,8 @@ import re
 import subprocess
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 GENERATED_CODEX = REPO_ROOT / ".generated" / "ai-assets" / "codex"
 INSTALL_SH = REPO_ROOT / "install.sh"
@@ -17,9 +19,7 @@ CODEX_HOOK_DISPATCHER = REPO_ROOT / "codex" / "hooks" / "hook-dispatcher.sh"
 CLAUDE_METHODOLOGY_HOOK = (
     REPO_ROOT / "claude" / "hooks" / "methodology-skill-reminder.sh"
 )
-CODEX_METHODOLOGY_HOOK = (
-    REPO_ROOT / "codex" / "hooks" / "methodology-skill-reminder.sh"
-)
+CODEX_METHODOLOGY_HOOK = REPO_ROOT / "codex" / "hooks" / "methodology-skill-reminder.sh"
 CCSTATUSLINE_UPDATER = REPO_ROOT / ".github" / "workflows" / "update-ccstatusline.yml"
 GH_REPO_AUTO_SETUP_HOOK = REPO_ROOT / "claude" / "hooks" / "gh-repo-auto-setup.sh"
 COMMON_AUDIT_SKILL = (
@@ -29,11 +29,7 @@ CODEX_AUDIT_SKILL = (
     GENERATED_CODEX / "skills" / "instruction-surface-audit" / "SKILL.md"
 )
 CODEX_AUDIT_METADATA = (
-    GENERATED_CODEX
-    / "skills"
-    / "instruction-surface-audit"
-    / "agents"
-    / "openai.yaml"
+    GENERATED_CODEX / "skills" / "instruction-surface-audit" / "agents" / "openai.yaml"
 )
 CLAUDE_CODE_REVIEWER = REPO_ROOT / "claude" / "agents" / "code-reviewer.md"
 CODEX_CODE_REVIEWER = REPO_ROOT / "codex" / "agents" / "code_reviewer.toml"
@@ -53,6 +49,7 @@ EXPLICIT_ONLY_SKILLS = (
 )
 
 
+@pytest.mark.usefixtures("generate_install_time_ai_assets")
 def test_session_memory_policy_name_and_runtime_paths_match_generated_views() -> None:
     """Both runtimes receive the current policy and their own failure-log paths."""
     common_rule = REPO_ROOT / "common" / "rules" / "session-memory.md"
@@ -88,6 +85,7 @@ def test_session_memory_policy_name_and_runtime_paths_match_generated_views() ->
         assert "opus-47-policy.md" not in content, relative
 
 
+@pytest.mark.usefixtures("generate_install_time_ai_assets")
 def test_global_output_style_limits_workflow_to_applicable_tasks() -> None:
     """Installed defaults preserve concise answers without mandatory extra work."""
     for path in (
@@ -112,6 +110,7 @@ def test_uninstall_before_install_returns_zero(tmp_path: Path) -> None:
 
     result = subprocess.run(
         ["sh", str(INSTALL_SH), "-u", "-f"],
+        check=False,
         cwd=REPO_ROOT,
         env=env,
         capture_output=True,
@@ -142,6 +141,7 @@ def test_uninstall_preserves_unmanaged_symlinks(tmp_path: Path) -> None:
     env = {**os.environ, "HOME": str(home)}
     result = subprocess.run(
         ["sh", str(INSTALL_SH), "-u", "-f"],
+        check=False,
         cwd=REPO_ROOT,
         env=env,
         capture_output=True,
@@ -176,6 +176,7 @@ def test_ccstatusline_tracks_latest_without_an_update_bot() -> None:
     assert not CCSTATUSLINE_UPDATER.exists()
 
 
+@pytest.mark.usefixtures("generate_install_time_ai_assets")
 def test_instruction_surface_audit_is_explicit_and_ported() -> None:
     """The audit must remain read-only, explicit, and generated from common."""
     common = COMMON_AUDIT_SKILL.read_text(encoding="utf-8")
@@ -186,8 +187,7 @@ def test_instruction_surface_audit_is_explicit_and_ported() -> None:
     assert "disable-model-invocation: true" in common
     assert "This audit is read-only." in common
     assert (
-        "codex-port: managed; "
-        "source=common/skills/instruction-surface-audit/SKILL.md"
+        "codex-port: managed; source=common/skills/instruction-surface-audit/SKILL.md"
     ) in codex
     assert "allow_implicit_invocation: false" in metadata
 
@@ -245,29 +245,46 @@ def test_referent_rule_does_not_require_generation_ceremony() -> None:
     assert "本文を破棄" not in rule
 
 
+@pytest.mark.usefixtures("generate_install_time_ai_assets")
 def test_review_skills_keep_fixed_reports_after_audit() -> None:
     """Source and generated Codex views retain the established report contract."""
     cases = {
-        "bug-hunt": ("## 確定バグ", "## 検証内容", "## 調査範囲", "CRITICAL", "HIGH", "MEDIUM", "LOW"),
+        "bug-hunt": (
+            "## 確定バグ",
+            "## 検証内容",
+            "## 調査範囲",
+            "CRITICAL",
+            "HIGH",
+            "MEDIUM",
+            "LOW",
+        ),
         "test-coverage-guard": (
-            "### 🔴 要修正", "### 🟡 改善推奨", "### 🟢 問題なし", "### 📊 サマリー",
+            "### 🔴 要修正",
+            "### 🟡 改善推奨",
+            "### 🟢 問題なし",
+            "### 📊 サマリー",
         ),
     }
     for name, required in cases.items():
-        source = (REPO_ROOT / "common" / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
-        generated = (GENERATED_CODEX / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        source = (REPO_ROOT / "common" / "skills" / name / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        generated = (GENERATED_CODEX / "skills" / name / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
         assert f"source=common/skills/{name}/SKILL.md" in generated
         for label in required:
             assert label in source, (name, label)
             assert label in generated, (name, label)
 
 
+@pytest.mark.usefixtures("generate_install_time_ai_assets")
 def test_test_coverage_guard_delegations_resolve_in_shared_and_codex_catalogs() -> None:
     """Named delegation targets must be available in both distributed catalogs."""
     source = TEST_COVERAGE_GUARD.read_text(encoding="utf-8")
-    codex = (
-        GENERATED_CODEX / "skills" / "test-coverage-guard" / "SKILL.md"
-    ).read_text(encoding="utf-8")
+    codex = (GENERATED_CODEX / "skills" / "test-coverage-guard" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
 
     delegated_from_non_target = set(re.findall(r"→ `([a-z0-9-]+)`", source))
     related_section = source.split("## 関連スキルとの連携", maxsplit=1)[1]

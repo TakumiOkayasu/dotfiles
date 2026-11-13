@@ -10,7 +10,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 GENERATOR = REPO_ROOT / "scripts" / "generate-ai-assets.py"
 ASSET_MANIFEST_NAME = "ai-assets-manifest.json"
@@ -27,6 +26,9 @@ def copy_repository(destination: Path) -> Path:
             ".stow-work",
             "plugins",
             "__pycache__",
+            ".venv",
+            ".pytest_cache",
+            ".ruff_cache",
         ),
     )
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
@@ -54,6 +56,7 @@ def run_generator(repo: Path) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         text=True,
         timeout=60,
+        check=False,
     )
 
 
@@ -288,6 +291,7 @@ class TestGenerateAiAssets(unittest.TestCase):
                 ["sh", str(repo / "install.sh"), "-f"],
                 cwd=repo,
                 env={**os.environ, "HOME": str(home)},
+                check=False,
                 capture_output=True,
                 text=True,
                 timeout=60,
@@ -319,6 +323,7 @@ class TestGenerateAiAssets(unittest.TestCase):
                     capture_output=True,
                     text=True,
                     timeout=60,
+                    check=False,
                 )
                 self.assertEqual(listed.returncode, 0, listed.stderr)
                 specs = [line.split(":", 1) for line in listed.stdout.splitlines()]

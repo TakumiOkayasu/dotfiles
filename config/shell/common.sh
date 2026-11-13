@@ -1,7 +1,7 @@
 #!/bin/sh
 # config/shell/common.sh - 全シェル共通設定 (POSIX互換)
 #
-# 読み込み元: bashrc, zshrc, config.fish (bass経由)
+# 読み込み元: bashrc, zshrc
 # 内容: PATH, 環境変数, プラットフォーム検出
 #
 # 注意: POSIX sh 互換を維持すること
@@ -203,21 +203,20 @@ elif command -v vi >/dev/null 2>&1; then
 fi
 export VISUAL="${EDITOR:-}"
 
-# ロケール
-export LANG="${LANG:-ja_JP.UTF-8}"
-export LC_ALL="${LC_ALL:-ja_JP.UTF-8}"
-export LC_CTYPE="${LC_CTYPE:-ja_JP.UTF-8}"
-export LC_NUMERIC="${LC_NUMERIC:-ja_JP.UTF-8}"
-export LC_TIME="${LC_TIME:-ja_JP.UTF-8}"
-export LC_COLLATE="${LC_COLLATE:-ja_JP.UTF-8}"
-export LC_MONETARY="${LC_MONETARY:-ja_JP.UTF-8}"
-export LC_MESSAGES="${LC_MESSAGES:-ja_JP.UTF-8}"
-export LC_PAPER="${LC_PAPER:-ja_JP.UTF-8}"
-export LC_NAME="${LC_NAME:-ja_JP.UTF-8}"
-export LC_ADDRESS="${LC_ADDRESS:-ja_JP.UTF-8}"
-export LC_TELEPHONE="${LC_TELEPHONE:-ja_JP.UTF-8}"
-export LC_MEASUREMENT="${LC_MEASUREMENT:-ja_JP.UTF-8}"
-export LC_IDENTIFICATION="${LC_IDENTIFICATION:-ja_JP.UTF-8}"
+# LC_* は利用者の指定を保ち、LANG 未設定時だけ導入済みの locale を選ぶ。
+# LC_ALL を常設すると LANG やカテゴリ別の設定が効かなくなる。
+if [ -z "${LANG:-}" ]; then
+    _dotfiles_locales="$(locale -a 2>/dev/null)"
+    if printf '%s\n' "$_dotfiles_locales" | grep -Eqi '^ja_JP\.utf-?8$'; then
+        LANG=ja_JP.UTF-8
+    elif printf '%s\n' "$_dotfiles_locales" | grep -Eqi '^C\.utf-?8$'; then
+        LANG=C.UTF-8
+    else
+        LANG=C
+    fi
+    unset _dotfiles_locales
+fi
+export LANG
 
 # ページャー
 export PAGER="less"

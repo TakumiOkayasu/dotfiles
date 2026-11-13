@@ -61,6 +61,11 @@ services:
     entrypoint: ["sh", "/workspace/tests/test_shell_lint.sh"]
     volumes:
       - ..:/workspace:ro
+  shell-test:
+    build:
+      context: ..
+      dockerfile: tests/Dockerfile.install
+    entrypoint: ["python", "-m", "pytest", "tests/test_shell_startup.py", "tests/test_shell_completion.py", "tests/test_shell_harness.py", "-q", "--durations=5"]
   install-test:
     build:
       context: ..

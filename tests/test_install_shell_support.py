@@ -7,22 +7,10 @@ from pathlib import Path
 
 import pytest
 
+from tests.install_helpers import run_installer_functions
+
 ROOT = Path(__file__).resolve().parent.parent
 
-
-def run_installer_functions(
-    tmp_path: Path, commands: str, *, input_text: str = "",
-    shell: str = "/bin/bash", interpreter: str = "sh",
-) -> subprocess.CompletedProcess[str]:
-    home = tmp_path / "home"
-    home.mkdir(exist_ok=True)
-    library = (ROOT / "install.sh").read_text().rsplit('\nmain "$@"', 1)[0]
-    runner = tmp_path / "install.sh"
-    runner.write_text(library + f'\nDOTFILES_DIR="{ROOT}"\n' + commands + "\n")
-    return subprocess.run(
-        [interpreter, str(runner)], input=input_text, capture_output=True, text=True,
-        env={**os.environ, "HOME": str(home), "SHELL": shell}, check=False,
-    )
 
 
 def test_fish_login_uses_supported_default(tmp_path):
@@ -147,7 +135,7 @@ def test_interactive_append_continues_to_git_and_cli_install(tmp_path: Path) -> 
     for _ in range(2):
         result = subprocess.run(
             ["sh", str(repo / "install.sh")],
-            input="1\n\n2\ny\n2\n1\ny\n4\nn\ny\n",
+            check=False, input="1\n\n2\ny\n2\n1\ny\n4\nn\ny\n",
             env={**os.environ, "HOME": str(home), "SHELL": "/bin/zsh"},
             capture_output=True, text=True, timeout=30,
         )

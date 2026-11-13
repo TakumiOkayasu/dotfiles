@@ -4,6 +4,15 @@
 # 配置先: ~/.zshrc (シンボリックリンク)
 # 読み込み: 対話シェル起動時
 
+[[ -o interactive ]] || return 0
+
+# 初期化コマンドが失敗した場合、途中まで出力されたコードは実行しない
+__zshrc_eval_output() {
+    local output
+    output="$("$@")" || return
+    eval "$output"
+}
+
 # ============================================================================
 # DOTFILES_DIR 検出
 # ============================================================================
@@ -41,14 +50,14 @@ fi
 
 # Homebrew (Linux/WSL環境のみ)
 if [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    __zshrc_eval_output /home/linuxbrew/.linuxbrew/bin/brew shellenv
 fi
 
 # mise (ランタイムバージョン管理)
 if command -v mise &>/dev/null; then
-    eval "$(mise activate zsh)"
+    __zshrc_eval_output mise activate zsh
 elif [[ -x "$HOME/.local/bin/mise" ]]; then
-    eval "$("${HOME}/.local/bin/mise" activate zsh)"
+    __zshrc_eval_output "$HOME/.local/bin/mise" activate zsh
 fi
 
 # ============================================================================
@@ -74,7 +83,7 @@ setopt HIST_IGNORE_SPACE     # スペース始まりは記録しない
 setopt HIST_REDUCE_BLANKS    # 余分なスペースを削除
 setopt SHARE_HISTORY         # ヒストリを共有
 setopt EXTENDED_HISTORY      # タイムスタンプを記録
-setopt INC_APPEND_HISTORY    # 即座に追記
+unsetopt INC_APPEND_HISTORY  # SHARE_HISTORY が即時追記するため併用しない
 
 # ディレクトリ
 setopt AUTO_CD               # ディレクトリ名だけで cd
@@ -109,11 +118,10 @@ fi
 
 # mise の補完は compdef を使うため compinit の後で登録する。
 if command -v mise &>/dev/null; then
-    _mise_completion="$(mise completion zsh)" && eval "$_mise_completion"
+    __zshrc_eval_output mise completion zsh
 elif [[ -x "$HOME/.local/bin/mise" ]]; then
-    _mise_completion="$("${HOME}/.local/bin/mise" completion zsh)" && eval "$_mise_completion"
+    __zshrc_eval_output "$HOME/.local/bin/mise" completion zsh
 fi
-unset _mise_completion
 
 # 補完スタイル
 zstyle ':completion:*' menu select                          # メニュー選択
@@ -154,6 +162,7 @@ _setup_oh_my_posh() {
 
     local theme="${OH_MY_POSH_THEME:-sim-web.omp.json}"
     local config=""
+    local dir
 
     # テーマファイルの検索
     for dir in "$HOME/.poshthemes" "$DOTFILES_DIR/poshthemes" "/usr/share/oh-my-posh/themes"; do
@@ -169,20 +178,17 @@ _setup_oh_my_posh() {
 
     # キャッシュディレクトリ
     local cache_dir="$HOME/.cache/oh-my-posh"
-    mkdir -p "$cache_dir"
+    mkdir -p -- "$cache_dir" || return 1
 
-    # 初期化
-    eval "$(oh-my-posh init zsh --config "$config")"
-
-    return 0
+    __zshrc_eval_output oh-my-posh init zsh --config "$config"
 }
 
 # preztoでプロンプトが設定されていなければoh-my-poshまたはフォールバック
 if [[ -z "${PROMPT:-}" ]] || [[ "$PROMPT" == '%m%# ' ]]; then
     if ! _setup_oh_my_posh; then
         # Git情報付きのシンプルなプロンプト
-        autoload -Uz vcs_info
-        precmd() { vcs_info }
+        autoload -Uz add-zsh-hook vcs_info
+        add-zsh-hook precmd vcs_info
         zstyle ':vcs_info:git:*' formats ' (%b)'
         setopt PROMPT_SUBST
         PROMPT='%F{green}%n@%m%f:%F{blue}%~%f%F{yellow}${vcs_info_msg_0_}%f$ '
@@ -216,7 +222,9 @@ alias -s log='tail -f'
 
 # ディレクトリ作成して移動
 mkcd() {
-    mkdir -p "$1" && cd "$1"
+    [[ $# -eq 1 && -n "$1" ]] || { printf 'usage: mkcd DIR\n' >&2; return 2; }
+    mkdir -p -- "$1" || return
+    cd -- "$1" || return
 }
 
 # ============================================================================
@@ -233,12 +241,12 @@ fi
 
 # fzf: Ctrl+R 履歴検索, Ctrl+T ファイル検索
 if command -v fzf &>/dev/null; then
-    eval "$(fzf --zsh 2>/dev/null)"
+    __zshrc_eval_output fzf --zsh 2>/dev/null
 fi
 
 # zoxide: スマート cd (z コマンド)
 if command -v zoxide &>/dev/null; then
-    eval "$(zoxide init zsh)"
+    __zshrc_eval_output zoxide init zsh
 fi
 
 # LM Studio CLI (lms) が導入済みならユーザーごとの配置先を追加する
@@ -247,4 +255,5 @@ if [[ -x "$_lm_studio_bin/lms" ]] && [[ ":${PATH:-}:" != *":$_lm_studio_bin:"* ]
     export PATH="${PATH:-}:$_lm_studio_bin"
 fi
 unset _lm_studio_bin
+unset -f __zshrc_eval_output
 
