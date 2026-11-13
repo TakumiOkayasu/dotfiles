@@ -80,7 +80,18 @@ is_docker_command() {
 # node/bun で ~/.claude/plugins/cache/openai-codex/codex/<version>/scripts/codex-companion.mjs を
 # 起動する場合は許可 (codex:rescue / codex:setup から内部呼び出しされるため)
 is_codex_companion_command() {
-    printf '%s\n' "$1" | grep -qE '^[[:space:]]*(node|bun)[[:space:]]+"?[^"[:space:]]*\.claude/plugins/cache/openai-codex/codex/[^/"[:space:]]+/scripts/codex-companion\.mjs"?'
+    _companion_argument=$(printf '%s\n' "$1" | sed -nE 's/^[[:space:]]*(node|bun)[[:space:]]+//p')
+    case "$_companion_argument" in
+        \"*) _companion_path=${_companion_argument#\"}; _companion_path=${_companion_path%%\"*} ;;
+        \'*) _companion_path=${_companion_argument#\'}; _companion_path=${_companion_path%%\'*} ;;
+        *) _companion_path=${_companion_argument%%[[:space:]]*} ;;
+    esac
+    _companion_prefix="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache/openai-codex/codex/"
+    case "$_companion_path" in
+        "$_companion_prefix"*) _companion_relative=${_companion_path#"$_companion_prefix"} ;;
+        *) return 1 ;;
+    esac
+    printf '%s\n' "$_companion_relative" | grep -qE '^[^/"[:space:]]+/scripts/codex-companion\.mjs$'
 }
 
 # --- Runner系サブコマンドかチェックする関数 ---

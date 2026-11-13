@@ -207,7 +207,7 @@ class PortClaudeAssetsTest(unittest.TestCase):
         self.assertIn("`$feat`", text)
         self.assertNotIn("`@feat`", text)
         self.assertNotIn("$ARGUMENTS", text)
-        self.assertIn("`${HOME}/.codex/AGENTS.md` を読む", text)
+        self.assertIn("`${CODEX_HOME:-$HOME/.codex}/AGENTS.md` を読む", text)
         self.assertIn("`$tdd`", text)
         self.assertIn("`RULES_CORE.md`", text)
         self.assertIn("taskに該当する詳細ruleだけを明示的に読む", text)

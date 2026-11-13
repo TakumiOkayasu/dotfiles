@@ -28,27 +28,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/destructive-command-block.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/destructive-command-block.sh\""
           },
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/docker-build-check.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/docker-build-check.sh\""
           },
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/language-version-check.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/language-version-check.sh\""
           },
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/local-command-block.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/local-command-block.sh\""
           },
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/admin-command-block.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/admin-command-block.sh\""
           },
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/secret-leak-check.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/secret-leak-check.sh\""
           }
         ]
       },
@@ -57,7 +57,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/env-file-protect.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/env-file-protect.sh\""
           }
         ]
       },
@@ -66,7 +66,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/main-branch-code-warning.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/main-branch-code-warning.sh\""
           }
         ]
       }
@@ -76,7 +76,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/primary-source-check.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/primary-source-check.sh\""
           }
         ]
       }
@@ -86,15 +86,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/sycophancy-check.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/sycophancy-check.sh\""
           },
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/completion-claim-check.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/completion-claim-check.sh\""
           },
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/failure-log.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/failure-log.sh\""
           }
         ]
       }
@@ -104,7 +104,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/pre-compact-backup.sh",
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/pre-compact-backup.sh\"",
             "async": true
           }
         ]
@@ -115,19 +115,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/session-start-reminder.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/session-start-reminder.sh\""
           },
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/session-resume.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/session-resume.sh\""
           },
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/project-environment-check.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/project-environment-check.sh\""
           },
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/primary-source-reminder.sh"
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/primary-source-reminder.sh\""
           }
         ]
       },
@@ -136,7 +136,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/session-start-notes-loader.sh",
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/session-start-notes-loader.sh\"",
             "timeout": 5
           }
         ]
@@ -174,7 +174,7 @@
     "enabled": true,
     "allowUnsandboxedCommands": false,
     "filesystem": {
-      "allowWrite": ["$HOME/.claude/plugins/data", "$HOME/.codex"]
+      "allowWrite": ["~/.claude/plugins/data", "~/.codex"]
     }
   },
   "defaultMode": "auto",

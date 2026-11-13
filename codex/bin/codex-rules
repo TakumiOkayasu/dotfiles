@@ -8,7 +8,7 @@ shift || true
 CWD=$(pwd)
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P || dirname "$0")
-CODEX_ROOT=$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || echo "${HOME}/.codex")
+CODEX_ROOT=${CODEX_HOME:-$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || echo "${HOME}/.codex")}
 RULES_LIB="${CODEX_ROOT}/hooks/rules-lib.sh"
 if [ -f "$RULES_LIB" ]; then
   . "$RULES_LIB"

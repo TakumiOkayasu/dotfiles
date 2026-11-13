@@ -103,7 +103,7 @@ Adapter、Translator等を将来予測だけで先に設計しない。
 
 ## 複数設計案の比較 (明示要求時のみ)
 
-dispatch形式・並列起動の作法は `${HOME}/.claude/SUBAGENTS.md` を参照。
+dispatch形式・並列起動の作法は `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/SUBAGENTS.md` を参照。
 
 ### 起動条件
 

@@ -41,7 +41,7 @@ init_notes_for_branch() {
     local template_file=""
     for candidate in \
         ".claude/notes/_template.md" \
-        "${HOME}/.claude/notes/_template.md"
+        "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/notes/_template.md"
     do
         if [[ -f "$candidate" ]]; then
             template_file="$candidate"

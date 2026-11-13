@@ -126,6 +126,7 @@ def build_claude_view(stage: Path) -> None:
     overlay_tree(common / "rules", claude / "rules")
     overlay_tree(common / "skills", claude / "skills")
     overlay_tree(common / "hooks", claude / "hooks")
+    render_claude_runtime_paths(stage)
     overlay_tree(
         common / "qa-nightmare" / "checklists",
         claude / "skills" / "qa-nightmare" / "checklists",
@@ -133,6 +134,33 @@ def build_claude_view(stage: Path) -> None:
     manifest = common / "qa-nightmare" / "manifest.json"
     if manifest.is_file():
         copy_file(manifest, claude / "skills" / "qa-nightmare" / "manifest.json")
+
+
+def render_claude_runtime_paths(stage: Path) -> None:
+    claude_root = stage / "claude"
+    settings_path = claude_root / "settings.json"
+    if settings_path.is_file():
+        settings = json.loads(settings_path.read_text(encoding="utf-8"))
+        allowed_paths = settings.get("sandbox", {}).get("filesystem", {}).get("allowWrite", [])
+        roots = {
+            "~/.claude/plugins/data": ("CLAUDE_CONFIG_DIR", "plugins/data"),
+            "~/.codex": ("CODEX_HOME", ""),
+        }
+        for index, allowed_path in enumerate(allowed_paths):
+            if allowed_path in roots:
+                variable, relative = roots[allowed_path]
+                root = os.environ.get(variable)
+                if root:
+                    allowed_paths[index] = str(Path(root) / relative)
+        settings_path.write_text(json.dumps(settings, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    instructions_path = claude_root / "global_CLAUDE.md"
+    codex_home = os.environ.get("CODEX_HOME")
+    if codex_home and instructions_path.is_file():
+        import_path = str(Path(codex_home) / "AGENTS.md").replace(" ", "\\ ")
+        instructions_path.write_text(
+            instructions_path.read_text(encoding="utf-8").replace("@~/.codex/AGENTS.md", f"@{import_path}"),
+            encoding="utf-8",
+        )
 
 
 def build_codex_shared_runtime(stage: Path) -> None:
@@ -169,7 +197,11 @@ def rewrite_personal_marketplace(candidate: Path) -> None:
         source = plugin.get("source", {})
         plugin_path = source.get("path")
         if isinstance(plugin_path, str) and plugin_path.startswith("./plugins/"):
-            source["path"] = f"./.codex/{plugin_path[2:]}"
+            codex_home = os.environ.get("CODEX_HOME")
+            source["path"] = (
+                str(Path(codex_home) / plugin_path[2:])
+                if codex_home else f"./.codex/{plugin_path[2:]}"
+            )
     path.write_text(
         json.dumps(data, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",

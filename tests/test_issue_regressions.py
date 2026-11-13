@@ -328,7 +328,7 @@ def test_commit_policy_has_no_unreachable_checkpoint_hook() -> None:
             ("SessionStart", "session-resume.sh"),
         ):
             assert any(
-                hook["command"] == f"$HOME/.claude/hooks/{name}"
+                hook["command"] == '"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/' + name + '"'
                 for entry in settings["hooks"][event]
                 for hook in entry["hooks"]
             ), (root, event, name)

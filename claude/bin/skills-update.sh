@@ -27,9 +27,9 @@ fi
 set -euo pipefail
 
 # ── Constants ──
-VENDOR_DIR="$HOME/.claude/vendor"
+VENDOR_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/vendor"
 DOCKER_IMAGE="alpine/git:2.47.2"
-STAMP_FILE="${TMPDIR:-/tmp}/skills-update-stamp-$(id -u)"
+STAMP_FILE="${VENDOR_DIR}/.skills-update-stamp"
 THROTTLE_SECONDS=86400  # 24h
 
 # ── Options ──

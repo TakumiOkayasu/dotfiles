@@ -38,7 +38,7 @@ matcher = "Bash|Read|Edit|Write|apply_patch"
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
-command = "$HOME/.codex/hooks/hook-dispatcher.sh pre-tool-use"
+command = "\"${CODEX_HOME:-$HOME/.codex}/hooks/hook-dispatcher.sh\" pre-tool-use"
 timeout = 30
 statusMessage = "Checking tool safety"
 
@@ -47,7 +47,7 @@ matcher = "Bash|apply_patch|Edit|Write|MultiEdit|ApplyPatch"
 
 [[hooks.PostToolUse.hooks]]
 type = "command"
-command = "$HOME/.codex/hooks/hook-dispatcher.sh post-tool-use"
+command = "\"${CODEX_HOME:-$HOME/.codex}/hooks/hook-dispatcher.sh\" post-tool-use"
 timeout = 30
 statusMessage = "Recording session context and checking rules compliance"
 
@@ -55,7 +55,7 @@ statusMessage = "Recording session context and checking rules compliance"
 
 [[hooks.UserPromptSubmit.hooks]]
 type = "command"
-command = "$HOME/.codex/hooks/hook-dispatcher.sh user-prompt-submit"
+command = "\"${CODEX_HOME:-$HOME/.codex}/hooks/hook-dispatcher.sh\" user-prompt-submit"
 timeout = 30
 statusMessage = "Checking prompt context"
 
@@ -63,7 +63,7 @@ statusMessage = "Checking prompt context"
 
 [[hooks.PreCompact.hooks]]
 type = "command"
-command = "$HOME/.codex/hooks/hook-dispatcher.sh pre-compact"
+command = "\"${CODEX_HOME:-$HOME/.codex}/hooks/hook-dispatcher.sh\" pre-compact"
 timeout = 30
 statusMessage = "Saving compact checkpoint"
 
@@ -71,7 +71,7 @@ statusMessage = "Saving compact checkpoint"
 
 [[hooks.SessionStart.hooks]]
 type = "command"
-command = "$HOME/.codex/hooks/hook-dispatcher.sh session-start"
+command = "\"${CODEX_HOME:-$HOME/.codex}/hooks/hook-dispatcher.sh\" session-start"
 timeout = 30
 statusMessage = "Loading session guidance"
 
@@ -79,7 +79,7 @@ statusMessage = "Loading session guidance"
 
 [[hooks.Stop.hooks]]
 type = "command"
-command = "$HOME/.codex/hooks/hook-dispatcher.sh stop"
+command = "\"${CODEX_HOME:-$HOME/.codex}/hooks/hook-dispatcher.sh\" stop"
 timeout = 30
 statusMessage = "Final rules compliance check"
 

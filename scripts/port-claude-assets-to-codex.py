@@ -252,7 +252,7 @@ COMMAND_RUNTIME_REPLACEMENTS = tuple(
 
 
 def replace_runtime_fragments(body: str, *, source: Path, kind: str) -> str:
-    out = body
+    out = body.replace("${CLAUDE_CONFIG_DIR:-$HOME/.claude}", "${HOME}/.claude")
     for old, new in COMMON_REPLACEMENTS:
         out = out.replace(old, new)
     out = out.replace("[[semantic-generation]]", "`$semantic-generation`")
@@ -392,7 +392,7 @@ def replace_command_invocations(body: str) -> str:
 def add_portability_notes(body: str, *, source: Path, kind: str) -> str:
     out = body
     source_str = str(source).replace("\\", "/")
-    note = f"""\n<!-- {MANAGED_MARKER}; source={source_str}; generated-by=scripts/port-claude-assets-to-codex.py -->\n\n## Codex portability notes\n\n- This file was ported from `{source_str}`.\n- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${{HOME}}/.agents/skills` in plugin-only mode.\n- Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.\n- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.\n- Subagent usage must follow `${{HOME}}/.codex/SUBAGENTS.md` and the current Codex tool contract.\n"""
+    note = f"""\n<!-- {MANAGED_MARKER}; source={source_str}; generated-by=scripts/port-claude-assets-to-codex.py -->\n\n## Codex portability notes\n\n- This file was ported from `{source_str}`.\n- Codex skills are packaged into `plugins/dotfile-work-codex` or `plugins/dotfile-work-codex-extra`; `install.sh` should not duplicate them into `${{HOME}}/.agents/skills` in plugin-only mode.\n- Rules are not automatically loaded. Read `RULES_CORE.md`, `RULES_INDEX.md`, and only the detailed rules applicable to the task.\n- Claude slash-command references should be invoked through Codex plugin skills such as `$feat`, `$fix`, `$deep-review`, `$rules-required`, or `/skills`. Do not use custom `/prompt:*` commands.\n- Subagent usage must follow `${{CODEX_HOME:-$HOME/.codex}}/SUBAGENTS.md` and the current Codex tool contract.\n"""
     if MANAGED_MARKER not in out:
         # Insert after first H1 when possible; otherwise prepend after frontmatter.
         match = re.search(r"(^# .+?\n)", out, re.MULTILINE)
@@ -418,7 +418,8 @@ def transform_body(
     out = replace_codex_paths(out)
     out = replace_codex_surface_contracts(out, role=role)
     out = replace_command_invocations(out)
-    return add_portability_notes(out, source=source, kind=kind)
+    out = add_portability_notes(out, source=source, kind=kind)
+    return out.replace("${HOME}/.codex", "${CODEX_HOME:-$HOME/.codex}")
 
 
 def transform_text(

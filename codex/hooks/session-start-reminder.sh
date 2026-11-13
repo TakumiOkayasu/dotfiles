@@ -16,11 +16,11 @@ if SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P); then
 else
     SCRIPT_DIR=$(dirname "$0")
 fi
-CODEX_DIR=$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || echo "${HOME}/.codex")
+CODEX_DIR=${CODEX_HOME:-$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || echo "${HOME}/.codex")}
 
 # codex-config-info.sh を検索
 find_config_info_script() {
-    for dir in "$CODEX_DIR/bin" "$HOME/.codex/bin" "codex/bin" "$HOME/.local/bin"; do
+    for dir in "$CODEX_DIR/bin" "${CODEX_HOME:-$HOME/.codex}/bin" "codex/bin" "$HOME/.local/bin"; do
         if [ -x "$dir/codex-config-info.sh" ]; then
             echo "$dir/codex-config-info.sh"
             return 0
@@ -50,7 +50,7 @@ if [ -n "$CONFIG_INFO_SCRIPT" ]; then
     "$CONFIG_INFO_SCRIPT" --all
 else
     echo "⚠️  codex-config-info.sh が見つかりません"
-    echo "   期待場所: ${HOME}/.codex/bin/codex-config-info.sh"
+    echo "   期待場所: ${CODEX_HOME:-$HOME/.codex}/bin/codex-config-info.sh"
     echo ""
 fi
 

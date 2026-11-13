@@ -136,7 +136,7 @@ class TestClaudeHookWiring:
             if entry.get("matcher") == "Bash"
             for hook in entry["hooks"]
         ]
-        assert "$HOME/.claude/hooks/destructive-command-block.sh" in pre_tool_commands
+        assert '"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/destructive-command-block.sh"' in pre_tool_commands
 
         fake_jq = tmp_path / "jq"
         _write_executable(
@@ -181,7 +181,7 @@ class TestClaudeHookWiring:
             for hook in entry["hooks"]
         ]
 
-        assert "$HOME/.claude/hooks/session-start-reminder.sh" in session_start_commands
+        assert '"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/session-start-reminder.sh"' in session_start_commands
         assert (
             "$HOME/.claude/hooks/vendor-skills-update.sh" not in session_start_commands
         )
@@ -1243,7 +1243,7 @@ class TestCodexConfigTemplate:
         assert "mcp_servers" not in data
         assert (
             data["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
-            == "$HOME/.codex/hooks/hook-dispatcher.sh pre-tool-use"
+            == '"${CODEX_HOME:-$HOME/.codex}/hooks/hook-dispatcher.sh" pre-tool-use'
         )
 
     def test_model_profiles_override_only_model_and_effort(self) -> None:
