@@ -8,6 +8,17 @@
 # 読み込み: 対話シェル起動時
 
 # ============================================================================
+# Git Bashのとき
+# ============================================================================
+
+if [[ -n "${MSYSTEM:-}" && "${MSYS:-}" != *winsymlinks:* ]]; then
+    export MSYS="${MSYS:+$MSYS }winsymlinks:nativestrict"
+fi
+
+# 非対話シェルでは対話用ヘルパも定義しない
+[[ $- == *i* ]] || return 0 2>/dev/null || exit 0
+
+# ============================================================================
 # 共通ヘルパ
 # ============================================================================
 
@@ -43,7 +54,7 @@ __bashrc_add_prompt_command() {
     else
         current="${PROMPT_COMMAND-}"
         case ";$current;" in
-            *";$cmd;"*) return ;;
+            *";$cmd;"*|*"; $cmd;"*) return ;;
         esac
 
         # Bash 5.1 未満では PROMPT_COMMAND は scalar として扱う
@@ -53,26 +64,25 @@ __bashrc_add_prompt_command() {
 }
 
 # ============================================================================
-# Git Bashのとき
-# ============================================================================
-
-if [[ -n "${MSYSTEM:-}" && "${MSYS:-}" != *winsymlinks:* ]]; then
-    export MSYS="${MSYS:+$MSYS }winsymlinks:nativestrict"
-fi
-
-# ============================================================================
-# 非対話シェルは即終了
-# ============================================================================
-
-[[ $- == *i* ]] || return 0 2>/dev/null || exit 0
-
-# ============================================================================
 # DOTFILES_DIR 検出
 # ============================================================================
 
-_bashrc_dir="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")" && pwd)"
-DOTFILES_DIR="${DOTFILES_DIR:-$(dirname "$(dirname "$(dirname "$_bashrc_dir")")")}"
-unset _bashrc_dir
+__bashrc_find_root() {
+    local source_file="${BASH_SOURCE[0]}"
+    local source_dir
+
+    # macOS の readlink も使えるよう、相対リンクを一段ずつ解決する
+    while [[ -L "$source_file" ]]; do
+        source_dir="$(cd -P -- "$(dirname "$source_file")" && pwd)" || return
+        source_file="$(readlink "$source_file")" || return
+        [[ "$source_file" == /* ]] || source_file="$source_dir/$source_file"
+    done
+
+    cd -P -- "$(dirname "$source_file")/../../.." && pwd
+}
+
+DOTFILES_DIR="${DOTFILES_DIR:-$(__bashrc_find_root)}"
+unset -f __bashrc_find_root
 
 # ============================================================================
 # SSH Agent 自動起動
@@ -139,9 +149,6 @@ HISTFILESIZE=100000
 HISTTIMEFORMAT="%Y-%m-%d %H:%M:%S "
 HISTIGNORE="ls:cd:pwd:exit:clear:history"
 
-# プロンプト表示ごとに履歴を即時追記 (複数端末間で履歴を失わない)
-PROMPT_COMMAND+=("history -a")
-
 __bashrc_shopt histappend cmdhist lithist # ヒストリを追記, 複数行コマンドを1行で保存, 複数行コマンドの改行を保持
 
 # ディレクトリ
@@ -194,18 +201,18 @@ _setup_oh_my_posh() {
     command -v oh-my-posh >/dev/null 2>&1 || return 1
 
     local theme="${OH_MY_POSH_THEME:-sim-web}"
-    local config="${OH_MY_POSH_CONFIG:-}"
+    local prompt_config="${OH_MY_POSH_CONFIG:-}"
     local dir=""
 
-    if [[ -z "$config" ]]; then
-        config="$theme"
+    if [[ -z "$prompt_config" ]]; then
+        prompt_config="$theme"
 
         for dir in "$HOME/.poshthemes" "$DOTFILES_DIR/poshthemes" "/usr/share/oh-my-posh/themes"; do
             if [[ -f "$dir/$theme.omp.json" ]]; then
-                config="$dir/$theme.omp.json"
+                prompt_config="$dir/$theme.omp.json"
                 break
             elif [[ -f "$dir/$theme" ]]; then
-                config="$dir/$theme"
+                prompt_config="$dir/$theme"
                 break
             fi
         done
@@ -214,8 +221,8 @@ _setup_oh_my_posh() {
     local omp_cmd init
     omp_cmd="$(command -v oh-my-posh)" || return 1
 
-    if ! init="$("$omp_cmd" init bash --strict --config "$config" 2>/dev/null)"; then
-        init="$("$omp_cmd" init bash --config "$config" 2>/dev/null)" || return 1
+    if ! init="$("$omp_cmd" init bash --strict --config "$prompt_config" 2>/dev/null)"; then
+        init="$("$omp_cmd" init bash --config "$prompt_config" 2>/dev/null)" || return 1
     fi
 
     eval "$init" || return 1
@@ -278,6 +285,7 @@ fi
 # bash固有エイリアス
 # ============================================================================
 
+# 初期化ツールの hook を保ち、再読み込み時にも履歴同期を重複登録しない
 __bashrc_add_prompt_command 'history -a; history -n'
 
 # ヒストリ再読み込み
