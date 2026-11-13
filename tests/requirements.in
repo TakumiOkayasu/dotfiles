@@ -1,0 +1,2 @@
+# Match the existing pytest dependency used by the Docker test runner.
+pytest==9.2.0

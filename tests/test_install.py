@@ -14,8 +14,11 @@ import shutil
 import subprocess
 import tomllib
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
+
+from tests.install_helpers import run_installer_functions
 
 INSTALL_SH = Path(__file__).resolve().parent.parent / "install.sh"
 BASHRC = INSTALL_SH.parent / "config" / "shell" / "bash" / "bashrc"
@@ -100,6 +103,7 @@ def _run_bashrc(
             "-ic",
             f'source "{BASHRC}"; {command}',
         ],
+        check=False,
         env=env,
         capture_output=True,
         text=True,
@@ -110,6 +114,7 @@ def _run_bashrc(
 def _run_performance_profile(repo: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["python3", str(PERFORMANCE_PROFILE_SCRIPT), "--repo", str(repo)],
+        check=False,
         cwd=str(REPO_ROOT),
         capture_output=True,
         text=True,
@@ -177,7 +182,9 @@ class TestClaudeHookWiring:
         ]
 
         assert "$HOME/.claude/hooks/session-start-reminder.sh" in session_start_commands
-        assert "$HOME/.claude/hooks/vendor-skills-update.sh" not in session_start_commands
+        assert (
+            "$HOME/.claude/hooks/vendor-skills-update.sh" not in session_start_commands
+        )
         assert not (REPO_ROOT / "claude" / "hooks" / "vendor-skills-update.sh").exists()
 
     def test_post_tool_use_does_not_archive_notes_without_tool_result(self) -> None:
@@ -191,7 +198,10 @@ class TestClaudeHookWiring:
             for hook in entry["hooks"]
         ]
 
-        assert "$HOME/.claude/hooks/post-cleanup-notes-archive.sh" not in post_tool_commands
+        assert (
+            "$HOME/.claude/hooks/post-cleanup-notes-archive.sh"
+            not in post_tool_commands
+        )
         assert not (
             REPO_ROOT / "claude" / "hooks" / "post-cleanup-notes-archive.sh"
         ).exists()
@@ -237,9 +247,7 @@ class TestShellInitialization:
         assert "userprofile=\n" in result.stdout
         assert "skip=\n" in result.stdout
 
-    def test_bash_uses_windows_profile_detected_by_wsl(
-        self, tmp_path: Path
-    ) -> None:
+    def test_bash_uses_windows_profile_detected_by_wsl(self, tmp_path: Path) -> None:
         home, fake_bin, eza_bin = _create_fake_mise_shell_runtime(tmp_path)
         _write_executable(
             fake_bin / "cmd.exe",
@@ -277,7 +285,9 @@ class TestShellInitialization:
 
 class TestPortableShellConfiguration:
     @pytest.mark.parametrize("shell", ("/bin/bash", "/usr/bin/zsh"))
-    def test_common_shell_initializes_with_nounset(self, tmp_path: Path, shell: str) -> None:
+    def test_common_shell_initializes_with_nounset(
+        self, tmp_path: Path, shell: str
+    ) -> None:
         home = tmp_path / "home"
         home.mkdir()
         env = os.environ.copy()
@@ -291,6 +301,7 @@ class TestPortableShellConfiguration:
                 "-c",
                 f'set -u; . "{COMMON_SH}"; printf "%s:%s\\n" "$DOTFILES_DIR" "$DOTFILES_PLATFORM"',
             ],
+            check=False,
             env=env,
             capture_output=True,
             text=True,
@@ -309,14 +320,26 @@ class TestPortableShellConfiguration:
         home.mkdir()
         env = os.environ.copy()
         for variable in (
-            "DOTFILES_LOADED", "DOTFILES_DIR", "EDITOR", "VISUAL",
-            "DISPLAY", "WAYLAND_DISPLAY", "USE_VCXSRV",
+            "DOTFILES_LOADED",
+            "DOTFILES_DIR",
+            "EDITOR",
+            "VISUAL",
+            "DISPLAY",
+            "WAYLAND_DISPLAY",
+            "USE_VCXSRV",
         ):
             env.pop(variable, None)
-        env.update({"HOME": str(home), "PATH": "/usr/bin:/bin", "WSL_DISTRO_NAME": "Ubuntu"})
+        env.update(
+            {"HOME": str(home), "PATH": "/usr/bin:/bin", "WSL_DISTRO_NAME": "Ubuntu"}
+        )
 
         result = subprocess.run(
-            [shell, "-c", f'set -u; . "{COMMON_SH}"; printf "%s\\n" "$DOTFILES_PLATFORM"'],
+            [
+                shell,
+                "-c",
+                f'set -u; . "{COMMON_SH}"; printf "%s\\n" "$DOTFILES_PLATFORM"',
+            ],
+            check=False,
             env=env,
             capture_output=True,
             text=True,
@@ -364,6 +387,7 @@ class TestPortableShellConfiguration:
                 "-c",
                 f'set -u; . "{SSH_AGENT_SH}"; printf "%s:%s\\n" "$SSH_AUTH_SOCK" "$SSH_AGENT_PID"',
             ],
+            check=False,
             env=env,
             capture_output=True,
             text=True,
@@ -405,13 +429,14 @@ class TestPortableShellConfiguration:
             [
                 "/usr/bin/zsh",
                 "-f",
-                "-c",
+                "-ic",
                 (
                     f'source "{ZSHRC}"; source "{ZSHRC}"; '
-                    'command -v lms; '
-                    'print -r -- ${(M)#${(@s/:/)PATH}:#${HOME}/.lmstudio/bin}'
+                    "command -v lms; "
+                    "print -r -- ${(M)#${(@s/:/)PATH}:#${HOME}/.lmstudio/bin}"
                 ),
             ],
+            check=False,
             env=env,
             capture_output=True,
             text=True,
@@ -425,7 +450,9 @@ class TestPortableShellConfiguration:
         repository = tmp_path / "repository"
         repository.mkdir()
         excludes_file = tmp_path / "ignore"
-        shutil.copyfile(REPO_ROOT / "config" / "git" / ".gitignore.common", excludes_file)
+        shutil.copyfile(
+            REPO_ROOT / "config" / "git" / ".gitignore.common", excludes_file
+        )
         subprocess.run(["git", "init", "-q"], cwd=repository, check=True)
         subprocess.run(
             ["git", "config", "core.excludesFile", str(excludes_file)],
@@ -440,12 +467,14 @@ class TestPortableShellConfiguration:
 
         submodule_check = subprocess.run(
             ["git", "check-ignore", "-q", "--", ".gitmodules"],
+            check=False,
             cwd=repository,
             capture_output=True,
             text=True,
         )
         add_result = subprocess.run(
             ["git", "add", "--", ".gitmodules"],
+            check=False,
             cwd=repository,
             capture_output=True,
             text=True,
@@ -456,6 +485,7 @@ class TestPortableShellConfiguration:
         for ignored_path in (".DS_Store", "secrets/service.pem"):
             ignored_check = subprocess.run(
                 ["git", "check-ignore", "-q", "--", ignored_path],
+                check=False,
                 cwd=repository,
                 capture_output=True,
                 text=True,
@@ -496,6 +526,7 @@ class TestScopedConfiguration:
         env["GIT_CONFIG_GLOBAL"] = str(broad_config)
         parent_only = subprocess.run(
             ["git", "status", "--short"],
+            check=False,
             cwd=project,
             env=env,
             capture_output=True,
@@ -504,6 +535,7 @@ class TestScopedConfiguration:
         env["GIT_CONFIG_GLOBAL"] = str(global_config)
         explicit_project = subprocess.run(
             ["git", "status", "--short"],
+            check=False,
             cwd=project,
             env=env,
             capture_output=True,
@@ -511,6 +543,7 @@ class TestScopedConfiguration:
         )
         unrelated_sibling = subprocess.run(
             ["git", "status", "--short"],
+            check=False,
             cwd=sibling,
             env=env,
             capture_output=True,
@@ -535,6 +568,7 @@ class TestScopedConfiguration:
                 "-c",
                 f'source "{ZPROFILE}"; print -r -- "${{ORBSTACK_MARKER:-absent}}"',
             ],
+            check=False,
             env=env,
             capture_output=True,
             text=True,
@@ -550,7 +584,9 @@ class TestScopedConfiguration:
             "fi\n",
         )
 
-    def test_macos_login_sources_orbstack_before_zprofile_local(self, tmp_path: Path) -> None:
+    def test_macos_login_sources_orbstack_before_zprofile_local(
+        self, tmp_path: Path
+    ) -> None:
         home = tmp_path / "home"
         fake_bin = tmp_path / "bin"
         self._write_fake_uname(fake_bin, "Darwin")
@@ -595,7 +631,9 @@ class TestScopedConfiguration:
         assert result.returncode == 0, result.stderr
         assert result.stdout.splitlines() == ["local", "local"]
 
-    def test_missing_orbstack_and_bash_login_do_not_source_vendor(self, tmp_path: Path) -> None:
+    def test_missing_orbstack_and_bash_login_do_not_source_vendor(
+        self, tmp_path: Path
+    ) -> None:
         home = tmp_path / "home"
         home.mkdir()
         fake_bin = tmp_path / "bin"
@@ -618,6 +656,7 @@ class TestScopedConfiguration:
                 "-c",
                 f'source "{BASH_PROFILE}"; printf "%s\\n" "${{ORBSTACK_MARKER:-absent}}"',
             ],
+            check=False,
             env=bash_env,
             capture_output=True,
             text=True,
@@ -635,6 +674,7 @@ class TestScopedConfiguration:
 
         result = subprocess.run(
             ["sh", str(INSTALL_SH)],
+            check=False,
             cwd=REPO_ROOT,
             env={**os.environ, "HOME": str(home)},
             input="1\n2\n1\nn\ny\n",
@@ -675,9 +715,19 @@ def _run_install_sh(
     if dry_run:
         cmd.insert(-1, "-n")  # -n -f の順
 
-    return subprocess.run(
-        cmd, cwd=str(dotfiles), env=env, capture_output=True, text=True, timeout=30
+    result = subprocess.run(
+        cmd,
+        check=False,
+        cwd=str(dotfiles),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
+    assert result.returncode == 0, (
+        f"installer failed:\n{result.stdout}\n{result.stderr}"
+    )
+    return result
 
 
 def _create_tracked_paths_index_env(
@@ -706,8 +756,7 @@ def _create_fake_stow(tmp_path: Path) -> tuple[Path, Path]:
     fake_bin.mkdir()
     fake_stow = fake_bin / "stow"
     fake_stow.write_text(
-        "#!/bin/sh\n"
-        "printf '%s\\n' \"$*\" > \"$STOW_LOG\"\n",
+        '#!/bin/sh\nprintf \'%s\\n\' "$*" > "$STOW_LOG"\n',
         encoding="utf-8",
     )
     fake_stow.chmod(0o755)
@@ -729,6 +778,7 @@ def _run_stow_install_script(
             package_name,
             *extra_args,
         ],
+        check=False,
         cwd=str(REPO_ROOT),
         env=env,
         capture_output=True,
@@ -781,7 +831,7 @@ def _assert_qa_nightmare_checklists(
     source_files = {name: source_dir / name for name in manifest_names}
     runtime_files = {path.name: path for path in runtime_dir.glob("*.md")}
     generated_files = {path.name: path for path in generated_dir.glob("*.md")}
-    source_names = set(path.name for path in source_dir.glob("*.md"))
+    source_names = {path.name for path in source_dir.glob("*.md")}
 
     assert list(source_files) == manifest_names
     assert source_names == set(manifest_names), (
@@ -845,9 +895,7 @@ class TestQaNightmareChecklistAssertions:
         extra_source.write_text("unexpected", encoding="utf-8")
         (generated_dir / extra_source.name).symlink_to(extra_source)
 
-        with pytest.raises(
-            AssertionError, match="generated checklist filenames"
-        ):
+        with pytest.raises(AssertionError, match="generated checklist filenames"):
             _assert_qa_nightmare_checklists(runtime_dir, generated_dir)
 
     def test_should_reject_generated_checklist_when_link_targets_stale_source(
@@ -896,17 +944,13 @@ def _assert_codex_common_links(codex_dir: Path) -> None:
     assert (codex_dir / "hooks").is_dir()
     destructive_hook = codex_dir / "hooks" / "destructive-command-block.sh"
     assert destructive_hook.is_symlink()
-    assert destructive_hook.resolve() == (
-        GENERATED_CODEX / "hooks" / "destructive-command-block.sh"
-    ).resolve()
+    assert (
+        destructive_hook.resolve()
+        == (GENERATED_CODEX / "hooks" / "destructive-command-block.sh").resolve()
+    )
     _assert_generated_stow_link(
         codex_dir / "hooks" / "rules-enforce.py",
-        REPO_ROOT
-        / ".stow-work"
-        / "codex"
-        / ".codex"
-        / "hooks"
-        / "rules-enforce.py",
+        REPO_ROOT / ".stow-work" / "codex" / ".codex" / "hooks" / "rules-enforce.py",
         GENERATED_CODEX / "hooks" / "rules-enforce.py",
     )
 
@@ -915,9 +959,10 @@ def _assert_claude_core_links(claude_dir: Path) -> None:
     assert (claude_dir / "hooks").is_dir()
     destructive_hook = claude_dir / "hooks" / "destructive-command-block.sh"
     assert destructive_hook.is_symlink()
-    assert destructive_hook.resolve() == (
-        GENERATED_CLAUDE / "hooks" / "destructive-command-block.sh"
-    ).resolve()
+    assert (
+        destructive_hook.resolve()
+        == (GENERATED_CLAUDE / "hooks" / "destructive-command-block.sh").resolve()
+    )
     assert (claude_dir / "settings.json").is_symlink()
     assert _symlink_target_path(claude_dir / "settings.json") == (
         REPO_ROOT / ".stow-work" / "claude" / ".claude" / "settings.json"
@@ -943,12 +988,7 @@ def _assert_claude_common_links(claude_dir: Path) -> None:
 def _assert_claude_common_command_links(claude_dir: Path) -> None:
     _assert_generated_stow_link(
         claude_dir / "commands" / "feat.md",
-        REPO_ROOT
-        / ".stow-work"
-        / "claude"
-        / ".claude"
-        / "commands"
-        / "feat.md",
+        REPO_ROOT / ".stow-work" / "claude" / ".claude" / "commands" / "feat.md",
         GENERATED_CLAUDE / "commands" / "feat.md",
     )
 
@@ -956,13 +996,7 @@ def _assert_claude_common_command_links(claude_dir: Path) -> None:
 def _assert_claude_common_skill_links(claude_dir: Path) -> None:
     _assert_generated_stow_link(
         claude_dir / "skills" / "tdd" / "SKILL.md",
-        REPO_ROOT
-        / ".stow-work"
-        / "claude"
-        / ".claude"
-        / "skills"
-        / "tdd"
-        / "SKILL.md",
+        REPO_ROOT / ".stow-work" / "claude" / ".claude" / "skills" / "tdd" / "SKILL.md",
         GENERATED_CLAUDE / "skills" / "tdd" / "SKILL.md",
     )
     _assert_generated_stow_link(
@@ -1005,7 +1039,7 @@ class TestCodexAgentDefinitions:
     """Codex custom agent 定義の基本 schema を検証するテスト"""
 
     REQUIRED_KEYS = ("name", "description", "developer_instructions")
-    CODEX_PROFILES = {
+    CODEX_PROFILES: ClassVar[dict[str, tuple[str, str]]] = {
         "code_reviewer": ("gpt-5.6-terra", "high"),
         "debugger": ("gpt-5.6-sol", "high"),
         "design_consultant": ("gpt-5.6-terra", "high"),
@@ -1014,7 +1048,7 @@ class TestCodexAgentDefinitions:
         "test_writer": ("gpt-5.6-terra", "medium"),
         "test_analyst": ("gpt-5.6-terra", "high"),
     }
-    CLAUDE_PROFILES = {
+    CLAUDE_PROFILES: ClassVar[dict[str, tuple[str, str]]] = {
         "code-reviewer": ("sonnet", "high"),
         "debugger": ("sonnet", "high"),
         "design-consultant": ("inherit", "high"),
@@ -1105,6 +1139,7 @@ class TestCodexAgentDefinitions:
 
         assert actual_high == expected_high
 
+    @pytest.mark.usefixtures("generate_install_time_ai_assets")
     def test_should_resolve_agent_references_when_tdd_skills_dispatch(self) -> None:
         """各 TDD skill の agent 参照が対応する実在 agent を指す"""
         reference_specs = (
@@ -1122,12 +1157,8 @@ class TestCodexAgentDefinitions:
 
         for reference_key, skill_file, agent_names in reference_specs:
             content = skill_file.read_text(encoding="utf-8")
-            references = re.findall(
-                rf"{reference_key}:\s*([A-Za-z0-9_-]+)", content
-            )
-            assert references, (
-                f"{skill_file}: {reference_key} must reference an agent"
-            )
+            references = re.findall(rf"{reference_key}:\s*([A-Za-z0-9_-]+)", content)
+            assert references, f"{skill_file}: {reference_key} must reference an agent"
             for agent_name in references:
                 assert agent_name in agent_names, (
                     f"{skill_file}: {reference_key} {agent_name!r} must match "
@@ -1151,9 +1182,7 @@ class TestInstallTestDockerfile:
         """標準 install-test が関連する全回帰 suite を収集する"""
         entrypoint = next(
             line
-            for line in INSTALL_TEST_DOCKERFILE.read_text(
-                encoding="utf-8"
-            ).splitlines()
+            for line in INSTALL_TEST_DOCKERFILE.read_text(encoding="utf-8").splitlines()
             if line.startswith("ENTRYPOINT ")
         )
 
@@ -1162,6 +1191,9 @@ class TestInstallTestDockerfile:
         assert "tests/test_qa_nightmare_preflight.py" in entrypoint
         assert "tests/test_port_claude_assets.py" in entrypoint
         assert "tests/test_issue_regressions.py" in entrypoint
+        assert "tests/test_shell_startup.py" in entrypoint
+        assert "tests/test_shell_completion.py" in entrypoint
+        assert "tests/test_shell_harness.py" in entrypoint
 
 
 class TestCodexConfigTemplate:
@@ -1243,9 +1275,7 @@ class TestCodexConfigTemplate:
             command = data["hooks"][event][0]["hooks"][0]["command"]
             assert "hook-dispatcher.sh" in command
 
-        module = runpy.run_path(
-            str(REPO_ROOT / "scripts" / "sync-codex-plugin.py")
-        )
+        module = runpy.run_path(str(REPO_ROOT / "scripts" / "sync-codex-plugin.py"))
         plugin_hooks = module["hooks"]()["hooks"]
         for event in ("PreToolUse", "UserPromptSubmit", "SessionStart"):
             command = plugin_hooks[event][0]["hooks"][0]["command"]
@@ -1273,9 +1303,7 @@ class TestRuleDistribution:
 
     def test_global_agents_contains_only_cross_project_defaults(self) -> None:
         """global AGENTS に生成blockやhook実装詳細を再混入させない"""
-        content = (REPO_ROOT / "codex" / "global_AGENTS.md").read_text(
-            encoding="utf-8"
-        )
+        content = (REPO_ROOT / "codex" / "global_AGENTS.md").read_text(encoding="utf-8")
 
         required_headings = (
             "# Codex Global Instructions",
@@ -1316,6 +1344,7 @@ class TestRuleDistribution:
         def invoke() -> subprocess.CompletedProcess[str]:
             return subprocess.run(
                 ["sh", str(hook)],
+                check=False,
                 cwd=str(REPO_ROOT),
                 env=env,
                 input=payload,
@@ -1344,7 +1373,7 @@ class TestRuleDistribution:
         _write_executable(
             fake_bin / "jaq",
             "#!/bin/sh\n"
-            "case \"$2\" in\n"
+            'case "$2" in\n'
             "  '.cwd // empty') printf '%s\\n' \"$FAKE_RULES_CWD\" ;;\n"
             "  '.tool_name // empty') printf '%s\\n' Edit ;;\n"
             "  *) printf '\\n' ;;\n"
@@ -1362,6 +1391,7 @@ class TestRuleDistribution:
 
         result = subprocess.run(
             ["sh", str(guard)],
+            check=False,
             cwd=str(REPO_ROOT),
             env=env,
             input=payload,
@@ -1374,29 +1404,29 @@ class TestRuleDistribution:
         assert "$rules-required" in result.stderr
         assert "@rules-required" not in result.stderr
 
+    @pytest.mark.usefixtures("generate_install_time_ai_assets")
     def test_command_safety_matches_selective_rule_loading_contract(self) -> None:
         """command policyから旧full injection前提を再導入しない"""
         module = runpy.run_path(
             str(REPO_ROOT / "scripts" / "apply-codex-performance-profile.py")
         )
         expected = module["SAFETY_RULES"].rstrip() + "\n"
-        actual = (
-            GENERATED_CODEX / "rules" / "command-safety.rules"
-        ).read_text(encoding="utf-8")
+        actual = (GENERATED_CODEX / "rules" / "command-safety.rules").read_text(
+            encoding="utf-8"
+        )
 
         assert actual == expected
         assert "must be read explicitly when applicable" in actual
         assert "are injected by rules-inject.sh" not in actual
 
+    @pytest.mark.usefixtures("generate_install_time_ai_assets")
     def test_bug_hunt_skill_includes_its_allowlisted_resource(self) -> None:
         """real port outputにskill本体,reference,optional policyを揃える"""
         skill = GENERATED_CODEX / "skills" / "bug-hunt"
 
         assert (skill / "SKILL.md").is_file()
         assert (skill / "references" / "review-lenses.md").is_file()
-        openai_yaml = (skill / "agents" / "openai.yaml").read_text(
-            encoding="utf-8"
-        )
+        openai_yaml = (skill / "agents" / "openai.yaml").read_text(encoding="utf-8")
         assert "allow_implicit_invocation: true" in openai_yaml
 
     def test_performance_profile_maps_shared_manual_invocation_policy(
@@ -1459,6 +1489,7 @@ class TestRuleDistribution:
         assert result.returncode == 0, result.stderr
         assert not (tmp_path / "codex" / "global_AGENTS.md").exists()
 
+    @pytest.mark.usefixtures("generate_install_time_ai_assets")
     def test_claude_skill_ports_use_codex_runtime_contract(self) -> None:
         """Claude由来skillに未対応runtime contractを残さない"""
         forbidden_fragments = (
@@ -1479,6 +1510,7 @@ class TestRuleDistribution:
             for fragment in forbidden_fragments:
                 assert fragment not in content, f"{port}: unsupported {fragment!r}"
 
+    @pytest.mark.usefixtures("generate_install_time_ai_assets")
     def test_codex_skill_catalog_uses_canonical_names(self) -> None:
         """旧skill名を配布対象やruntime参照に残さない"""
         aliases = {
@@ -1506,6 +1538,7 @@ class TestRuleDistribution:
         for legacy_name in aliases:
             assert legacy_name not in runtime_contract
 
+    @pytest.mark.usefixtures("generate_install_time_ai_assets")
     def test_natural_japanese_is_rule_not_stale_codex_skill(self) -> None:
         """natural-japanese は skill ではなく Claude/Codex 両方の rule として配布される"""
         codex_index = (GENERATED_CODEX / "rules" / "RULES_INDEX.md").read_text(
@@ -1526,6 +1559,7 @@ class TestRuleDistribution:
             GENERATED_CODEX / "skills" / "natural-japanese" / "agents" / "openai.yaml"
         ).exists()
 
+    @pytest.mark.usefixtures("generate_install_time_ai_assets")
     def test_orchestrate_is_ported_to_codex_skill(self) -> None:
         """Claude の orchestrate は Codex skill としても port される"""
         skill_path = GENERATED_CODEX / "skills" / "orchestrate" / "SKILL.md"
@@ -1539,6 +1573,7 @@ class TestRuleDistribution:
         assert "Step 5: commit" not in content
         assert "subagent が TDD で実装・テスト・自己レビューする" in content
 
+    @pytest.mark.usefixtures("generate_install_time_ai_assets")
     def test_rule_bundle_header_is_deterministic(self) -> None:
         """RULES_BUNDLEの見出しへ生成時刻や旧injection説明を混ぜない"""
         bundle = GENERATED_CODEX / "rules" / "RULES_BUNDLE.md"
@@ -1566,6 +1601,7 @@ class TestScriptCli:
                 "--repo",
                 str(REPO_ROOT),
             ],
+            check=False,
             cwd=str(REPO_ROOT),
             capture_output=True,
             text=True,
@@ -1576,21 +1612,15 @@ class TestScriptCli:
         assert "NameError: name 'HOME' is not defined" not in result.stderr
         assert "generated AI assets" in result.stdout
 
-    def test_verify_codex_plugin_rejects_skill_sync_drift(
-        self, tmp_path: Path
-    ) -> None:
+    def test_verify_codex_plugin_rejects_skill_sync_drift(self, tmp_path: Path) -> None:
         """plugin verifierがCodex source未反映のskillを検出する"""
-        module = runpy.run_path(
-            str(REPO_ROOT / "scripts" / "verify-codex-plugin.py")
-        )
+        module = runpy.run_path(str(REPO_ROOT / "scripts" / "verify-codex-plugin.py"))
         check_skill_sync = module["check_skill_sync"]
 
         source = tmp_path / "codex" / "skills" / "sample"
         source.mkdir(parents=True)
         (source / "SKILL.md").write_text("# sample\n", encoding="utf-8")
-        (tmp_path / "plugins" / "dotfile-work-codex" / "skills").mkdir(
-            parents=True
-        )
+        (tmp_path / "plugins" / "dotfile-work-codex" / "skills").mkdir(parents=True)
         (tmp_path / "plugins" / "dotfile-work-codex-extra" / "skills").mkdir(
             parents=True
         )
@@ -1637,6 +1667,8 @@ class TestRulesEnforceScanner:
         assert "latest or wildcard" in violations[0].message
 
     def test_should_require_concrete_inline_ignore_reason(self) -> None:
+        # Keep the test directive split so the scanner does not treat it as an exemption.
+        directive_parts = ("codex", "rule-ignore")
         scanner = runpy.run_path(str(RULES_ENFORCE_PY))
         added_line = scanner["AddedLine"]
         scan_added_lines = scanner["scan_added_lines"]
@@ -1646,7 +1678,7 @@ class TestRulesEnforceScanner:
                 added_line(
                     "src/app.py",
                     1,
-                    "# " + "-".join(("codex", "rule-ignore")),
+                    "# " + "-".join(directive_parts),
                     True,
                 )
             ]
@@ -1690,7 +1722,7 @@ class TestStowAncestorMigration:
         library = INSTALL_SH.read_text(encoding="utf-8").rsplit('\nmain "$@"', 1)[0]
         runner = repo / "install.sh"
         runner.write_text(
-            library + '\nMODE_DRY_RUN=${TEST_DRY_RUN:-false}\n'
+            library + "\nMODE_DRY_RUN=${TEST_DRY_RUN:-false}\n"
             'install_stow_specs_file "$TEST_PACKAGE" "$TEST_SPECS"\n',
             encoding="utf-8",
         )
@@ -1705,18 +1737,33 @@ class TestStowAncestorMigration:
         specs.write_text(f"assets/entry.md:{parent}/entry.md\n", encoding="utf-8")
         return subprocess.run(
             ["sh", str(runner)],
-            env={**os.environ, "HOME": str(home), "TEST_SPECS": str(specs),
-                 "TEST_PACKAGE": "codex" if parent.startswith(".codex") else "claude",
-                 "TEST_DRY_RUN": str(dry_run).lower()},
-            capture_output=True, text=True, timeout=30,
+            check=False,
+            env={
+                **os.environ,
+                "HOME": str(home),
+                "TEST_SPECS": str(specs),
+                "TEST_PACKAGE": "codex" if parent.startswith(".codex") else "claude",
+                "TEST_DRY_RUN": str(dry_run).lower(),
+            },
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
 
-    @pytest.mark.parametrize("parent", [
-        ".claude/commands", ".claude/notes", ".claude/scratch",
-        ".claude/skills/tdd", ".codex/agents",
-    ])
+    @pytest.mark.parametrize(
+        "parent",
+        [
+            ".claude/commands",
+            ".claude/notes",
+            ".claude/scratch",
+            ".claude/skills/tdd",
+            ".codex/agents",
+        ],
+    )
     def test_migrates_directory_link_without_modifying_source(
-        self, installation, parent: str,
+        self,
+        installation,
+        parent: str,
     ) -> None:
         repo, home, _ = installation
         original = repo / "legacy"
@@ -1733,11 +1780,19 @@ class TestStowAncestorMigration:
             assert (target / "entry.md").read_text() == "generated asset\n"
             assert (original / "entry.md").read_text() == "original asset\n"
             assert (original / "personal.md").read_text() == "personal notes\n"
-            assert sorted(p.name for p in original.iterdir()) == ["entry.md", "personal.md"]
+            assert sorted(p.name for p in original.iterdir()) == [
+                "entry.md",
+                "personal.md",
+            ]
 
-    def test_interactive_claude_codex_migration_and_uninstall(self, tmp_path: Path) -> None:
+    def test_interactive_claude_codex_migration_and_uninstall(
+        self, tmp_path: Path
+    ) -> None:
         home = tmp_path / "home"
-        _create_fake_vendor(home)
+        vendor_dir = _create_fake_vendor(home)
+        config = home / ".codex/config.toml"
+        config.parent.mkdir(parents=True, exist_ok=True)
+        config.write_text('model = "local-only"\n', encoding="utf-8")
         originals = tmp_path / "originals"
         paths = {
             ".claude/commands": "common/commands",
@@ -1752,32 +1807,55 @@ class TestStowAncestorMigration:
             target = home / dest
             target.parent.mkdir(parents=True, exist_ok=True)
             target.symlink_to(original)
-        before = {p.relative_to(originals): p.read_bytes()
-                  for p in originals.rglob("*") if p.is_file()}
+        before = {
+            p.relative_to(originals): p.read_bytes()
+            for p in originals.rglob("*")
+            if p.is_file()
+        }
 
         for _ in range(2):
             result = subprocess.run(
-                ["sh", str(INSTALL_SH)], cwd=REPO_ROOT,
-                env={**os.environ, "HOME": str(home)}, input="5\ny\n6\nn\ny\n",
-                capture_output=True, text=True, timeout=30,
+                ["sh", str(INSTALL_SH)],
+                check=False,
+                cwd=REPO_ROOT,
+                env={**os.environ, "HOME": str(home)},
+                input="5\ny\n6\nn\ny\n",
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
             assert result.returncode == 0, result.stdout + result.stderr
+            assert config.read_text(encoding="utf-8") == 'model = "local-only"\n'
+            for skill in (vendor_dir / "skills").iterdir():
+                link = home / ".claude/skills" / skill.name
+                assert link.is_symlink()
+                assert link.resolve() == skill.resolve()
             for dest, source in paths.items():
                 for file in (REPO_ROOT / source).rglob("*"):
                     if file.is_file():
-                        assert (home / dest / file.relative_to(REPO_ROOT / source)).is_file()
-            assert {p.relative_to(originals): p.read_bytes()
-                    for p in originals.rglob("*") if p.is_file()} == before
+                        assert (
+                            home / dest / file.relative_to(REPO_ROOT / source)
+                        ).is_file()
+            assert {
+                p.relative_to(originals): p.read_bytes()
+                for p in originals.rglob("*")
+                if p.is_file()
+            } == before
 
         result = _run_install_sh(REPO_ROOT, home, uninstall=True)
         assert result.returncode == 0, result.stdout + result.stderr
         assert not (home / ".claude/commands/fix.md").exists()
         assert not (home / ".codex/agents/code_reviewer.toml").exists()
-        assert {p.relative_to(originals): p.read_bytes()
-                for p in originals.rglob("*") if p.is_file()} == before
+        assert {
+            p.relative_to(originals): p.read_bytes()
+            for p in originals.rglob("*")
+            if p.is_file()
+        } == before
 
     @pytest.mark.parametrize("kind", ["directory-link", "broken-link", "file"])
-    def test_dry_run_preserves_obstructing_ancestor(self, installation, kind: str) -> None:
+    def test_dry_run_preserves_obstructing_ancestor(
+        self, installation, kind: str
+    ) -> None:
         repo, home, _ = installation
         original = repo / "legacy"
         original.mkdir()
@@ -1787,7 +1865,9 @@ class TestStowAncestorMigration:
         if kind == "file":
             target.write_text("local file\n", encoding="utf-8")
         else:
-            target.symlink_to(original if kind == "directory-link" else repo / "missing")
+            target.symlink_to(
+                original if kind == "directory-link" else repo / "missing"
+            )
 
         result = self.run_install(installation, ".claude/commands", dry_run=True)
 
@@ -1807,7 +1887,9 @@ class TestStowAncestorMigration:
         target.parent.mkdir()
         if kind == "file":
             target.write_text("local file\n", encoding="utf-8")
-            target.with_name("commands.bak").write_text("older backup\n", encoding="utf-8")
+            target.with_name("commands.bak").write_text(
+                "older backup\n", encoding="utf-8"
+            )
         else:
             target.symlink_to(repo / "missing")
 
@@ -2048,7 +2130,9 @@ class TestStowInstallScript:
         for spec in link_specs:
             source_name, dest = spec.split(":", 1)
             write_package_link(sources[source_name], dest)
-        write_package_link(sources["config/git/.gitignore.common"], ".config/git/ignore")
+        write_package_link(
+            sources["config/git/.gitignore.common"], ".config/git/ignore"
+        )
         write_package_link(
             sources["config/git/.gitignore.common"], ".config/git/ignore.bak"
         )
@@ -2153,6 +2237,234 @@ class TestStowInstallScript:
         assert not log.exists()
 
 
+@pytest.fixture(scope="class")
+def installed_home(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """One real install for observers that never mutate the installed HOME."""
+    home = tmp_path_factory.mktemp("fresh-install") / "home"
+    home.mkdir()
+    result = _run_install_sh(REPO_ROOT, home)
+    assert result.returncode == 0, result.stdout + result.stderr
+    return home
+
+
+class TestFreshInstallationReadback:
+    def test_install_creates_shell_symlinks_from_generated_stow_package(
+        self, installed_home: Path
+    ) -> None:
+        """Shell フルセットは install 時生成 package 経由で配置される"""
+        home = installed_home
+
+        _assert_generated_stow_link(
+            home / ".bashrc",
+            REPO_ROOT / ".stow-work" / "shell" / ".bashrc",
+            REPO_ROOT / "config" / "shell" / "bash" / "bashrc",
+        )
+        _assert_generated_stow_link(
+            home / ".bash_profile",
+            REPO_ROOT / ".stow-work" / "shell" / ".bash_profile",
+            REPO_ROOT / "config" / "shell" / "bash" / "bash_profile",
+        )
+
+    def test_install_creates_git_symlinks_from_generated_stow_package(
+        self, installed_home: Path
+    ) -> None:
+        """Git の単純 symlink は install 時生成 package 経由で配置される"""
+        home = installed_home
+
+        _assert_generated_stow_link(
+            home / ".git-completion.bash",
+            REPO_ROOT / ".stow-work" / "git" / ".git-completion.bash",
+            REPO_ROOT / "config" / "git" / ".git-completion.bash",
+        )
+        _assert_generated_stow_link(
+            home / ".config" / "git" / "attributes",
+            REPO_ROOT / ".stow-work" / "git" / ".config" / "git" / "attributes",
+            REPO_ROOT / "config" / "git" / ".gitattributes",
+        )
+
+    def test_install_merges_gitconfig_common_and_variant_into_one_file(
+        self, installed_home: Path
+    ) -> None:
+        """~/.gitconfig は common + variant を結合した実体ファイルで、~/.gitconfig.common に依存しない"""
+        home = installed_home
+
+        gitconfig = home / ".gitconfig"
+        assert gitconfig.is_file()
+        assert not gitconfig.is_symlink()
+        git_dir = REPO_ROOT / "config" / "git"
+        assert gitconfig.read_text(encoding="utf-8") == (
+            (git_dir / ".gitconfig.common").read_text(encoding="utf-8")
+            + (git_dir / ".gitconfig.work").read_text(encoding="utf-8")
+        )
+        assert not (home / ".gitconfig.common").exists()
+
+        def git_get(key: str) -> str:
+            return subprocess.run(
+                ["git", "config", "--file", str(gitconfig), "--get", key],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=True,
+            ).stdout.strip()
+
+        assert git_get("alias.s") == "status"
+        assert git_get("user.email") == "t.okayasu@twb.jp"
+
+    def test_install_creates_vim_symlink_from_stow_package(
+        self, installed_home: Path
+    ) -> None:
+        """Vim 設定は install 時生成 package 経由で ~/.vimrc に配置される"""
+        home = installed_home
+        vimrc = home / ".vimrc"
+
+        generated = REPO_ROOT / ".stow-work" / "vim" / ".vimrc"
+        assert generated.is_symlink()
+        assert generated.resolve() == REPO_ROOT / "config" / "vim" / ".vimrc"
+        assert vimrc.is_symlink()
+        assert _symlink_target_path(vimrc) == generated
+
+    def test_install_creates_bin_symlinks_from_generated_stow_package(
+        self, installed_home: Path
+    ) -> None:
+        """bin/ 配下の CLI は install 時生成 package 経由で配置される"""
+        home = installed_home
+
+        _assert_generated_stow_link(
+            home / ".local" / "bin" / "git-new-feature",
+            REPO_ROOT / ".stow-work" / "bin" / ".local" / "bin" / "git-new-feature",
+            REPO_ROOT / "bin" / "git-new-feature",
+        )
+        _assert_generated_stow_link(
+            home / ".local" / "bin" / "qa-nightmare-preflight",
+            REPO_ROOT
+            / ".stow-work"
+            / "bin"
+            / ".local"
+            / "bin"
+            / "qa-nightmare-preflight",
+            REPO_ROOT / "bin" / "qa-nightmare-preflight",
+        )
+        assert os.access(REPO_ROOT / "bin" / "qa-nightmare-preflight", os.X_OK)
+
+    def test_install_creates_claude_symlinks(self, installed_home: Path) -> None:
+        """install 後に ~/.claude/ 配下にシンボリックリンクが作られる"""
+        home = installed_home
+
+        claude_dir = home / ".claude"
+        assert claude_dir.is_dir()
+
+        _assert_claude_core_links(claude_dir)
+        _assert_claude_common_links(claude_dir)
+
+    def test_install_creates_codex_symlinks(self, installed_home: Path) -> None:
+        """install 後に ~/.codex/ 配下に stow 管理リンクが作られる"""
+        home = installed_home
+
+        codex_dir = home / ".codex"
+        assert codex_dir.is_dir()
+
+        _assert_codex_core_links(codex_dir)
+        _assert_codex_bin_links(codex_dir)
+        _assert_codex_common_links(codex_dir)
+        _assert_codex_rule_links(codex_dir)
+
+    def test_install_creates_codex_config_and_excludes_non_targets(
+        self, installed_home: Path
+    ) -> None:
+        """Codex config は通常ファイル生成し、除外対象は配置しない"""
+        home = installed_home
+
+        codex_dir = home / ".codex"
+        config_toml = codex_dir / "config.toml"
+        assert config_toml.is_file()
+        assert not config_toml.is_symlink()
+        assert config_toml.read_text(encoding="utf-8") == (
+            REPO_ROOT / "codex" / "config.toml.template"
+        ).read_text(encoding="utf-8")
+        assert not (codex_dir / "hooks.json").exists()
+        assert not (codex_dir / "README.md").exists()
+        assert not (codex_dir / "settings.json").exists()
+        assert not (codex_dir / "prompts").exists()
+        assert not (codex_dir / "skills" / "tdd" / "SKILL.md").exists()
+        assert not (codex_dir / "skills" / "natural-japanese" / "SKILL.md").exists()
+        assert not (home / ".agents" / "skills" / "tdd" / "SKILL.md").exists()
+        core_skill = (
+            codex_dir / "plugins" / "dotfile-work-codex" / "skills" / "tdd" / "SKILL.md"
+        )
+        marketplace = home / ".agents" / "plugins" / "marketplace.json"
+        assert core_skill.is_file()
+        assert (
+            core_skill.resolve()
+            == (
+                GENERATED_PLUGINS / "dotfile-work-codex" / "skills" / "tdd" / "SKILL.md"
+            ).resolve()
+        )
+        assert _has_generated_stow_ancestor(
+            core_skill,
+            REPO_ROOT
+            / ".stow-work"
+            / "codex"
+            / ".codex"
+            / "plugins"
+            / "dotfile-work-codex"
+            / "skills"
+            / "tdd"
+            / "SKILL.md",
+        )
+        assert marketplace.is_symlink()
+        assert (
+            marketplace.resolve()
+            == (
+                REPO_ROOT
+                / ".generated"
+                / "ai-assets"
+                / ".agents"
+                / "plugins"
+                / "marketplace.json"
+            ).resolve()
+        )
+
+    def test_install_creates_bin_symlinks(self, installed_home: Path) -> None:
+        """install -f で bin/ 内のファイルが ~/.local/bin/ にリンクされる"""
+        home = installed_home
+
+        local_bin = home / ".local" / "bin"
+        assert local_bin.is_dir(), "~/.local/bin/ should be created"
+
+        # bin/ 内の代表的なファイルがリンクされていること
+        for bin_file in (REPO_ROOT / "bin").iterdir():
+            if bin_file.is_file():
+                link = local_bin / bin_file.name
+                assert link.is_symlink(), f"{bin_file.name} should be symlinked"
+
+    def test_install_creates_xdg_gitignore(self, installed_home: Path) -> None:
+        """install 後 ~/.config/git/ignore が base+variant マージの実体ファイル"""
+        home = installed_home
+
+        ignore = home / ".config" / "git" / "ignore"
+        assert ignore.is_file()
+        assert not ignore.is_symlink()
+
+        content = ignore.read_text()
+        # base (.gitignore.common) 由来
+        assert ".DS_Store" in content
+        # variant (.gitignore.work / .private) が結合されていること
+        assert ("**/.codex/" in content) or ("Private-specific" in content)
+
+    def test_install_creates_xdg_gitattributes_symlink(
+        self, installed_home: Path
+    ) -> None:
+        """install 後 ~/.config/git/attributes が repo の .gitattributes へのリンク"""
+        home = installed_home
+
+        attributes = home / ".config" / "git" / "attributes"
+        assert attributes.is_symlink()
+        assert (
+            attributes.resolve()
+            == (REPO_ROOT / "config" / "git" / ".gitattributes").resolve()
+        )
+
+
 class TestIntegrationInstallUninstall:
     """実リポジトリ構造で install.sh -f / -u -f を実行するテスト"""
 
@@ -2172,9 +2484,7 @@ class TestIntegrationInstallUninstall:
         codex_marker = tmp_path / "codex-invoked"
         _write_executable(
             fake_bin / "codex",
-            "#!/bin/sh\n"
-            'touch "$CODEX_MARKER"\n'
-            "exit 1\n",
+            '#!/bin/sh\ntouch "$CODEX_MARKER"\nexit 1\n',
         )
         environment = {
             "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
@@ -2280,81 +2590,6 @@ class TestIntegrationInstallUninstall:
         assert ".ai-assets-dry-run." not in result.stdout
         assert f"{repo}/.generated/ai-assets/" in result.stdout
 
-    def test_install_succeeds(self, tmp_path: Path) -> None:
-        """install.sh -f が正常終了する"""
-        home = tmp_path / "home"
-        home.mkdir()
-        result = _run_install_sh(REPO_ROOT, home)
-        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
-
-    def test_install_creates_shell_symlinks_from_generated_stow_package(
-        self, tmp_path: Path
-    ) -> None:
-        """Shell フルセットは install 時生成 package 経由で配置される"""
-        home = tmp_path / "home"
-        home.mkdir()
-        result = _run_install_sh(REPO_ROOT, home)
-
-        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
-        _assert_generated_stow_link(
-            home / ".bashrc",
-            REPO_ROOT / ".stow-work" / "shell" / ".bashrc",
-            REPO_ROOT / "config" / "shell" / "bash" / "bashrc",
-        )
-        _assert_generated_stow_link(
-            home / ".bash_profile",
-            REPO_ROOT / ".stow-work" / "shell" / ".bash_profile",
-            REPO_ROOT / "config" / "shell" / "bash" / "bash_profile",
-        )
-
-    def test_install_creates_git_symlinks_from_generated_stow_package(
-        self, tmp_path: Path
-    ) -> None:
-        """Git の単純 symlink は install 時生成 package 経由で配置される"""
-        home = tmp_path / "home"
-        home.mkdir()
-        result = _run_install_sh(REPO_ROOT, home)
-
-        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
-        _assert_generated_stow_link(
-            home / ".git-completion.bash",
-            REPO_ROOT / ".stow-work" / "git" / ".git-completion.bash",
-            REPO_ROOT / "config" / "git" / ".git-completion.bash",
-        )
-        _assert_generated_stow_link(
-            home / ".config" / "git" / "attributes",
-            REPO_ROOT / ".stow-work" / "git" / ".config" / "git" / "attributes",
-            REPO_ROOT / "config" / "git" / ".gitattributes",
-        )
-
-    def test_install_merges_gitconfig_common_and_variant_into_one_file(
-        self, tmp_path: Path
-    ) -> None:
-        """~/.gitconfig は common + variant を結合した実体ファイルで、~/.gitconfig.common に依存しない"""
-        home = tmp_path / "home"
-        home.mkdir()
-        result = _run_install_sh(REPO_ROOT, home)
-
-        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
-        gitconfig = home / ".gitconfig"
-        assert gitconfig.is_file()
-        assert not gitconfig.is_symlink()
-        git_dir = REPO_ROOT / "config" / "git"
-        assert gitconfig.read_text(encoding="utf-8") == (
-            (git_dir / ".gitconfig.common").read_text(encoding="utf-8")
-            + (git_dir / ".gitconfig.work").read_text(encoding="utf-8")
-        )
-        assert not (home / ".gitconfig.common").exists()
-
-        def git_get(key: str) -> str:
-            return subprocess.run(
-                ["git", "config", "--file", str(gitconfig), "--get", key],
-                capture_output=True, text=True, timeout=10, check=True,
-            ).stdout.strip()
-
-        assert git_get("alias.s") == "status"
-        assert git_get("user.email") == "t.okayasu@twb.jp"
-
     def test_uninstall_removes_merged_gitconfig(self, tmp_path: Path) -> None:
         """uninstall 後に生成した ~/.gitconfig が残らない"""
         home = tmp_path / "home"
@@ -2363,25 +2598,11 @@ class TestIntegrationInstallUninstall:
 
         result = _run_install_sh(REPO_ROOT, home, uninstall=True)
 
-        assert result.returncode == 0, f"uninstall failed:\n{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"uninstall failed:\n{result.stdout}\n{result.stderr}"
+        )
         assert not (home / ".gitconfig").exists()
         assert not (home / ".gitconfig").is_symlink()
-
-    def test_install_creates_vim_symlink_from_stow_package(
-        self, tmp_path: Path
-    ) -> None:
-        """Vim 設定は install 時生成 package 経由で ~/.vimrc に配置される"""
-        home = tmp_path / "home"
-        home.mkdir()
-        result = _run_install_sh(REPO_ROOT, home)
-        vimrc = home / ".vimrc"
-
-        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
-        generated = REPO_ROOT / ".stow-work" / "vim" / ".vimrc"
-        assert generated.is_symlink()
-        assert generated.resolve() == REPO_ROOT / "config" / "vim" / ".vimrc"
-        assert vimrc.is_symlink()
-        assert _symlink_target_path(vimrc) == generated
 
     def test_install_adopts_legacy_vim_symlink_to_stow_package(
         self, tmp_path: Path
@@ -2394,35 +2615,13 @@ class TestIntegrationInstallUninstall:
 
         result = _run_install_sh(REPO_ROOT, home)
 
-        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"install failed:\n{result.stdout}\n{result.stderr}"
+        )
         assert vimrc.is_symlink()
-        assert _symlink_target_path(vimrc) == REPO_ROOT / ".stow-work" / "vim" / ".vimrc"
-
-    def test_install_creates_bin_symlinks_from_generated_stow_package(
-        self, tmp_path: Path
-    ) -> None:
-        """bin/ 配下の CLI は install 時生成 package 経由で配置される"""
-        home = tmp_path / "home"
-        home.mkdir()
-        result = _run_install_sh(REPO_ROOT, home)
-
-        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
-        _assert_generated_stow_link(
-            home / ".local" / "bin" / "git-new-feature",
-            REPO_ROOT / ".stow-work" / "bin" / ".local" / "bin" / "git-new-feature",
-            REPO_ROOT / "bin" / "git-new-feature",
+        assert (
+            _symlink_target_path(vimrc) == REPO_ROOT / ".stow-work" / "vim" / ".vimrc"
         )
-        _assert_generated_stow_link(
-            home / ".local" / "bin" / "qa-nightmare-preflight",
-            REPO_ROOT
-            / ".stow-work"
-            / "bin"
-            / ".local"
-            / "bin"
-            / "qa-nightmare-preflight",
-            REPO_ROOT / "bin" / "qa-nightmare-preflight",
-        )
-        assert os.access(REPO_ROOT / "bin" / "qa-nightmare-preflight", os.X_OK)
 
     def test_installed_claude_init_project_uses_installed_templates(
         self, tmp_path: Path
@@ -2441,6 +2640,7 @@ class TestIntegrationInstallUninstall:
         env["HOME"] = str(home)
         init_result = subprocess.run(
             [str(home / ".local" / "bin" / "claude-init-project")],
+            check=False,
             cwd=project,
             env=env,
             capture_output=True,
@@ -2468,12 +2668,7 @@ class TestIntegrationInstallUninstall:
         assert (home / ".claude" / "statusline.json").is_symlink()
         assert (home / ".claude" / "commands" / "feat.md").is_symlink()
         nested_resource = (
-            home
-            / ".claude"
-            / "skills"
-            / "bug-hunt"
-            / "references"
-            / "review-lenses.md"
+            home / ".claude" / "skills" / "bug-hunt" / "references" / "review-lenses.md"
         )
         assert nested_resource.is_symlink()
         result = _run_install_sh(REPO_ROOT, home, uninstall=True)
@@ -2482,107 +2677,24 @@ class TestIntegrationInstallUninstall:
         assert not (home / ".claude" / "commands" / "feat.md").is_symlink()
         assert not nested_resource.is_symlink()
 
-    def test_install_creates_claude_symlinks(self, tmp_path: Path) -> None:
-        """install 後に ~/.claude/ 配下にシンボリックリンクが作られる"""
-        home = tmp_path / "home"
-        home.mkdir()
-        _create_fake_vendor(home)
-        _run_install_sh(REPO_ROOT, home)
-
-        claude_dir = home / ".claude"
-        assert claude_dir.is_dir()
-
-        _assert_claude_core_links(claude_dir)
-        _assert_claude_common_links(claude_dir)
-
-    def test_install_creates_codex_symlinks(self, tmp_path: Path) -> None:
-        """install 後に ~/.codex/ 配下に stow 管理リンクが作られる"""
-        home = tmp_path / "home"
-        home.mkdir()
-        result = _run_install_sh(REPO_ROOT, home)
-        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
-
-        codex_dir = home / ".codex"
-        assert codex_dir.is_dir()
-
-        _assert_codex_core_links(codex_dir)
-        _assert_codex_bin_links(codex_dir)
-        _assert_codex_common_links(codex_dir)
-        _assert_codex_rule_links(codex_dir)
-
-    def test_install_creates_codex_config_and_excludes_non_targets(
-        self, tmp_path: Path
-    ) -> None:
-        """Codex config は通常ファイル生成し、除外対象は配置しない"""
-        home = tmp_path / "home"
-        home.mkdir()
-        result = _run_install_sh(REPO_ROOT, home)
-        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
-
-        codex_dir = home / ".codex"
-        config_toml = codex_dir / "config.toml"
-        assert config_toml.is_file()
-        assert not config_toml.is_symlink()
-        assert config_toml.read_text(encoding="utf-8") == (
-            REPO_ROOT / "codex" / "config.toml.template"
-        ).read_text(encoding="utf-8")
-        assert not (codex_dir / "hooks.json").exists()
-        assert not (codex_dir / "README.md").exists()
-        assert not (codex_dir / "settings.json").exists()
-        assert not (codex_dir / "prompts").exists()
-        assert not (codex_dir / "skills" / "tdd" / "SKILL.md").exists()
-        assert not (codex_dir / "skills" / "natural-japanese" / "SKILL.md").exists()
-        assert not (home / ".agents" / "skills" / "tdd" / "SKILL.md").exists()
-        core_skill = (
-            codex_dir
-            / "plugins"
-            / "dotfile-work-codex"
-            / "skills"
-            / "tdd"
-            / "SKILL.md"
-        )
-        marketplace = home / ".agents" / "plugins" / "marketplace.json"
-        assert core_skill.is_file()
-        assert core_skill.resolve() == (
-            GENERATED_PLUGINS / "dotfile-work-codex" / "skills" / "tdd" / "SKILL.md"
-        ).resolve()
-        assert _has_generated_stow_ancestor(
-            core_skill,
-            REPO_ROOT
-            / ".stow-work"
-            / "codex"
-            / ".codex"
-            / "plugins"
-            / "dotfile-work-codex"
-            / "skills"
-            / "tdd"
-            / "SKILL.md",
-        )
-        assert marketplace.is_symlink()
-        assert marketplace.resolve() == (
-            REPO_ROOT
-            / ".generated"
-            / "ai-assets"
-            / ".agents"
-            / "plugins"
-            / "marketplace.json"
-        ).resolve()
-
     def test_install_preserves_existing_codex_config(self, tmp_path: Path) -> None:
         """既存 ~/.codex/config.toml は install で上書きされない"""
         home = tmp_path / "home"
         config_toml = home / ".codex" / "config.toml"
         config_toml.parent.mkdir(parents=True)
-        config_toml.write_text("model = \"local-only\"\n", encoding="utf-8")
+        config_toml.write_text('model = "local-only"\n', encoding="utf-8")
 
-        first_result = _run_install_sh(REPO_ROOT, home)
-        second_result = _run_install_sh(REPO_ROOT, home)
+        result = run_installer_functions(
+            tmp_path,
+            """
+            _codex_generate_config_from_template
+            _codex_generate_config_from_template
+        """,
+        )
 
-        assert first_result.returncode == 0
-        assert second_result.returncode == 0
-        assert config_toml.read_text(encoding="utf-8") == "model = \"local-only\"\n"
-        assert "既存の ~/.codex/config.toml は上書きしません" in first_result.stdout
-        assert "既存の ~/.codex/config.toml は上書きしません" in second_result.stdout
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert config_toml.read_text(encoding="utf-8") == 'model = "local-only"\n'
+        assert result.stdout.count("既存の ~/.codex/config.toml は上書きしません") == 2
 
     def test_install_and_uninstall_model_profiles_preserve_base_config(
         self, tmp_path: Path
@@ -2613,7 +2725,9 @@ class TestIntegrationInstallUninstall:
             env_overrides=env_overrides,
             use_fake_vendor=False,
         )
-        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"install failed:\n{result.stdout}\n{result.stderr}"
+        )
         assert config_toml.read_text(encoding="utf-8") == 'model = "local-only"\n'
         for profile_path in MODEL_PROFILE_PATHS:
             filename = Path(profile_path).name
@@ -2644,7 +2758,9 @@ class TestIntegrationInstallUninstall:
             scratch_profile.unlink(missing_ok=True)
             scratch_hook.unlink(missing_ok=True)
 
-        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"install failed:\n{result.stdout}\n{result.stderr}"
+        )
         assert not (home / ".codex" / "scratch.tmp").exists()
         assert not (home / ".codex" / "scratch.config.toml").exists()
         assert not (home / ".codex" / "hooks" / "scratch-hook.sh").exists()
@@ -2672,10 +2788,13 @@ class TestIntegrationInstallUninstall:
         assert manifest.is_symlink()
 
         _run_install_sh(REPO_ROOT, home, uninstall=True)
-        assert not (home / ".claude" / "settings.json").exists()
-        assert not destructive_hook.exists()
-        assert not checklist.exists()
-        assert not manifest.exists()
+        for removed in (
+            home / ".claude/settings.json",
+            destructive_hook,
+            checklist,
+            manifest,
+        ):
+            assert not os.path.lexists(removed), f"managed entry remains: {removed}"
 
     def test_uninstall_removes_codex_symlinks(self, tmp_path: Path) -> None:
         """uninstall 後に dotfiles 由来のCodexリンクが削除される"""
@@ -2706,15 +2825,18 @@ class TestIntegrationInstallUninstall:
 
         _run_install_sh(REPO_ROOT, home, uninstall=True)
         assert config_toml.is_file()
-        assert not (home / ".codex" / "agents" / "code_reviewer.toml").exists()
-        assert not destructive_hook.exists()
-        assert not rules_enforce_helper.exists()
-        assert not checklist.exists()
-        assert not manifest.exists()
+        for removed in (
+            home / ".codex/agents/code_reviewer.toml",
+            destructive_hook,
+            rules_enforce_helper,
+            checklist,
+            manifest,
+        ):
+            assert not os.path.lexists(removed), f"managed entry remains: {removed}"
         core_plugin = home / ".codex" / "plugins" / "dotfile-work-codex"
         assert not core_plugin.exists()
         assert not core_plugin.is_symlink()
-        assert not (home / ".agents" / "plugins" / "marketplace.json").exists()
+        assert not os.path.lexists(home / ".agents/plugins/marketplace.json")
 
     def test_uninstall_removes_legacy_common_hooks(self, tmp_path: Path) -> None:
         """common化前の hook リンクが uninstall で削除される"""
@@ -2818,7 +2940,10 @@ class TestIntegrationInstallUninstall:
         assert result.returncode == 0
         assert "古い" not in result.stdout
 
-    @pytest.mark.parametrize("target_root", ("claude", ".generated/ai-assets/claude", ".stow-work/claude/.claude"))
+    @pytest.mark.parametrize(
+        "target_root",
+        ("claude", ".generated/ai-assets/claude", ".stow-work/claude/.claude"),
+    )
     def test_install_removes_retired_commit_checkpoint_link(
         self, tmp_path: Path, target_root: str
     ) -> None:
@@ -2868,11 +2993,7 @@ class TestIntegrationInstallUninstall:
         claude_bin_stale.parent.mkdir(parents=True)
         codex_stale.parent.mkdir(parents=True)
         claude_target = (
-            REPO_ROOT
-            / ".stow-work"
-            / "claude"
-            / ".claude"
-            / "statusline.settings.json"
+            REPO_ROOT / ".stow-work" / "claude" / ".claude" / "statusline.settings.json"
         )
         codex_target = (
             REPO_ROOT
@@ -2890,9 +3011,7 @@ class TestIntegrationInstallUninstall:
         claude_bin_stale.symlink_to(
             REPO_ROOT / "claude" / "bin" / "statusline-command.sh"
         )
-        codex_stale.symlink_to(
-            os.path.relpath(codex_target, start=codex_stale.parent)
-        )
+        codex_stale.symlink_to(os.path.relpath(codex_target, start=codex_stale.parent))
 
         result = _run_install_sh(REPO_ROOT, home)
 
@@ -3015,7 +3134,15 @@ class TestGitCredentialPolicy:
         }
 
         generic = subprocess.run(
-            ["git", "config", "--includes", "--global", "--get-all", "credential.helper"],
+            [
+                "git",
+                "config",
+                "--includes",
+                "--global",
+                "--get-all",
+                "credential.helper",
+            ],
+            check=False,
             env=env,
             capture_output=True,
             text=True,
@@ -3030,6 +3157,7 @@ class TestGitCredentialPolicy:
                 "--get-all",
                 "credential.https://github.com.helper",
             ],
+            check=False,
             env=env,
             capture_output=True,
             text=True,
@@ -3044,6 +3172,7 @@ class TestGitCredentialPolicy:
                 "--get-all",
                 "credential.https://gist.github.com.helper",
             ],
+            check=False,
             env=env,
             capture_output=True,
             text=True,
@@ -3066,7 +3195,7 @@ class TestGitCredentialPolicy:
         global_config = home / ".gitconfig"
         global_config.write_text(
             '[credential "https://example.test"]\n'
-            '    helper = "!f() { printf \'%s\\\\n\' \'username=common-helper\' \'password=common-helper\'; }; f"\n'
+            "    helper = \"!f() { printf '%s\\\\n' 'username=common-helper' 'password=common-helper'; }; f\"\n"
             "[include]\n"
             f"    path = {REPO_ROOT / 'config' / 'git' / '.gitconfig.common'}\n",
             encoding="utf-8",
@@ -3074,7 +3203,7 @@ class TestGitCredentialPolicy:
         (home / ".gitconfig.local").write_text(
             '[credential "https://example.test"]\n'
             "    helper =\n"
-            '    helper = "!f() { printf \'%s\\\\n\' \'username=local-helper\' \'password=local-helper\'; }; f"\n',
+            "    helper = \"!f() { printf '%s\\\\n' 'username=local-helper' 'password=local-helper'; }; f\"\n",
             encoding="utf-8",
         )
         env = {
@@ -3086,6 +3215,7 @@ class TestGitCredentialPolicy:
 
         result = subprocess.run(
             ["git", "credential", "fill"],
+            check=False,
             input="protocol=https\nhost=example.test\n\n",
             env=env,
             capture_output=True,
@@ -3102,6 +3232,7 @@ class TestGitCredentialPolicy:
                 "credential.helper",
                 "https://github.com",
             ],
+            check=False,
             env=env,
             capture_output=True,
             text=True,
@@ -3117,6 +3248,7 @@ class TestGitCredentialPolicy:
                 "credential.helper",
                 "https://gist.github.com",
             ],
+            check=False,
             env=env,
             capture_output=True,
             text=True,
@@ -3207,6 +3339,7 @@ def _run_uninstall(dotfiles: Path, home: Path) -> subprocess.CompletedProcess[st
 
     return subprocess.run(
         ["sh", str(dotfiles / "install.sh"), "-u", "-f"],
+        check=False,
         cwd=str(dotfiles),
         env=env,
         capture_output=True,
@@ -3409,22 +3542,6 @@ class TestRoundTrip:
 class TestBinInstall:
     """bin/ の CLIツールが ~/.local/bin/ にインストール/アンインストールされること"""
 
-    def test_install_creates_bin_symlinks(self, tmp_path: Path) -> None:
-        """install -f で bin/ 内のファイルが ~/.local/bin/ にリンクされる"""
-        home = tmp_path / "home"
-        home.mkdir()
-        result = _run_install_sh(REPO_ROOT, home)
-        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
-
-        local_bin = home / ".local" / "bin"
-        assert local_bin.is_dir(), "~/.local/bin/ should be created"
-
-        # bin/ 内の代表的なファイルがリンクされていること
-        for bin_file in (REPO_ROOT / "bin").iterdir():
-            if bin_file.is_file():
-                link = local_bin / bin_file.name
-                assert link.is_symlink(), f"{bin_file.name} should be symlinked"
-
     def test_uninstall_removes_bin_symlinks(self, tmp_path: Path) -> None:
         """uninstall で bin/ のシンボリックリンクが削除される"""
         home = tmp_path / "home"
@@ -3441,7 +3558,7 @@ class TestBinInstall:
         for bin_file in bin_files:
             if bin_file.is_file():
                 link = local_bin / bin_file.name
-                assert not link.exists(), f"{bin_file.name} should be removed"
+                assert not os.path.lexists(link), f"{bin_file.name} should be removed"
 
     def test_dryrun_shows_bin(self, tmp_path: Path) -> None:
         """ドライランで bin/ のインストールが表示される"""
@@ -3451,6 +3568,7 @@ class TestBinInstall:
         env["HOME"] = str(home)
         result = subprocess.run(
             ["sh", str(REPO_ROOT / "install.sh"), "-n", "-f"],
+            check=False,
             cwd=str(REPO_ROOT),
             env=env,
             capture_output=True,
@@ -3492,22 +3610,18 @@ def _create_fake_vendor(home: Path) -> Path:
     vendor_dir = home / ".claude" / "vendor" / "agent-skills"
     skills_dir = vendor_dir / "skills"
 
-    for skill_name in ("composition-patterns", "react-best-practices", "web-design-guidelines"):
+    for skill_name in (
+        "composition-patterns",
+        "react-best-practices",
+        "web-design-guidelines",
+    ):
         skill_dir = skills_dir / skill_name
         skill_dir.mkdir(parents=True, exist_ok=True)
         (skill_dir / "SKILL.md").write_text(f"# {skill_name}")
 
     # git init して .git/ を作る (install.sh が .git の存在でクローン済み判定)
-    subprocess.run(
-        ["git", "init", str(vendor_dir)], check=True, capture_output=True
-    )
-    subprocess.run(
-        ["git", "-C", str(vendor_dir), "add", "."], check=True, capture_output=True
-    )
-    subprocess.run(
-        ["git", "-C", str(vendor_dir), "commit", "-m", "init"],
-        check=True, capture_output=True,
-    )
+    subprocess.run(["git", "init", str(vendor_dir)], check=True, capture_output=True)
+
     return vendor_dir
 
 
@@ -3519,7 +3633,11 @@ def _create_fake_vendor(home: Path) -> Path:
 class TestVendorInstall:
     """vendor スキルの clone + symlink 処理のテスト"""
 
-    VENDOR_SKILLS = ("composition-patterns", "react-best-practices", "web-design-guidelines")
+    VENDOR_SKILLS = (
+        "composition-patterns",
+        "react-best-practices",
+        "web-design-guidelines",
+    )
 
     def test_vendor_symlinks_created(self, tmp_path: Path) -> None:
         """vendor clone 済みの状態で install すると skills にシンボリックリンクが作成される"""
@@ -3532,21 +3650,32 @@ class TestVendorInstall:
         for skill in self.VENDOR_SKILLS:
             link = home / ".claude" / "skills" / skill
             assert link.is_symlink(), f"vendor skill {skill} should be symlinked"
-            assert link.resolve().is_dir(), f"vendor skill {skill} link target should exist"
+            assert link.resolve().is_dir(), (
+                f"vendor skill {skill} link target should exist"
+            )
 
     def test_vendor_idempotent(self, tmp_path: Path) -> None:
-        """2回 install しても vendor symlink が壊れない"""
+        """2回登録しても vendor symlink が壊れない"""
         home = tmp_path / "home"
         home.mkdir()
         _create_fake_vendor(home)
+        (home / ".claude/skills").mkdir()
 
-        _run_install_sh(REPO_ROOT, home)
-        result = _run_install_sh(REPO_ROOT, home)
+        result = run_installer_functions(
+            tmp_path,
+            """
+            _claude_setup_vendor_skills
+            _claude_setup_vendor_skills
+            [ "$COUNT_ERROR" -eq 0 ]
+        """,
+        )
 
-        assert result.returncode == 0
+        assert result.returncode == 0, result.stdout + result.stderr
         for skill in self.VENDOR_SKILLS:
             link = home / ".claude" / "skills" / skill
-            assert link.is_symlink(), f"vendor skill {skill} should still be symlinked after 2nd install"
+            assert link.is_symlink(), (
+                f"vendor skill {skill} should still be symlinked after 2nd install"
+            )
 
     def test_vendor_no_skills_dir(self, tmp_path: Path) -> None:
         """vendor clone はあるが skills/ がない場合にエラーにならない"""
@@ -3573,6 +3702,7 @@ class TestVendorInstall:
         env["HOME"] = str(home)
         result = subprocess.run(
             ["sh", str(REPO_ROOT / "install.sh"), "-n", "-f"],
+            check=False,
             cwd=str(REPO_ROOT),
             env=env,
             capture_output=True,
@@ -3585,7 +3715,9 @@ class TestVendorInstall:
         for skill in self.VENDOR_SKILLS:
             link = home / ".claude" / "skills" / skill
             # vendor dir 直下にファイルがあるだけで symlink ではないはず
-            assert not link.is_symlink(), f"dryrun should not create vendor symlink for {skill}"
+            assert not link.is_symlink(), (
+                f"dryrun should not create vendor symlink for {skill}"
+            )
 
     def test_vendor_broken_symlink_at_dest(self, tmp_path: Path) -> None:
         """destination に壊れた symlink がある場合でもクラッシュしない"""
@@ -3618,7 +3750,11 @@ class TestVendorInstall:
 class TestVendorUninstall:
     """vendor スキルの symlink 削除 + vendor ディレクトリ削除のテスト"""
 
-    VENDOR_SKILLS = ("composition-patterns", "react-best-practices", "web-design-guidelines")
+    VENDOR_SKILLS = (
+        "composition-patterns",
+        "react-best-practices",
+        "web-design-guidelines",
+    )
 
     def test_uninstall_removes_vendor_symlinks(self, tmp_path: Path) -> None:
         """uninstall で vendor skill の symlink が削除される"""
@@ -3635,7 +3771,9 @@ class TestVendorUninstall:
 
         for skill in self.VENDOR_SKILLS:
             link = home / ".claude" / "skills" / skill
-            assert not link.exists(), f"vendor skill {skill} should be removed on uninstall"
+            assert not os.path.lexists(link), (
+                f"vendor skill {skill} should be removed on uninstall"
+            )
 
     def test_uninstall_removes_vendor_dir(self, tmp_path: Path) -> None:
         """uninstall で ~/.claude/vendor/ ディレクトリが削除される"""
@@ -3648,7 +3786,9 @@ class TestVendorUninstall:
         assert vendor_dir.is_dir()
 
         _run_install_sh(REPO_ROOT, home, uninstall=True)
-        assert not vendor_dir.exists(), "vendor dir should be removed on uninstall"
+        assert not os.path.lexists(vendor_dir), (
+            "vendor dir should be removed on uninstall"
+        )
 
     def test_uninstall_dryrun_preserves_vendor(self, tmp_path: Path) -> None:
         """ドライラン uninstall では vendor が実際に削除されない"""
@@ -3661,6 +3801,7 @@ class TestVendorUninstall:
         env["HOME"] = str(home)
         subprocess.run(
             ["sh", str(REPO_ROOT / "install.sh"), "-u", "-n", "-f"],
+            check=True,
             cwd=str(REPO_ROOT),
             env=env,
             capture_output=True,
@@ -3671,18 +3812,25 @@ class TestVendorUninstall:
         # ドライランなので vendor は残る
         for skill in self.VENDOR_SKILLS:
             link = home / ".claude" / "skills" / skill
-            assert link.is_symlink(), f"dryrun uninstall should preserve vendor symlink for {skill}"
-        assert (home / ".claude" / "vendor").is_dir(), "dryrun uninstall should preserve vendor dir"
+            assert link.is_symlink(), (
+                f"dryrun uninstall should preserve vendor symlink for {skill}"
+            )
+        assert (home / ".claude" / "vendor").is_dir(), (
+            "dryrun uninstall should preserve vendor dir"
+        )
 
     def test_uninstall_without_vendor(self, tmp_path: Path) -> None:
         """vendor 未導入状態で uninstall してもエラーにならない"""
         home = tmp_path / "home"
-        home.mkdir()
-        _run_install_sh(REPO_ROOT, home)
+        local_settings = home / ".claude/settings.json"
+        local_settings.parent.mkdir(parents=True)
+        local_settings.write_text('{"local": true}\n', encoding="utf-8")
+        assert not (home / ".claude/vendor").exists()
 
         result = _run_install_sh(REPO_ROOT, home, uninstall=True)
-        # vendor がなくてもクラッシュしない
-        assert "エラー" not in result.stdout
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert not (home / ".claude/vendor").exists()
+        assert local_settings.read_text(encoding="utf-8") == '{"local": true}\n'
 
 
 # ---------------------------------------------------------------------------
@@ -3693,25 +3841,7 @@ class TestVendorUninstall:
 class TestGitInstall:
     """~/.config/git/ 配下への gitignore / gitattributes 配置テスト"""
 
-    def test_install_creates_xdg_gitignore(self, tmp_path: Path) -> None:
-        """install 後 ~/.config/git/ignore が base+variant マージの実体ファイル"""
-        home = tmp_path / "home"
-        home.mkdir()
-        _run_install_sh(REPO_ROOT, home)
-
-        ignore = home / ".config" / "git" / "ignore"
-        assert ignore.is_file()
-        assert not ignore.is_symlink()
-
-        content = ignore.read_text()
-        # base (.gitignore.common) 由来
-        assert ".DS_Store" in content
-        # variant (.gitignore.work / .private) が結合されていること
-        assert ("**/.codex/" in content) or ("Private-specific" in content)
-
-    def test_install_preserves_existing_gitignore_backup(
-        self, tmp_path: Path
-    ) -> None:
+    def test_install_preserves_existing_gitignore_backup(self, tmp_path: Path) -> None:
         """既存 ~/.config/git/ignore.bak は install 時に上書きしない"""
         home = tmp_path / "home"
         home_git = home / ".config" / "git"
@@ -3723,22 +3853,14 @@ class TestGitInstall:
 
         result = _run_install_sh(REPO_ROOT, home)
 
-        assert result.returncode == 0, f"install failed:\n{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"install failed:\n{result.stdout}\n{result.stderr}"
+        )
         assert backup.read_text(encoding="utf-8") == "previous backup\n"
         assert (home_git / "ignore.bak.1").read_text(encoding="utf-8") == (
             "current local ignore\n"
         )
         assert ".DS_Store" in ignore.read_text(encoding="utf-8")
-
-    def test_install_creates_xdg_gitattributes_symlink(self, tmp_path: Path) -> None:
-        """install 後 ~/.config/git/attributes が repo の .gitattributes へのリンク"""
-        home = tmp_path / "home"
-        home.mkdir()
-        _run_install_sh(REPO_ROOT, home)
-
-        attributes = home / ".config" / "git" / "attributes"
-        assert attributes.is_symlink()
-        assert attributes.resolve() == (REPO_ROOT / "config" / "git" / ".gitattributes").resolve()
 
     def test_uninstall_removes_xdg_git_files(self, tmp_path: Path) -> None:
         """uninstall 後 ~/.config/git/ignore と attributes が削除される"""

@@ -1,28 +1,32 @@
 """Protocol tests, not evidence that AI reviews are semantically correct."""
+
 import copy
+import hashlib
 import importlib.machinery
 import importlib.util
-import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
+
+from tests.fixtures import tdd_codex_cli as codex_fixture
 
 ROOT = Path(__file__).resolve().parents[1]
 CODEX_CLI_TEMPLATE = ROOT / 'tests/fixtures/tdd_codex_cli.py'
 loader = importlib.machinery.SourceFileLoader('tdd_review_check', str(ROOT / 'bin/tdd-review-check'))
 spec = importlib.util.spec_from_loader(loader.name, loader)
+assert spec is not None
 review = importlib.util.module_from_spec(spec)
 loader.exec_module(review)
 
 
 def case(identifier, refs):
-    return dict(id=identifier, given='empty cart', when='add one item', then='one item exists',
-                failure='invalid quantity rejected', evidence=refs)
+    return {'id': identifier, 'given': 'empty cart', 'when': 'add one item',
+            'then': 'one item exists', 'failure': 'invalid quantity rejected', 'evidence': refs}
 
 
 class Worker:
@@ -39,12 +43,12 @@ class Worker:
         elif request['phase'] == 'review':
             result['rationale'] = 'Checked quantity assertions against requirements, including invalid quantity.'
             result['reviewed'] = [x['id'] for x in request['candidates']]
-            result['items'] = [dict(id=prefix + ':1', kind='oracle', refs=[request['candidates'][0]['id']],
-                                    detail='Check quantity independently', evidence=['requirements'])]
+            result['items'] = [{'id': prefix + ':1', 'kind': 'oracle', 'refs': [request['candidates'][0]['id']],
+                                'detail': 'Check quantity independently', 'evidence': ['requirements']}]
         else:
             result['items'] = [case(prefix + ':1', ['requirements'])]
-            result['dispositions'] = [dict(ref=x['id'], status='accepted', reason='Covered by selected case',
-                                          test_ids=[prefix + ':1']) for x in request['all_items']]
+            result['dispositions'] = [{'ref': x['id'], 'status': 'accepted', 'reason': 'Covered by selected case',
+                                       'test_ids': [prefix + ':1']} for x in request['all_items']]
         return result
 
 
@@ -70,8 +74,8 @@ def claude_cli(tmp_path, monkeypatch):
         f'#!{sys.executable}\n'
         'import json, sys\n'
         'from pathlib import Path\n'
-        f'sys.path.insert(0, {str(ROOT / "tests")!r})\n'
-        'from test_tdd_review_check import Worker\n'
+        f'sys.path.insert(0, {str(ROOT)!r})\n'
+        'from tests.test_tdd_review_check import Worker\n'
         'request = json.loads(sys.stdin.read().splitlines()[-1])\n'
         f'with Path({str(calls)!r}).open("a") as log:\n'
         '    log.write(json.dumps({"args": sys.argv[1:], "phase": request["phase"]}) + "\\n")\n'
@@ -88,8 +92,8 @@ def codex_cli(tmp_path, monkeypatch):
     executable.parent.mkdir()
     calls = tmp_path / 'codex-calls.jsonl'
     executable.write_text(CODEX_CLI_TEMPLATE.read_text().replace('__PYTHON__', sys.executable)
-                          .replace('__TESTS__', repr(str(ROOT / 'tests')))
-                          .replace('__CALLS__', repr(str(calls))))
+                          .replace("'__REPO__'", repr(str(ROOT)))
+                          .replace("'__CALLS__'", repr(str(calls))))
     executable.chmod(0o755)
     monkeypatch.setenv('PATH', str(executable.parent) + os.pathsep + os.environ['PATH'])
     monkeypatch.delenv('TDD_CODEX_FIXTURE_MODE', raising=False)
@@ -130,6 +134,22 @@ def assert_blind_turn(turn, index):
     if index < 6:
         assert 'candidates' not in request and 'all_items' not in request
         assert 'expectations' not in request
+
+
+class TestCodexFixture:
+    def test_records_reply_before_consumer_can_terminate_fixture(self, monkeypatch):
+        events = []
+        def log(kind, **fields):
+            events.append(('record', kind, fields['message']))
+        def publish(*args, **kwargs):
+            events.append(('publish',))
+            raise SystemExit(0)
+        monkeypatch.setattr(codex_fixture, 'log', log)
+        monkeypatch.setattr(codex_fixture, 'print', publish, raising=False)
+        message = {'id': 1, 'result': {'turn': {'id': 'turn-safe'}}}
+        with pytest.raises(SystemExit):
+            codex_fixture.send(message)
+        assert events == [('record', 'sent', message), ('publish',)]
 
 
 class TestCodexCliAdapter:
@@ -565,8 +585,8 @@ class TestCliBoundary:
 
         assert review.verify(bundle, tmp_path / 'out') == ready
         frozen = json.loads((tmp_path / 'out/snapshot.json').read_text())
-        assert frozen['sources'] == [dict(id=source, content=target.read_text(),
-                                          digest=review.digest(target.read_text()))]
+        assert frozen['sources'] == [{'id': source, 'content': target.read_text(),
+                                     'digest': review.digest(target.read_text())}]
 
 
 class TestCliCommands:
@@ -577,9 +597,9 @@ class TestCliCommands:
         command = [str(ROOT / 'bin/tdd-review-check')]
 
         result = subprocess.run(command + ['run', '--bundle', str(bundle), '--output', str(output),
-                                          '--runtime', 'claude'], capture_output=True, text=True, timeout=30)
+                                          '--runtime', 'claude'], capture_output=True, text=True, timeout=30, check=False)
         verified = subprocess.run(command + ['verify', '--bundle', str(bundle), '--output', str(output)],
-                                  capture_output=True, text=True, timeout=30)
+                                  capture_output=True, text=True, timeout=30, check=False)
 
         assert result.returncode == verified.returncode == 0, result.stderr + verified.stderr
         ready = json.loads((output / 'ready.json').read_text())
@@ -601,7 +621,7 @@ class TestCliCommands:
 
         result = subprocess.run([str(ROOT / 'bin/tdd-review-check'), 'run', '--bundle', str(bundle),
                                  '--output', str(tmp_path / 'out'), '--runtime', 'claude'],
-                                capture_output=True, text=True, timeout=30)
+                                capture_output=True, text=True, timeout=30, check=False)
 
         assert result.returncode == 2
         assert result.stdout == ''
@@ -622,7 +642,7 @@ class TestCliCommands:
 
         result = subprocess.run([str(ROOT / 'bin/tdd-review-check'), 'run', '--bundle', str(setup(tmp_path)),
                                  '--output', str(tmp_path / 'out'), '--runtime', 'claude'],
-                                capture_output=True, text=True, timeout=30)
+                                capture_output=True, text=True, timeout=30, check=False)
 
         assert result.returncode == 2
         assert result.stdout == ''

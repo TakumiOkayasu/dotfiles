@@ -5,13 +5,13 @@ import contextlib
 import importlib.util
 import io
 import json
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
-from types import ModuleType
 import unittest
-
+from pathlib import Path
+from types import ModuleType
+from unittest.mock import patch
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PORT_SCRIPT = REPO_ROOT / "scripts" / "port-claude-assets-to-codex.py"
@@ -470,10 +470,11 @@ class VerifyCodexPluginTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             (root / "common" / "skills").mkdir(parents=True)
-            verify.CODEX_NATIVE_SKILLS = frozenset()
-            verify.CORE_SKILLS = frozenset({"missing-core"})
-
-            self.assertNotEqual(verify.check_core_skill_catalog(root), 0)
+            with (
+                patch.object(verify, "CODEX_NATIVE_SKILLS", frozenset()),
+                patch.object(verify, "CORE_SKILLS", frozenset({"missing-core"})),
+            ):
+                self.assertNotEqual(verify.check_core_skill_catalog(root), 0)
 
     def test_should_load_core_skill_tier_from_single_manifest(self) -> None:
         manifest = json.loads(ASSET_MANIFEST.read_text(encoding="utf-8"))
@@ -796,7 +797,7 @@ class GenerateStandardWorkflowSkillsTest(unittest.TestCase):
             ]
 
             first = subprocess.run(
-                command, capture_output=True, text=True, timeout=30
+                command, capture_output=True, text=True, timeout=30, check=False
             )
             self.assertEqual(first.returncode, 0, first.stderr)
             first_outputs = {
@@ -805,7 +806,7 @@ class GenerateStandardWorkflowSkillsTest(unittest.TestCase):
                 if path.is_file()
             }
             second = subprocess.run(
-                command, capture_output=True, text=True, timeout=30
+                command, capture_output=True, text=True, timeout=30, check=False
             )
             self.assertEqual(second.returncode, 0, second.stderr)
             second_outputs = {

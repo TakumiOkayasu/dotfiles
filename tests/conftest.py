@@ -5,11 +5,10 @@ from pathlib import Path
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def generate_install_time_ai_assets() -> None:
     result = subprocess.run(
         [
@@ -22,5 +21,6 @@ def generate_install_time_ai_assets() -> None:
         capture_output=True,
         text=True,
         timeout=60,
+        check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
