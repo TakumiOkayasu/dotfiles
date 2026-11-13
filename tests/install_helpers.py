@@ -25,7 +25,11 @@ def run_installer_functions(
         input=input_text,
         capture_output=True,
         text=True,
-        env={**os.environ, "HOME": str(home), "SHELL": shell},
+        env={
+            **{key: value for key, value in os.environ.items()
+               if key not in {"CLAUDE_CONFIG_DIR", "CODEX_HOME"}},
+            "HOME": str(home), "SHELL": shell,
+        },
         check=False,
         timeout=30,
     )

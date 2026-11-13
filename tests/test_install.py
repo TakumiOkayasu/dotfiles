@@ -705,7 +705,10 @@ def _run_install_sh(
     if not uninstall and use_fake_vendor and not vendor_dir.exists():
         _create_fake_vendor(home)
 
-    env = os.environ.copy()
+    env = {
+        key: value for key, value in os.environ.items()
+        if key not in {"CLAUDE_CONFIG_DIR", "CODEX_HOME"}
+    }
     env.update(env_overrides or {})
     env["HOME"] = str(home)
 
@@ -3334,7 +3337,10 @@ def _simulate_install(dotfiles: Path, home: Path) -> None:
 
 def _run_uninstall(dotfiles: Path, home: Path) -> subprocess.CompletedProcess[str]:
     """install.sh -u -f を実行 (Claude設定のuninstallのみテスト対象)"""
-    env = os.environ.copy()
+    env = {
+        key: value for key, value in os.environ.items()
+        if key not in {"CLAUDE_CONFIG_DIR", "CODEX_HOME"}
+    }
     env["HOME"] = str(home)
 
     return subprocess.run(

@@ -229,3 +229,35 @@ def test_marketplace_root_rewrite_preserves_remote_subdirectory(tmp_path: Path, 
     entries = json.loads(marketplace.read_text())["plugins"]
     assert entries[0]["source"]["path"] == (str(selected / "plugins/local") if has_override else "./.codex/plugins/local")
     assert entries[1]["source"] == remote
+
+
+def test_default_install_helpers_ignore_outer_runtime_roots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from tests.test_generate_ai_assets import copy_repository
+    from tests.test_install import _run_install_sh, _run_uninstall
+    from tests.install_helpers import run_installer_functions
+
+    repo = copy_repository(tmp_path)
+    home = tmp_path / "home"
+    home.mkdir()
+    external_claude = tmp_path / "external claude"
+    external_codex = tmp_path / "external codex"
+    (external_claude / "vendor/agent-skills/.git").mkdir(parents=True)
+    external_codex.mkdir()
+    for root in (external_claude, external_codex):
+        (root / "sentinel.txt").write_text("must remain unchanged\n")
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(external_claude))
+    monkeypatch.setenv("CODEX_HOME", str(external_codex))
+    sentinels = {root: sorted(str(path.relative_to(root)) for path in root.rglob("*")) for root in (external_claude, external_codex)}
+    _run_install_sh(repo, home)
+    assert (home / ".claude/settings.json").is_file()
+    assert (home / ".codex/agents/code_reviewer.toml").is_file()
+    removed = _run_uninstall(repo, home)
+    assert removed.returncode == 0, removed.stdout + removed.stderr
+    assert not os.path.lexists(home / ".claude/settings.json")
+    assert not os.path.lexists(home / ".codex/agents/code_reviewer.toml")
+    functions = run_installer_functions(tmp_path, 'printf "%s\\n" "$CLAUDE_CONFIG_ROOT" "$CODEX_CONFIG_ROOT"')
+    assert functions.returncode == 0, functions.stderr
+    assert functions.stdout.splitlines() == [str(home / ".claude"), str(home / ".codex")]
+    for root, paths in sentinels.items():
+        assert sorted(str(path.relative_to(root)) for path in root.rglob("*")) == paths
+        assert (root / "sentinel.txt").read_text() == "must remain unchanged\n"

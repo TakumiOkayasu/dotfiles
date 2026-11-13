@@ -53,6 +53,10 @@ def run_generator(repo: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["python3", str(repo / "scripts" / GENERATOR.name), "--repo", str(repo)],
         cwd=repo,
+        env={
+            key: value for key, value in os.environ.items()
+            if key not in {"CLAUDE_CONFIG_DIR", "CODEX_HOME"}
+        },
         capture_output=True,
         text=True,
         timeout=60,
@@ -290,7 +294,11 @@ class TestGenerateAiAssets(unittest.TestCase):
             result = subprocess.run(
                 ["sh", str(repo / "install.sh"), "-f"],
                 cwd=repo,
-                env={**os.environ, "HOME": str(home)},
+                env={
+                    **{key: value for key, value in os.environ.items()
+                       if key not in {"CLAUDE_CONFIG_DIR", "CODEX_HOME"}},
+                    "HOME": str(home),
+                },
                 check=False,
                 capture_output=True,
                 text=True,

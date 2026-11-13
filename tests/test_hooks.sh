@@ -2,6 +2,8 @@
 # hooks テストスイート
 # Usage: ./test_hooks.sh
 
+unset CLAUDE_CONFIG_DIR CODEX_HOME
+
 PASS=0
 FAIL=0
 TOTAL=0
