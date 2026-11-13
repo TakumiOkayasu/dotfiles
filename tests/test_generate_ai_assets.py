@@ -148,12 +148,32 @@ class TestGenerateAiAssets(unittest.TestCase):
             (generated / ".agents" / "plugins" / "marketplace.json").read_text()
         )
         self.assertEqual(
-            {plugin["source"]["path"] for plugin in marketplace["plugins"]},
+            {
+                plugin["source"]["path"]
+                for plugin in marketplace["plugins"]
+                if plugin["source"]["source"] == "local"
+            },
             {
                 "./.codex/plugins/dotfile-work-codex",
                 "./.codex/plugins/dotfile-work-codex-extra",
             },
         )
+        external = {
+            plugin["name"]: plugin
+            for plugin in marketplace["plugins"]
+            if plugin["source"]["source"] == "url"
+        }
+        self.assertEqual(
+            {name: plugin["source"]["url"] for name, plugin in external.items()},
+            {
+                "yomiyasu": "https://github.com/nanaism/yomiyasu.git",
+                "ponytail": "https://github.com/DietrichGebert/ponytail.git",
+                "i-have-adhd": "https://github.com/ayghri/i-have-adhd.git",
+            },
+        )
+        for plugin in external.values():
+            self.assertRegex(plugin["source"]["ref"], r"^[0-9a-f]{40}$")
+            self.assertEqual(plugin["policy"]["installation"], "AVAILABLE")
 
     def test_repository_tracks_sources_not_generated_codex_views(self) -> None:
         tracked = subprocess.run(
@@ -174,6 +194,11 @@ class TestGenerateAiAssets(unittest.TestCase):
             paths,
             {
                 "codex/skills/rules-compliance-review/SKILL.md",
+                *(
+                    f"codex/skills/{name}/{resource}"
+                    for name in ("dig", "fix-ci", "decomposition", "deslop")
+                    for resource in ("SKILL.md", "LICENSE", "references/upstream.md")
+                ),
             },
         )
 

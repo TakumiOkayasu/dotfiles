@@ -146,6 +146,8 @@ Claude Code の `claude/agents/*.md` と Codex の `codex/agents/*.toml` では�
 
 Codex設定の使い方は `codex/README.md` を参照。初回起動時に hook レビュー警告が出た場合は、Codex 上で `/hooks` を開いて許可する。
 
+Claude の外部スキルを Codex / ChatGPT でも使う場合は、[外部スキルの対応表と導入方法](docs/external-skills.md)を参照。
+
 ### Codex skills の配置
 
 共有skillは `common/skills/` を正本にし、Codex固有skillだけを `codex/skills/` で管理する。Claude/Codex向けview、標準workflow、rules集約、`plugins/dotfile-work-codex*` は `.generated/ai-assets/` に生成し、Git管理しない。
