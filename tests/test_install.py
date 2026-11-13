@@ -2694,7 +2694,7 @@ class TestIntegrationInstallUninstall:
 
         assert result.returncode == 0, result.stdout + result.stderr
         assert config_toml.read_text(encoding="utf-8") == 'model = "local-only"\n'
-        assert result.stdout.count("既存の ~/.codex/config.toml は上書きしません") == 2
+        assert result.stdout.count(f"既存の {config_toml} は上書きしません") == 2
 
     def test_install_and_uninstall_model_profiles_preserve_base_config(
         self, tmp_path: Path

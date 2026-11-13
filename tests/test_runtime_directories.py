@@ -208,3 +208,24 @@ def test_vendor_update_throttle_is_scoped_to_selected_root(tmp_path: Path) -> No
     assert result.returncode == 0, result.stderr
     assert "Skipped" in result.stdout
     assert log.read_text() == calls
+
+
+@pytest.mark.parametrize("has_override", (False, True))
+def test_marketplace_root_rewrite_preserves_remote_subdirectory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, has_override: bool) -> None:
+    selected = tmp_path / "codex account"
+    if has_override:
+        monkeypatch.setenv("CODEX_HOME", str(selected))
+    else:
+        monkeypatch.delenv("CODEX_HOME", raising=False)
+    marketplace = tmp_path / ".agents/plugins/marketplace.json"
+    marketplace.parent.mkdir(parents=True)
+    remote = {"source": "git-subdir", "url": "https://github.com/anthropics/claude-plugins-official.git", "path": "./plugins/security-guidance"}
+    marketplace.write_text(json.dumps({"plugins": [
+        {"name": "local", "source": {"source": "local", "path": "./plugins/local"}},
+        {"name": "remote", "source": remote},
+    ]}))
+    module = runpy.run_path(str(ROOT / "scripts/generate-ai-assets.py"))
+    module["rewrite_personal_marketplace"](tmp_path)
+    entries = json.loads(marketplace.read_text())["plugins"]
+    assert entries[0]["source"]["path"] == (str(selected / "plugins/local") if has_override else "./.codex/plugins/local")
+    assert entries[1]["source"] == remote
