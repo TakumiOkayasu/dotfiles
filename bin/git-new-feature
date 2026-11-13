@@ -13,6 +13,9 @@
 
 set -euo pipefail
 
+# 指定済みの設定先を維持し、未設定・空文字のときだけ既定値を補完する。
+CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+
 # 色定義
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -41,7 +44,7 @@ init_notes_for_branch() {
     local template_file=""
     for candidate in \
         ".claude/notes/_template.md" \
-        "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/notes/_template.md"
+        "${CLAUDE_CONFIG_DIR}/notes/_template.md"
     do
         if [[ -f "$candidate" ]]; then
             template_file="$candidate"

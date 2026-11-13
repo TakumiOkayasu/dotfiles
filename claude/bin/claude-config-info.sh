@@ -22,14 +22,16 @@
 
 set -eu
 
+CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+
 # ============================================================================
 # 設定
 # ============================================================================
 
-GLOBAL_SETTINGS="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+GLOBAL_SETTINGS="${CLAUDE_CONFIG_DIR}/settings.json"
 PROJECT_SETTINGS=".claude/settings.json"
 PROJECT_LOCAL_SETTINGS=".claude/settings.local.json"
-SKILLS_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills"
+SKILLS_DIR="${CLAUDE_CONFIG_DIR}/skills"
 FAILURE_LOG="claude_tmp/failure_log.md"
 
 # オプション
@@ -173,7 +175,7 @@ print_hooks_text() {
         if [ "$file" != "$current_file" ]; then
             current_file="$file"
             case "$file" in
-                "$GLOBAL_SETTINGS") label="Global: ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json" ;;
+                "$GLOBAL_SETTINGS") label="Global: ${GLOBAL_SETTINGS}" ;;
                 "$PROJECT_SETTINGS") label="Project: .claude/settings.json" ;;
                 "$PROJECT_LOCAL_SETTINGS") label="Local: .claude/settings.local.json" ;;
                 *) label="$file" ;;
@@ -231,11 +233,11 @@ print_skills_text() {
     count=$((count + 0))
 
     if [ "$count" -eq 0 ] || [ -z "$skills" ]; then
-        echo "  No skills found in ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/"
+        echo "  No skills found in ${SKILLS_DIR}/"
         return
     fi
 
-    echo "  ${count} skill(s) in ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/"
+    echo "  ${count} skill(s) in ${SKILLS_DIR}/"
 
     # 最大10個まで表示
     printf '%s' "  "

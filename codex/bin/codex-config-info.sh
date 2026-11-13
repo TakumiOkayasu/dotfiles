@@ -243,11 +243,11 @@ print_skills_text() {
     count=$((count + 0))
 
     if [ "$count" -eq 0 ] || [ -z "$skills" ]; then
-        echo "  No skills found in ${HOME}/.agents/skills or ${CODEX_HOME:-$HOME/.codex}/skills"
+        echo "  No skills found in ${USER_SKILLS_DIR} or ${CODEX_SKILLS_DIR}"
         return
     fi
 
-    echo "  ${count} skill(s) in ${HOME}/.agents/skills / ${CODEX_HOME:-$HOME/.codex}/skills"
+    echo "  ${count} skill(s) in ${USER_SKILLS_DIR} / ${CODEX_SKILLS_DIR}"
 
     # 最大10個まで表示
     printf "%s" "  "

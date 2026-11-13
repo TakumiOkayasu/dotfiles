@@ -227,6 +227,8 @@ helper chainと `store` の保存特性は [Git credential documentation](https:
 
 `CLAUDE_CONFIG_DIR` と `CODEX_HOME` を指定すると、installer、hook、設定参照CLIはそのディレクトリを優先する。未指定または空文字なら `~/.claude` と `~/.codex` を使う。指定値は絶対パスとし、起動時・install時・uninstall時に同じ値を渡す。
 
+実行スクリプトでは入口で一度だけ既定値を補完し、以降は解決済みの変数を参照する。JSON/TOMLの各hook commandは独立したshellで起動するため、起動先を特定する既定値補完をそれぞれに残す。CodexのCLIは未installのsource treeからも実行できるよう、既存のscript隣接ディレクトリ探索を維持する。
+
 ```sh
 export CLAUDE_CONFIG_DIR="$HOME/.config/claude-work"
 export CODEX_HOME="$HOME/.config/codex-work"

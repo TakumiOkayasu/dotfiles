@@ -13,6 +13,8 @@
 # set -e もtrap ERRも使わない（POSIX sh非互換 + exit 1 = 許可扱いリスク）
 # 代わりに各操作で明示的にエラーチェックし、失敗時は安全側（ブロック: exit 2）にフォールバック
 
+CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+
 # --- デバッグログ ---
 DEBUG_LOG="/tmp/claude_hook_debug.log"
 debug_log() {
@@ -86,7 +88,7 @@ is_codex_companion_command() {
         \'*) _companion_path=${_companion_argument#\'}; _companion_path=${_companion_path%%\'*} ;;
         *) _companion_path=${_companion_argument%%[[:space:]]*} ;;
     esac
-    _companion_prefix="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache/openai-codex/codex/"
+    _companion_prefix="${CLAUDE_CONFIG_DIR}/plugins/cache/openai-codex/codex/"
     case "$_companion_path" in
         "$_companion_prefix"*) _companion_relative=${_companion_path#"$_companion_prefix"} ;;
         *) return 1 ;;

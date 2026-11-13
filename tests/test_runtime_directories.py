@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import runpy
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -24,17 +25,28 @@ def _runtime_env(home: Path, runtime: str, config: Path) -> dict[str, str]:
 
 
 @pytest.mark.parametrize("runtime", ("claude", "codex"))
-def test_config_info_reads_selected_root(tmp_path: Path, runtime: str) -> None:
+@pytest.mark.parametrize("config_mode", ("custom", "unset", "empty"))
+def test_config_info_reads_selected_root(tmp_path: Path, runtime: str, config_mode: str) -> None:
     home = tmp_path / "home"
-    config = tmp_path / f"{runtime} account"
+    config = tmp_path / f"{runtime} account" if config_mode == "custom" else home / f".{runtime}"
     (config / "skills" / "selected").mkdir(parents=True)
     (config / "skills" / "selected" / "SKILL.md").write_text("# selected\n")
-    default = home / f".{runtime}" / "skills" / "wrong"
-    default.mkdir(parents=True)
-    (default / "SKILL.md").write_text("# wrong\n")
+    other_root = home / f".{runtime}" if config_mode == "custom" else tmp_path / "unselected account"
+    wrong = other_root / "skills" / "wrong"
+    wrong.mkdir(parents=True)
+    (wrong / "SKILL.md").write_text("# wrong\n")
+    script = config / "bin" / f"{runtime}-config-info.sh"
+    script.parent.mkdir()
+    shutil.copy2(ROOT / runtime / "bin" / script.name, script)
+    env = _runtime_env(home, runtime, config)
+    variable = "CLAUDE_CONFIG_DIR" if runtime == "claude" else "CODEX_HOME"
+    if config_mode == "unset":
+        env.pop(variable)
+    elif config_mode == "empty":
+        env[variable] = ""
     result = subprocess.run(
-        ["sh", str(ROOT / runtime / "bin" / f"{runtime}-config-info.sh"), "--skills", "--json"],
-        env=_runtime_env(home, runtime, config), capture_output=True, text=True, check=False,
+        ["sh", str(script), "--skills", "--json"],
+        env=env, capture_output=True, text=True, check=False,
     )
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout)["skills"] == {"count": 1, "skills": ["selected"]}
@@ -99,7 +111,6 @@ def test_preflight_locates_selected_runtime(tmp_path: Path, monkeypatch: pytest.
 
 
 def test_installer_round_trip_keeps_runtime_overrides_outside_home(tmp_path: Path) -> None:
-    import shutil
     from tests.test_install import _run_install_sh
 
     repo = tmp_path / "repo"
