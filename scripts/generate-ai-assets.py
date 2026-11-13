@@ -168,7 +168,11 @@ def rewrite_personal_marketplace(candidate: Path) -> None:
     for plugin in data.get("plugins", []):
         source = plugin.get("source", {})
         plugin_path = source.get("path")
-        if isinstance(plugin_path, str) and plugin_path.startswith("./plugins/"):
+        if (
+            source.get("source") == "local"
+            and isinstance(plugin_path, str)
+            and plugin_path.startswith("./plugins/")
+        ):
             source["path"] = f"./.codex/{plugin_path[2:]}"
     path.write_text(
         json.dumps(data, ensure_ascii=False, indent=2) + "\n",

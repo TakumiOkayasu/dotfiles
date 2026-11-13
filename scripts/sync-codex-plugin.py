@@ -185,6 +185,50 @@ def marketplace() -> dict:
                 },
                 "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
                 "category": "Productivity"
+            },
+            {
+                "name": "design",
+                "source": {
+                    "source": "git-subdir",
+                    "url": "https://github.com/anthropics/knowledge-work-plugins.git",
+                    "path": "./design",
+                    "ref": "02717ef04446b6ef5aa4b8af15bb536d79f42ed0"
+                },
+                "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+                "category": "Productivity"
+            },
+            {
+                "name": "data",
+                "source": {
+                    "source": "git-subdir",
+                    "url": "https://github.com/anthropics/knowledge-work-plugins.git",
+                    "path": "./data",
+                    "ref": "02717ef04446b6ef5aa4b8af15bb536d79f42ed0"
+                },
+                "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+                "category": "Productivity"
+            },
+            {
+                "name": "pdf-viewer",
+                "source": {
+                    "source": "git-subdir",
+                    "url": "https://github.com/anthropics/knowledge-work-plugins.git",
+                    "path": "./pdf-viewer",
+                    "ref": "02717ef04446b6ef5aa4b8af15bb536d79f42ed0"
+                },
+                "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+                "category": "Productivity"
+            },
+            {
+                "name": "security-guidance",
+                "source": {
+                    "source": "git-subdir",
+                    "url": "https://github.com/anthropics/claude-plugins-official.git",
+                    "path": "./plugins/security-guidance",
+                    "ref": "f75f5b25ae94f4332be4ff5f18435741d2589bdb"
+                },
+                "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+                "category": "Security"
             }
         ]
     }

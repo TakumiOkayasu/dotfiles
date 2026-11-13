@@ -161,7 +161,7 @@ class TestGenerateAiAssets(unittest.TestCase):
         external = {
             plugin["name"]: plugin
             for plugin in marketplace["plugins"]
-            if plugin["source"]["source"] == "url"
+            if plugin["source"]["source"] != "local"
         }
         self.assertEqual(
             {name: plugin["source"]["url"] for name, plugin in external.items()},
@@ -169,6 +169,21 @@ class TestGenerateAiAssets(unittest.TestCase):
                 "yomiyasu": "https://github.com/nanaism/yomiyasu.git",
                 "ponytail": "https://github.com/DietrichGebert/ponytail.git",
                 "i-have-adhd": "https://github.com/ayghri/i-have-adhd.git",
+                "design": "https://github.com/anthropics/knowledge-work-plugins.git",
+                "data": "https://github.com/anthropics/knowledge-work-plugins.git",
+                "pdf-viewer": "https://github.com/anthropics/knowledge-work-plugins.git",
+                "security-guidance": "https://github.com/anthropics/claude-plugins-official.git",
+            },
+        )
+        self.assertEqual(
+            {
+                name: plugin["source"]["path"]
+                for name, plugin in external.items()
+                if plugin["source"]["source"] == "git-subdir"
+            },
+            {
+                "design": "./design", "data": "./data", "pdf-viewer": "./pdf-viewer",
+                "security-guidance": "./plugins/security-guidance",
             },
         )
         for plugin in external.values():
