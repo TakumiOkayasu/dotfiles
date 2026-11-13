@@ -173,7 +173,11 @@ def rewrite_personal_marketplace(candidate: Path) -> None:
             and isinstance(plugin_path, str)
             and plugin_path.startswith("./plugins/")
         ):
-            source["path"] = f"./.codex/{plugin_path[2:]}"
+            codex_home = os.environ.get("CODEX_HOME")
+            source["path"] = (
+                str(Path(codex_home) / plugin_path[2:])
+                if codex_home else f"./.codex/{plugin_path[2:]}"
+            )
     path.write_text(
         json.dumps(data, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",

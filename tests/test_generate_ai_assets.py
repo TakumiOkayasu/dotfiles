@@ -53,6 +53,10 @@ def run_generator(repo: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["python3", str(repo / "scripts" / GENERATOR.name), "--repo", str(repo)],
         cwd=repo,
+        env={
+            key: value for key, value in os.environ.items()
+            if key not in {"CLAUDE_CONFIG_DIR", "CODEX_HOME"}
+        },
         capture_output=True,
         text=True,
         timeout=60,
