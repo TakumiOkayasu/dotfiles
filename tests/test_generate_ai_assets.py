@@ -53,6 +53,10 @@ def run_generator(repo: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["python3", str(repo / "scripts" / GENERATOR.name), "--repo", str(repo)],
         cwd=repo,
+        env={
+            key: value for key, value in os.environ.items()
+            if key not in {"CLAUDE_CONFIG_DIR", "CODEX_HOME"}
+        },
         capture_output=True,
         text=True,
         timeout=60,
@@ -148,12 +152,47 @@ class TestGenerateAiAssets(unittest.TestCase):
             (generated / ".agents" / "plugins" / "marketplace.json").read_text()
         )
         self.assertEqual(
-            {plugin["source"]["path"] for plugin in marketplace["plugins"]},
+            {
+                plugin["source"]["path"]
+                for plugin in marketplace["plugins"]
+                if plugin["source"]["source"] == "local"
+            },
             {
                 "./.codex/plugins/dotfile-work-codex",
                 "./.codex/plugins/dotfile-work-codex-extra",
             },
         )
+        external = {
+            plugin["name"]: plugin
+            for plugin in marketplace["plugins"]
+            if plugin["source"]["source"] != "local"
+        }
+        self.assertEqual(
+            {name: plugin["source"]["url"] for name, plugin in external.items()},
+            {
+                "yomiyasu": "https://github.com/nanaism/yomiyasu.git",
+                "ponytail": "https://github.com/DietrichGebert/ponytail.git",
+                "i-have-adhd": "https://github.com/ayghri/i-have-adhd.git",
+                "design": "https://github.com/anthropics/knowledge-work-plugins.git",
+                "data": "https://github.com/anthropics/knowledge-work-plugins.git",
+                "pdf-viewer": "https://github.com/anthropics/knowledge-work-plugins.git",
+                "security-guidance": "https://github.com/anthropics/claude-plugins-official.git",
+            },
+        )
+        self.assertEqual(
+            {
+                name: plugin["source"]["path"]
+                for name, plugin in external.items()
+                if plugin["source"]["source"] == "git-subdir"
+            },
+            {
+                "design": "./design", "data": "./data", "pdf-viewer": "./pdf-viewer",
+                "security-guidance": "./plugins/security-guidance",
+            },
+        )
+        for plugin in external.values():
+            self.assertRegex(plugin["source"]["ref"], r"^[0-9a-f]{40}$")
+            self.assertEqual(plugin["policy"]["installation"], "AVAILABLE")
 
     def test_repository_tracks_sources_not_generated_codex_views(self) -> None:
         tracked = subprocess.run(
@@ -174,6 +213,11 @@ class TestGenerateAiAssets(unittest.TestCase):
             paths,
             {
                 "codex/skills/rules-compliance-review/SKILL.md",
+                *(
+                    f"codex/skills/{name}/{resource}"
+                    for name in ("dig", "fix-ci", "decomposition", "deslop")
+                    for resource in ("SKILL.md", "LICENSE", "references/upstream.md")
+                ),
             },
         )
 
