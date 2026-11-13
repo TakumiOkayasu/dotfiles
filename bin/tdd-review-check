@@ -3,22 +3,23 @@
 from __future__ import annotations
 
 import argparse
-from contextlib import ExitStack
 import hashlib
 import json
 import os
-from pathlib import Path
 import platform
 import re
 import selectors
 import shutil
 import subprocess
 import sys
-import tempfile
 import tarfile
+import tempfile
 import time
-import uuid
 import urllib.request
+import uuid
+from contextlib import ExitStack
+from pathlib import Path
+from typing import Never
 
 VERSION = 1
 VIEWS = ('contract', 'state-and-boundaries', 'dependencies-and-failures')
@@ -34,9 +35,13 @@ def digest(value: object) -> str:
     return hashlib.sha256(encoded(value).encode()).hexdigest()
 
 
-def require(condition: bool, message: str) -> None:
+def reject(message: str) -> Never:
+    raise ValueError(message)
+
+
+def require(condition: object, message: str) -> None:
     if not condition:
-        raise ValueError(message)
+        reject(message)
 
 
 def read_json(path: Path) -> object:
@@ -46,7 +51,8 @@ def read_json(path: Path) -> object:
 
 def snapshot(bundle: Path) -> dict:
     data = read_json(bundle)
-    require(isinstance(data, dict) and set(data) == {'requirements', 'sources'}, 'invalid bundle fields')
+    if not (isinstance(data, dict) and set(data) == {'requirements', 'sources'}):
+        reject('invalid bundle fields')
     require(isinstance(data['requirements'], str) and bool(data['requirements'].strip()), 'requirements required')
     require(isinstance(data['sources'], list), 'sources must be an explicit list of relative paths')
     root = bundle.resolve().parent
@@ -75,7 +81,8 @@ def nonempty(value: object) -> bool:
 
 
 def unique_ids(items: object) -> set:
-    require(isinstance(items, list), 'items must be a list')
+    if not isinstance(items, list):
+        reject('items must be a list')
     ids = []
     for item in items:
         require(isinstance(item, dict) and nonempty(item.get('id')), 'item id required')
@@ -85,13 +92,15 @@ def unique_ids(items: object) -> set:
 
 
 def references(value: object, allowed: set, label: str, allow_empty: bool = False) -> None:
-    require(isinstance(value, list) and (allow_empty or bool(value)), f'{label} must be a list of references')
+    if not (isinstance(value, list) and (allow_empty or bool(value))):
+        reject(f'{label} must be a list of references')
     require(all(isinstance(x, str) for x in value), f'invalid {label}')
     require(len(value) == len(set(value)) and set(value) <= allowed, f'duplicate or unresolved {label}')
 
 
 def validate(result: object, request: dict) -> dict:
-    require(isinstance(result, dict), 'response must be an object')
+    if not isinstance(result, dict):
+        reject('response must be an object')
     for key in ('schema_version', 'run_id', 'snapshot_digest', 'phase', 'view', 'input_digest'):
         require(result.get(key) == request[key], f'stale or mismatched {key}')
     require(result.get('unknowns') == [], 'unknowns or blockers require resolution and a fresh run')
@@ -117,7 +126,8 @@ def validate(result: object, request: dict) -> dict:
         require(bool(ids), 'at least one test contract required')
     if request['phase'] == 'integrate':
         dispositions = result.get('dispositions')
-        require(isinstance(dispositions, list), 'dispositions required')
+        if not isinstance(dispositions, list):
+            reject('dispositions required')
         expected = unique_ids(request['all_items'])
         found = []
         linked = set()
@@ -222,9 +232,12 @@ class CodexServer:
         # Do not persist unbounded or potentially sensitive native diagnostic output.
         self.process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                         stderr=subprocess.DEVNULL, cwd=directory)
-        os.set_blocking(self.process.stdin.fileno(), False)
+        stdin, stdout = self.process.stdin, self.process.stdout
+        assert stdin is not None and stdout is not None  # Guaranteed by subprocess.PIPE.
+        self.stdin, self.stdout = stdin, stdout
+        os.set_blocking(self.stdin.fileno(), False)
         self.selector = selectors.DefaultSelector()
-        self.selector.register(self.process.stdout, selectors.EVENT_READ)
+        self.selector.register(self.stdout, selectors.EVENT_READ)
         self.pending = b''
         self.deadline = time.monotonic() + PHASE_TIMEOUT
         self.identifier = 0
@@ -239,18 +252,18 @@ class CodexServer:
             self.process.kill()
             self.process.wait(timeout=5)
         self.selector.close()
-        for stream in (self.process.stdin, self.process.stdout):
+        for stream in (self.stdin, self.stdout):
             stream.close()
 
     def send(self, message: dict) -> None:
         pending = encoded(message).encode() + b'\n'
         with selectors.DefaultSelector() as selector:
-            selector.register(self.process.stdin, selectors.EVENT_WRITE)
+            selector.register(self.stdin, selectors.EVENT_WRITE)
             while pending:
                 remaining = self.deadline - time.monotonic()
                 require(remaining > 0, 'Codex phase timed out')
                 if selector.select(min(1, remaining)):
-                    written = os.write(self.process.stdin.fileno(), pending)
+                    written = os.write(self.stdin.fileno(), pending)
                     require(written > 0, 'Codex closed before accepting input')
                     pending = pending[written:]
 
@@ -261,7 +274,7 @@ class CodexServer:
             require(remaining > 0, 'Codex phase timed out')
             if not self.selector.select(min(1, remaining)):
                 continue
-            block = os.read(self.process.stdout.fileno(), 65536)
+            block = os.read(self.stdout.fileno(), 65536)
             require(bool(block), 'Codex closed before completing the phase')
             self.pending += block
             require(len(self.pending) <= 2 * LIMIT, 'Codex protocol line too large')
@@ -358,8 +371,10 @@ class CodexServer:
 def codex_output(command: list) -> str:
     with subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                           stderr=subprocess.DEVNULL) as process:
+        stdout = process.stdout
+        assert stdout is not None  # Guaranteed by subprocess.PIPE.
         selector = selectors.DefaultSelector()
-        selector.register(process.stdout, selectors.EVENT_READ)
+        selector.register(stdout, selectors.EVENT_READ)
         output = b''
         deadline = time.monotonic() + 30
         try:
@@ -368,7 +383,7 @@ def codex_output(command: list) -> str:
                 require(remaining > 0, 'Codex preflight timed out')
                 if not selector.select(min(1, remaining)):
                     continue
-                block = os.read(process.stdout.fileno(), 65536)
+                block = os.read(stdout.fileno(), 65536)
                 if not block:
                     break
                 output += block
@@ -430,7 +445,9 @@ def latest_codex(directory: Path) -> tuple[str, dict]:
         entries = [entry for entry in package.getmembers() if entry.name == member]
         require(len(entries) == 1 and entries[0].isfile() and entries[0].size <= 1024 * 1024 * 1024,
                 'invalid Codex executable archive member')
-        with package.extractfile(entries[0]) as source, executable.open('wb') as output:
+        source = package.extractfile(entries[0])
+        assert source is not None  # The member was verified to be a regular file above.
+        with source, executable.open('wb') as output:
             shutil.copyfileobj(source, output)
     executable.chmod(0o700)
     with executable.open('rb') as source:
@@ -451,7 +468,8 @@ def codex_command(executable: str) -> list:
         command.extend(['-c', setting])
     for server in servers:
         name = server.get('name') if isinstance(server, dict) else None
-        require(isinstance(name, str) and re.fullmatch(r'[A-Za-z0-9_-]+', name), 'unsupported Codex MCP server name')
+        if not (isinstance(name, str) and re.fullmatch(r'[A-Za-z0-9_-]+', name)):
+            reject('unsupported Codex MCP server name')
         command.extend(['-c', 'mcp_servers.' + name + '={command="false",enabled=false}'])
     return command
 
@@ -488,11 +506,10 @@ class CodexWorker:
         self._resources.close()
 
 
-def cli_worker(runtime: str):
-    if runtime == 'codex':
-        return CodexWorker()
-    require(runtime == 'claude', 'unknown CLI runtime; no fallback is selected')
-    def invoke(request: dict) -> dict:
+class ClaudeWorker:
+    runtime = 'claude'
+
+    def __call__(self, request: dict) -> dict:
         # Fresh process, empty working directory, no conversation resume/fork and no model tools.
         # Keep user policy configuration; never disable policy hooks or change machine settings.
         with tempfile.TemporaryDirectory(prefix='tdd-review-worker-') as directory:
@@ -507,8 +524,13 @@ def cli_worker(runtime: str):
             require(isinstance(envelope, dict) and not envelope.get('is_error'), 'CLI reported an error')
             require('structured_output' in envelope, 'CLI did not return structured_output')
             return envelope['structured_output']
-    invoke.runtime = 'claude'
-    return invoke
+
+
+def cli_worker(runtime: str):
+    if runtime == 'codex':
+        return CodexWorker()
+    require(runtime == 'claude', 'unknown CLI runtime; no fallback is selected')
+    return ClaudeWorker()
 
 
 def design(ask, views: list) -> dict:
@@ -581,9 +603,11 @@ def verify(bundle: Path, output: Path) -> dict:
     frozen = snapshot(bundle)
     require(read_json(output / 'snapshot.json') == frozen, 'source snapshot changed; restart')
     manifest = read_json(output / 'run.json')
-    require(isinstance(manifest, dict), 'invalid run manifest')
+    if not isinstance(manifest, dict):
+        reject('invalid run manifest')
     views = manifest.get('views')
-    require(isinstance(views, list) and 3 <= len(views) <= 5, 'missing views')
+    if not (isinstance(views, list) and 3 <= len(views) <= 5):
+        reject('missing views')
     require(all(isinstance(v, str) and re.fullmatch(r'[a-z][a-z0-9-]{0,39}', v) for v in views)
             and len(set(views)) == len(views), 'invalid views')
     base = {k: manifest[k] for k in ('schema_version', 'run_id', 'snapshot_digest', 'execution_boundary')}

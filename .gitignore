@@ -1,6 +1,9 @@
 # Temporary files
 claude_tmp/
 __pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
 
 # Claude Code session files (per-project)
 .claude/

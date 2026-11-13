@@ -77,6 +77,10 @@ PATH上にある `mise`, `oh-my-posh`, `zoxide` はこの順に自動初期化�
 
 Bash/Zsh の `ni` / `nr` / `ns` / `nt` は pnpm を呼ぶ。必要なら各 shell の local 設定で override する。Fish 設定は配布しない。
 
+Shell の locale は既存の `LANG` / `LC_*` を尊重し、`LC_ALL` やカテゴリ別の値を一律に設定しない。`LANG` が未設定の場合だけ、導入済みの `ja_JP.UTF-8`、`C.UTF-8`、`C` の順に選ぶ。日本語表示などを明示したい場合は、利用可能な locale を `locale -a` で確認して `~/.local.sh` に設定する。既に開いている shell に旧設定の `LC_*` が残っている場合は、新しいログインセッションで確認する。
+
+テスト環境の準備、変更に応じた実行範囲、計測方法は [テストの実行と選び方](docs/testing.md) を参照。
+
 ### Cross-project knowledge sync
 
 `ai-init-project` で管理された `.ai/` は既定で集約対象になる。特定projectだけprivate knowledge repositoryから除外したい場合は `.ai/manifest.toml` の `export.enabled` を `false` にする。
