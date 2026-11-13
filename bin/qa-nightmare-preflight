@@ -603,7 +603,9 @@ def runtime_paths(
     root_relative = runtime_entry.home_relative_root
     manifest_file = runtime_entry.manifest_file
     checklist_directory = runtime_entry.checklist_directory
-    runtime_root = Path.home() / root_relative
+    config_variable = "CLAUDE_CONFIG_DIR" if runtime == "claude" else "CODEX_HOME"
+    config_root = Path(os.environ.get(config_variable) or Path.home() / f".{runtime}")
+    runtime_root = config_root / Path(*Path(root_relative).parts[1:])
     return runtime_root, runtime_root / manifest_file, runtime_root / checklist_directory
 
 

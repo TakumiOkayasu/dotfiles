@@ -1,3 +1,3 @@
 # CLAUDE.md
 
-@'~/.codex/AGENTS.md' を参照
+@~/.codex/AGENTS.md を参照

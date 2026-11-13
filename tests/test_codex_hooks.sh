@@ -1,6 +1,8 @@
 #!/bin/sh
 # Codex hooks regression tests
 
+unset CLAUDE_CONFIG_DIR CODEX_HOME
+
 PASS=0
 FAIL=0
 TOTAL=0

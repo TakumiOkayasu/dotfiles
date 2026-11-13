@@ -31,6 +31,16 @@ trap cleanup_tmpfiles EXIT INT TERM
 # ============================================================================
 
 DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
+CLAUDE_CONFIG_ROOT="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+CODEX_CONFIG_ROOT="${CODEX_HOME:-$HOME/.codex}"
+STOW_TARGET_DIR="$HOME"
+
+for _runtime_root in "$CLAUDE_CONFIG_ROOT" "$CODEX_CONFIG_ROOT"; do
+    case "$_runtime_root" in
+        /*) ;;
+        *) printf 'runtime config directory must be absolute: %s\n' "$_runtime_root" >&2; exit 2 ;;
+    esac
+done
 
 MODE_INTERACTIVE=true
 MODE_DRY_RUN=false
@@ -64,6 +74,7 @@ COMMON_HOOKS="common/hooks"
 AI_ASSET_GENERATOR_REL="scripts/generate-ai-assets.py"
 AI_ASSET_ROOT_REL=".generated/ai-assets"
 AI_ASSET_ROOT="${DOTFILES_DIR}/${AI_ASSET_ROOT_REL}"
+AI_PROFILE_SUFFIX=""
 
 DOTWORK_MARKER_BEGIN="# === dotfile-work: BEGIN ==="
 DOTWORK_MARKER_END="# === dotfile-work: END ==="
@@ -269,9 +280,27 @@ stow_specs_add() {
     printf '%s:%s\n' "$_source" "$_dest" >> "$_spec_file"
 }
 
+configure_ai_asset_profile() {
+    [ -z "$AI_PROFILE_SUFFIX" ] || return 0
+    if [ "$CLAUDE_CONFIG_ROOT" = "$HOME/.claude" ] && [ "$CODEX_CONFIG_ROOT" = "$HOME/.codex" ]; then
+        return 0
+    fi
+    _profile_digest=$(python3 - "$HOME" "$CLAUDE_CONFIG_ROOT" "$CODEX_CONFIG_ROOT" <<'PY_PROFILE'
+import hashlib
+import json
+import sys
+print(hashlib.sha256(json.dumps(sys.argv[1:]).encode()).hexdigest()[:20])
+PY_PROFILE
+    ) || die "AI asset profile の識別に失敗しました"
+    AI_PROFILE_SUFFIX="-${_profile_digest}"
+    AI_ASSET_ROOT_REL=".generated/ai-assets${AI_PROFILE_SUFFIX}"
+    AI_ASSET_ROOT="${DOTFILES_DIR}/${AI_ASSET_ROOT_REL}"
+}
+
 generate_ai_assets() {
     [ "$CLAUDE_SELECTED" = "true" ] || [ "$CODEX_SELECTED" = "true" ] || return 0
 
+    configure_ai_asset_profile
     _generator="${DOTFILES_DIR}/${AI_ASSET_GENERATOR_REL}"
     [ -f "$_generator" ] || die "AI asset generator が見つかりません: $_generator"
     if [ "$MODE_DRY_RUN" = "true" ]; then
@@ -288,7 +317,7 @@ generate_ai_assets() {
             || die "AI asset の一時生成・検証に失敗しました"
     else
         print_info "common/* から Claude/Codex 用assetを生成・検証"
-        python3 "$_generator" --repo "$DOTFILES_DIR" || die "AI asset の生成・検証に失敗しました"
+        python3 "$_generator" --repo "$DOTFILES_DIR" --output "$AI_ASSET_ROOT" || die "AI asset の生成・検証に失敗しました"
     fi
     for _generated_dir in "$AI_ASSET_ROOT/claude" "$AI_ASSET_ROOT/codex" "$AI_ASSET_ROOT/plugins"; do
         [ -d "$_generated_dir" ] || die "生成済みAI assetが不足しています: $_generated_dir"
@@ -336,7 +365,7 @@ prepare_stow_target_path() {
     while :; do
         _pst_part=${_pst_remaining%%/*}
         _pst_relative=${_pst_relative:+${_pst_relative}/}${_pst_part}
-        _pst_target="${HOME}/${_pst_relative}"
+        _pst_target="${STOW_TARGET_DIR}/${_pst_relative}"
         _pst_entry=".stow-work/${_pst_package}/${_pst_relative}"
 
         if [ -L "$_pst_target" ]; then
@@ -401,7 +430,7 @@ run_stow_link_specs_file() {
         return 1
     fi
 
-    set -- --repo "$DOTFILES_DIR" --target "$HOME" --package "$_package"
+    set -- --repo "$DOTFILES_DIR" --target "$STOW_TARGET_DIR" --package "$_package"
     while IFS= read -r _spec; do
         [ -z "$_spec" ] && continue
         if [ "$MODE_DRY_RUN" = "true" ]; then
@@ -414,12 +443,18 @@ run_stow_link_specs_file() {
                     _preview_source="${AI_ASSET_ROOT_REL}/${_source#"$_ai_asset_root_relative"/}"
                     ;;
             esac
-            print_info "[ドライラン] stow link: ${HOME}/${_dest} <- ${DOTFILES_DIR}/${_preview_source}"
+            print_info "[ドライラン] stow link: ${STOW_TARGET_DIR}/${_dest} <- ${DOTFILES_DIR}/${_preview_source}"
         fi
         set -- "$@" --link "$_spec"
     done < "$_spec_file"
     [ "$MODE_DRY_RUN" = "true" ] && set -- "$@" --dry-run
     [ "$_mode" = "uninstall" ] && set -- "$@" --uninstall
+
+    if [ "$MODE_DRY_RUN" = true ] && [ ! -d "$STOW_TARGET_DIR" ]; then
+        print_info "[ドライラン] stow target 作成後に配置: $STOW_TARGET_DIR"
+        COUNT_CREATED=$((COUNT_CREATED + 1))
+        return 0
+    fi
 
     if "$_script" "$@"; then
         if [ "$_mode" = "uninstall" ]; then
@@ -650,7 +685,7 @@ _csl_dir_all_stale() {
 }
 
 cleanup_legacy_claude_skill_tiers() {
-    _skills_dir="${HOME}/.claude/skills"
+    _skills_dir="${CLAUDE_CONFIG_ROOT}/skills"
     [ -d "$_skills_dir" ] || return 0
 
     for _entry in "$_skills_dir"/*; do
@@ -682,13 +717,13 @@ cleanup_removed_codex_links() {
 }
 
 _remove_legacy_codex_files() {
-    remove_dotfiles_link "${HOME}/.codex/README.md" "除外済みCodex README"
-    remove_dotfiles_link "${HOME}/.codex/settings.json" "除外済みCodex settings.json"
-    remove_dotfiles_link "${HOME}/.codex/reference/claude-settings.reference.json" "除外済みCodex reference"
+    remove_dotfiles_link "${CODEX_CONFIG_ROOT}/README.md" "除外済みCodex README"
+    remove_dotfiles_link "${CODEX_CONFIG_ROOT}/settings.json" "除外済みCodex settings.json"
+    remove_dotfiles_link "${CODEX_CONFIG_ROOT}/reference/claude-settings.reference.json" "除外済みCodex reference"
 }
 
 _remove_legacy_codex_skill_links() {
-    _skills_dir="${HOME}/.codex/skills"
+    _skills_dir="${CODEX_CONFIG_ROOT}/skills"
     [ -d "$_skills_dir" ] || return 0
 
     for _entry in "$_skills_dir"/*; do
@@ -1265,6 +1300,7 @@ remove_legacy_qa_nightmare_checklist_links() {
 
 install_claude_config() {
     [ "$CLAUDE_SELECTED" != "true" ] && return 0
+    configure_ai_asset_profile
     print_header "Claude設定をインストール"
 
     _claude_ensure_directories
@@ -1274,40 +1310,87 @@ install_claude_config() {
 }
 
 _claude_ensure_directories() {
-    ensure_dir "${HOME}/.claude"
-    ensure_dir "${HOME}/.claude/bin"
-    ensure_dir "${HOME}/.claude/hooks"
-    ensure_dir "${HOME}/.claude/skills"
-    ensure_dir "${HOME}/.claude/rules"
+    ensure_dir "${CLAUDE_CONFIG_ROOT}"
+    ensure_dir "${CLAUDE_CONFIG_ROOT}/bin"
+    ensure_dir "${CLAUDE_CONFIG_ROOT}/hooks"
+    ensure_dir "${CLAUDE_CONFIG_ROOT}/skills"
+    ensure_dir "${CLAUDE_CONFIG_ROOT}/rules"
 }
 
 _claude_cleanup_stale() {
     cleanup_legacy_claude_skill_tiers
-    remove_dotfiles_link "${HOME}/.claude/statusline.settings.json" "旧Claude statusline.settings.json"
-    cleanup_stale_links_in "Claude" "${HOME}/.claude" bin commands hooks skills rules
+    remove_dotfiles_link "${CLAUDE_CONFIG_ROOT}/statusline.settings.json" "旧Claude statusline.settings.json"
+    cleanup_stale_links_in "Claude" "${CLAUDE_CONFIG_ROOT}" bin commands hooks skills rules
+}
+
+runtime_stow_package() {
+    _runtime="$1"
+    _runtime_root="$2"
+    _runtime_mode="$3"
+    _runtime_filter="$4"
+    _runtime_package="${_runtime}-runtime${AI_PROFILE_SUFFIX}"
+    STOW_TARGET_DIR="$_runtime_root"
+    if [ "$_runtime_filter" = shared ]; then
+        _runtime_package="${_runtime}-shared${AI_PROFILE_SUFFIX}"
+        STOW_TARGET_DIR="$HOME"
+    fi
+    new_stow_specs_file
+    _runtime_specs="$_stow_specs_file"
+    add_generated_ai_stow_specs "$_runtime_specs" "$_runtime" "$_runtime_package"
+    if [ "$MODE_UNINSTALL" != true ]; then
+        _runtime_filtered=$(mktemp)
+        _TMPFILES="$_TMPFILES $_runtime_filtered"
+        while IFS= read -r _runtime_spec; do
+            _runtime_source=${_runtime_spec%%:*}
+            _runtime_dest=${_runtime_spec#*:}
+            case "$_runtime_dest" in
+                ".${_runtime}/"*)
+                    [ "$_runtime_filter" = runtime ] || continue
+                    _runtime_dest=${_runtime_dest#*/}
+                    ;;
+                *) [ "$_runtime_filter" = shared ] || continue ;;
+            esac
+            printf '%s:%s\n' "$_runtime_source" "$_runtime_dest" >> "$_runtime_filtered"
+        done < "$_runtime_specs"
+        _runtime_specs="$_runtime_filtered"
+    fi
+    if [ "$_runtime_mode" = uninstall ]; then
+        uninstall_stow_specs_file "$_runtime_package" "$_runtime_specs"
+    else
+        install_stow_specs_file "$_runtime_package" "$_runtime_specs"
+    fi
+    STOW_TARGET_DIR="$HOME"
 }
 
 _claude_install_stow_package() {
+    if [ "$CLAUDE_CONFIG_ROOT" != "$HOME/.claude" ]; then
+        runtime_stow_package claude "$CLAUDE_CONFIG_ROOT" install runtime
+        return
+    fi
     new_stow_specs_file
     _spec_file="$_stow_specs_file"
     _claude_add_managed_stow_specs "$_spec_file"
-    install_stow_specs_file "claude" "$_spec_file"
+    install_stow_specs_file "claude${AI_PROFILE_SUFFIX}" "$_spec_file"
 }
 
 _claude_uninstall_stow_package() {
+    if [ "$CLAUDE_CONFIG_ROOT" != "$HOME/.claude" ]; then
+        runtime_stow_package claude "$CLAUDE_CONFIG_ROOT" uninstall runtime
+        return
+    fi
     new_stow_specs_file
     _spec_file="$_stow_specs_file"
     _claude_add_managed_stow_specs "$_spec_file"
-    uninstall_stow_specs_file "claude" "$_spec_file"
+    uninstall_stow_specs_file "claude${AI_PROFILE_SUFFIX}" "$_spec_file"
 }
 
 _claude_add_managed_stow_specs() {
     _spec_file="$1"
-    add_generated_ai_stow_specs "$_spec_file" claude claude
+    add_generated_ai_stow_specs "$_spec_file" claude "claude${AI_PROFILE_SUFFIX}"
 }
 
 _claude_setup_vendor_skills() {
-    _vendor_dir="${HOME}/.claude/vendor"
+    _vendor_dir="${CLAUDE_CONFIG_ROOT}/vendor"
     _agent_skills_dir="${_vendor_dir}/agent-skills"
     ensure_dir "$_vendor_dir"
 
@@ -1339,7 +1422,7 @@ _claude_vendor_clone_if_missing() {
 
 _claude_vendor_link_skill() {
     _src="${1}/skills/${2}"
-    _dest="${HOME}/.claude/skills/${2}"
+    _dest="${CLAUDE_CONFIG_ROOT}/skills/${2}"
 
     [ -L "$_dest" ] && [ ! -e "$_dest" ] && rm "$_dest" 2>/dev/null
 
@@ -1347,25 +1430,26 @@ _claude_vendor_link_skill() {
     [ -e "$_dest" ] && return 0
 
     if [ "$MODE_DRY_RUN" = "true" ]; then
-        print_info "[ドライラン] リンク: ~/.claude/skills/${2}"
+        print_info "[ドライラン] リンク: ${CLAUDE_CONFIG_ROOT}/skills/${2}"
         return 0
     fi
 
     if ln -s "$_src" "$_dest"; then
-        print_success "作成: ~/.claude/skills/${2}"
+        print_success "作成: ${CLAUDE_CONFIG_ROOT}/skills/${2}"
     else
         print_error "リンク作成失敗: ${2}"
     fi
 }
 
 uninstall_claude_config() {
+    configure_ai_asset_profile
     print_header "Claude設定をアンインストール"
 
     _claude_cleanup_stale
     _claude_uninstall_stow_package
     _claude_unlink_managed_files
-    remove_legacy_common_hook_links "${HOME}/.claude/hooks"
-    remove_legacy_qa_nightmare_checklist_links "${HOME}/.claude/skills/qa-nightmare/checklists"
+    remove_legacy_common_hook_links "${CLAUDE_CONFIG_ROOT}/hooks"
+    remove_legacy_qa_nightmare_checklist_links "${CLAUDE_CONFIG_ROOT}/skills/qa-nightmare/checklists"
     _claude_unlink_vendor_skills
     _claude_prune_empty_dirs
 }
@@ -1384,7 +1468,7 @@ _claude_unlink_managed_files() {
         case "$_relative" in CLAUDE.md) continue ;; esac
 
         _dest_relative=$(claude_target_relative "$_relative")
-        _dest="${HOME}/.claude/${_dest_relative}"
+        _dest="${CLAUDE_CONFIG_ROOT}/${_dest_relative}"
         remove_link "$_file" "$_dest"
     done < "$_filelist"
 
@@ -1393,28 +1477,28 @@ _claude_unlink_managed_files() {
 
 _claude_unlink_vendor_skills() {
     for _skill in $VENDOR_SKILLS; do
-        _dest="${HOME}/.claude/skills/${_skill}"
+        _dest="${CLAUDE_CONFIG_ROOT}/skills/${_skill}"
         [ -L "$_dest" ] || continue
         if [ "$MODE_DRY_RUN" = "true" ]; then
-            print_info "[ドライラン] 削除: ~/.claude/skills/${_skill}"
+            print_info "[ドライラン] 削除: ${CLAUDE_CONFIG_ROOT}/skills/${_skill}"
         else
-            rm "$_dest" && print_success "削除: ${HOME}/.claude/skills/${_skill}"
+            rm "$_dest" && print_success "削除: ${CLAUDE_CONFIG_ROOT}/skills/${_skill}"
         fi
     done
 
-    [ -d "${HOME}/.claude/vendor/agent-skills" ] || return 0
+    [ -d "${CLAUDE_CONFIG_ROOT}/vendor/agent-skills" ] || return 0
     if [ "$MODE_DRY_RUN" = "true" ]; then
-        print_info "[ドライラン] 削除: ~/.claude/vendor/agent-skills"
+        print_info "[ドライラン] 削除: ${CLAUDE_CONFIG_ROOT}/vendor/agent-skills"
     else
-        rm -rf "${HOME}/.claude/vendor/agent-skills" && print_success "削除: ~/.claude/vendor/agent-skills"
-        rmdir "${HOME}/.claude/vendor" 2>/dev/null || true
+        rm -rf "${CLAUDE_CONFIG_ROOT}/vendor/agent-skills" && print_success "削除: ${CLAUDE_CONFIG_ROOT}/vendor/agent-skills"
+        rmdir "${CLAUDE_CONFIG_ROOT}/vendor" 2>/dev/null || true
     fi
 }
 
 _claude_prune_empty_dirs() {
     [ "$MODE_DRY_RUN" = "true" ] && return 0
 
-    _count=$(find "${HOME}/.claude" -mindepth 1 -depth -type d 2>/dev/null \
+    _count=$(find "${CLAUDE_CONFIG_ROOT}" -mindepth 1 -depth -type d 2>/dev/null \
         | while IFS= read -r _dir; do rmdir "$_dir" 2>/dev/null && echo x; done \
         | wc -l)
     if [ "$_count" -gt 0 ]; then
@@ -1429,19 +1513,19 @@ _claude_prune_empty_dirs() {
 codex_dest_for_relative() {
     case "$1" in
         global_AGENTS.md)
-            printf '%s/.codex/AGENTS.md\n' "$HOME"
+            printf '%s/AGENTS.md\n' "$CODEX_CONFIG_ROOT"
             ;;
         SUBAGENTS.md)
-            printf '%s/.codex/%s\n' "$HOME" "$1"
+            printf '%s/%s\n' "$CODEX_CONFIG_ROOT" "$1"
             ;;
         agents/*.toml|agents/*/checklists/*.md|bin/*|hooks/*|rules/*.md|rules/*.rules)
-            printf '%s/.codex/%s\n' "$HOME" "$1"
+            printf '%s/%s\n' "$CODEX_CONFIG_ROOT" "$1"
             ;;
         */*.config.toml)
             return 1
             ;;
         *.config.toml)
-            printf '%s/.codex/%s\n' "$HOME" "$1"
+            printf '%s/%s\n' "$CODEX_CONFIG_ROOT" "$1"
             ;;
         config.toml|config.toml.template|hooks.json)
             return 1
@@ -1458,6 +1542,7 @@ codex_dest_for_relative() {
 
 install_codex_config() {
     [ "$CODEX_SELECTED" != "true" ] && return 0
+    configure_ai_asset_profile
     print_header "Codex設定をインストール"
 
     _codex_ensure_directories
@@ -1469,43 +1554,53 @@ install_codex_config() {
 }
 
 _codex_ensure_directories() {
-    ensure_dir "${HOME}/.codex"
-    ensure_dir "${HOME}/.codex/agents"
-    ensure_dir "${HOME}/.codex/bin"
-    ensure_dir "${HOME}/.codex/hooks"
-    ensure_dir "${HOME}/.codex/rules"
-    ensure_dir "${HOME}/.codex/plugins"
+    ensure_dir "${CODEX_CONFIG_ROOT}"
+    ensure_dir "${CODEX_CONFIG_ROOT}/agents"
+    ensure_dir "${CODEX_CONFIG_ROOT}/bin"
+    ensure_dir "${CODEX_CONFIG_ROOT}/hooks"
+    ensure_dir "${CODEX_CONFIG_ROOT}/rules"
+    ensure_dir "${CODEX_CONFIG_ROOT}/plugins"
     ensure_dir "${HOME}/.agents/plugins"
 }
 
 _codex_cleanup_all() {
-    cleanup_stale_links_in "Codex"       "${HOME}/.codex"  agents bin hooks plugins rules skills
+    cleanup_stale_links_in "Codex"       "${CODEX_CONFIG_ROOT}"  agents bin hooks plugins rules skills
     cleanup_removed_codex_links
     cleanup_stale_links_in "Codex shared" "${HOME}/.agents" plugins skills
 }
 
 _codex_install_stow_package() {
+    if [ "$CODEX_CONFIG_ROOT" != "$HOME/.codex" ]; then
+        runtime_stow_package codex "$CODEX_CONFIG_ROOT" install runtime
+        runtime_stow_package codex "$CODEX_CONFIG_ROOT" install shared
+        return
+    fi
     new_stow_specs_file
     _spec_file="$_stow_specs_file"
     _codex_add_managed_stow_specs "$_spec_file"
-    install_stow_specs_file "codex" "$_spec_file"
+    install_stow_specs_file "codex${AI_PROFILE_SUFFIX}" "$_spec_file"
 }
 
 _codex_uninstall_stow_package() {
+    if [ "$CODEX_CONFIG_ROOT" != "$HOME/.codex" ]; then
+        runtime_stow_package codex "$CODEX_CONFIG_ROOT" uninstall runtime
+        runtime_stow_package codex "$CODEX_CONFIG_ROOT" uninstall shared
+        return
+    fi
     new_stow_specs_file
     _spec_file="$_stow_specs_file"
     _codex_add_managed_stow_specs "$_spec_file"
-    uninstall_stow_specs_file "codex" "$_spec_file"
+    uninstall_stow_specs_file "codex${AI_PROFILE_SUFFIX}" "$_spec_file"
 }
 
 _codex_add_managed_stow_specs() {
     _spec_file="$1"
-    add_generated_ai_stow_specs "$_spec_file" codex codex
+    add_generated_ai_stow_specs "$_spec_file" codex "codex${AI_PROFILE_SUFFIX}"
 }
 
 _codex_generate_config_from_template() {
     _template="${DOTFILES_DIR}/codex/config.toml.template"
-    _dest="${HOME}/.codex/config.toml"
+    _dest="${CODEX_CONFIG_ROOT}/config.toml"
 
     if [ ! -f "$_template" ]; then
         print_skip "スキップ: codex/config.toml.template (ファイルが存在しません)"
@@ -1514,32 +1609,32 @@ _codex_generate_config_from_template() {
     fi
 
     if [ -e "$_dest" ] || [ -L "$_dest" ]; then
-        print_info "既存の ~/.codex/config.toml は上書きしません。codex/config.toml.template を手動 merge してください"
+        print_info "既存の ${CODEX_CONFIG_ROOT}/config.toml は上書きしません。codex/config.toml.template を手動 merge してください"
         COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
         return 0
     fi
 
     if [ "$MODE_DRY_RUN" = "true" ]; then
-        print_info "[ドライラン] 生成: ~/.codex/config.toml <- codex/config.toml.template"
+        print_info "[ドライラン] 生成: ${CODEX_CONFIG_ROOT}/config.toml <- codex/config.toml.template"
         COUNT_CREATED=$((COUNT_CREATED + 1))
         return 0
     fi
 
     ensure_dir "$(dirname "$_dest")" || return 1
     if cp "$_template" "$_dest" 2>/dev/null; then
-        print_success "生成: ~/.codex/config.toml"
+        print_success "生成: ${CODEX_CONFIG_ROOT}/config.toml"
         COUNT_CREATED=$((COUNT_CREATED + 1))
     else
-        print_error "生成失敗: ~/.codex/config.toml"
+        print_error "生成失敗: ${CODEX_CONFIG_ROOT}/config.toml"
         COUNT_ERROR=$((COUNT_ERROR + 1))
         return 1
     fi
 }
 
 _codex_warn_legacy_hooks_json() {
-    _hooks_json="${HOME}/.codex/hooks.json"
+    _hooks_json="${CODEX_CONFIG_ROOT}/hooks.json"
     [ -e "$_hooks_json" ] || [ -L "$_hooks_json" ] || return 0
-    print_info "既存の ~/.codex/hooks.json は自動削除しません。inline hooks へ移行済みのため必要なら手動で退避してください"
+    print_info "既存の ${CODEX_CONFIG_ROOT}/hooks.json は自動削除しません。inline hooks へ移行済みのため必要なら手動で退避してください"
     COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
 }
 
@@ -1556,13 +1651,14 @@ _codex_verify_hooks_feature() {
 }
 
 uninstall_codex_config() {
+    configure_ai_asset_profile
     print_header "Codex設定をアンインストール"
 
     _codex_cleanup_all
     _codex_uninstall_stow_package
     _codex_unlink_managed_files
-    remove_legacy_common_hook_links "${HOME}/.codex/hooks"
-    remove_legacy_qa_nightmare_checklist_links "${HOME}/.codex/agents/qa-nightmare/checklists"
+    remove_legacy_common_hook_links "${CODEX_CONFIG_ROOT}/hooks"
+    remove_legacy_qa_nightmare_checklist_links "${CODEX_CONFIG_ROOT}/agents/qa-nightmare/checklists"
     _codex_prune_empty_dirs
 }
 
@@ -1587,7 +1683,7 @@ _codex_unlink_managed_files() {
 _codex_prune_empty_dirs() {
     [ "$MODE_DRY_RUN" = "true" ] && return 0
 
-    _count=$(find "${HOME}/.codex" -mindepth 1 -depth -type d 2>/dev/null \
+    _count=$(find "${CODEX_CONFIG_ROOT}" -mindepth 1 -depth -type d 2>/dev/null \
         | while IFS= read -r _dir; do rmdir "$_dir" 2>/dev/null && echo x; done \
         | wc -l)
     if [ "$_count" -gt 0 ]; then
@@ -1662,9 +1758,9 @@ show_category_menu() {
     printf '  %s4)%s CLIツール\n' "$COLOR_BOLD" "$COLOR_RESET"
     printf "     git-new-feature 等を ~/.local/bin/ に配置\n"
     printf '  %s5)%s Claude Code設定\n' "$COLOR_BOLD" "$COLOR_RESET"
-    printf "     hooks, skills, rules, commands を ~/.claude/ に配置\n"
+    printf "     hooks, skills, rules, commands を %s/ に配置\n" "$CLAUDE_CONFIG_ROOT"
     printf '  %s6)%s Codex設定\n' "$COLOR_BOLD" "$COLOR_RESET"
-    printf "     agents, inline hooks template, rules を ~/.codex/ に配置 (skills は plugin 配布)\n"
+    printf "     agents, inline hooks template, rules を %s/ に配置 (skills は plugin 配布)\n" "$CODEX_CONFIG_ROOT"
     echo ""
     printf '  %sa)%s すべて  %sq)%s 終了\n' "$COLOR_BOLD" "$COLOR_RESET" "$COLOR_BOLD" "$COLOR_RESET"
     echo ""
@@ -1820,16 +1916,16 @@ _preview_bin() {
 
 _preview_claude() {
     printf '  %sClaude Code設定:%s\n' "$COLOR_CYAN" "$COLOR_RESET"
-    printf "    + trackedな claude/* と common/* -> 生成・検証 -> ~/.claude/*\n"
+    printf "    + trackedな claude/* と common/* -> 生成・検証 -> %s/*\n" "$CLAUDE_CONFIG_ROOT"
     echo ""
 }
 
 _preview_codex() {
     printf '  %sCodex設定:%s\n' "$COLOR_CYAN" "$COLOR_RESET"
-    printf "    + trackedな codex/* と common/* -> 生成・検証 -> ~/.codex/*\n"
-    printf "    + plugin bundle -> ~/.codex/plugins, ~/.agents/plugins/marketplace.json\n"
-    printf "    + codex/config.toml.template -> ~/.codex/config.toml (存在しない場合のみ生成)\n"
-    printf "    + codex/*.config.toml -> ~/.codex/*.config.toml (profile)\n"
+    printf "    + trackedな codex/* と common/* -> 生成・検証 -> %s/*\n" "$CODEX_CONFIG_ROOT"
+    printf "    + plugin bundle -> %s/plugins, ~/.agents/plugins/marketplace.json\n" "$CODEX_CONFIG_ROOT"
+    printf "    + codex/config.toml.template -> %s/config.toml (存在しない場合のみ生成)\n" "$CODEX_CONFIG_ROOT"
+    printf "    + codex/*.config.toml -> %s/*.config.toml (profile)\n" "$CODEX_CONFIG_ROOT"
     printf "    - codex/skills/* は plugin 配布のため install 対象外\n"
     printf "    - codex/hooks.json は作成しない (hooks は config.toml inline TOML)\n"
     echo ""

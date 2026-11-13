@@ -18,7 +18,7 @@ codex/hooks/rules-enforce.sh --report
 If the repo is installed through plugin only, use the plugin copy when available:
 
 ```sh
-~/.codex/plugins/dotfile-work-codex/hooks/rules-enforce.sh --report
+"${CODEX_HOME:-$HOME/.codex}/plugins/dotfile-work-codex/hooks/rules-enforce.sh" --report
 ```
 
 1. Read applicable rules:

@@ -224,3 +224,24 @@ helper chainと `store` の保存特性は [Git credential documentation](https:
 | --- | --- |
 | macOS | `.gitconfig.private` |
 | Linux / WSL | `.gitconfig.work` |
+
+### Claude / Codex の設定ディレクトリ
+
+`CLAUDE_CONFIG_DIR` と `CODEX_HOME` を指定すると、installer、hook、設定参照CLIはそのディレクトリを優先する。未指定または空文字なら `~/.claude` と `~/.codex` を使う。指定値は絶対パスとし、起動時・install時・uninstall時に同じ値を渡す。
+
+実行スクリプトでは入口で一度だけ既定値を補完し、以降は解決済みの変数を参照する。JSON/TOMLの各hook commandは独立したshellで起動するため、起動先を特定する既定値補完をそれぞれに残す。CodexのCLIは未installのsource treeからも実行できるよう、既存のscript隣接ディレクトリ探索を維持する。
+
+```sh
+export CLAUDE_CONFIG_DIR="$HOME/.config/claude-work"
+export CODEX_HOME="$HOME/.config/codex-work"
+./install.sh -n
+./install.sh -f
+```
+
+既存ディレクトリからの自動移動は行わない。既存の `config.toml` は従来どおり上書きせず、hook commandの変更は手動でmergeする。プロジェクト内の `.claude/`・`.codex/` と、ユーザー共有の `~/.agents/` は別の場所として維持する。
+
+環境変数を展開しないClaudeのsandbox許可パス・CLAUDE.md importと、Codex marketplaceのローカルplugin参照は、生成時に選択ディレクトリへ解決する。sandbox許可先は従来の2箇所に対応するディレクトリだけを指定する。設定場所を変えた場合は再installして生成し直す。異なる設定ディレクトリの組み合わせごとに生成物と配置packageを分離し、他のprofileの設定先を上書きしない。
+
+`CLAUDE_PROJECT_DIR` はセッション開始時のプロジェクトを指し、作業中の `cwd` と異なりうるため置換しない。ChatGPTの実行環境にCodex用変数が提供されていない場合は、同等の変数を仮定せず通常の既定値を使う。
+
+一次資料: [Claude環境変数](https://code.claude.com/docs/ja/env-vars)、[Claude import](https://code.claude.com/docs/en/memory#import-additional-files)、[Claude sandbox](https://code.claude.com/docs/en/sandboxing)、[Codex環境変数](https://developers.openai.com/codex/environment-variables) 。

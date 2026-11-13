@@ -334,7 +334,11 @@ class TestGenerateAiAssets(unittest.TestCase):
             result = subprocess.run(
                 ["sh", str(repo / "install.sh"), "-f"],
                 cwd=repo,
-                env={**os.environ, "HOME": str(home)},
+                env={
+                    **{key: value for key, value in os.environ.items()
+                       if key not in {"CLAUDE_CONFIG_DIR", "CODEX_HOME"}},
+                    "HOME": str(home),
+                },
                 check=False,
                 capture_output=True,
                 text=True,

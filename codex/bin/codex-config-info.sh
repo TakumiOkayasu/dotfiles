@@ -31,7 +31,7 @@ if SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P); then
 else
     SCRIPT_DIR=$(dirname "$0")
 fi
-CODEX_DIR=$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || echo "${HOME}/.codex")
+CODEX_DIR=${CODEX_HOME:-$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || echo "${HOME}/.codex")}
 
 GLOBAL_SETTINGS="${CODEX_DIR}/hooks.json"
 PROJECT_SETTINGS="${PWD}/.codex/hooks.json"
@@ -232,7 +232,7 @@ collect_skills() {
     for dir in "$USER_SKILLS_DIR" "$CODEX_SKILLS_DIR"; do
         [ -d "$dir" ] || continue
         find "$dir" -maxdepth 2 -name "SKILL.md" 2>/dev/null | while read -r skill_file; do
-            dirname "$skill_file" | xargs basename
+            basename "$(dirname "$skill_file")"
         done
     done | sort -u
 }
@@ -243,11 +243,11 @@ print_skills_text() {
     count=$((count + 0))
 
     if [ "$count" -eq 0 ] || [ -z "$skills" ]; then
-        echo "  No skills found in ${HOME}/.agents/skills or ${HOME}/.codex/skills"
+        echo "  No skills found in ${USER_SKILLS_DIR} or ${CODEX_SKILLS_DIR}"
         return
     fi
 
-    echo "  ${count} skill(s) in ${HOME}/.agents/skills / ${HOME}/.codex/skills"
+    echo "  ${count} skill(s) in ${USER_SKILLS_DIR} / ${CODEX_SKILLS_DIR}"
 
     # 最大10個まで表示
     printf "%s" "  "

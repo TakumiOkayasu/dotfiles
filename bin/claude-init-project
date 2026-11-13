@@ -12,6 +12,8 @@
 
 set -euo pipefail
 
+CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+
 # 色定義
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -44,7 +46,7 @@ OPTIONS:
 ENVIRONMENT:
   CLAUDE_TEMPLATE_ROOT
         テンプレートディレクトリのパス
-        (default: ${HOME}/.claude)
+        (default: ${CLAUDE_CONFIG_DIR})
 EOF
             exit 0
             ;;
@@ -155,11 +157,11 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 fi
 
 # テンプレートルート
-TEMPLATE_ROOT="${CLAUDE_TEMPLATE_ROOT:-$HOME/.claude}"
+TEMPLATE_ROOT="${CLAUDE_TEMPLATE_ROOT:-$CLAUDE_CONFIG_DIR}"
 
 if [[ ! -d "$TEMPLATE_ROOT" ]]; then
     echo -e "${RED}エラー: テンプレートディレクトリが見つかりません: $TEMPLATE_ROOT${NC}" >&2
-    echo -e "${YELLOW}   ${HOME}/.claude/ に notes/_template.md, scratch/_template.md 等を配置してください${NC}" >&2
+    echo -e "${YELLOW}   ${CLAUDE_CONFIG_DIR}/ に notes/_template.md, scratch/_template.md 等を配置してください${NC}" >&2
     exit 1
 fi
 

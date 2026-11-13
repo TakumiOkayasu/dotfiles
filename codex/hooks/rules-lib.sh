@@ -1,12 +1,14 @@
 #!/bin/sh
 # Shared helpers for Codex markdown rule discovery and checksum calculation.
 
+CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+
 rules_inline_dispatcher_registered() {
     _event="$1"
-    _codex_dir="${CODEX_HOME:-$HOME/.codex}"
-    _config="${_codex_dir}/config.toml"
+    _config="${CODEX_HOME}/config.toml"
     [ -f "$_config" ] || return 1
-    grep -Fq "hook-dispatcher.sh ${_event}" "$_config"
+    grep -Fq "hook-dispatcher.sh ${_event}" "$_config" ||
+        grep -Fq "hook-dispatcher.sh\\\" ${_event}" "$_config"
 }
 
 rules_hash_cmd() {
@@ -78,7 +80,7 @@ rules_collect_rule_files() {
     if [ -n "$_git_root" ] && [ "$_git_root" != "$_cwd" ]; then
         rules_add_rule_dir "$_git_root/codex/rules" "$_pairs" "$_seen"
     fi
-    rules_add_rule_dir "$HOME/.codex/rules" "$_pairs" "$_seen"
+    rules_add_rule_dir "${CODEX_HOME}/rules" "$_pairs" "$_seen"
     [ -n "$_code_root" ] && rules_add_rule_dir "$_code_root/../common/rules" "$_pairs" "$_seen"
     [ -n "$_code_root" ] && rules_add_rule_dir "$_code_root/rules" "$_pairs" "$_seen"
     [ -n "${PLUGIN_ROOT:-}" ] && rules_add_rule_dir "${PLUGIN_ROOT}/rules" "$_pairs" "$_seen"

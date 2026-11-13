@@ -136,7 +136,7 @@ class TestClaudeHookWiring:
             if entry.get("matcher") == "Bash"
             for hook in entry["hooks"]
         ]
-        assert "$HOME/.claude/hooks/destructive-command-block.sh" in pre_tool_commands
+        assert '"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/destructive-command-block.sh"' in pre_tool_commands
 
         fake_jq = tmp_path / "jq"
         _write_executable(
@@ -181,7 +181,7 @@ class TestClaudeHookWiring:
             for hook in entry["hooks"]
         ]
 
-        assert "$HOME/.claude/hooks/session-start-reminder.sh" in session_start_commands
+        assert '"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/session-start-reminder.sh"' in session_start_commands
         assert (
             "$HOME/.claude/hooks/vendor-skills-update.sh" not in session_start_commands
         )
@@ -705,7 +705,10 @@ def _run_install_sh(
     if not uninstall and use_fake_vendor and not vendor_dir.exists():
         _create_fake_vendor(home)
 
-    env = os.environ.copy()
+    env = {
+        key: value for key, value in os.environ.items()
+        if key not in {"CLAUDE_CONFIG_DIR", "CODEX_HOME"}
+    }
     env.update(env_overrides or {})
     env["HOME"] = str(home)
 
@@ -1243,7 +1246,7 @@ class TestCodexConfigTemplate:
         assert "mcp_servers" not in data
         assert (
             data["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
-            == "$HOME/.codex/hooks/hook-dispatcher.sh pre-tool-use"
+            == '"${CODEX_HOME:-$HOME/.codex}/hooks/hook-dispatcher.sh" pre-tool-use'
         )
 
     def test_model_profiles_override_only_model_and_effort(self) -> None:
@@ -2694,7 +2697,7 @@ class TestIntegrationInstallUninstall:
 
         assert result.returncode == 0, result.stdout + result.stderr
         assert config_toml.read_text(encoding="utf-8") == 'model = "local-only"\n'
-        assert result.stdout.count("既存の ~/.codex/config.toml は上書きしません") == 2
+        assert result.stdout.count(f"既存の {config_toml} は上書きしません") == 2
 
     def test_install_and_uninstall_model_profiles_preserve_base_config(
         self, tmp_path: Path
@@ -3334,7 +3337,10 @@ def _simulate_install(dotfiles: Path, home: Path) -> None:
 
 def _run_uninstall(dotfiles: Path, home: Path) -> subprocess.CompletedProcess[str]:
     """install.sh -u -f を実行 (Claude設定のuninstallのみテスト対象)"""
-    env = os.environ.copy()
+    env = {
+        key: value for key, value in os.environ.items()
+        if key not in {"CLAUDE_CONFIG_DIR", "CODEX_HOME"}
+    }
     env["HOME"] = str(home)
 
     return subprocess.run(

@@ -13,6 +13,8 @@
 # set -e もtrap ERRも使わない（POSIX sh非互換 + exit 1 = 許可扱いリスク）
 # 代わりに各操作で明示的にエラーチェックし、失敗時は安全側（ブロック: exit 2）にフォールバック
 
+CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+
 # --- デバッグログ ---
 DEBUG_LOG="/tmp/claude_hook_debug.log"
 debug_log() {
@@ -80,7 +82,18 @@ is_docker_command() {
 # node/bun で ~/.claude/plugins/cache/openai-codex/codex/<version>/scripts/codex-companion.mjs を
 # 起動する場合は許可 (codex:rescue / codex:setup から内部呼び出しされるため)
 is_codex_companion_command() {
-    printf '%s\n' "$1" | grep -qE '^[[:space:]]*(node|bun)[[:space:]]+"?[^"[:space:]]*\.claude/plugins/cache/openai-codex/codex/[^/"[:space:]]+/scripts/codex-companion\.mjs"?'
+    _companion_argument=$(printf '%s\n' "$1" | sed -nE 's/^[[:space:]]*(node|bun)[[:space:]]+//p')
+    case "$_companion_argument" in
+        \"*) _companion_path=${_companion_argument#\"}; _companion_path=${_companion_path%%\"*} ;;
+        \'*) _companion_path=${_companion_argument#\'}; _companion_path=${_companion_path%%\'*} ;;
+        *) _companion_path=${_companion_argument%%[[:space:]]*} ;;
+    esac
+    _companion_prefix="${CLAUDE_CONFIG_DIR}/plugins/cache/openai-codex/codex/"
+    case "$_companion_path" in
+        "$_companion_prefix"*) _companion_relative=${_companion_path#"$_companion_prefix"} ;;
+        *) return 1 ;;
+    esac
+    printf '%s\n' "$_companion_relative" | grep -qE '^[^/"[:space:]]+/scripts/codex-companion\.mjs$'
 }
 
 # --- Runner系サブコマンドかチェックする関数 ---

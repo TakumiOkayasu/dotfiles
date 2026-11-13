@@ -1,5 +1,7 @@
 #!/bin/sh
 # Focused regression tests for Simple Engineering UserPromptSubmit context injection.
+unset CLAUDE_CONFIG_DIR CODEX_HOME
+
 set -eu
 
 HOOK_DIR="${HOOK_DIR:-/workspace/hooks}"

@@ -2,6 +2,8 @@
 # bin/ スクリプトのテストスイート
 # Usage: ./test_bin.sh
 
+unset CLAUDE_CONFIG_DIR CODEX_HOME
+
 set -uo pipefail
 
 PASS=0
