@@ -87,7 +87,7 @@ PATH上にある `mise`, `oh-my-posh`, `zoxide` はこの順に自動初期化�
 
 上記は `scripts/install/` 内の定義専用モジュール。同じshellの状態を共有し、
 既存の `scripts/stow-install.sh` は独立したプロセスとして呼び出す。
-ShellCheckは `shellcheck -x install.sh` で読み込み先も含めて検査する。
+ShellCheckは `shellcheck -ax install.sh` で読み込み先も含めて検査する。
 
 ### CLIツール (bin/)
 

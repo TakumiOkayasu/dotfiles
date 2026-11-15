@@ -28,7 +28,7 @@ sh_files="$sh_files config/shell/bash/bashrc config/shell/bash/bash_profile"
 
 # Installer modules share shell state and are checked together through their
 # explicit source declarations, rather than as independent programs.
-if shellcheck -x install.sh; then
+if shellcheck -ax install.sh; then
     echo "OK: install.sh (including scripts/install/)"
 else
     fail=1
