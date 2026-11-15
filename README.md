@@ -19,6 +19,25 @@ source ~/.bashrc          # 設定反映
 ./install.sh -u           # アンインストール (リンク削除、バックアップ復元)
 ```
 
+### 設定の変更をGitで管理する
+
+GNU Stowは不要。フルセット (`./install.sh -f`、または対話モードで選択) は
+`~/.bashrc`、`~/.zshrc`などをリポジトリの原本へ直接リンクする。
+既存の通常ファイルは `.bak` (既にあれば `.bak.1` 以降) に退避する。
+追記先は `config/shell/bash/bashrc`、`config/shell/zsh/zshrc`、共通設定は
+`config/shell/common.sh`。原本への変更は `git diff` で確認してcommitする。
+
+既存設定を保持する「追記モード」ではホームのrcファイルはGit管理されない。
+再利用するツール設定はリポジトリ側の `config/shell/common.sh` に記述する。
+秘密情報や端末固有の設定は `.bashrc.local` / `.zshrc.local` に分け、commitしない。
+エディタやツールがリンクを通常ファイルへ置き換えた場合、その変更は原本に反映されない。
+`test -L ~/.bashrc` と `git diff` で確認してから、必要な変更を原本に取り込む。
+
+旧Stowのリンクは再インストールで直接リンクへ移行する。`.stow-work` は
+旧配置との互換性と削除対象の識別用に保持するが、Stowの実行は行わない。
+旧配置内のリンクが通常ファイルに置き換わっていた場合は、内容を消さずに停止する。
+表示されたファイルの変更を原本へ取り込むか別の場所へ退避してから、再実行する。
+
 > **Windows (WSL)**: `install.sh` はWSL内で実行する。例: PowerShellから `wsl bash ./install.sh -f`。WindowsネイティブのPowerShell設定は次の手順で導入する。
 
 ### Windows PowerShellプロファイル

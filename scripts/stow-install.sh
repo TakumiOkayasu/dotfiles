@@ -19,23 +19,12 @@ Usage: stow-install.sh [--repo DIR] [--target DIR] --package NAME [options]
 
 Options:
   --repo DIR       dotfile-work repository root
-  --target DIR     stow target directory, usually HOME
+  --target DIR     destination directory, usually HOME
   --package NAME   stow package name under stow/
   --link SRC:DEST  materialize SRC from repo as DEST in a generated package
-  --dry-run        pass --no --verbose to stow
-  --uninstall      pass --delete to stow
+  --dry-run        validate without changing repository or target
+  --uninstall      remove only links owned by this package
 EOF
-}
-
-need_stow() {
-    if command -v stow >/dev/null 2>&1; then
-        return 0
-    fi
-
-    printf '%s\n' "GNU stow is required for stow-based dotfile install." >&2
-    printf '%s\n' "Install it with: brew install stow" >&2
-    printf '%s\n' "Install it with: apt install stow" >&2
-    exit 127
 }
 
 parse_args() {
@@ -149,12 +138,17 @@ remove_stow_owned_target_link() {
     _package=$1
     _relative=$2
     _target=$3
+    _source=${4:-}
 
     _target_link=$(readlink "$_target" 2>/dev/null) || return 0
     _target_abs=$(absolute_path_without_following_leaf "$_target_link" "$(dirname "$_target")")
     _generated_abs=$(absolute_path_without_following_leaf ".stow-work/${_package}/${_relative}" "$REPO_DIR")
 
-    [ "$_target_abs" = "$_generated_abs" ] || return 1
+    if [ "$_target_abs" != "$_generated_abs" ]; then
+        [ -n "$_source" ] || return 1
+        _source_abs=$(absolute_path_without_following_leaf "$_source" "$REPO_DIR")
+        [ "$_target_abs" = "$_source_abs" ] || return 1
+    fi
     [ "$MODE_DRY_RUN" = "false" ] || return 0
 
     rm "$_target"
@@ -188,10 +182,11 @@ first_target_symlink_relative() {
 remove_generated_target() {
     _package=$1
     _dest=$2
+    _old_source=${3:-}
     validate_generated_dest "$_dest"
 
     if _relative=$(first_target_symlink_relative "$_dest"); then
-        remove_stow_owned_target_link "$_package" "$_relative" "${TARGET_DIR}/${_relative}" || true
+        remove_stow_owned_target_link "$_package" "$_relative" "${TARGET_DIR}/${_relative}" "$_old_source" || true
     fi
 }
 
@@ -365,7 +360,7 @@ unstow_existing_generated_package() {
         while IFS= read -r _link_spec; do
             [ -z "$_link_spec" ] && continue
             case "$_link_spec" in
-                *:*) remove_generated_target "$_package" "${_link_spec#*:}" ;;
+                *:*) remove_generated_target "$_package" "${_link_spec#*:}" "${_link_spec%%:*}" ;;
                 *) die "invalid generated manifest entry: $_link_spec" ;;
             esac
         done < "$_manifest"
@@ -415,28 +410,77 @@ prepare_generated_package() {
     printf '%s\n' "$_stow_dir"
 }
 
+# Keep the existing package manifests for migration and stale-link ownership.
+# Installed links point directly to repository sources, without GNU Stow.
+ensure_package_has_no_local_files() {
+    [ "$MODE_UNINSTALL" = "false" ] || return 0
+    _existing_package="${REPO_DIR}/.stow-work/$1"
+    [ -d "$_existing_package" ] || return 0
+    _local_files=$(find "$_existing_package" -type f -print)
+    [ -z "$_local_files" ] || die "unmanaged file in generated package; reconcile changes with repository sources or move these files aside before reinstalling:
+$_local_files"
+}
+
+install_direct_link() {
+    _direct_source=$1
+    _direct_dest=$2
+    validate_generated_dest "$_direct_dest"
+    _direct_target="${TARGET_DIR}/${_direct_dest}"
+    if [ "$MODE_UNINSTALL" = "true" ]; then
+        remove_generated_target "$_package" "$_direct_dest" "$_direct_source"
+        return 0
+    fi
+    validate_generated_source "$_direct_source"
+    [ "$MODE_DRY_RUN" = "false" ] || return 0
+
+    # Unfold only directories owned by this package; never write through a
+    # foreign ancestor symlink into another source tree.
+    if _ancestor=$(first_target_symlink_relative "$_direct_dest"); then
+        _ancestor_target="${TARGET_DIR}/${_ancestor}"
+        _ancestor_link=$(readlink "$_ancestor_target")
+        _ancestor_abs=$(absolute_path_without_following_leaf "$_ancestor_link" "$(dirname "$_ancestor_target")")
+        if [ "$_ancestor" = "$_direct_dest" ] && [ "$_ancestor_abs" = "${REPO_DIR}/${_direct_source}" ]; then
+            return 0
+        fi
+        remove_stow_owned_target_link "$_package" "$_ancestor" "$_ancestor_target" || die "conflicting link: $_ancestor_target"
+    fi
+    [ ! -e "$_direct_target" ] || die "conflicting target: $_direct_target"
+    mkdir -p "$(dirname "$_direct_target")"
+    ln -s "${REPO_DIR}/${_direct_source}" "$_direct_target"
+}
+
 run_stow_package() {
     _package=$1
     validate_package_name "$_package"
-
     if [ -n "$GENERATED_LINKS" ]; then
-        _stow_dir=$(prepare_generated_package "$_package")
+        ensure_package_has_no_local_files "$_package"
+        if [ "$MODE_DRY_RUN" = "false" ]; then
+            prepare_generated_package "$_package" >/dev/null
+        fi
+        _manifest="${REPO_DIR}/.stow-work/.manifests/${_package}.links"
+        if [ "$MODE_UNINSTALL" = "true" ] && [ -f "$_manifest" ]; then
+            while IFS= read -r _spec; do
+                [ -n "$_spec" ] || continue
+                install_direct_link "${_spec%%:*}" "${_spec#*:}"
+            done < "$_manifest"
+        else
+            for _spec in $GENERATED_LINKS; do
+                case "$_spec" in *:*) ;; *) die "invalid generated link: $_spec" ;; esac
+                install_direct_link "${_spec%%:*}" "${_spec#*:}"
+            done
+        fi
     else
-        _stow_dir="${REPO_DIR}/stow"
-        [ -d "${_stow_dir}/${_package}" ] || die "missing stow package: ${_package}"
+        _legacy_dir="${REPO_DIR}/stow/${_package}"
+        [ -d "$_legacy_dir" ] || die "missing stow package: ${_package}"
+        find "$_legacy_dir" \( -type f -o -type l \) -print | while IFS= read -r _entry; do
+            install_direct_link "${_entry#"$REPO_DIR"/}" "${_entry#"$_legacy_dir"/}"
+        done
     fi
-
-    set -- --dir "$_stow_dir" --target "$TARGET_DIR"
-    [ "$MODE_DRY_RUN" = "true" ] && set -- "$@" --no --verbose
-    [ "$MODE_UNINSTALL" = "true" ] && set -- "$@" --delete
-    set -- "$@" "$_package"
-    stow "$@"
 }
 
 main() {
     parse_args "$@"
     normalize_paths
-    need_stow
     [ -n "$PACKAGES" ] || die "missing --package"
 
     for _package in $PACKAGES; do

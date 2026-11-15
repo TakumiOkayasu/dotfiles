@@ -805,7 +805,7 @@ def _has_generated_stow_ancestor(link: Path, generated: Path) -> bool:
             expected = generated
             for _ in tail.parts:
                 expected = expected.parent
-            if _symlink_target_path(candidate) == expected:
+            if _symlink_target_path(candidate).resolve() == expected.resolve():
                 return True
 
         if candidate.parent == candidate:
@@ -819,7 +819,7 @@ def _assert_generated_stow_link(link: Path, generated: Path, source: Path) -> No
     assert generated.resolve() == resolved_source
     assert link.is_symlink()
     assert link.resolve() == resolved_source
-    assert _has_generated_stow_ancestor(link, generated)
+    assert _symlink_target_path(link) == source.absolute()
 
 
 def _assert_qa_nightmare_checklists(
@@ -918,11 +918,11 @@ class TestQaNightmareChecklistAssertions:
 def _assert_codex_core_links(codex_dir: Path) -> None:
     assert (codex_dir / "AGENTS.md").is_symlink()
     assert _symlink_target_path(codex_dir / "AGENTS.md") == (
-        REPO_ROOT / ".stow-work" / "codex" / ".codex" / "AGENTS.md"
+        GENERATED_CODEX / "global_AGENTS.md"
     )
     assert (codex_dir / "SUBAGENTS.md").is_symlink()
     assert _symlink_target_path(codex_dir / "SUBAGENTS.md") == (
-        REPO_ROOT / ".stow-work" / "codex" / ".codex" / "SUBAGENTS.md"
+        GENERATED_CODEX / "SUBAGENTS.md"
     )
     assert (codex_dir / "agents" / "code_reviewer.toml").is_symlink()
 
@@ -968,11 +968,11 @@ def _assert_claude_core_links(claude_dir: Path) -> None:
     )
     assert (claude_dir / "settings.json").is_symlink()
     assert _symlink_target_path(claude_dir / "settings.json") == (
-        REPO_ROOT / ".stow-work" / "claude" / ".claude" / "settings.json"
+        GENERATED_CLAUDE / "settings.json"
     )
     assert (claude_dir / "CLAUDE.md").is_symlink()
     assert _symlink_target_path(claude_dir / "CLAUDE.md") == (
-        REPO_ROOT / ".stow-work" / "claude" / ".claude" / "CLAUDE.md"
+        GENERATED_CLAUDE / "global_CLAUDE.md"
     )
     _assert_generated_stow_link(
         claude_dir / "statusline.json",
@@ -1912,73 +1912,31 @@ class TestStowInstallScript:
         """stow install script は直接実行できる"""
         assert os.access(STOW_INSTALL_SH, os.X_OK)
 
-    def test_missing_stow_exits_with_clear_error(self, tmp_path: Path) -> None:
-        """stow が無い環境では fallback せず導入案内を出して終了する"""
-        home = tmp_path / "home"
-        home.mkdir()
-        empty_bin = tmp_path / "empty-bin"
-        empty_bin.mkdir()
-        env = os.environ.copy()
-        env["PATH"] = str(empty_bin)
-
-        result = _run_stow_install_script(REPO_ROOT, home, "claude", env, "--dry-run")
-
-        assert result.returncode == 127
-        assert "GNU stow is required" in result.stderr
-        assert "brew install stow" in result.stderr
-        assert "apt install stow" in result.stderr
-
-    def test_dry_run_invokes_stow_for_selected_package(self, tmp_path: Path) -> None:
-        """dry-run は stow を変更なしモードで選択 package に対して呼び出す"""
+    def test_install_does_not_invoke_stow(self, tmp_path: Path) -> None:
+        """The compatibility entry point creates direct links without Stow."""
         repo = tmp_path / "repo"
         home = tmp_path / "home"
-        (repo / "stow" / "claude" / ".claude").mkdir(parents=True)
-        home.mkdir()
-        fake_bin, log = _create_fake_stow(tmp_path)
-        env = os.environ.copy()
-        env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
-        env["STOW_LOG"] = str(log)
-
-        result = _run_stow_install_script(repo, home, "claude", env, "--dry-run")
-
-        assert result.returncode == 0, result.stderr
-        args = log.read_text(encoding="utf-8").split()
-        assert "--no" in args
-        assert "--verbose" in args
-        assert args[args.index("--dir") + 1] == str(repo / "stow")
-        assert args[args.index("--target") + 1] == str(home)
-        assert args[-1] == "claude"
-
-    def test_link_materializes_generated_package(self, tmp_path: Path) -> None:
-        """--link は install 時生成 package を作り、stow に渡す"""
-        repo = tmp_path / "repo"
-        home = tmp_path / "home"
-        source = repo / "config" / "vim" / ".vimrc"
+        source = repo / "config/vim/.vimrc"
         source.parent.mkdir(parents=True)
-        source.write_text("set number\n", encoding="utf-8")
+        source.write_text("set number\n")
         home.mkdir()
         fake_bin, log = _create_fake_stow(tmp_path)
-        env = os.environ.copy()
-        env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
-        env["STOW_LOG"] = str(log)
-
+        env = {**os.environ, "PATH": f"{fake_bin}:/usr/bin:/bin", "STOW_LOG": str(log)}
         result = _run_stow_install_script(
-            repo,
-            home,
-            "vim",
-            env,
-            "--dry-run",
-            "--link",
-            "config/vim/.vimrc:.vimrc",
+            repo, home, "vim", env, "--link", "config/vim/.vimrc:.vimrc",
         )
-
-        generated = repo / ".stow-work" / "vim" / ".vimrc"
         assert result.returncode == 0, result.stderr
-        assert generated.is_symlink()
-        assert generated.resolve() == source
-        args = log.read_text(encoding="utf-8").split()
-        assert args[args.index("--dir") + 1] == str(repo / ".stow-work")
-        assert args[-1] == "vim"
+        assert (home / ".vimrc").readlink() == source
+        assert not log.exists()
+
+    def test_dry_run_leaves_legacy_package_unchanged(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        (repo / "stow/claude/.claude").mkdir(parents=True)
+        home.mkdir()
+        result = _run_stow_install_script(repo, home, "claude", os.environ.copy(), "--dry-run")
+        assert result.returncode == 0, result.stderr
+        assert list(home.iterdir()) == []
 
     def test_link_restows_existing_generated_package(self, tmp_path: Path) -> None:
         """生成 package の内容変更時は外部 symlink に触れず旧リンクを張り直す"""
@@ -2324,7 +2282,7 @@ class TestFreshInstallationReadback:
         assert generated.is_symlink()
         assert generated.resolve() == REPO_ROOT / "config" / "vim" / ".vimrc"
         assert vimrc.is_symlink()
-        assert _symlink_target_path(vimrc) == generated
+        assert _symlink_target_path(vimrc) == REPO_ROOT / "config/vim/.vimrc"
 
     def test_install_creates_bin_symlinks_from_generated_stow_package(
         self, installed_home: Path
@@ -2623,7 +2581,7 @@ class TestIntegrationInstallUninstall:
         )
         assert vimrc.is_symlink()
         assert (
-            _symlink_target_path(vimrc) == REPO_ROOT / ".stow-work" / "vim" / ".vimrc"
+            _symlink_target_path(vimrc) == REPO_ROOT / "config/vim/.vimrc"
         )
 
     def test_installed_claude_init_project_uses_installed_templates(
