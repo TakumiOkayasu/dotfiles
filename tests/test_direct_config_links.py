@@ -77,6 +77,20 @@ def test_migrates_existing_stow_link_and_reinstalls(tmp_path: Path) -> None:
     assert source.read_text() == "# shared settings\n"
 
 
+def test_migration_preserves_rc_replaced_inside_old_package(tmp_path: Path) -> None:
+    repo, home, source = setup_paths(tmp_path)
+    stage = repo / ".stow-work/shell/.bashrc"
+    stage.parent.mkdir(parents=True)
+    stage.write_text("export TOOL_MODE=uncommitted\n")
+    (home / ".bashrc").symlink_to(stage)
+    result = install(repo, home)
+    assert result.returncode != 0
+    assert "unmanaged file" in result.stderr
+    assert stage.read_text() == "export TOOL_MODE=uncommitted\n"
+    assert (home / ".bashrc").readlink() == stage
+    assert source.read_text() == "# shared settings\n"
+
+
 def test_refuses_unowned_target_without_overwriting(tmp_path: Path) -> None:
     repo, home, source = setup_paths(tmp_path)
     (home / ".bashrc").write_text("# keep existing\n")

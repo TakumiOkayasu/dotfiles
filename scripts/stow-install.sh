@@ -412,6 +412,15 @@ prepare_generated_package() {
 
 # Keep the existing package manifests for migration and stale-link ownership.
 # Installed links point directly to repository sources, without GNU Stow.
+ensure_package_has_no_local_files() {
+    [ "$MODE_UNINSTALL" = "false" ] || return 0
+    _existing_package="${REPO_DIR}/.stow-work/$1"
+    [ -d "$_existing_package" ] || return 0
+    _local_files=$(find "$_existing_package" -type f -print)
+    [ -z "$_local_files" ] || die "unmanaged file in generated package; reconcile changes with repository sources or move these files aside before reinstalling:
+$_local_files"
+}
+
 install_direct_link() {
     _direct_source=$1
     _direct_dest=$2
@@ -444,6 +453,7 @@ run_stow_package() {
     _package=$1
     validate_package_name "$_package"
     if [ -n "$GENERATED_LINKS" ]; then
+        ensure_package_has_no_local_files "$_package"
         if [ "$MODE_DRY_RUN" = "false" ]; then
             prepare_generated_package "$_package" >/dev/null
         fi
