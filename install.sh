@@ -234,7 +234,7 @@ prepare_stow_target() {
             print_info "[ドライラン] バックアップ: $_dest -> $_backup"
             COUNT_BACKUP=$((COUNT_BACKUP + 1))
         fi
-        print_info "[ドライラン] stow package 作成: $_package"
+        print_info "[ドライラン] 設定リンク作成: $_package"
         COUNT_CREATED=$((COUNT_CREATED + 1))
         return 2
     fi
@@ -418,14 +418,14 @@ run_stow_link_specs_file() {
     case "$_mode" in
         install|uninstall) ;;
         *)
-            print_error "不明な stow mode: $_mode"
+            print_error "不明なリンク操作: $_mode"
             COUNT_ERROR=$((COUNT_ERROR + 1))
             return 1
             ;;
     esac
 
     if [ ! -x "$_script" ]; then
-        print_error "stow install script が見つからないか実行できません: $_script"
+        print_error "リンク配置scriptが見つからないか実行できません: $_script"
         COUNT_ERROR=$((COUNT_ERROR + 1))
         return 1
     fi
@@ -443,7 +443,7 @@ run_stow_link_specs_file() {
                     _preview_source="${AI_ASSET_ROOT_REL}/${_source#"$_ai_asset_root_relative"/}"
                     ;;
             esac
-            print_info "[ドライラン] stow link: ${STOW_TARGET_DIR}/${_dest} <- ${DOTFILES_DIR}/${_preview_source}"
+            print_info "[ドライラン] 設定リンク: ${STOW_TARGET_DIR}/${_dest} <- ${DOTFILES_DIR}/${_preview_source}"
         fi
         set -- "$@" --link "$_spec"
     done < "$_spec_file"
@@ -451,7 +451,7 @@ run_stow_link_specs_file() {
     [ "$_mode" = "uninstall" ] && set -- "$@" --uninstall
 
     if [ "$MODE_DRY_RUN" = true ] && [ ! -d "$STOW_TARGET_DIR" ]; then
-        print_info "[ドライラン] stow target 作成後に配置: $STOW_TARGET_DIR"
+        print_info "[ドライラン] 配置先の作成後にリンク: $STOW_TARGET_DIR"
         COUNT_CREATED=$((COUNT_CREATED + 1))
         return 0
     fi
@@ -459,22 +459,22 @@ run_stow_link_specs_file() {
     if "$_script" "$@"; then
         if [ "$_mode" = "uninstall" ]; then
             if [ "$MODE_DRY_RUN" = "true" ]; then
-                print_info "[ドライラン] stow package 削除: $_package"
+                print_info "[ドライラン] 設定リンク削除: $_package"
             else
-                print_success "stow package 削除: $_package"
+                print_success "設定リンク削除: $_package"
                 COUNT_REMOVED=$((COUNT_REMOVED + 1))
             fi
         else
             if [ "$MODE_DRY_RUN" = "true" ]; then
-                print_info "[ドライラン] stow package 作成: $_package"
+                print_info "[ドライラン] 設定リンク作成: $_package"
             else
-                print_success "stow package 作成: $_package"
+                print_success "設定リンク作成: $_package"
             fi
             COUNT_CREATED=$((COUNT_CREATED + 1))
         fi
     else
         _status=$?
-        print_error "stow package 処理失敗: $_package"
+        print_error "設定リンク処理失敗: $_package"
         COUNT_ERROR=$((COUNT_ERROR + 1))
         return "$_status"
     fi
@@ -1205,6 +1205,8 @@ install_shell_append() {
             inject_source_block "${HOME}/.zshrc"
             ;;
     esac
+
+    print_info "追記モードのrcファイルはGit管理外です。共通設定の追記先: ${DOTFILES_DIR}/config/shell/common.sh"
 }
 
 uninstall_shell_config() {
