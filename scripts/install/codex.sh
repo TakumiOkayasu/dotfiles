@@ -6,9 +6,9 @@ cleanup_removed_codex_links() {
 }
 
 _remove_legacy_codex_files() {
-    remove_dotfiles_link "${CODEX_CONFIG_ROOT}/README.md" "除外済みCodex README"
-    remove_dotfiles_link "${CODEX_CONFIG_ROOT}/settings.json" "除外済みCodex settings.json"
-    remove_dotfiles_link "${CODEX_CONFIG_ROOT}/reference/claude-settings.reference.json" "除外済みCodex reference"
+    remove_dotfiles_link "${CODEX_CONFIG_ROOT}/README.md" "除外済みCodex README" || return $?
+    remove_dotfiles_link "${CODEX_CONFIG_ROOT}/settings.json" "除外済みCodex settings.json" || return $?
+    remove_dotfiles_link "${CODEX_CONFIG_ROOT}/reference/claude-settings.reference.json" "除外済みCodex reference" || return $?
 }
 
 _remove_legacy_codex_skill_links() {
@@ -71,60 +71,31 @@ codex_dest_for_relative() {
 
 install_codex_config() {
     [ "$CODEX_SELECTED" != "true" ] && return 0
-    configure_ai_asset_profile
+    configure_ai_asset_profile || return $?
     print_header "Codex設定をインストール"
 
-    _codex_ensure_directories
-    _codex_cleanup_all
-    _codex_install_stow_package
-    _codex_generate_config_from_template
-    _codex_warn_legacy_hooks_json
-    _codex_verify_hooks_feature
+    _codex_ensure_directories || return $?
+    _codex_cleanup_all || return $?
+    deploy_runtime_assets codex "${CODEX_CONFIG_ROOT}" install || return $?
+    _codex_generate_config_from_template || return $?
+    _codex_warn_legacy_hooks_json || return $?
+    _codex_verify_hooks_feature || return $?
 }
 
 _codex_ensure_directories() {
-    ensure_dir "${CODEX_CONFIG_ROOT}"
-    ensure_dir "${CODEX_CONFIG_ROOT}/agents"
-    ensure_dir "${CODEX_CONFIG_ROOT}/bin"
-    ensure_dir "${CODEX_CONFIG_ROOT}/hooks"
-    ensure_dir "${CODEX_CONFIG_ROOT}/rules"
-    ensure_dir "${CODEX_CONFIG_ROOT}/plugins"
-    ensure_dir "${HOME}/.agents/plugins"
+    ensure_dir "${CODEX_CONFIG_ROOT}" || return $?
+    ensure_dir "${CODEX_CONFIG_ROOT}/agents" || return $?
+    ensure_dir "${CODEX_CONFIG_ROOT}/bin" || return $?
+    ensure_dir "${CODEX_CONFIG_ROOT}/hooks" || return $?
+    ensure_dir "${CODEX_CONFIG_ROOT}/rules" || return $?
+    ensure_dir "${CODEX_CONFIG_ROOT}/plugins" || return $?
+    ensure_dir "${HOME}/.agents/plugins" || return $?
 }
 
 _codex_cleanup_all() {
     cleanup_stale_links_in "Codex"       "${CODEX_CONFIG_ROOT}"  agents bin hooks plugins rules skills
-    cleanup_removed_codex_links
+    cleanup_removed_codex_links || return $?
     cleanup_stale_links_in "Codex shared" "${HOME}/.agents" plugins skills
-}
-
-_codex_install_stow_package() {
-    if [ "$CODEX_CONFIG_ROOT" != "$HOME/.codex" ]; then
-        runtime_stow_package codex "$CODEX_CONFIG_ROOT" install runtime
-        runtime_stow_package codex "$CODEX_CONFIG_ROOT" install shared
-        return
-    fi
-    new_stow_specs_file
-    _spec_file="$_stow_specs_file"
-    _codex_add_managed_stow_specs "$_spec_file"
-    install_stow_specs_file "codex${AI_PROFILE_SUFFIX}" "$_spec_file"
-}
-
-_codex_uninstall_stow_package() {
-    if [ "$CODEX_CONFIG_ROOT" != "$HOME/.codex" ]; then
-        runtime_stow_package codex "$CODEX_CONFIG_ROOT" uninstall runtime
-        runtime_stow_package codex "$CODEX_CONFIG_ROOT" uninstall shared
-        return
-    fi
-    new_stow_specs_file
-    _spec_file="$_stow_specs_file"
-    _codex_add_managed_stow_specs "$_spec_file"
-    uninstall_stow_specs_file "codex${AI_PROFILE_SUFFIX}" "$_spec_file"
-}
-
-_codex_add_managed_stow_specs() {
-    _spec_file="$1"
-    add_generated_ai_stow_specs "$_spec_file" codex "codex${AI_PROFILE_SUFFIX}"
 }
 
 _codex_generate_config_from_template() {
@@ -180,30 +151,30 @@ _codex_verify_hooks_feature() {
 }
 
 uninstall_codex_config() {
-    configure_ai_asset_profile
+    configure_ai_asset_profile || return $?
     print_header "Codex設定をアンインストール"
 
-    _codex_cleanup_all
-    _codex_uninstall_stow_package
-    _codex_unlink_managed_files
+    _codex_cleanup_all || return $?
+    deploy_runtime_assets codex "${CODEX_CONFIG_ROOT}" uninstall || return $?
+    _codex_unlink_managed_files || return $?
     remove_legacy_common_hook_links "${CODEX_CONFIG_ROOT}/hooks"
     remove_legacy_qa_nightmare_checklist_links "${CODEX_CONFIG_ROOT}/agents/qa-nightmare/checklists"
-    _codex_prune_empty_dirs
+    _codex_prune_empty_dirs || return $?
 }
 
 _codex_unlink_managed_files() {
     [ -d "${DOTFILES_DIR}/codex" ] || return 0
 
-    _filelist=$(mktemp)
-    _TMPFILES="$_TMPFILES $_filelist"
-    (cd "$DOTFILES_DIR" && git ls-files codex/ 2>/dev/null) > "$_filelist"
+    ensure_installer_workspace || return 1
+    _filelist=$(installer_temp_file)
+    (cd "$DOTFILES_DIR" && git ls-files codex/ 2>/dev/null) > "$_filelist" || return $?
 
     while IFS= read -r _file; do
         [ -z "$_file" ] && continue
 
         _relative="${_file#codex/}"
         _dest=$(codex_dest_for_relative "$_relative") || continue
-        remove_link "$_file" "$_dest"
+        remove_link "$_file" "$_dest" || return $?
     done < "$_filelist"
 
     rm -f "$_filelist"

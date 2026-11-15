@@ -608,9 +608,7 @@ class TestScopedConfiguration:
         assert MACOS_ZPROFILE.is_file()
         assert ".orbstack" not in ZPROFILE.read_text(encoding="utf-8")
         specs = run_installer_functions(tmp_path, '''
-            new_stow_specs_file
-            add_shell_full_stow_specs "$_stow_specs_file" zsh
-            cat "$_stow_specs_file"
+            shell_link_specs zsh
         ''')
         assert specs.returncode == 0, specs.stdout + specs.stderr
         assert (
@@ -1738,7 +1736,7 @@ class TestStowAncestorMigration:
             'initialize_installer "$1"\n'
             'shift\n'
             'MODE_DRY_RUN=${TEST_DRY_RUN:-false}\n'
-            'install_stow_specs_file "$TEST_PACKAGE" "$TEST_SPECS"\n',
+            'apply_link_specs "$TEST_PACKAGE" "$HOME" install "$TEST_SPECS"\n',
             encoding="utf-8",
         )
         return repo, home, runner

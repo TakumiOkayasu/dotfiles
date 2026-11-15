@@ -44,72 +44,48 @@ generate_ai_assets() {
     done
 }
 
-add_generated_ai_stow_specs() {
-    _spec_file="$1"
-    _target="$2"
-    _package="$3"
-    _previous_manifest="${DOTFILES_DIR}/.stow-work/.manifests/${_package}.links"
+# Runtime deployment owns package naming and the default/alternate/shared layout.
+deploy_runtime_assets() {
+    configure_ai_asset_profile || return $?
+    if [ "$2" = "$HOME/.$1" ]; then
+        apply_link_package "$1$AI_PROFILE_SUFFIX" "$HOME" "$3" generated_link_specs "$1" "$1$AI_PROFILE_SUFFIX" "$3"
+    else
+        apply_link_package "$1-runtime$AI_PROFILE_SUFFIX" "$2" "$3" runtime_link_specs "$1" "$1-runtime$AI_PROFILE_SUFFIX" "$3" runtime || return $?
+        if [ "$1" = codex ]; then
+            apply_link_package "$1-shared$AI_PROFILE_SUFFIX" "$HOME" "$3" runtime_link_specs "$1" "$1-shared$AI_PROFILE_SUFFIX" "$3" shared || return $?
+        fi
+    fi
+}
 
-    if [ "$MODE_UNINSTALL" = "true" ]; then
-        [ -s "$_previous_manifest" ] && cat "$_previous_manifest" >> "$_spec_file"
+generated_link_specs() {
+    if [ "$3" = uninstall ]; then
+        if [ -s "$DOTFILES_DIR/.stow-work/.manifests/$2.links" ]; then
+            cat "$DOTFILES_DIR/.stow-work/.manifests/$2.links" || return $?
+        fi
         return 0
     fi
-
-    _generator="${DOTFILES_DIR}/${AI_ASSET_GENERATOR_REL}"
-    _generated_manifest="${AI_ASSET_ROOT}/manifest.json"
-    [ -f "$_generated_manifest" ] || return 0
-
-    _generated_specs=$(mktemp)
-    _TMPFILES="$_TMPFILES $_generated_specs"
-    if [ "$MODE_DRY_RUN" = "true" ]; then
-        if ! PYTHONDONTWRITEBYTECODE=1 python3 "$_generator" --repo "$DOTFILES_DIR" --output "$AI_ASSET_ROOT" --list-target "$_target" > "$_generated_specs"; then
-            print_error "生成済み ${_target} asset manifest の読み込みに失敗しました"
-            COUNT_ERROR=$((COUNT_ERROR + 1))
-            return 1
-        fi
-    elif ! python3 "$_generator" --repo "$DOTFILES_DIR" --output "$AI_ASSET_ROOT" --list-target "$_target" > "$_generated_specs"; then
-        print_error "生成済み ${_target} asset manifest の読み込みに失敗しました"
-        COUNT_ERROR=$((COUNT_ERROR + 1))
-        return 1
-    fi
-    cat "$_generated_specs" >> "$_spec_file"
+    [ -f "$AI_ASSET_ROOT/manifest.json" ] || return 0
+    PYTHONDONTWRITEBYTECODE=1 python3 "$DOTFILES_DIR/$AI_ASSET_GENERATOR_REL" \
+        --repo "$DOTFILES_DIR" --output "$AI_ASSET_ROOT" --list-target "$1"
 }
 
-runtime_stow_package() {
-    _runtime="$1"
-    _runtime_root="$2"
-    _runtime_mode="$3"
-    _runtime_filter="$4"
-    _runtime_package="${_runtime}-runtime${AI_PROFILE_SUFFIX}"
-    STOW_TARGET_DIR="$_runtime_root"
-    if [ "$_runtime_filter" = shared ]; then
-        _runtime_package="${_runtime}-shared${AI_PROFILE_SUFFIX}"
-        STOW_TARGET_DIR="$HOME"
+runtime_link_specs() (
+    set -- "$@" "$(installer_temp_file)"
+    generated_link_specs "$1" "$2" "$3" > "$5" || return $?
+    if [ "$3" = uninstall ]; then
+        cat "$5"
+        return
     fi
-    new_stow_specs_file
-    _runtime_specs="$_stow_specs_file"
-    add_generated_ai_stow_specs "$_runtime_specs" "$_runtime" "$_runtime_package"
-    if [ "$MODE_UNINSTALL" != true ]; then
-        _runtime_filtered=$(mktemp)
-        _TMPFILES="$_TMPFILES $_runtime_filtered"
-        while IFS= read -r _runtime_spec; do
-            _runtime_source=${_runtime_spec%%:*}
-            _runtime_dest=${_runtime_spec#*:}
-            case "$_runtime_dest" in
-                ".${_runtime}/"*)
-                    [ "$_runtime_filter" = runtime ] || continue
-                    _runtime_dest=${_runtime_dest#*/}
-                    ;;
-                *) [ "$_runtime_filter" = shared ] || continue ;;
-            esac
-            printf '%s:%s\n' "$_runtime_source" "$_runtime_dest" >> "$_runtime_filtered"
-        done < "$_runtime_specs"
-        _runtime_specs="$_runtime_filtered"
-    fi
-    if [ "$_runtime_mode" = uninstall ]; then
-        uninstall_stow_specs_file "$_runtime_package" "$_runtime_specs"
-    else
-        install_stow_specs_file "$_runtime_package" "$_runtime_specs"
-    fi
-    STOW_TARGET_DIR="$HOME"
-}
+    while IFS= read -r _runtime_spec; do
+        _runtime_source=${_runtime_spec%%:*}
+        _runtime_dest=${_runtime_spec#*:}
+        case "$_runtime_dest" in
+            ".$1/"*)
+                [ "$4" = runtime ] || continue
+                _runtime_dest=${_runtime_dest#*/}
+                ;;
+            *) [ "$4" = shared ] || continue ;;
+        esac
+        emit_link_spec "$_runtime_source" "$_runtime_dest" || return 1
+    done < "$5"
+)

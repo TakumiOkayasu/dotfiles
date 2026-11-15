@@ -6,37 +6,30 @@ check_requirements() {
     done
 }
 
+run_selected_operation() {
+    [ "$1" = true ] || return 0
+    shift
+    "$@"
+}
+
 install_files() {
     print_header "dotfilesをインストール: $DOTFILES_DIR"
-
-    install_shell_config
-
-    if [ "$GIT_SELECTED" = "true" ]; then
-        install_git_files
-        install_gitconfig
-        install_gitignore
-    fi
-
-    [ "$VIM_SELECTED" = "true" ] && install_vim_files
-
-    install_bin_files
-    install_claude_config
-    install_codex_config
+    run_selected_operation "$SHELL_SELECTED" install_shell_config || return $?
+    run_selected_operation "$GIT_SELECTED" install_git_settings || return $?
+    run_selected_operation "$VIM_SELECTED" install_vim_files || return $?
+    run_selected_operation "$BIN_SELECTED" install_bin_files || return $?
+    run_selected_operation "$CLAUDE_SELECTED" install_claude_config || return $?
+    run_selected_operation "$CODEX_SELECTED" install_codex_config || return $?
 }
 
 uninstall_files() {
     print_header "dotfilesをアンインストール"
-
-    [ "$UNINSTALL_SHELL" = "true" ] && uninstall_shell_config
-    if [ "$UNINSTALL_GIT" = "true" ]; then
-        uninstall_git_files
-        uninstall_gitconfig
-        uninstall_gitignore
-    fi
-    [ "$UNINSTALL_VIM" = "true" ]    && uninstall_vim_files
-    [ "$UNINSTALL_BIN" = "true" ]    && uninstall_bin_files
-    [ "$UNINSTALL_CLAUDE" = "true" ] && uninstall_claude_config
-    [ "$UNINSTALL_CODEX" = "true" ]  && uninstall_codex_config
+    run_selected_operation "$UNINSTALL_SHELL" uninstall_shell_config || return $?
+    run_selected_operation "$UNINSTALL_GIT" uninstall_git_settings || return $?
+    run_selected_operation "$UNINSTALL_VIM" uninstall_vim_files || return $?
+    run_selected_operation "$UNINSTALL_BIN" uninstall_bin_files || return $?
+    run_selected_operation "$UNINSTALL_CLAUDE" uninstall_claude_config || return $?
+    run_selected_operation "$UNINSTALL_CODEX" uninstall_codex_config || return $?
 }
 
 parse_args() {

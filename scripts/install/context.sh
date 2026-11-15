@@ -3,15 +3,13 @@
 # 一時ファイル cleanup
 # shellcheck disable=SC2329 # invoked by the EXIT trap below
 cleanup_tmpfiles() {
-    for _f in $_TMPFILES; do
-        rm -f "$_f"
-    done
+    [ -z "$INSTALLER_WORKSPACE" ] || rm -rf "$INSTALLER_WORKSPACE"
     [ -z "$_AI_ASSET_STAGE" ] || rm -rf "$_AI_ASSET_STAGE"
     [ -z "$_AI_ASSET_STAGE_PARENT_CREATED" ] || rmdir "$_AI_ASSET_STAGE_PARENT_CREATED" 2>/dev/null || true
 }
 
 initialize_installer() {
-    _TMPFILES=""
+    INSTALLER_WORKSPACE=""
     _AI_ASSET_STAGE=""
     _AI_ASSET_STAGE_PARENT_CREATED=""
     trap cleanup_tmpfiles EXIT INT TERM
@@ -20,7 +18,6 @@ initialize_installer() {
     DOTFILES_DIR="$1"
     CLAUDE_CONFIG_ROOT="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
     CODEX_CONFIG_ROOT="${CODEX_HOME:-$HOME/.codex}"
-    STOW_TARGET_DIR="$HOME"
 
     for _runtime_root in "$CLAUDE_CONFIG_ROOT" "$CODEX_CONFIG_ROOT"; do
         case "$_runtime_root" in
@@ -84,4 +81,15 @@ initialize_installer() {
         COLOR_BOLD=''
         COLOR_RESET=''
     fi
+}
+
+# Scratch resources belong to the run, never to a category or a word-split list.
+ensure_installer_workspace() {
+    [ -n "$INSTALLER_WORKSPACE" ] && return 0
+    INSTALLER_WORKSPACE=$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-install.XXXXXX") || return 1
+}
+
+installer_temp_file() {
+    [ -n "$INSTALLER_WORKSPACE" ] || die "installer workspace is not initialized"
+    mktemp "$INSTALLER_WORKSPACE/file.XXXXXX"
 }

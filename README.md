@@ -74,19 +74,25 @@ PATH上にある `mise`, `oh-my-posh`, `zoxide` はこの順に自動初期化�
 
 ### インストーラーの構造
 
-`install.sh` はルートの解決、定義の読み込み、初期化、起動を行う。
-`scripts/install/library.sh` は読み込むモジュールを明示し、読み込みだけでは設定変更を行わない。
+`install.sh` が初期化と起動を行い、`main.sh` が選択された処理の実行順と成否を扱う。
+カテゴリ側は配置対象や生成内容を宣言し、検証・退避・適用・解除は共通の操作へ委ねる。
 
-| 対象 | 責務 |
+| 操作 | 所有する責務 |
 | --- | --- |
-| `context.sh` / `main.sh` | 状態・trapの初期化、実行順と終了判定 |
-| `files.sh` / `links.sh` | 所有リンク・backup・staleの判定、配置仕様の実行 |
-| `assets.sh` | AI資産の生成とruntime別配置 |
-| `git.sh` / `shell.sh` / `static.sh` / `claude.sh` / `codex.sh` | 各設定の配置・削除方針 |
-| `ui.sh` | 選択、プレビュー、確認、結果表示 |
+| `apply_link_package(package, target, operation, producer, ...)` | 配置仕様の一時ファイル、全specとbackendの検証、target準備、適用と集計 |
+| `deploy_runtime_assets(runtime, root, operation)` | default/alternate root、runtime/shared分離、既存manifest名との互換性 |
+| `install_generated_file` / `remove_generated_file` | 生成内容の準備、所有判定、dry-run、backup・復元、変更済みファイルの保持 |
+| `remove_owned_link` / `install_optional_link` | 相対リンクも含む所有判定、外部リンクの保持、変更の実行方針 |
+| `ensure_installer_workspace` / `installer_temp_file` | run専用の一時領域とcleanup。パスを空白区切りのregistryへ格納しない |
 
-上記は `scripts/install/` 内の定義専用モジュール。同じshellの状態を共有し、
-既存の `scripts/stow-install.sh` は独立したプロセスとして呼び出す。
+各カテゴリのlink producerはstdoutへ配置仕様を出力する。呼び出し側は内部の一時ファイル名や
+manifestの組み立て方を扱わず、targetをグローバル変数で切り替えない。
+readonlyの所有・パス照会はsubshellへ閉じ、作業変数を呼び出し元へ漏らさない。
+Gitconfigとignoreは生成内容の定義を持ち、同じ安全な生成ファイル操作を利用する。
+
+モジュールは `scripts/install/library.sh` で明示的に読み込む。定義の読み込みだけでは実行せず、
+CLI引数・選択設定と結果の集計はrunのcontextが保持する。
+既存の `scripts/stow-install.sh` は独立したbackendプロセスとして呼び出す。
 ShellCheckは `shellcheck -ax install.sh` で読み込み先も含めて検査する。
 
 ### CLIツール (bin/)

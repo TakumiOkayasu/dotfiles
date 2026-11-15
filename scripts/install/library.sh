@@ -10,6 +10,8 @@
 . "$INSTALLER_LIB_DIR/links.sh"
 # shellcheck source=scripts/install/assets.sh
 . "$INSTALLER_LIB_DIR/assets.sh"
+# shellcheck source=scripts/install/generated-files.sh
+. "$INSTALLER_LIB_DIR/generated-files.sh"
 # shellcheck source=scripts/install/git.sh
 . "$INSTALLER_LIB_DIR/git.sh"
 # shellcheck source=scripts/install/shell.sh

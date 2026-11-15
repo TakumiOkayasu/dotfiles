@@ -28,42 +28,24 @@ install_shell_config() {
 }
 
 install_shell_full() {
-    new_stow_specs_file
-    _spec_file="$_stow_specs_file"
-
-    case "$SHELL_TYPE" in
-        bash)
-            add_shell_full_stow_specs "$_spec_file" bash
-            ;;
-        zsh)
-            add_shell_full_stow_specs "$_spec_file" zsh
-            ;;
-        all)
-            add_shell_full_stow_specs "$_spec_file" all
-            ;;
-    esac
-
-    install_stow_specs_file "shell" "$_spec_file"
+    apply_link_package shell "$HOME" install shell_link_specs "$SHELL_TYPE"
 }
 
-add_shell_full_stow_specs() {
-    _spec_file="$1"
-    _shell="$2"
-
-    case "$_shell" in
+shell_link_specs() {
+    case "$1" in
         bash|all)
-            stow_specs_add "$_spec_file" "config/shell/bash/bashrc" ".bashrc"
-            stow_specs_add "$_spec_file" "config/shell/bash/bash_profile" ".bash_profile"
+            emit_link_spec config/shell/bash/bashrc .bashrc || return 1
+            emit_link_spec config/shell/bash/bash_profile .bash_profile || return 1
             ;;
     esac
-
-    case "$_shell" in
+    case "$1" in
         zsh|all)
-            stow_specs_add "$_spec_file" "config/shell/zsh/zshrc" ".zshrc"
-            stow_specs_add "$_spec_file" "config/shell/zsh/zprofile" ".zprofile"
-            stow_specs_add "$_spec_file" "config/shell/zsh/macos.zprofile" ".zsh/macos.zprofile"
+            emit_link_spec config/shell/zsh/zshrc .zshrc || return 1
+            emit_link_spec config/shell/zsh/zprofile .zprofile || return 1
+            emit_link_spec config/shell/zsh/macos.zprofile .zsh/macos.zprofile || return 1
             ;;
     esac
+    return 0
 }
 
 # 追記モード共通実装。シェル固有の source 行構文だけ引数で受ける
@@ -85,9 +67,9 @@ _inject_source_with_line() {
         return 0
     fi
 
-    _ensure_trailing_newline "$_target_rc"
+    _ensure_trailing_newline "$_target_rc" || return $?
 
-    cat >> "$_target_rc" << EOF
+    cat >> "$_target_rc" << EOF || return $?
 
 $DOTWORK_MARKER_BEGIN
 $_source_line
@@ -139,17 +121,14 @@ remove_source_block() {
 }
 
 install_shell_append() {
-    new_stow_specs_file
-    _spec_file="$_stow_specs_file"
-    stow_specs_add "$_spec_file" "config/shell/common.sh" ".shell_common"
-    install_stow_specs_file "shell-common" "$_spec_file"
+    apply_link_package shell-common "$HOME" install emit_link_spec config/shell/common.sh .shell_common || return $?
 
     case "$SHELL_TYPE" in
-        bash) inject_source_block "${HOME}/.bashrc" ;;
-        zsh)  inject_source_block "${HOME}/.zshrc" ;;
+        bash) inject_source_block "${HOME}/.bashrc" || return $? ;;
+        zsh)  inject_source_block "${HOME}/.zshrc" || return $? ;;
         all)
-            inject_source_block "${HOME}/.bashrc"
-            inject_source_block "${HOME}/.zshrc"
+            inject_source_block "${HOME}/.bashrc" || return $?
+            inject_source_block "${HOME}/.zshrc" || return $?
             ;;
     esac
 
@@ -159,25 +138,18 @@ install_shell_append() {
 uninstall_shell_config() {
     print_header "シェル設定をアンインストール"
 
-    new_stow_specs_file
-    _spec_file="$_stow_specs_file"
-    add_shell_full_stow_specs "$_spec_file" all
-    uninstall_stow_specs_file "shell" "$_spec_file"
+    apply_link_package shell "$HOME" uninstall shell_link_specs all || return $?
+    apply_link_package shell-common "$HOME" uninstall emit_link_spec config/shell/common.sh .shell_common || return $?
 
-    new_stow_specs_file
-    _spec_file="$_stow_specs_file"
-    stow_specs_add "$_spec_file" "config/shell/common.sh" ".shell_common"
-    uninstall_stow_specs_file "shell-common" "$_spec_file"
+    remove_link "config/shell/bash/bashrc"       "${HOME}/.bashrc" || return $?
+    remove_link "config/shell/bash/bash_profile" "${HOME}/.bash_profile" || return $?
+    remove_link "config/shell/zsh/zshrc"         "${HOME}/.zshrc" || return $?
+    remove_link "config/shell/zsh/zprofile"      "${HOME}/.zprofile" || return $?
+    remove_link "config/shell/zsh/macos.zprofile" "${HOME}/.zsh/macos.zprofile" || return $?
+    remove_link "config/shell/fish/config.fish"  "${HOME}/.config/fish/config.fish" || return $?
 
-    remove_link "config/shell/bash/bashrc"       "${HOME}/.bashrc"
-    remove_link "config/shell/bash/bash_profile" "${HOME}/.bash_profile"
-    remove_link "config/shell/zsh/zshrc"         "${HOME}/.zshrc"
-    remove_link "config/shell/zsh/zprofile"      "${HOME}/.zprofile"
-    remove_link "config/shell/zsh/macos.zprofile" "${HOME}/.zsh/macos.zprofile"
-    remove_link "config/shell/fish/config.fish"  "${HOME}/.config/fish/config.fish"
-
-    remove_link "config/shell/common.sh"         "${HOME}/.shell_common"
-    remove_source_block "${HOME}/.bashrc"
-    remove_source_block "${HOME}/.zshrc"
-    remove_source_block "${HOME}/.config/fish/config.fish"
+    remove_link "config/shell/common.sh"         "${HOME}/.shell_common" || return $?
+    remove_source_block "${HOME}/.bashrc" || return $?
+    remove_source_block "${HOME}/.zshrc" || return $?
+    remove_source_block "${HOME}/.config/fish/config.fish" || return $?
 }

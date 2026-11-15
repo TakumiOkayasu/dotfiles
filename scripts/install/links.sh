@@ -1,223 +1,205 @@
 # shellcheck shell=sh
 
-prepare_stow_target() {
-    _dest="$1"
-    _package="$2"
-    _stow_entry="$3"
+# Categories declare links on stdout. This service owns batch files, target
+# preparation, backend invocation and result accounting.
+emit_link_spec() {
+    printf '%s:%s\n' "$1" "$2"
+}
 
-    [ -e "$_dest" ] || [ -L "$_dest" ] || return 0
-    link_points_to_repo_entry "$_dest" "$_stow_entry" && return 0
+apply_link_package() {
+    ensure_installer_workspace || return 1
+    set -- "$(installer_temp_file)" "$@"
+    if write_package_specs "$@" > "$1"; then
+        apply_link_specs "$2" "$3" "$4" "$1"
+    else
+        return $?
+    fi
+}
 
-    if [ "$MODE_DRY_RUN" = "true" ]; then
-        if [ -L "$_dest" ]; then
-            print_info "[ドライラン] 既存リンク削除: $_dest"
+write_package_specs() {
+    shift 4
+    "$@"
+}
+
+validate_relative_link_path() {
+    case "$1" in
+        ""|.|..|/*|../*|*/../*|*/..|*/./*|*/.|*//*) return 2 ;;
+    esac
+}
+
+validate_link_spec() {
+    case "$1" in *:*) ;; *) return 2 ;; esac
+    validate_relative_link_path "${1%%:*}" || return $?
+    validate_relative_link_path "${1#*:}"
+}
+
+apply_link_specs() {
+    case "$3" in install|uninstall) ;; *) print_error "不明なリンク操作: $3"; return 1 ;; esac
+    case "$2" in /*) ;; *) print_error "配置先は絶対パスで指定してください: $2"; return 1 ;; esac
+    case "$1" in ""|.|..|-*|*/*|*\\*|*[!A-Za-z0-9._-]*) print_error "不正なリンクpackage: $1"; return 2 ;; esac
+    if [ "$3" = uninstall ] && [ ! -s "$4" ] && [ -f "$DOTFILES_DIR/.stow-work/.manifests/$1.links" ]; then
+        set -- "$1" "$2" "$3" "$DOTFILES_DIR/.stow-work/.manifests/$1.links"
+    fi
+    ensure_installer_workspace || return 1
+    set -- "$1" "$2" "$3" "$4" "$(installer_temp_file)"
+    materialize_available_specs "$@" || return $?
+    [ -s "$5" ] || return 0
+    require_link_backend || return $?
+    if [ "$3" = install ]; then
+        if prepare_link_targets "$1" "$2" "$5"; then
+            :
         else
-            _backup=$(next_backup_path "$_dest")
-            print_info "[ドライラン] バックアップ: $_dest -> $_backup"
+            case "$?" in 2) return 0 ;; *) return 1 ;; esac
+        fi
+    fi
+    run_link_backend "$1" "$2" "$3" "$5"
+}
+
+materialize_available_specs() {
+    while IFS= read -r _batch_spec; do
+        [ -n "$_batch_spec" ] || continue
+        validate_link_spec "$_batch_spec" || { print_error "不正なリンク指定: $_batch_spec"; return 2; }
+        if { [ "$3" = uninstall ] && [ -f "$DOTFILES_DIR/.stow-work/.manifests/$1.links" ]; } || [ -e "${DOTFILES_DIR}/${_batch_spec%%:*}" ] || [ -L "${DOTFILES_DIR}/${_batch_spec%%:*}" ]; then
+            printf '%s\n' "$_batch_spec" >> "$5" || return 1
+        else
+            print_skip "スキップ: ${DOTFILES_DIR}/${_batch_spec%%:*} (ファイルが存在しません)"
+            COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+        fi
+    done < "$4"
+
+}
+
+# Read-only path inspection is isolated from the caller's shell state.
+first_link_conflict() (
+    _remaining=$2
+    _relative=
+    while :; do
+        _part=${_remaining%%/*}
+        _relative=${_relative:+${_relative}/}${_part}
+        _target="$1/$_relative"
+        if [ -L "$_target" ] || { [ -e "$_target" ] && { [ "$_remaining" = "$_part" ] || [ ! -d "$_target" ]; }; }; then
+            printf '%s\n' "$_relative"
+            return 0
+        fi
+        [ -e "$_target" ] || return 0
+        _remaining=${_remaining#*/}
+    done
+)
+
+prepare_link_targets() {
+    _batch_prepare_status=0
+    while IFS= read -r _batch_prepare_spec; do
+        [ -n "$_batch_prepare_spec" ] || continue
+        if prepare_link_path "$1" "$2" "${_batch_prepare_spec#*:}"; then
+            continue
+        else
+            case "$?" in 2) _batch_prepare_status=2 ;; *) return 1 ;; esac
+        fi
+    done < "$3"
+    return "$_batch_prepare_status"
+}
+
+prepare_link_path() {
+    set -- "$1" "$2" "$(first_link_conflict "$2" "$3")"
+    [ -n "$3" ] || return 0
+    prepare_link_target "$2/$3" "$1" ".stow-work/$1/$3"
+}
+
+prepare_link_target() {
+    [ -e "$1" ] || [ -L "$1" ] || return 0
+    link_points_to_repo_entry "$1" "$3" && return 0
+    if [ "$MODE_DRY_RUN" = true ]; then
+        if [ -L "$1" ]; then
+            print_info "[ドライラン] 既存リンク削除: $1"
+        else
+            print_info "[ドライラン] バックアップ: $1 -> $(next_backup_path "$1")"
             COUNT_BACKUP=$((COUNT_BACKUP + 1))
         fi
-        print_info "[ドライラン] 設定リンク作成: $_package"
+        print_info "[ドライラン] 設定リンク作成: $2"
         COUNT_CREATED=$((COUNT_CREATED + 1))
         return 2
     fi
-
-    if [ -L "$_dest" ]; then
-        if rm "$_dest" 2>/dev/null; then
-            print_info "既存リンク削除: $_dest"
+    if [ -L "$1" ]; then
+        if rm "$1" 2>/dev/null; then
+            print_info "既存リンク削除: $1"
         else
-            print_error "既存リンク削除失敗: $_dest"
+            print_error "既存リンク削除失敗: $1"
             COUNT_ERROR=$((COUNT_ERROR + 1))
             return 1
         fi
-    elif [ -e "$_dest" ]; then
-        _backup=$(next_backup_path "$_dest")
-        print_info "バックアップ: $_dest -> $_backup"
-        if ! mv "$_dest" "$_backup" 2>/dev/null; then
-            print_error "バックアップ失敗: $_dest"
+    else
+        set -- "$1" "$2" "$3" "$(next_backup_path "$1")"
+        print_info "バックアップ: $1 -> $4"
+        if ! mv "$1" "$4" 2>/dev/null; then
+            print_error "バックアップ失敗: $1"
             COUNT_ERROR=$((COUNT_ERROR + 1))
             return 1
         fi
         COUNT_BACKUP=$((COUNT_BACKUP + 1))
     fi
-
-    return 0
 }
 
-new_stow_specs_file() {
-    _stow_specs_file=$(mktemp)
-    _TMPFILES="$_TMPFILES $_stow_specs_file"
-}
-
-stow_specs_add() {
-    _spec_file="$1"
-    _source="$2"
-    _dest="$3"
-
-    if [ ! -e "${DOTFILES_DIR}/${_source}" ] && [ ! -L "${DOTFILES_DIR}/${_source}" ]; then
-        print_skip "スキップ: ${DOTFILES_DIR}/${_source} (ファイルが存在しません)"
-        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
-        return 0
-    fi
-
-    printf '%s:%s\n' "$_source" "$_dest" >> "$_spec_file"
-}
-
-prepare_stow_target_path() {
-    _pst_package="$1"
-    _pst_remaining="$2"
-    _pst_relative=""
-
-    # Never prepare a leaf through an ancestor symlink: that would modify
-    # the linked source tree, while leaving the actual stow conflict intact.
-    while :; do
-        _pst_part=${_pst_remaining%%/*}
-        _pst_relative=${_pst_relative:+${_pst_relative}/}${_pst_part}
-        _pst_target="${STOW_TARGET_DIR}/${_pst_relative}"
-        _pst_entry=".stow-work/${_pst_package}/${_pst_relative}"
-
-        if [ -L "$_pst_target" ]; then
-            # Stow owns folded directory links and handles unfolding itself.
-            # Stop here even for owned links; do not touch package contents.
-            prepare_stow_target "$_pst_target" "$_pst_package" "$_pst_entry"
-            return $?
-        fi
-        [ -e "$_pst_target" ] || return 0
-        if [ "$_pst_remaining" = "$_pst_part" ] || [ ! -d "$_pst_target" ]; then
-            prepare_stow_target "$_pst_target" "$_pst_package" "$_pst_entry"
-            return $?
-        fi
-        _pst_remaining=${_pst_remaining#*/}
-    done
-}
-
-prepare_stow_targets_from_file() {
-    _package="$1"
-    _spec_file="$2"
-    _prepare_status=0
-
-    while IFS= read -r _spec; do
-        [ -z "$_spec" ] && continue
-        _dest="${_spec#*:}"
-        if prepare_stow_target_path "$_package" "$_dest"; then
-            continue
-        else
-            _status=$?
-        fi
-
-        if [ "$_status" -eq 2 ]; then
-            _prepare_status=2
-            continue
-        fi
-        return "$_status"
-    done < "$_spec_file"
-
-    return "$_prepare_status"
-}
-
-run_stow_link_specs_file() {
-    _package="$1"
-    _mode="$2"
-    _spec_file="$3"
-    _script="${DOTFILES_DIR}/scripts/stow-install.sh"
-
-    [ -s "$_spec_file" ] || return 0
-
-    case "$_mode" in
-        install|uninstall) ;;
-        *)
-            print_error "不明なリンク操作: $_mode"
-            COUNT_ERROR=$((COUNT_ERROR + 1))
-            return 1
-            ;;
+link_preview_source() (
+    _asset_relative=${AI_ASSET_ROOT#"$DOTFILES_DIR"/}
+    case "$1" in
+        "$_asset_relative"/*) printf '%s/%s\n' "$AI_ASSET_ROOT_REL" "${1#"$_asset_relative"/}" ;;
+        *) printf '%s\n' "$1" ;;
     esac
+)
 
-    if [ ! -x "$_script" ]; then
-        print_error "リンク配置scriptが見つからないか実行できません: $_script"
+require_link_backend() {
+    [ -x "$DOTFILES_DIR/scripts/stow-install.sh" ] || {
+        print_error "リンク配置scriptが見つからないか実行できません: $DOTFILES_DIR/scripts/stow-install.sh"
         COUNT_ERROR=$((COUNT_ERROR + 1))
         return 1
-    fi
+    }
+}
 
-    set -- --repo "$DOTFILES_DIR" --target "$STOW_TARGET_DIR" --package "$_package"
-    while IFS= read -r _spec; do
-        [ -z "$_spec" ] && continue
-        if [ "$MODE_DRY_RUN" = "true" ]; then
-            _source="${_spec%%:*}"
-            _dest="${_spec#*:}"
-            _preview_source="$_source"
-            _ai_asset_root_relative=${AI_ASSET_ROOT#"$DOTFILES_DIR"/}
-            case "$_source" in
-                "$_ai_asset_root_relative"/*)
-                    _preview_source="${AI_ASSET_ROOT_REL}/${_source#"$_ai_asset_root_relative"/}"
-                    ;;
-            esac
-            print_info "[ドライラン] 設定リンク: ${STOW_TARGET_DIR}/${_dest} <- ${DOTFILES_DIR}/${_preview_source}"
-        fi
-        set -- "$@" --link "$_spec"
-    done < "$_spec_file"
-    [ "$MODE_DRY_RUN" = "true" ] && set -- "$@" --dry-run
-    [ "$_mode" = "uninstall" ] && set -- "$@" --uninstall
-
-    if [ "$MODE_DRY_RUN" = true ] && [ ! -d "$STOW_TARGET_DIR" ]; then
-        print_info "[ドライラン] 配置先の作成後にリンク: $STOW_TARGET_DIR"
-        COUNT_CREATED=$((COUNT_CREATED + 1))
-        return 0
-    fi
-
-    if "$_script" "$@"; then
-        if [ "$_mode" = "uninstall" ]; then
-            if [ "$MODE_DRY_RUN" = "true" ]; then
-                print_info "[ドライラン] 設定リンク削除: $_package"
-            else
-                print_success "設定リンク削除: $_package"
-                COUNT_REMOVED=$((COUNT_REMOVED + 1))
-            fi
-        else
-            if [ "$MODE_DRY_RUN" = "true" ]; then
-                print_info "[ドライラン] 設定リンク作成: $_package"
-            else
-                print_success "設定リンク作成: $_package"
-            fi
+run_link_backend() {
+    if [ "$MODE_DRY_RUN" = true ]; then
+        while IFS= read -r _batch_preview; do
+            print_info "[ドライラン] 設定リンク: $2/${_batch_preview#*:} <- $DOTFILES_DIR/$(link_preview_source "${_batch_preview%%:*}")"
+        done < "$4"
+        if [ ! -d "$2" ]; then
+            print_info "[ドライラン] 配置先の作成後にリンク: $2"
             COUNT_CREATED=$((COUNT_CREATED + 1))
+            return 0
+        fi
+    fi
+    if execute_link_backend "$@"; then
+        record_link_package "$1" "$3"
+    else
+        _batch_exit=$?
+        print_error "設定リンク処理失敗: $1"
+        COUNT_ERROR=$((COUNT_ERROR + 1))
+        return "$_batch_exit"
+    fi
+}
+
+execute_link_backend() (
+    exec 3< "$4"
+    case "$3" in
+        uninstall) set -- --repo "$DOTFILES_DIR" --target "$2" --package "$1" --uninstall ;;
+        install) set -- --repo "$DOTFILES_DIR" --target "$2" --package "$1" ;;
+    esac
+    while IFS= read -r _spec <&3; do
+        [ -n "$_spec" ] && set -- "$@" --link "$_spec"
+    done
+    [ "$MODE_DRY_RUN" = true ] && set -- "$@" --dry-run
+    "$DOTFILES_DIR/scripts/stow-install.sh" "$@"
+)
+
+record_link_package() {
+    if [ "$2" = uninstall ]; then
+        if [ "$MODE_DRY_RUN" = true ]; then
+            print_info "[ドライラン] 設定リンク削除: $1"
+        else
+            print_success "設定リンク削除: $1"
+            COUNT_REMOVED=$((COUNT_REMOVED + 1))
         fi
     else
-        _status=$?
-        print_error "設定リンク処理失敗: $_package"
-        COUNT_ERROR=$((COUNT_ERROR + 1))
-        return "$_status"
+        if [ "$MODE_DRY_RUN" = true ]; then print_info "[ドライラン] 設定リンク作成: $1"
+        else print_success "設定リンク作成: $1"; fi
+        COUNT_CREATED=$((COUNT_CREATED + 1))
     fi
-}
-
-install_stow_specs_file() {
-    _package="$1"
-    _spec_file="$2"
-
-    [ -s "$_spec_file" ] || return 0
-
-    if prepare_stow_targets_from_file "$_package" "$_spec_file"; then
-        run_stow_link_specs_file "$_package" install "$_spec_file"
-    else
-        _status=$?
-        [ "$_status" -eq 2 ] && return 0
-        return "$_status"
-    fi
-}
-
-uninstall_stow_specs_file() {
-    _package="$1"
-    _spec_file="$2"
-
-    [ -s "$_spec_file" ] || return 0
-    run_stow_link_specs_file "$_package" uninstall "$_spec_file"
-}
-
-run_stow_link() {
-    _package="$1"
-    _source="$2"
-    _dest="$3"
-    _mode="${4:-install}"
-
-    new_stow_specs_file
-    _spec_file="$_stow_specs_file"
-    stow_specs_add "$_spec_file" "$_source" "$_dest"
-    run_stow_link_specs_file "$_package" "$_mode" "$_spec_file"
 }
