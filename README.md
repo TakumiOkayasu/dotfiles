@@ -72,6 +72,29 @@ PATH上にある `mise`, `oh-my-posh`, `zoxide` はこの順に自動初期化�
 | `common/` | install時にClaude/Codex形式へ変換 | command/rule/skillの共有正本 |
 | `bin/` | `~/.local/bin/` | CLIツール (後述) |
 
+### インストーラーの構造
+
+`install.sh` が初期化と起動を行い、`main.sh` が選択された処理の実行順と成否を扱う。
+カテゴリ側は配置対象や生成内容を宣言し、検証・退避・適用・解除は共通の操作へ委ねる。
+
+| 操作 | 所有する責務 |
+| --- | --- |
+| `apply_link_package(package, target, operation, producer, ...)` | 配置仕様の一時ファイル、全specとbackendの検証、target準備、適用と集計 |
+| `deploy_runtime_assets(runtime, root, operation)` | default/alternate root、runtime/shared分離、既存manifest名との互換性 |
+| `install_generated_file` / `remove_generated_file` | 生成内容の準備、所有判定、dry-run、backup・復元、変更済みファイルの保持 |
+| `remove_owned_link` / `install_optional_link` | 相対リンクも含む所有判定、外部リンクの保持、変更の実行方針 |
+| `ensure_installer_workspace` / `installer_temp_file` | run専用の一時領域とcleanup。パスを空白区切りのregistryへ格納しない |
+
+各カテゴリのlink producerはstdoutへ配置仕様を出力する。呼び出し側は内部の一時ファイル名や
+manifestの組み立て方を扱わず、targetをグローバル変数で切り替えない。
+readonlyの所有・パス照会はsubshellへ閉じ、作業変数を呼び出し元へ漏らさない。
+Gitconfigとignoreは生成内容の定義を持ち、同じ安全な生成ファイル操作を利用する。
+
+モジュールは `scripts/install/library.sh` で明示的に読み込む。定義の読み込みだけでは実行せず、
+CLI引数・選択設定と結果の集計はrunのcontextが保持する。
+既存の `scripts/stow-install.sh` は独立したbackendプロセスとして呼び出す。
+ShellCheckは `shellcheck -ax install.sh` で読み込み先も含めて検査する。
+
 ### CLIツール (bin/)
 
 | コマンド | 説明 |

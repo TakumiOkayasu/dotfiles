@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.install_helpers import run_installer_functions
+from tests.install_helpers import copy_installer, run_installer_functions
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -40,11 +40,10 @@ def test_all_shell_preview_excludes_fish(tmp_path, mode):
 
 def test_full_install_only_requests_shipped_shell_sources(tmp_path):
     result = run_installer_functions(tmp_path, '''
-        stow_specs_add() { printf '%s\\n' "$2"; }
-        add_shell_full_stow_specs unused all
+        shell_link_specs all
     ''')
     assert result.returncode == 0, result.stderr
-    sources = result.stdout.splitlines()
+    sources = [spec.split(":", 1)[0] for spec in result.stdout.splitlines()]
     assert sources
     assert all((ROOT / source).is_file() for source in sources)
     assert not any("fish" in source for source in sources)
@@ -58,7 +57,7 @@ def test_append_all_preserves_fish_config(tmp_path):
     for shell in ("bash", "zsh"):
         (home / f".{shell}rc").write_text("# user config\n")
     result = run_installer_functions(tmp_path, '''
-        install_stow_specs_file() { :; }
+        apply_link_package() { :; }
         SHELL_TYPE=all
         install_shell_append
     ''')
@@ -123,7 +122,7 @@ def test_interactive_append_continues_to_git_and_cli_install(tmp_path: Path) -> 
     home = tmp_path / "home"
     home.mkdir()
     (repo / "scripts").mkdir(parents=True)
-    shutil.copy2(ROOT / "install.sh", repo / "install.sh")
+    copy_installer(repo)
     shutil.copy2(ROOT / "scripts/stow-install.sh", repo / "scripts/stow-install.sh")
     shutil.copytree(ROOT / "config", repo / "config")
     (repo / "bin").mkdir()
@@ -161,7 +160,7 @@ def test_uninstall_still_cleans_legacy_fish_config(tmp_path, legacy):
     else:
         fish.write_text('# user config\n# === dotfile-work: BEGIN ===\nbass source "$HOME/.shell_common"\n# === dotfile-work: END ===\n')
     result = run_installer_functions(tmp_path, '''
-        uninstall_stow_specs_file() { :; }
+        apply_link_package() { :; }
         uninstall_shell_config
     ''')
     assert result.returncode == 0, result.stderr
