@@ -20,11 +20,19 @@ echo "== shellcheck (sh/bash) =="
 sh_files=$(find config claude codex common scripts -type f \
     \( -name '*.sh' -o -name '*.bash' \) \
     ! -path 'config/shell/zsh/*' \
+    ! -path 'scripts/install/*' \
     ! -name '.git-completion.bash' \
     ! -name '.git-prompt.sh')
 # 拡張子を持たない bash 設定ファイルを明示的に追加する
 sh_files="$sh_files config/shell/bash/bashrc config/shell/bash/bash_profile"
-sh_files="$sh_files install.sh"
+
+# Installer modules share shell state and are checked together through their
+# explicit source declarations, rather than as independent programs.
+if shellcheck -x install.sh; then
+    echo "OK: install.sh (including scripts/install/)"
+else
+    fail=1
+fi
 
 for f in $sh_files; do
     [ -f "$f" ] || continue

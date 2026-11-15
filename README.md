@@ -72,6 +72,23 @@ PATH上にある `mise`, `oh-my-posh`, `zoxide` はこの順に自動初期化�
 | `common/` | install時にClaude/Codex形式へ変換 | command/rule/skillの共有正本 |
 | `bin/` | `~/.local/bin/` | CLIツール (後述) |
 
+### インストーラーの構造
+
+`install.sh` はルートの解決、定義の読み込み、初期化、起動を行う。
+`scripts/install/library.sh` は読み込むモジュールを明示し、読み込みだけでは設定変更を行わない。
+
+| 対象 | 責務 |
+| --- | --- |
+| `context.sh` / `main.sh` | 状態・trapの初期化、実行順と終了判定 |
+| `files.sh` / `links.sh` | 所有リンク・backup・staleの判定、配置仕様の実行 |
+| `assets.sh` | AI資産の生成とruntime別配置 |
+| `git.sh` / `shell.sh` / `static.sh` / `claude.sh` / `codex.sh` | 各設定の配置・削除方針 |
+| `ui.sh` | 選択、プレビュー、確認、結果表示 |
+
+上記は `scripts/install/` 内の定義専用モジュール。同じshellの状態を共有し、
+既存の `scripts/stow-install.sh` は独立したプロセスとして呼び出す。
+ShellCheckは `shellcheck -x install.sh` で読み込み先も含めて検査する。
+
 ### CLIツール (bin/)
 
 | コマンド | 説明 |

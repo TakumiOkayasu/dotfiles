@@ -18,7 +18,7 @@ from typing import ClassVar
 
 import pytest
 
-from tests.install_helpers import run_installer_functions
+from tests.install_helpers import copy_installer, run_installer_functions
 
 INSTALL_SH = Path(__file__).resolve().parent.parent / "install.sh"
 BASHRC = INSTALL_SH.parent / "config" / "shell" / "bash" / "bashrc"
@@ -607,8 +607,15 @@ class TestScopedConfiguration:
         assert result.stdout.splitlines() == ["vendor", "local", "local"]
         assert MACOS_ZPROFILE.is_file()
         assert ".orbstack" not in ZPROFILE.read_text(encoding="utf-8")
-        assert "config/shell/zsh/macos.zprofile" in INSTALL_SH.read_text(
-            encoding="utf-8"
+        specs = run_installer_functions(tmp_path, '''
+            new_stow_specs_file
+            add_shell_full_stow_specs "$_stow_specs_file" zsh
+            cat "$_stow_specs_file"
+        ''')
+        assert specs.returncode == 0, specs.stdout + specs.stderr
+        assert (
+            "config/shell/zsh/macos.zprofile:.zsh/macos.zprofile"
+            in specs.stdout.splitlines()
         )
 
     def test_linux_login_does_not_source_orbstack(self, tmp_path: Path) -> None:
@@ -1720,12 +1727,17 @@ class TestStowAncestorMigration:
         home = tmp_path / "home"
         home.mkdir()
         (repo / "scripts").mkdir(parents=True)
+        copy_installer(repo)
         shutil.copy2(STOW_INSTALL_SH, repo / "scripts" / "stow-install.sh")
         # Exercise the real installation boundary without unrelated categories.
-        library = INSTALL_SH.read_text(encoding="utf-8").rsplit('\nmain "$@"', 1)[0]
-        runner = repo / "install.sh"
+        runner = repo / "run-install-boundary.sh"
         runner.write_text(
-            library + "\nMODE_DRY_RUN=${TEST_DRY_RUN:-false}\n"
+            'set -eu\n'
+            'INSTALLER_LIB_DIR="$1/scripts/install"\n'
+            '. "$INSTALLER_LIB_DIR/library.sh"\n'
+            'initialize_installer "$1"\n'
+            'shift\n'
+            'MODE_DRY_RUN=${TEST_DRY_RUN:-false}\n'
             'install_stow_specs_file "$TEST_PACKAGE" "$TEST_SPECS"\n',
             encoding="utf-8",
         )
@@ -1739,7 +1751,7 @@ class TestStowAncestorMigration:
         specs = repo / "specs"
         specs.write_text(f"assets/entry.md:{parent}/entry.md\n", encoding="utf-8")
         return subprocess.run(
-            ["sh", str(runner)],
+            ["sh", str(runner), str(repo)],
             check=False,
             env={
                 **os.environ,
@@ -2522,7 +2534,7 @@ class TestIntegrationInstallUninstall:
             text=True,
             timeout=30,
         )
-        shutil.copy2(INSTALL_SH, repo / "install.sh")
+        copy_installer(repo)
         _write_executable(repo / "scripts" / "stow-install.sh", "#!/bin/sh\nexit 0\n")
 
         sentinel = tmp_path / "dotfiles"
@@ -3251,9 +3263,9 @@ def _setup_dotfiles_repo(tmp_path: Path) -> Path:
     # install.sh をコピー (DOTFILES_DIR がここを指すように)
     import shutil
 
-    shutil.copy2(INSTALL_SH, dotfiles / "install.sh")
+    copy_installer(dotfiles)
     scripts_dir = dotfiles / "scripts"
-    scripts_dir.mkdir()
+    scripts_dir.mkdir(exist_ok=True)
     shutil.copy2(STOW_INSTALL_SH, scripts_dir / "stow-install.sh")
 
     # git 初期化 + コミット

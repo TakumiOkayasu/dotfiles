@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.install_helpers import run_installer_functions
+from tests.install_helpers import copy_installer, run_installer_functions
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -123,7 +123,7 @@ def test_interactive_append_continues_to_git_and_cli_install(tmp_path: Path) -> 
     home = tmp_path / "home"
     home.mkdir()
     (repo / "scripts").mkdir(parents=True)
-    shutil.copy2(ROOT / "install.sh", repo / "install.sh")
+    copy_installer(repo)
     shutil.copy2(ROOT / "scripts/stow-install.sh", repo / "scripts/stow-install.sh")
     shutil.copytree(ROOT / "config", repo / "config")
     (repo / "bin").mkdir()
