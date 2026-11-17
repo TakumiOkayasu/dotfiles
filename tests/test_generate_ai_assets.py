@@ -75,6 +75,44 @@ def tree_digest(root: Path) -> str:
 
 
 class TestGenerateAiAssets(unittest.TestCase):
+    def test_should_distribute_grilling_with_provenance_as_an_explicit_extra_skill(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = copy_repository(Path(directory))
+            relative = Path("skills/grilling")
+            source = repo / "common" / relative
+            self.assertTrue((source / "SKILL.md").is_file())
+            body = (source / "SKILL.md").read_text(encoding="utf-8").split("\n---\n", 1)[1]
+            contract = body.lstrip().partition("\n")[2]
+            provenance = (source / "references/upstream.md").read_text(encoding="utf-8")
+
+            result = run_generator(repo)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            generated = repo / ".generated/ai-assets"
+            for runtime in ("claude", "codex", "plugins/dotfile-work-codex-extra"):
+                with self.subTest(runtime=runtime):
+                    skill = generated / runtime / relative
+                    self.assertTrue((skill / "SKILL.md").read_text().endswith(contract))
+                    notice = (skill / "references/upstream.md").read_text()
+                    self.assertTrue(notice.endswith(provenance.partition("\n")[2]))
+                    if runtime == "claude":
+                        self.assertIn("disable-model-invocation: true", (skill / "SKILL.md").read_text())
+                    else:
+                        self.assertIn("allow_implicit_invocation: false", (skill / "agents/openai.yaml").read_text())
+            self.assertFalse((generated / "plugins/dotfile-work-codex" / relative).exists())
+            manifest = json.loads((generated / "manifest.json").read_text())
+            for runtime, prefix in (
+                ("claude", ".claude/skills/grilling"),
+                ("codex", ".codex/plugins/dotfile-work-codex-extra/skills/grilling"),
+            ):
+                destinations = {entry["destination"] for entry in manifest["targets"][runtime]}
+                self.assertIn(f"{prefix}/SKILL.md", destinations)
+                self.assertIn(f"{prefix}/references/upstream.md", destinations)
+            self.assertNotIn(
+                ".codex/skills/grilling/SKILL.md",
+                {entry["destination"] for entry in manifest["targets"]["codex"]},
+            )
+
     def test_should_preserve_test_design_runtime_contracts_in_generated_views(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = copy_repository(Path(directory))
