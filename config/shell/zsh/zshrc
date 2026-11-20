@@ -257,3 +257,5 @@ fi
 unset _lm_studio_bin
 unset -f __zshrc_eval_output
 
+# ローカル設定で追加したコマンドも優先するため、最後に読み込む。
+source "${${(%):-%x}:A:h}/path.zsh"

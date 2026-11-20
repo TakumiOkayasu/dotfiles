@@ -67,6 +67,37 @@ def test_append_all_preserves_fish_config(tmp_path):
         assert ".shell_common" in (home / f".{shell}rc").read_text()
 
 
+@pytest.mark.parametrize("shell", ["bash", "zsh"])
+@pytest.mark.parametrize("legacy", [False, True])
+def test_append_does_not_write_through_managed_shell_links(
+    tmp_path: Path, shell: str, legacy: bool,
+) -> None:
+    checkout = tmp_path / "checkout"
+    source = checkout / "config/shell" / shell / f"{shell}rc"
+    source.parent.mkdir(parents=True)
+    source.write_text("# managed config\n")
+    home = tmp_path / "home"
+    home.mkdir()
+    rc = home / f".{shell}rc"
+    target = source
+    if legacy:
+        target = checkout / ".stow-work/shell" / rc.name
+        target.parent.mkdir(parents=True)
+        target.symlink_to(Path("../../config/shell") / shell / source.name)
+    rc.symlink_to(target)
+
+    result = run_installer_functions(tmp_path, f'''
+        DOTFILES_DIR="$HOME/../checkout"
+        apply_link_package() {{ :; }}
+        SHELL_TYPE={shell}
+        install_shell_append
+    ''')
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert rc.readlink() == target
+    assert source.read_text() == "# managed config\n"
+
+
 @pytest.mark.parametrize("interpreter", ["sh", "bash"])
 @pytest.mark.parametrize("existing", [
     "", "# user config", "# user config\n", "# user config\n\n",
@@ -79,7 +110,7 @@ def test_append_preserves_content_and_completes_with_errexit(
     rc = home / ".zshrc"
     rc.write_text(existing)
     commands = '''
-        inject_source_block "$HOME/.zshrc"
+        inject_source_block zsh
         printf 'completed\\n'
     '''
     result = run_installer_functions(tmp_path, commands, interpreter=interpreter)

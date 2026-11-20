@@ -90,8 +90,16 @@ _ensure_trailing_newline() {
 }
 
 inject_source_block() {
+    _rc_file="$HOME/.${1}rc"
+    # Managed rc files already load common.sh, including through old Stow links.
+    if link_targets_source "$_rc_file" "$DOTFILES_DIR/config/shell/$1/${1}rc"; then
+        print_skip "スキップ: $_rc_file (管理済みのrcファイル)"
+        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+        return 0
+    fi
+
     # shellcheck disable=SC2016 # write the literal source command into the rc file
-    _inject_source_with_line "$1" '[ -f "$HOME/.shell_common" ] && . "$HOME/.shell_common"'
+    _inject_source_with_line "$_rc_file" '[ -f "$HOME/.shell_common" ] && . "$HOME/.shell_common"'
 }
 
 remove_source_block() {
@@ -124,11 +132,11 @@ install_shell_append() {
     apply_link_package shell-common "$HOME" install emit_link_spec config/shell/common.sh .shell_common || return $?
 
     case "$SHELL_TYPE" in
-        bash) inject_source_block "${HOME}/.bashrc" || return $? ;;
-        zsh)  inject_source_block "${HOME}/.zshrc" || return $? ;;
+        bash) inject_source_block bash || return $? ;;
+        zsh)  inject_source_block zsh || return $? ;;
         all)
-            inject_source_block "${HOME}/.bashrc" || return $?
-            inject_source_block "${HOME}/.zshrc" || return $?
+            inject_source_block bash || return $?
+            inject_source_block zsh || return $?
             ;;
     esac
 
