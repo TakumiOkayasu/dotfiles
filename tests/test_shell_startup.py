@@ -9,6 +9,71 @@ from tests.shell_helpers import SHELL_CONFIG, run_shell, write_command
 
 
 class TestShellStartup:
+    def test_zsh_loads_shell_common_once(self, tmp_path: Path) -> None:
+        result = run_shell(
+            tmp_path,
+            "zsh",
+            'printf "%s\\n" "$common_loads"',
+            before="printf '%s\\n' '(( ++common_loads ))' > \"$HOME/.shell_common\"",
+        )
+        assert result.stdout == "1\n"
+
+    @pytest.mark.parametrize("startup", ["zprofile", "zshrc"])
+    @pytest.mark.parametrize("kiri_entry", ["missing", "directory", "executable"])
+    def test_zsh_adds_kiri_as_a_fallback_when_installed(
+        self, tmp_path: Path, startup: str, kiri_entry: str,
+    ) -> None:
+        home = tmp_path / "home"
+        kiri_bin = home / ".kiri/bin"
+        kiri_bin.mkdir(parents=True)
+        if kiri_entry == "directory":
+            (kiri_bin / "kiri").mkdir()
+        elif kiri_entry == "executable":
+            write_command(tmp_path, "kiri-stub", "exit 0")
+            (kiri_bin / "kiri").symlink_to(tmp_path / "bin/kiri-stub")
+
+        write_command(tmp_path, "docker", "exit 0")
+        rc = home / f".{startup}"
+        rc.symlink_to(SHELL_CONFIG / "zsh" / startup)
+        result = run_shell(
+            tmp_path,
+            "zsh",
+            'command -v docker; printf "%s\\n" "${path[@]}"',
+            interactive=startup == "zshrc",
+            source=rc,
+            source_count=2,
+        )
+        expected = [tmp_path / "bin/docker", tmp_path / "bin", tmp_path / "system-bin"]
+        if kiri_entry == "executable":
+            expected.append(kiri_bin)
+        assert result.stdout.splitlines() == [str(path) for path in expected]
+
+    def test_zsh_login_preserves_docker_added_by_interactive_local_config(
+        self, tmp_path: Path,
+    ) -> None:
+        home = tmp_path / "home"
+        kiri_bin = home / ".kiri/bin"
+        kiri_bin.mkdir(parents=True)
+        write_command(tmp_path, "kiri-stub", "exit 0")
+        stub = tmp_path / "bin/kiri-stub"
+        (kiri_bin / "kiri").symlink_to(stub)
+        (kiri_bin / "docker").symlink_to(stub)
+        local_bin = tmp_path / "local-bin"
+        local_bin.mkdir()
+        local_docker = local_bin / "docker"
+        local_docker.symlink_to(stub)
+        (home / ".zprofile").symlink_to(SHELL_CONFIG / "zsh/zprofile")
+        (home / ".zshrc.local").write_text('export PATH="$PATH:$LOCAL_BIN"\n')
+
+        result = run_shell(
+            tmp_path,
+            "zsh",
+            'command -v docker; printf "%s\\n" "${path[-1]}"',
+            before='source "$HOME/.zprofile" || exit $?',
+            environment={"LOCAL_BIN": str(local_bin)},
+        )
+        assert result.stdout.splitlines() == [str(local_docker), str(kiri_bin)]
+
     @pytest.mark.parametrize("shell", ["bash", "zsh"])
     def test_noninteractive_source_skips_interactive_setup(
         self,

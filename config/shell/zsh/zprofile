@@ -34,3 +34,8 @@ unset _zprofile_macos
 if [[ -f "$HOME/.zprofile.local" ]]; then
     source "$HOME/.zprofile.local"
 fi
+
+# 対話シェルでは zshrc がローカル設定の後に PATH を仕上げる。
+if [[ ! -o interactive ]]; then
+    source "${${(%):-%x}:A:h}/path.zsh"
+fi
