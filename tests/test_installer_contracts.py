@@ -133,20 +133,26 @@ def test_uninstall_manifest_uses_the_same_preflight_as_declarations(tmp_path: Pa
 
 
 @pytest.mark.parametrize("interpreter", ["sh", "bash"])
-def test_append_failure_propagates_through_a_checked_category(tmp_path: Path, interpreter: str) -> None:
+@pytest.mark.parametrize("shell_type", ["bash", "all"])
+def test_append_failure_propagates_through_a_checked_category(
+    tmp_path: Path, interpreter: str, shell_type: str,
+) -> None:
     home = tmp_path / "home"
     home.mkdir()
     rc = home / ".bashrc"
     rc.write_text("# unterminated")
-    result = run_installer_functions(tmp_path, '''
-        apply_link_package() { :; }
-        printf() { return 43; }
-        SHELL_TYPE=bash
+    other_rc = home / ".zshrc"
+    other_rc.write_text("# untouched\n")
+    result = run_installer_functions(tmp_path, f'''
+        apply_link_package() {{ :; }}
+        printf() {{ return 43; }}
+        SHELL_TYPE={shell_type}
         if install_shell_append; then exit 99
         else [ "$?" -eq 43 ]; fi
     ''', interpreter=interpreter)
     assert result.returncode == 0, result.stdout + result.stderr
     assert rc.read_text() == "# unterminated"
+    assert other_rc.read_text() == "# untouched\n"
 
 
 @pytest.mark.parametrize("runtime", ["claude", "codex"])

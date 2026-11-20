@@ -110,7 +110,7 @@ def test_append_preserves_content_and_completes_with_errexit(
     rc = home / ".zshrc"
     rc.write_text(existing)
     commands = '''
-        inject_source_block zsh
+        append_shell_common_to_rc zsh
         printf 'completed\\n'
     '''
     result = run_installer_functions(tmp_path, commands, interpreter=interpreter)
