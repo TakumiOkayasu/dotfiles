@@ -38,6 +38,18 @@ GNU Stowは不要。フルセット (`./install.sh -f`、または対話モー�
 Kiri の実行ファイルがある場合は `~/.kiri/bin` を PATH の末尾に一度だけ追加し、既存の `docker` を優先する。
 管理済みの rc を使う端末で `kiri setup` が `~/.zprofile` と `~/.zshrc` に追記した場合は、`git diff` で確認し、重複する Kiri の追記を取り除く。
 
+既存の起動ファイルから PATH の静的な代入を移すには、`scripts/migrate-shell-path.py` を使う。
+次の例は、`~/.bashrc` の12行目から14行目を `~/.config/shell/path/bashrc.sh` に移し、同じ位置でそのファイルを読み込むパッチを表示する。
+
+```sh
+python3 scripts/migrate-shell-path.py .bashrc 12:14
+```
+
+対象は HOME 直下にある通常の Bash/Zsh 起動ファイルと、連続した `export PATH="$HOME/bin:$PATH"` や `PATH="$PATH:/opt/tool/bin"` 形式の行。
+条件式やコマンド置換を含む設定、シンボリックリンクで配置した設定は、その設定の原本で管理する。
+パッチは選択した行だけを含み、起動ファイルの内容を実行せずに構文を確認する。
+適用する場合は、保存したパッチを `git -C "$HOME" apply --unidiff-zero --check <パッチファイル>` で検証し、同じコマンドから `--check` を外して実行する。
+
 旧Stowのリンクは再インストールで直接リンクへ移行する。`.stow-work` は
 旧配置との互換性と削除対象の識別用に保持するが、Stowの実行は行わない。
 旧配置内のリンクが通常ファイルに置き換わっていた場合は、内容を消さずに停止する。

@@ -1,11 +1,103 @@
 """Shell startup stays quiet, composable, and safe to source again."""
 
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 from tests.shell_helpers import SHELL_CONFIG, run_shell, write_command
+
+
+class TestShellPathMigration:
+    @pytest.mark.parametrize("startup, shell", [
+        (".bashrc", "bash"), (".profile", "bash"), (".zshrc", "zsh"),
+    ])
+    def test_patch_keeps_path_order_and_omits_unrelated_lines(
+        self, tmp_path: Path, startup: str, shell: str,
+    ) -> None:
+        rc = tmp_path / startup
+        snippet = tmp_path / ".config/shell/path" / f"{startup[1:]}.sh"
+        assignments = 'export PATH="$HOME/bin:$PATH"\nPATH="${PATH}:$HOME/Tool bin"\n'
+        show_path = 'printf "%s\\n" "$PATH"\n'
+        original = show_path + assignments + "# private-neighbor\n" + show_path
+        rc.write_text(original)
+        executable = shutil.which(shell)
+        if executable is None:
+            pytest.skip(f"{shell} is not installed")
+        environment = {"HOME": str(tmp_path), "PATH": "/usr/bin:/bin"}
+        before = subprocess.check_output([executable, str(rc)], env=environment,
+                                         text=True, timeout=10)
+
+        preview = self._preview(tmp_path, startup, "2:3")
+
+        assert preview.returncode == 0, preview.stderr
+        assert "private-neighbor" not in preview.stdout
+        assert rc.read_text() == original
+        assert not snippet.exists()
+        subprocess.run(["git", "apply", "--unidiff-zero"], cwd=tmp_path,
+                       input=preview.stdout, text=True, check=True, timeout=10)
+        assert snippet.read_text() == assignments
+        after = subprocess.check_output([executable, str(rc)], env=environment,
+                                        text=True, timeout=10)
+        assert after == before
+
+    @pytest.mark.parametrize("prefix, assignment", [
+        ("", 'export PATH="$(printf /bin):$PATH"'),
+        ("if true; then\n", 'export PATH="$HOME/bin:$PATH"\nfi'),
+        ("cat <<'END'\n", 'export PATH="$HOME/bin:$PATH"\nEND'),
+    ])
+    def test_patch_rejects_dynamic_or_nested_assignments(
+        self, tmp_path: Path, prefix: str, assignment: str,
+    ) -> None:
+        (tmp_path / ".bashrc").write_text(prefix + assignment + "\n")
+
+        preview = self._preview(tmp_path, ".bashrc", "2" if prefix else "1")
+
+        assert preview.returncode != 0
+        assert preview.stdout == ""
+
+    def test_preview_does_not_run_the_startup_file(self, tmp_path: Path) -> None:
+        (tmp_path / ".zshrc").write_text(
+            'touch "$HOME/executed"\nexport PATH="$HOME/bin:$PATH"\n',
+        )
+
+        preview = self._preview(tmp_path, ".zshrc", "2")
+
+        assert preview.returncode == 0, preview.stderr
+        assert not (tmp_path / "executed").exists()
+
+    @pytest.mark.parametrize("existing", ["linked-startup", "existing-destination", "linked-parent"])
+    def test_patch_refuses_to_replace_links_or_existing_destination(
+        self, tmp_path: Path, existing: str,
+    ) -> None:
+        rc = tmp_path / ".zshrc"
+        if existing == "linked-startup":
+            original = tmp_path / "managed-zshrc"
+            original.write_text('export PATH="$HOME/bin:$PATH"\n')
+            rc.symlink_to(original)
+        elif existing == "existing-destination":
+            rc.write_text('export PATH="$HOME/bin:$PATH"\n')
+            target = tmp_path / ".config/shell/path/zshrc.sh"
+            target.parent.mkdir(parents=True)
+            target.write_text("# existing\n")
+        else:
+            rc.write_text('export PATH="$HOME/bin:$PATH"\n')
+            (tmp_path / ".config").symlink_to(tmp_path)
+
+        preview = self._preview(tmp_path, ".zshrc", "1")
+
+        assert preview.returncode != 0
+        assert preview.stdout == ""
+
+    def _preview(self, home: Path, startup: str, lines: str) -> subprocess.CompletedProcess[str]:
+        script = SHELL_CONFIG.parents[1] / "scripts/migrate-shell-path.py"
+        return subprocess.run(
+            [sys.executable, str(script), startup, lines],
+            env={"HOME": str(home), "PATH": "/usr/bin:/bin"},
+            capture_output=True, text=True, check=False, timeout=10,
+        )
 
 
 class TestShellStartup:
