@@ -48,10 +48,14 @@ shell_link_specs() {
     return 0
 }
 
-# 追記モード共通実装。シェル固有の source 行構文だけ引数で受ける
-_inject_source_with_line() {
-    _target_rc="$1"
-    _source_line="$2"
+append_shell_common_to_rc() {
+    _target_rc="$HOME/.${1}rc"
+    # 旧 Stow を含む管理済みリンクは、原本がすでに共通設定を読み込む。
+    if link_targets_source "$_target_rc" "$DOTFILES_DIR/config/shell/$1/${1}rc"; then
+        print_skip "スキップ: $_target_rc (管理済みのrcファイル)"
+        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+        return 0
+    fi
 
     [ -f "$_target_rc" ] || { print_skip "スキップ: $_target_rc (ファイルが存在しません)"; return 0; }
 
@@ -72,7 +76,7 @@ _inject_source_with_line() {
     cat >> "$_target_rc" << EOF || return $?
 
 $DOTWORK_MARKER_BEGIN
-$_source_line
+[ -f "\$HOME/.shell_common" ] && . "\$HOME/.shell_common"
 $DOTWORK_MARKER_END
 EOF
 
@@ -87,19 +91,6 @@ _ensure_trailing_newline() {
     if [ "$_tail" -eq 0 ]; then
         printf '\n' >> "$_file"
     fi
-}
-
-inject_source_block() {
-    _rc_file="$HOME/.${1}rc"
-    # Managed rc files already load common.sh, including through old Stow links.
-    if link_targets_source "$_rc_file" "$DOTFILES_DIR/config/shell/$1/${1}rc"; then
-        print_skip "スキップ: $_rc_file (管理済みのrcファイル)"
-        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
-        return 0
-    fi
-
-    # shellcheck disable=SC2016 # write the literal source command into the rc file
-    _inject_source_with_line "$_rc_file" '[ -f "$HOME/.shell_common" ] && . "$HOME/.shell_common"'
 }
 
 remove_source_block() {
@@ -131,14 +122,11 @@ remove_source_block() {
 install_shell_append() {
     apply_link_package shell-common "$HOME" install emit_link_spec config/shell/common.sh .shell_common || return $?
 
-    case "$SHELL_TYPE" in
-        bash) inject_source_block bash || return $? ;;
-        zsh)  inject_source_block zsh || return $? ;;
-        all)
-            inject_source_block bash || return $?
-            inject_source_block zsh || return $?
-            ;;
-    esac
+    for _append_shell in bash zsh; do
+        case "$SHELL_TYPE" in
+            all|"$_append_shell") append_shell_common_to_rc "$_append_shell" || return $? ;;
+        esac
+    done
 
     print_info "追記モードのrcファイルはGit管理外です。共通設定の追記先: ${DOTFILES_DIR}/config/shell/common.sh"
 }
