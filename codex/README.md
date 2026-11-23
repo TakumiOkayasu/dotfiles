@@ -50,7 +50,7 @@ Codex固有設定の正本を管理するディレクトリ。共有command/rule
 
 ### モデルprofile
 
-モデルIDの正本は [config.toml.template](config.toml.template)、用途別の `*.config.toml`、`agents/*.toml` に置く。
+モデルIDの正本は [config.toml.template](config.toml.template)、用途別の `*.config.toml`、`agents/*.toml`、[QCDルーティング設定](../common/qcd/routes.json) に置く。
 基準設定の推論強度は `xhigh` とし、用途別profileでモデルと推論強度を上書きする。
 
 | profile | 設定ファイル | reasoning | 用途 |

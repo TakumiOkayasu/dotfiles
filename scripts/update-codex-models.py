@@ -117,6 +117,36 @@ def replace_assignment(text: str, setting: tuple[str, ...], current: str, target
     raise ValueError(f"Cannot locate the TOML assignment: {'.'.join(setting)}")
 
 
+
+def plan_qcd_update(path: Path, models: list[dict], plan: str, cli_version: str) -> str:
+    if path.is_symlink():
+        raise ValueError(f"Expected a canonical regular source file: {path}")
+    original = path.read_text(encoding="utf-8")
+    config = json.loads(original)
+    routes = config["runtimes"]["codex"]
+    replacements = {}
+    for task_routes in routes.values():
+        for route in task_routes:
+            current = route["model"]
+            target = replacement(current, route["effort"], models, plan, cli_version)
+            if current != target:
+                replacements[current] = target
+                route["model"] = target
+    if not replacements:
+        return original
+    match = re.search(r'"codex"\s*:\s*', original)
+    if match is None:
+        raise ValueError("Cannot locate Codex QCD routes")
+    _, end = json.JSONDecoder().raw_decode(original, match.end())
+    block = original[match.end():end]
+    for current, target in replacements.items():
+        block = block.replace(json.dumps(current), json.dumps(target))
+    updated = original[:match.end()] + block + original[end:]
+    if json.loads(updated) != config:
+        raise ValueError("QCD update would change content outside Codex model assignments")
+    return updated
+
+
 def plan_updates(repo: Path, catalog: dict, plan: str, cli_version: str) -> dict[Path, str]:
     """Validate every source first and return proposed contents without writing files."""
     models = catalog_models(catalog)
@@ -144,7 +174,22 @@ def plan_updates(repo: Path, catalog: dict, plan: str, cli_version: str) -> dict
         if updated != original:
             tomllib.loads(updated)
             updates[path] = updated
+    routes_path = repo / "common" / "qcd" / "routes.json"
+    routes = plan_qcd_update(routes_path, models, plan, cli_version)
+    if routes != routes_path.read_text(encoding="utf-8"):
+        updates[routes_path] = routes
     return updates
+
+
+def configured_models(path: Path, text: str) -> list[str]:
+    if path.suffix == ".json":
+        routes = json.loads(text)["runtimes"]["codex"]
+        return [route["model"] for task_routes in routes.values() for route in task_routes]
+    config = tomllib.loads(text)
+    result = [config["model"]]
+    if "default_subagent_model" in config.get("agents", {}):
+        result.append(config["agents"]["default_subagent_model"])
+    return result
 
 
 def render_report(repo: Path, updates: dict[Path, str], catalog: dict,
@@ -156,13 +201,9 @@ def render_report(repo: Path, updates: dict[Path, str], catalog: dict,
     ]
     selected = set()
     for path, updated in updates.items():
-        before = tomllib.loads(path.read_text(encoding="utf-8"))
-        after = tomllib.loads(updated)
-        pairs = [(before["model"], after["model"])]
-        if "default_subagent_model" in after.get("agents", {}):
-            pairs.append((before["agents"]["default_subagent_model"],
-                          after["agents"]["default_subagent_model"]))
-        for current, target in pairs:
+        before = configured_models(path, path.read_text(encoding="utf-8"))
+        after = configured_models(path, updated)
+        for current, target in dict.fromkeys(zip(before, after)):
             if current != target:
                 selected.add(target)
                 lines.append(f"- {path.relative_to(repo)}: `{current}` -> `{target}`")
