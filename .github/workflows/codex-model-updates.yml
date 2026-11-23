@@ -1,0 +1,77 @@
+name: Codex model updates
+
+on:
+  schedule:
+    - cron: "23 2 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/update-codex-models.py"
+      - "tests/test_update_codex_models.py"
+      - ".github/workflows/codex-model-updates.yml"
+      - "codex/**/*.toml"
+      - "codex/config.toml.template"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-model-updates-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Test catalog selection and configuration updates
+        run: python3 tests/test_update_codex_models.py
+
+  propose:
+    if: github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      CODEX_CHATGPT_PLAN: ${{ vars.CODEX_CHATGPT_PLAN || 'prolite' }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Skip while an update PR is open
+        id: pending
+        run: |
+          count=$(gh pr list --state open --limit 100 --json headRefName --jq '[.[] | select(.headRefName | startswith("chore/codex-models-"))] | length')
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+      - name: Prepare and verify model updates
+        if: steps.pending.outputs.count == '0'
+        id: update
+        run: |
+          python3 scripts/update-codex-models.py --plan "$CODEX_CHATGPT_PLAN" --write > "$RUNNER_TEMP/codex-model-update.md"
+          if git diff --quiet -- codex; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 scripts/generate-ai-assets.py --repo .
+          docker compose -f tests/compose.yml run --build --rm install-test
+          git diff --check
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+      - name: Open a draft update PR
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          branch="chore/codex-models-$GITHUB_RUN_ID"
+          git switch -c "$branch"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/config.toml.template codex/*.config.toml codex/agents/*.toml
+          git commit -m "chore(codex): update model settings"
+          gh auth setup-git
+          git push origin "$branch"
+          gh pr create --base "${{ github.event.repository.default_branch }}" --head "$branch" --draft --title "chore(codex): update model settings" --body-file "$RUNNER_TEMP/codex-model-update.md"
