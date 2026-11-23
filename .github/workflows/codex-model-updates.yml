@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: codex-model-updates-${{ github.event_name }}-${{ github.ref }}
+  group: codex-model-updates-${{ github.event_name == 'pull_request' && github.ref || 'propose' }}
   cancel-in-progress: false
 
 jobs:
@@ -35,7 +35,7 @@ jobs:
         run: python3 scripts/update-codex-models.py --plan "$CODEX_CHATGPT_PLAN"
 
   propose:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -72,7 +72,7 @@ jobs:
       - name: Open a draft update PR
         if: steps.update.outputs.changed == 'true'
         run: |
-          branch="chore/codex-models-$GITHUB_RUN_ID"
+          branch="chore/codex-models-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           git switch -c "$branch"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

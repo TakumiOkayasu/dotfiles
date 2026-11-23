@@ -91,7 +91,7 @@ class TestCodexModelUpdates(unittest.TestCase):
     def test_rejects_an_existing_model_that_requires_a_newer_cli(self) -> None:
         """Expected: an incompatible existing pin fails rather than remaining silently."""
         self.catalog["models"] = [
-            model("gpt-1-sol", minimum="0.201.0"),
+            model("gpt-0-sol"), model("gpt-1-sol", minimum="0.201.0"),
             model("gpt-1-luna"),
         ]
         with self.assertRaisesRegex(ValueError, "requires Codex CLI"):
