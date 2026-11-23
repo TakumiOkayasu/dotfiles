@@ -7,9 +7,11 @@
 # Changes: fixed usage slots, warning markers, input validation, and error handling.
 # See statusline-provider.LICENSE.
 
+from dataclasses import dataclass
 import json
 import math
 import sys
+from typing import Literal
 
 
 WARNING_PERCENT = 80
@@ -36,32 +38,19 @@ class MethodNotFoundError(LookupError):
     pass
 
 
-class UsageLine:
-    def __init__(
-        self,
-        context: int | float | None,
-        five_hour: int | float | None,
-        weekly: int | float | None,
-    ) -> None:
-        self._slots = (("ctx", context), ("5h", five_hour), ("週", weekly))
+@dataclass(frozen=True)
+class UsageDisplay:
+    """Renderer input: display text and severity, independent of MCP node types."""
 
-    def render(self) -> dict:
-        children = []
-        for label, value in self._slots:
-            if children:
-                children.append("|")
-            percentage = "–" if value is None else f"{int(value)}%"
-            color, marker = "status-metadata", ""
-            if value is not None and value >= DANGER_PERCENT:
-                color, marker = "red", " !!"
-            elif value is not None and value >= WARNING_PERCENT:
-                color, marker = "yellow", " !"
-            children.append({
-                "type": "text",
-                "props": {"color": color},
-                "children": [f"{label} {percentage}{marker}"],
-            })
-        return {"type": "row", "props": {"gap": 1, "wrap": "wrap"}, "children": children}
+    text: str
+    severity: Literal["normal", "warning", "danger"]
+
+
+@dataclass(frozen=True)
+class StatuslineDisplay:
+    context: UsageDisplay
+    five_hour: UsageDisplay
+    week: UsageDisplay
 
 
 def read_object(value: object) -> dict:
@@ -78,10 +67,14 @@ def read_percentage(value: object) -> int | float | None:
     raise InvalidParametersError("Expected a finite numeric percentage")
 
 
-def read_usage(state: dict) -> UsageLine:
+def read_context_percentage(state: dict) -> int | float | None:
     thread = read_object(state.get("thread", {}))
     usage = read_object(thread.get("usage", {}))
     context = read_object(usage.get("context", {}))
+    return read_percentage(context.get("used_percentage"))
+
+
+def read_rate_percentages(state: dict) -> dict[int, int | float | None]:
     account = read_object(state.get("account", {}))
     limits = account.get("rate_limits", [])
     if not isinstance(limits, list):
@@ -98,16 +91,52 @@ def read_usage(state: dict) -> UsageLine:
                 duration = window.get("window_minutes")
                 if duration in (FIVE_HOUR_MINUTES, WEEK_MINUTES):
                     windows[duration] = read_percentage(window.get("used_percent"))
-    return UsageLine(
-        read_percentage(context.get("used_percentage")),
-        windows.get(FIVE_HOUR_MINUTES),
-        windows.get(WEEK_MINUTES),
+    return windows
+
+
+def to_usage_display(value: int | float | None) -> UsageDisplay:
+    """Convert a validated percentage into display text and warning severity."""
+    if value is None:
+        return UsageDisplay("–", "normal")
+    severity: Literal["normal", "warning", "danger"]
+    if value >= DANGER_PERCENT:
+        severity = "danger"
+    elif value >= WARNING_PERCENT:
+        severity = "warning"
+    else:
+        severity = "normal"
+    return UsageDisplay(f"{int(value)}%", severity)
+
+
+def build_statusline(state: dict) -> StatuslineDisplay:
+    windows = read_rate_percentages(state)
+    return StatuslineDisplay(
+        context=to_usage_display(read_context_percentage(state)),
+        five_hour=to_usage_display(windows.get(FIVE_HOUR_MINUTES)),
+        week=to_usage_display(windows.get(WEEK_MINUTES)),
     )
 
 
-def render(state: dict) -> dict:
-    """Return the UI tree for this resource read's thread."""
-    return read_usage(state).render()
+def render(display: StatuslineDisplay) -> dict:
+    """Translate our display contract into the MCP UI tree."""
+    styles = {
+        "normal": ("status-metadata", ""),
+        "warning": ("yellow", " !"),
+        "danger": ("red", " !!"),
+    }
+    children = []
+    for label, usage in (
+        ("ctx", display.context), ("5h", display.five_hour), ("week", display.week)
+    ):
+        if children:
+            children.append("|")
+        color, marker = styles[usage.severity]
+        children.append({
+            "type": "text",
+            "props": {"color": color},
+            "children": [f"{label} {usage.text}{marker}"],
+        })
+    return {"type": "row", "props": {"gap": 1, "wrap": "wrap"}, "children": children}
 
 
 def respond(method: str, params: dict) -> dict:
@@ -146,7 +175,7 @@ def respond(method: str, params: dict) -> dict:
                 {
                     "uri": URI,
                     "mimeType": "application/json",
-                    "text": json.dumps(render(state), ensure_ascii=False),
+                    "text": json.dumps(render(build_statusline(state)), ensure_ascii=False),
                 }
             ]
         }

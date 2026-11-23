@@ -147,13 +147,15 @@ codex debug prompt-input ping
 
 `bin/statusline-provider.py` は [Codex CLI 0.171.0 の公式サンプル](https://github.com/openai/codex/blob/ccf9be8cc458bd6b8336fe84d68d8893f2691a5e/codex-rs/skills/src/assets/samples/create-statusline/assets/statusline.py)を基にした MCP provider。Python 3.10 以上が必要で、標準ライブラリだけを使う。
 
-`ctx 42% | 5h 18% | 週 27%` の順で使用率を表示し、欠損は `–`、0は `0%` とする。80%以上は黄と `!`、95%以上は赤と `!!`。この閾値は本 provider の表示方針。
+`ctx 42% | 5h 18% | week 27%` の順で使用率を表示し、欠損は `–`、0は `0%` とする。80%以上は黄と `!`、95%以上は赤と `!!`。この閾値は本 provider の表示方針。
 
-ctx は受信した使用率を使う。5h と週は `codex` の使用枠から `window_minutes` が300と10080の枠を選ぶ。表示時は小数部分を切り捨て、100%を超える値もそのまま表示する。
+ctx は受信した使用率を使う。5h と week は `codex` の使用枠から `window_minutes` が300と10080の枠を選ぶ。表示時は小数部分を切り捨て、100%を超える値もそのまま表示する。
+
+ctx と使用枠を別々に取得し、表示文字列と警告段階を3枠分持つ `StatuslineDisplay` に変換する。描画関数はこの契約を受け取り、MCP の UI tree を組み立てる。
 
 読み取る使用率とオブジェクトの型が不正なら、MCP の入力エラーを返す。描画中に想定外の例外が発生した場合は伝播させ、入力エラーへ変換しない。
 
-契約テストはリポジトリのルートから実行する。fake は同じプロセスへ逐次要求し、stdin を開いたまま応答を確認する。各ケースの目的・期待結果・観測する応答はテストのコメントを参照。
+テストはリポジトリのルートから実行する。取得・変換・描画を個別に確認し、MCP の契約テストでは fake が同じプロセスへ逐次要求して stdin を開いたまま応答を確認する。各ケースの目的・期待結果・観測対象はテストのコメントを参照。
 
 ```sh
 python3 -m unittest discover -s tests -p test_codex_statusline_provider.py -v
