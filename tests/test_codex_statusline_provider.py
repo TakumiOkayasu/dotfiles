@@ -404,16 +404,23 @@ class TestCodexStatuslineProvider(unittest.TestCase):
 
         希望する結果: -32602 を返し、同じセッションの次の正常な read に応答する。
         実際の結果: 不正入力への error.code と、続く read の3枠を比較する。
-        条件: 公式 snapshot の数値フィールドへ文字列を入れる。
+        条件: ctx・5h・週の使用率へ文字列と bool を入れる。bool を0%・1%として受理しない。
         """
-        state = snapshot()
-        state["thread"]["usage"]["context"]["used_percentage"] = "42"
-        actual = self.host.request("resources/read", params={
-            "uri": self.host.uri, "_meta": {STATE_META: state},
-        })
-        self.assertNotIn("result", actual)
-        self.assertEqual(actual["error"]["code"], -32602)
-        self.assert_slots(self.host.read(snapshot()), ("ctx 42%", "5h 18%", "週 27%"))
+        for value in ("42", False, True):
+            context = snapshot()
+            five_hour = snapshot()
+            weekly = snapshot()
+            context["thread"]["usage"]["context"]["used_percentage"] = value
+            five_hour["account"]["rate_limits"][0]["primary_limit"]["used_percent"] = value
+            weekly["account"]["rate_limits"][0]["secondary_limit"]["used_percent"] = value
+            for slot, state in (("ctx", context), ("5h", five_hour), ("週", weekly)):
+                with self.subTest(slot=slot, value=value):
+                    actual = self.host.request("resources/read", params={
+                        "uri": self.host.uri, "_meta": {STATE_META: state},
+                    })
+                    self.assertNotIn("result", actual)
+                    self.assertEqual(actual["error"]["code"], -32602)
+                    self.assert_slots(self.host.read(snapshot()), ("ctx 42%", "5h 18%", "週 27%"))
 
 
 class TestCodexStatuslineFailures(unittest.TestCase):
@@ -432,7 +439,13 @@ class TestCodexStatuslineFailures(unittest.TestCase):
             "jsonrpc": "2.0", "id": 1, "method": "resources/read",
             "params": {"uri": provider.URI, "_meta": {STATE_META: snapshot()}},
         }).encode() + b"\n"
-        for failure in (KeyError("renderer defect"), TypeError("renderer defect")):
+        for failure in (
+            KeyError("renderer defect"),
+            TypeError("renderer defect"),
+            ValueError("renderer defect"),
+            AttributeError("renderer defect"),
+            json.JSONDecodeError("renderer defect", "", 0),
+        ):
             with self.subTest(exception=type(failure).__name__):
                 def broken_render(state: dict) -> dict:
                     raise failure
