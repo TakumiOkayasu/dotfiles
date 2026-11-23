@@ -37,6 +37,9 @@ class TestCodexModelUpdates(unittest.TestCase):
             'default_subagent_reasoning_effort = "medium"\n'
         )
         self.template.write_text(self.original, encoding="utf-8")
+        self.routes = self.repo / "common" / "qcd" / "routes.json"
+        self.routes.parent.mkdir(parents=True)
+        self.routes.write_text('{"schema_version": 1, "runtimes": {"codex": {}, "claude": {}}}\n')
         self.catalog = {"models": [
             model("gpt-1-sol"), model("gpt-2.9-sol"), model("gpt-2.10-sol"),
             model("gpt-1-luna"), model("gpt-2-luna"), model("gpt-99-astra"),
@@ -76,6 +79,35 @@ class TestCodexModelUpdates(unittest.TestCase):
         changes = self.plan()
         self.assertEqual(changes[agent], content.replace("model = 'gpt-1-sol'", "model = 'gpt-2.10-sol'"))
         self.assertEqual(changes[profile], 'model = "gpt-2.10-sol"\nmodel_reasoning_effort = "high"\n')
+
+    def test_updates_qcd_codex_routes_while_preserving_other_runtimes(self) -> None:
+        """Expected: route order/effort and another runtime's identical ID stay intact."""
+        original = (
+            '{"schema_version": 1, "runtimes": {\n'
+            '  "codex": {"lookup": [{"model": "gpt-1-sol", "effort": "high"}]},\n'
+            '  "claude": {"lookup": [{"model": "gpt-1-sol", "effort": "high"}]}\n'
+            '}}\n'
+        )
+        self.routes.write_text(original, encoding="utf-8")
+        expected = original.replace('"codex": {"lookup": [{"model": "gpt-1-sol"',
+                                    '"codex": {"lookup": [{"model": "gpt-2.10-sol"')
+        changes = self.plan()
+        self.assertEqual(changes[self.routes], expected)
+        for path, content in changes.items():
+            path.write_text(content, encoding="utf-8")
+        self.assertEqual(self.plan(), {})
+
+    def test_invalid_qcd_effort_prevents_all_source_writes(self) -> None:
+        """Expected: a late QCD validation failure leaves the earlier TOML plan unapplied."""
+        original = '{"runtimes": {"codex": {"lookup": [{"model": "gpt-1-sol", "effort": "max"}]}}}'
+        self.routes.write_text(original, encoding="utf-8")
+        catalog = self.repo / "catalog.json"
+        catalog.write_text(json.dumps(self.catalog), encoding="utf-8")
+        with self.assertRaises(ValueError):
+            MODULE["main"](["--repo", str(self.repo), "--catalog", str(catalog),
+                            "--cli-version", "0.200.0", "--plan", "test", "--write"])
+        self.assertEqual(self.template.read_text(encoding="utf-8"), self.original)
+        self.assertEqual(self.routes.read_text(encoding="utf-8"), original)
 
     def test_is_idempotent_after_applying_the_plan(self) -> None:
         """Expected: another run creates no changes or repeated update PR."""
