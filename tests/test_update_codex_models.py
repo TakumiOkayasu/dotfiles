@@ -88,6 +88,15 @@ class TestCodexModelUpdates(unittest.TestCase):
         self.template.write_text(self.original.replace("gpt-1-sol", "gpt-3-sol"))
         self.assertIn('model = "gpt-3-sol"', self.plan()[self.template])
 
+    def test_rejects_an_existing_model_that_requires_a_newer_cli(self) -> None:
+        """Expected: an incompatible existing pin fails rather than remaining silently."""
+        self.catalog["models"] = [
+            model("gpt-1-sol", minimum="0.201.0"),
+            model("gpt-1-luna"),
+        ]
+        with self.assertRaisesRegex(ValueError, "requires Codex CLI"):
+            self.plan()
+
     def test_rejects_unknown_family_without_guessing_a_model_id(self) -> None:
         """Expected: an incomplete ID fails explicitly instead of guessing Sol/Astra."""
         self.template.write_text(self.original.replace("gpt-1-sol", "gpt-2"))
