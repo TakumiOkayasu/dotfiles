@@ -143,6 +143,32 @@ codex debug prompt-input ping
 - `codex/config.toml.template` ではなく `~/.codex/config.toml` が Codex の実行時設定であること
 - skill は plugin から利用可能で、`install.sh` が `~/.agents/skills/` に重複配置しないこと
 
+### 使用量ステータスライン
+
+`bin/statusline-provider.py` は [Codex CLI 0.171.0 の公式サンプル](https://github.com/openai/codex/blob/ccf9be8cc458bd6b8336fe84d68d8893f2691a5e/codex-rs/skills/src/assets/samples/create-statusline/assets/statusline.py)を基にした MCP provider。Python 3.10 以上が必要で、標準ライブラリだけを使う。
+
+`ctx 42% | 5h 18% | week 27%` の順で使用率を表示し、欠損は `–`、0は `0%` とする。80%以上は黄と `!`、95%以上は赤と `!!`。この閾値は本 provider の表示方針。
+
+ctx は受信した使用率を使う。5h と week は `codex` の使用枠から `window_minutes` が300と10080の枠を選ぶ。表示時は小数部分を切り捨て、100%を超える値もそのまま表示する。
+
+ctx と使用枠を別々に取得し、表示文字列と警告段階を3枠分持つ `StatuslineDisplay` に変換する。描画関数はこの契約を受け取り、MCP の UI tree を組み立てる。
+
+読み取る使用率とオブジェクトの型が不正なら、MCP の入力エラーを返す。描画中に想定外の例外が発生した場合は伝播させ、入力エラーへ変換しない。
+
+テストはリポジトリのルートから実行する。取得・変換・描画を個別に確認し、MCP の契約テストでは fake が同じプロセスへ逐次要求して stdin を開いたまま応答を確認する。各ケースの目的・期待結果・観測対象はテストのコメントを参照。
+
+```sh
+python3 -m unittest discover -s tests -p test_codex_statusline_provider.py -v
+```
+
+登録する場合は app-server の動くホストで次を実行し、`/experimental` の `Custom status line` を有効にして TUI を再起動する。新しい会話の `/statusline` で `Dotfiles usage statusline` を選ぶ。
+
+```sh
+codex mcp add dotfiles-statusline -- python3 -u /absolute/path/to/dotfiles/codex/bin/statusline-provider.py
+```
+
+実 Codex CLI、macOS、WSL、ネイティブ Windows では未検証。TUI の1秒の読み取り期限、狭い端末の表示、エラーからの復帰は fake の検証範囲に含まない。
+
 ### プロジェクトローカルで使う場合
 
 Install済みなら`codex/global_AGENTS.md`はglobal defaultとして自動的に適用されるため,projectへcopyしない.
