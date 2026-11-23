@@ -1,6 +1,6 @@
 name = "test_analyst"
 description = "独立したテスト設計と候補審査を行う。read-only だけでは入力隔離を保証しない。"
-model = "gpt-5.6-terra"
+model = "gpt-6.1-terra"
 model_reasoning_effort = "high"
 developer_instructions = """
 テスト設計だけを扱う分析役。
