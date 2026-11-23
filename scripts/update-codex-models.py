@@ -73,6 +73,13 @@ def replacement(current: str, effort: str, models: list[dict],
     match = MODEL_ID.fullmatch(current)
     if match is None:
         raise ValueError(f"Unsupported model ID {current!r}; select an exact Codex model ID")
+    current_entry = next((model for model in models if model["slug"] == current), None)
+    if (current_entry is not None
+            and version(current_entry["minimal_client_version"]) > version(cli_version)):
+        raise ValueError(
+            f"{current} requires Codex CLI >= {current_entry['minimal_client_version']} "
+            f"(selected {cli_version})"
+        )
     candidates = []
     for model in models:
         candidate = MODEL_ID.fullmatch(model["slug"])
@@ -168,7 +175,7 @@ def render_report(repo: Path, updates: dict[Path, str], catalog: dict,
         "Existing ~/.codex/config.toml is generated only once and must be updated separately.",
         "No inference request is made. Model access on the target account is unverified.",
         "The workflow validates generated assets and installer regressions before opening a PR.",
-        "GITHUB_TOKEN-created PRs do not start regular PR CI; close/reopen the PR manually to run it.",
+        "GITHUB_TOKEN-created PRs require approval to run PR CI; select Approve workflows to run.",
     ]
     return "\n".join(lines) + "\n"
 

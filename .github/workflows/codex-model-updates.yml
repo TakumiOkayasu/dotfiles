@@ -22,17 +22,23 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CODEX_CHATGPT_PLAN: ${{ vars.CODEX_CHATGPT_PLAN || 'prolite' }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
       - name: Test catalog selection and configuration updates
         run: python3 tests/test_update_codex_models.py
+      - name: Preview against the official stable catalog
+        run: python3 scripts/update-codex-models.py --plan "$CODEX_CHATGPT_PLAN"
 
   propose:
     if: github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
       pull-requests: write

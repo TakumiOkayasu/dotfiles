@@ -105,7 +105,7 @@ python3 scripts/update-codex-models.py --plan prolite --write
 自動マージは行わない。
 GitHubのSettings > Actions > GeneralでworkflowによるPR作成を許可しておく必要がある。
 
-`GITHUB_TOKEN` で作成したPRでは通常のPR用CIが自動実行されないため、確認時はPRを手動で閉じて開き直す。
+`GITHUB_TOKEN` で作成したPRのCIは承認待ちになるため、PR画面で `Approve workflows to run` を選択する。
 公開カタログはrelease時点の情報であり、契約アカウントやworkspaceでの利用可否は `/model` でも確認する。
 更新処理は推論APIを呼ばず、ChatGPTの認証情報も使用しない。
 既存の `~/.codex/config.toml` は初回生成後に上書きされないため、変更したモデルIDは別途反映する。
