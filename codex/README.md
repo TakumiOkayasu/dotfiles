@@ -50,17 +50,14 @@ Codex固有設定の正本を管理するディレクトリ。共有command/rule
 
 ### モデルprofile
 
-基準設定は `gpt-5.6-sol` と `xhigh` を使う。
+モデルIDの正本は [config.toml.template](config.toml.template)、用途別の `*.config.toml`、`agents/*.toml` に置く。
+基準設定の推論強度は `xhigh` とし、用途別profileでモデルと推論強度を上書きする。
 
-用途に応じて次のprofileを選択できる。
-
-| profile | model | reasoning | 用途 |
+| profile | 設定ファイル | reasoning | 用途 |
 | --- | --- | --- | --- |
-| `balanced` | `gpt-5.6-terra` | `high` | 品質と応答時間の均衡を取る通常作業 |
-| `fast` | `gpt-5.6-luna` | `medium` | 軽量で応答時間を優先する作業 |
-| `deep-review` | `gpt-5.6-sol` | `max` | 難しいレビューや品質優先の調査 |
-
-profileは基準設定へモデルと推論強度だけを上書きする。
+| `balanced` | [balanced.config.toml](balanced.config.toml) | `high` | 品質と応答時間の均衡を取る通常作業 |
+| `fast` | [fast.config.toml](fast.config.toml) | `medium` | 軽量で応答時間を優先する作業 |
+| `deep-review` | [deep-review.config.toml](deep-review.config.toml) | `max` | 難しいレビューや品質優先の調査 |
 
 ```bash
 codex --profile balanced
@@ -70,18 +67,57 @@ codex --profile deep-review
 
 ### Subagentのmodel/effort
 
-全subagentの既定値は `gpt-5.6-luna` / `medium` とし、role定義で必要な分だけ上書きする。
+全subagentの既定値は `config.toml.template` の `agents` tableで管理し、role定義で上書きする。
 
-| role | model | effort | 理由 |
+| role | モデル系列 | effort | 理由 |
 | --- | --- | --- | --- |
-| `code_reviewer` | `gpt-5.6-terra` | `high` | 大量の読取とedge case検査を両立 |
-| `debugger` | `gpt-5.6-sol` | `high` | 仮説生成と根本原因追跡を優先 |
-| `design_consultant` | `gpt-5.6-terra` | `high` | 複数案の比較と反証を優先 |
-| `impl_planner` | `gpt-5.6-terra` | `medium` | 読取中心の定型的な計画作成 |
-| `qa_nightmare` | `gpt-5.6-sol` | `high` | 将来有効化時の複雑な境界分析用。現状はdispatch禁止 |
-| `test_writer` | `gpt-5.6-terra` | `medium` | scope済みのテスト生成を低latencyで処理 |
+| `code_reviewer` | Terra | `high` | 大量の読取とedge case検査を両立 |
+| `debugger` | Sol | `high` | 仮説生成と根本原因追跡を優先 |
+| `design_consultant` | Terra | `high` | 複数案の比較と反証を優先 |
+| `impl_planner` | Terra | `medium` | 読取中心の定型的な計画作成 |
+| `qa_nightmare` | Sol | `high` | 複雑な境界分析用。現状はdispatch禁止 |
+| `test_writer` | Terra | `medium` | scope済みのテスト生成を低latencyで処理 |
+| `test_analyst` | Terra | `high` | 独立したテスト設計と候補審査 |
 
-`max_concurrent_threads_per_session` はworker数の要求ではなく、open thread数の上限である。端末、WSL、CI、ChatGPT Workなど実行環境ごとのcapacityに追従させるため未設定とし、Codexのdefaultへ委ねる。
+`max_concurrent_threads_per_session` はworker数の要求ではなく、open thread数の上限である。
+端末、WSL、CI、ChatGPT Workなど実行環境ごとのcapacityに追従させるため未設定とし、Codexのdefaultへ委ねる。
+
+### モデル更新の定期確認
+
+[Codex model updates](../.github/workflows/codex-model-updates.yml) は毎週月曜11:23 JSTに実行し、Actions画面から手動でも起動できる。
+Dependabotの対応ecosystemにはモデルIDがないため、Python標準ライブラリとGitHub Actionsで更新を提案する。
+
+公式Codexの最新安定版releaseに含まれるカタログを読み、同じ系列で最も新しいモデルIDを選ぶ。
+表示対象、契約プラン、最低CLIバージョン、設定済みの推論強度を確認する。
+推論強度が非対応なら失敗として停止し、設定は書き換えない。
+プランの既定値は `prolite` で、repository variable `CODEX_CHATGPT_PLAN` で変更できる。
+端末が古い場合は、先にCLIを更新する必要がある。
+
+```bash
+# 差分の候補を表示する。端末のCLIバージョンで候補を絞る場合は --cli-version を指定する。
+python3 scripts/update-codex-models.py --plan prolite
+# 変更内容を確認してからリポジトリの正本へ適用する。
+python3 scripts/update-codex-models.py --plan prolite --write
+```
+
+変更があれば、資産生成とinstallerの回帰テストを通してから専用ブランチにドラフトPRを作成する。
+更新PRが開いている間は次のPRを作らず、既存PRへ追加の変更もしない。
+自動マージは行わない。
+GitHubのSettings > Actions > GeneralでworkflowによるPR作成を許可しておく必要がある。
+
+`GITHUB_TOKEN` で作成したPRでは通常のPR用CIが自動実行されないため、確認時はPRを手動で閉じて開き直す。
+公開カタログはrelease時点の情報であり、契約アカウントやworkspaceでの利用可否は `/model` でも確認する。
+更新処理は推論APIを呼ばず、ChatGPTの認証情報も使用しない。
+既存の `~/.codex/config.toml` は初回生成後に上書きされないため、変更したモデルIDは別途反映する。
+profileとagentのリンク先は、通常の `install.sh` による生成と配置で反映する。
+
+一次ソース:
+
+- [Codexのカタログ](https://github.com/openai/codex/blob/main/codex-rs/models-manager/models.json)
+- [モデルカタログの仕様](https://learn.chatgpt.com/docs/enterprise/roll-out-a-gateway)
+- [ChatGPT WorkとCodexのモデル利用条件](https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex)
+- [Dependabotの対応ecosystem](https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories)
+- [GITHUB_TOKENが作成するイベントの制限](https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow)
 
 ### 初回確認
 

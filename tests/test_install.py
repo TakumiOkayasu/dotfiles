@@ -1048,13 +1048,13 @@ class TestCodexAgentDefinitions:
 
     REQUIRED_KEYS = ("name", "description", "developer_instructions")
     CODEX_PROFILES: ClassVar[dict[str, tuple[str, str]]] = {
-        "code_reviewer": ("gpt-5.6-terra", "high"),
-        "debugger": ("gpt-5.6-sol", "high"),
-        "design_consultant": ("gpt-5.6-terra", "high"),
-        "impl_planner": ("gpt-5.6-terra", "medium"),
-        "qa_nightmare": ("gpt-5.6-sol", "high"),
-        "test_writer": ("gpt-5.6-terra", "medium"),
-        "test_analyst": ("gpt-5.6-terra", "high"),
+        "code_reviewer": ("terra", "high"),
+        "debugger": ("sol", "high"),
+        "design_consultant": ("terra", "high"),
+        "impl_planner": ("terra", "medium"),
+        "qa_nightmare": ("sol", "high"),
+        "test_writer": ("terra", "medium"),
+        "test_analyst": ("terra", "high"),
     }
     CLAUDE_PROFILES: ClassVar[dict[str, tuple[str, str]]] = {
         "code-reviewer": ("sonnet", "high"),
@@ -1104,7 +1104,9 @@ class TestCodexAgentDefinitions:
         actual = {}
         for agent_file in sorted((REPO_ROOT / "codex" / "agents").glob("*.toml")):
             data = tomllib.loads(agent_file.read_text(encoding="utf-8"))
-            actual[data["name"]] = (data["model"], data["model_reasoning_effort"])
+            model = re.fullmatch(r"gpt-\d+(?:\.\d+)*-(sol|terra|luna)", data["model"])
+            assert model is not None, f"{agent_file}: expected an exact Codex model ID"
+            actual[data["name"]] = (model.group(1), data["model_reasoning_effort"])
 
         assert actual == self.CODEX_PROFILES
 
@@ -1223,7 +1225,7 @@ class TestCodexConfigTemplate:
 
         assert "max_concurrent_threads_per_session" not in data["agents"]
         assert "max_threads" not in data["agents"]
-        assert data["agents"]["default_subagent_model"] == "gpt-5.6-luna"
+        assert re.fullmatch(r"gpt-\d+(?:\.\d+)*-luna", data["agents"]["default_subagent_model"])
         assert data["agents"]["default_subagent_reasoning_effort"] == "medium"
 
     def test_config_template_excludes_removed_feature_flags(self) -> None:
@@ -1244,7 +1246,7 @@ class TestCodexConfigTemplate:
         content = self.TEMPLATE.read_text(encoding="utf-8")
         data = tomllib.loads(content)
 
-        assert data["model"] == "gpt-5.6-sol"
+        assert re.fullmatch(r"gpt-\d+(?:\.\d+)*-sol", data["model"])
         assert data["model_reasoning_effort"] == "xhigh"
         assert "hooks = true" in content
         assert data["features"]["memories"] is True
@@ -1257,23 +1259,17 @@ class TestCodexConfigTemplate:
     def test_model_profiles_override_only_model_and_effort(self) -> None:
         """用途別profileはモデルと推論強度だけを上書きする"""
         expected_profiles = {
-            "balanced.config.toml": {
-                "model": "gpt-5.6-terra",
-                "model_reasoning_effort": "high",
-            },
-            "fast.config.toml": {
-                "model": "gpt-5.6-luna",
-                "model_reasoning_effort": "medium",
-            },
-            "deep-review.config.toml": {
-                "model": "gpt-5.6-sol",
-                "model_reasoning_effort": "max",
-            },
+            "balanced.config.toml": ("terra", "high"),
+            "fast.config.toml": ("luna", "medium"),
+            "deep-review.config.toml": ("sol", "max"),
         }
 
-        for filename, expected in expected_profiles.items():
+        for filename, (family, effort) in expected_profiles.items():
             profile = REPO_ROOT / "codex" / filename
-            assert tomllib.loads(profile.read_text(encoding="utf-8")) == expected
+            actual = tomllib.loads(profile.read_text(encoding="utf-8"))
+            assert set(actual) == {"model", "model_reasoning_effort"}
+            assert re.fullmatch(rf"gpt-\d+(?:\.\d+)*-{family}", actual["model"])
+            assert actual["model_reasoning_effort"] == effort
 
     def test_plugin_rule_hooks_defer_to_inline_dispatcher(self) -> None:
         """inline fallbackがある場合にplugin rule hookを重複実行しない"""
