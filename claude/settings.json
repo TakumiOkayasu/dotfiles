@@ -8,7 +8,13 @@
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": ["Bash", "Read", "WebFetch", "Write"],
-    "deny": ["Read(**/*.env)", "Read(**/*.pem)", "Read(**/*.key)"],
+    "deny": [
+      "Read(**/*.env)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
+    ],
     "defaultMode": "auto"
   },
   "hooks": {

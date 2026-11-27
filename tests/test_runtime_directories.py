@@ -133,7 +133,8 @@ def test_installer_round_trip_keeps_runtime_overrides_outside_home(tmp_path: Pat
         assert (claude / "rules/coding-conventions.md").is_file()
         assert (claude / "hooks/destructive-command-block.sh").is_file()
         settings = json.loads((claude / "settings.json").read_text())
-        assert settings["sandbox"]["filesystem"]["allowWrite"] == [str(claude / "plugins/data"), str(codex)]
+        # Claude plugin data follows CLAUDE_CONFIG_DIR; CODEX_HOME isn't writable by Claude.
+        assert settings["sandbox"]["filesystem"]["allowWrite"] == [str(claude / "plugins/data")]
         expected_import = "@" + str(codex / "AGENTS.md").replace(" ", "\\ ")
         assert expected_import in (claude / "CLAUDE.md").read_text()
         assert (codex / "agents/code_reviewer.toml").is_file()
