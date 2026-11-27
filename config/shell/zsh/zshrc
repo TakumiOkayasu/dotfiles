@@ -156,31 +156,22 @@ fi
 
 # oh-my-posh (インストールされていれば使用)
 _setup_oh_my_posh() {
-    if ! command -v oh-my-posh &>/dev/null; then
-        return 1
-    fi
+    command -v oh-my-posh >/dev/null 2>&1 || return 1
 
-    local theme="${OH_MY_POSH_THEME:-sim-web.omp.json}"
-    local config=""
-    local dir
-
-    # テーマファイルの検索
-    for dir in "$HOME/.poshthemes" "$DOTFILES_DIR/poshthemes" "/usr/share/oh-my-posh/themes"; do
-        if [[ -f "$dir/$theme" ]]; then
-            config="$dir/$theme"
+    local prompt_config="${OH_MY_POSH_CONFIG:-}"
+    if [[ -z "$prompt_config" ]]; then
+        local theme="${OH_MY_POSH_THEME:-sim-web.omp.json}"
+        local theme_dir
+        for theme_dir in "$HOME/.poshthemes" "$DOTFILES_DIR/poshthemes" "/usr/share/oh-my-posh/themes"; do
+            [[ -f "$theme_dir/$theme" ]] || continue
+            prompt_config="$theme_dir/$theme"
             break
-        fi
-    done
-
-    if [[ -z "$config" ]]; then
-        return 1
+        done
     fi
+    [[ -n "$prompt_config" ]] || return 1
 
-    # キャッシュディレクトリ
-    local cache_dir="$HOME/.cache/oh-my-posh"
-    mkdir -p -- "$cache_dir" || return 1
-
-    __zshrc_eval_output oh-my-posh init zsh --config "$config"
+    mkdir -p -- "$HOME/.cache/oh-my-posh" || return 1
+    __zshrc_eval_output oh-my-posh init zsh --config "$prompt_config"
 }
 
 # preztoでプロンプトが設定されていなければoh-my-poshまたはフォールバック
