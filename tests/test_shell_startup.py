@@ -290,12 +290,23 @@ class TestShellStartup:
         )
         assert result.stdout == "yes existing\n"
 
-    @pytest.mark.parametrize("strict_supported", [True, False])
-    def test_bash_prompt_config_and_strict_fallback_preserve_argument_boundaries(
+    @pytest.mark.parametrize(
+        ("shell", "strict_supported"),
+        [
+            pytest.param("bash", True, id="bash-strict"),
+            pytest.param("bash", False, id="bash-retry"),
+            pytest.param("zsh", True, id="zsh"),
+        ],
+    )
+    def test_prompt_config_precedes_named_theme_and_preserves_argument_boundaries(
         self,
         tmp_path: Path,
+        shell: str,
         strict_supported: bool,
     ) -> None:
+        local_themes = tmp_path / "home/.poshthemes"
+        local_themes.mkdir(parents=True)
+        (local_themes / "local.omp.json").write_text("{}")
         log = tmp_path / "arguments"
         write_command(
             tmp_path,
@@ -308,19 +319,35 @@ class TestShellStartup:
         config = str(tmp_path / "custom theme.omp.json")
         result = run_shell(
             tmp_path,
-            "bash",
+            shell,
             'printf "%s %s\\n" "$DOTFILES_INITIALIZED" "${DOTFILES_FAILED_OUTPUT-unset}"',
             environment={
                 "OH_MY_POSH_CONFIG": config,
+                "OH_MY_POSH_THEME": "local.omp.json",
                 "TEST_ARGUMENTS": str(log),
                 "STRICT_SUPPORTED": "yes" if strict_supported else "no",
             },
         )
         assert result.stdout == "yes unset\n"
-        expected = ["init", "bash", "--strict", "--config", config]
-        if not strict_supported:
-            expected += ["init", "bash", "--config", config]
+        expected = ["init", shell, "--config", config]
+        if shell == "bash":
+            strict = ["init", shell, "--strict", "--config", config]
+            expected = strict if strict_supported else strict + expected
         assert log.read_text().splitlines() == expected
+
+    def test_zsh_keeps_the_prezto_prompt_with_an_explicit_posh_config(self, tmp_path: Path) -> None:
+        prezto = tmp_path / "home/.zprezto"
+        prezto.mkdir(parents=True)
+        (prezto / "init.zsh").write_text("PROMPT='prezto> '\n")
+        write_command(tmp_path, "oh-my-posh", "echo DOTFILES_INITIALIZED=yes")
+
+        result = run_shell(
+            tmp_path,
+            "zsh",
+            'printf "%s\\n%s\\n" "$PROMPT" "${DOTFILES_INITIALIZED-unset}"',
+            environment={"OH_MY_POSH_CONFIG": str(tmp_path / "shared theme.omp.json")},
+        )
+        assert result.stdout == "prezto> \nunset\n"
 
     def test_zsh_fallback_prompt_preserves_existing_precmd(
         self,

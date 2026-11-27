@@ -75,6 +75,11 @@ PowerShell 7でリポジトリのルートから実行する。
 
 PATH上にある `mise`, `oh-my-posh`, `zoxide` はこの順に自動初期化する。miseを有効化した後は、通常どおり各コマンドを直接呼び出せる。ツールのインストールやバージョン指定は行わず、各プロジェクトのmise設定を使用する。未導入のツールは省略し、初期化失敗は警告する。Oh My Poshは既定テーマ、または環境変数 `OH_MY_POSH_CONFIG` で指定した設定を使用する。
 
+PowerShell と WSL でテーマを共有するには、Windows のユーザー環境変数 `OH_MY_POSH_CONFIG` にテーマファイルの絶対パスを設定し、`WSLENV` のコロン区切りの一覧に `OH_MY_POSH_CONFIG/pu` を追加する。
+Windows Terminal などの起動元を開き直してから Windows 側で WSL を起動すると、パスが Linux 形式に変換される。
+Bash / Zsh が Oh My Posh を初期化するときは、`OH_MY_POSH_CONFIG` がテーマ名の指定より優先される。
+Prezto がすでに Zsh のプロンプトを設定している場合は、そのプロンプトを使う。
+
 端末固有の設定は `~/.powershell.local.ps1` に置くと最後に読み込まれる。別のファイルを使う場合は読み込み行に `-LocalProfilePath 'パス'` を指定する。実行ポリシーは変更しないため、スクリプト実行が制限された端末では組織のルールに従って署名等を設定する。解除時は追加した読み込み行だけを削除する (installerが新規作成した1行だけのファイルなら、そのファイルを削除する)。
 
 ## 構成
