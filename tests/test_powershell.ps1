@@ -4,6 +4,7 @@ $repo = Split-Path $PSScriptRoot -Parent
 $installer = Join-Path $repo 'scripts/install-powershell.ps1'
 $template = Join-Path $repo 'config/shell/powershell/profile.ps1'
 $fixture = Join-Path ([IO.Path]::GetTempPath()) "dotfiles space ' $([guid]::NewGuid())"
+$previousPoshConfig = $env:OH_MY_POSH_CONFIG
 
 function Assert-Equal($Actual, $Expected, [string] $Message) {
     if ($Actual -cne $Expected) {
@@ -55,7 +56,7 @@ try {
         $script:miseCompleter = $ScriptBlock
     }
     function oh-my-posh {
-        Assert-Equal ($args -join ' ') 'init pwsh' 'Oh My Posh initialization arguments'
+        $script:poshArguments = @($args)
         $global:LASTEXITCODE = 0
         'function Test-PoshActivation { "active" }'
     }
@@ -74,6 +75,7 @@ try {
     Assert-Equal (Test-MiseActivation) 'active' 'mise definitions must survive initialization'
     Assert-Equal (& $script:miseCompleter '' $null 5) 'mise-completion-probe' 'mise completer must be registered'
     Assert-Equal (Test-PoshActivation) 'active' 'Prompt definitions must survive initialization'
+    Assert-Equal ($script:poshArguments -join ' ') 'init pwsh' 'Oh My Posh uses its default without a theme'
     Assert-Equal (Test-ZoxideActivation) 'active' 'zoxide definitions must survive initialization'
     Assert-Equal (gs) 'local override' 'Local configuration must run last'
     Assert-Equal (gco 'branch with spaces') '["checkout","branch with spaces"]' 'Git argument boundaries'
@@ -85,8 +87,12 @@ try {
         $global:LASTEXITCODE = 1
         'throw "Failed initializer output must not execute"'
     }
+    $env:OH_MY_POSH_CONFIG = Join-Path $fixture 'shared theme.omp.json'
     . $template -LocalProfilePath $localProfile -WarningVariable activationWarnings
     Assert-Equal ($activationWarnings -match 'mise' | Measure-Object).Count 2 'Failed activation and completion must warn'
+    Assert-Equal $script:poshArguments.Count 4 'Oh My Posh theme path must be a single argument'
+    Assert-Equal ($script:poshArguments[0..2] -join ' ') 'init pwsh --config' 'Oh My Posh theme flag'
+    Assert-Equal $script:poshArguments[3] $env:OH_MY_POSH_CONFIG 'Oh My Posh receives the configured theme path'
     Assert-Equal (gs) 'local override' 'Failed activation must not stop local configuration'
 
     # Test absent tools in the same process without depending on runner installations.
@@ -99,5 +105,6 @@ try {
     Assert-Equal (gs) '["status","--short","--branch"]' 'Profile without optional tools'
     Write-Output 'PowerShell profile and installer tests passed'
 } finally {
+    $env:OH_MY_POSH_CONFIG = $previousPoshConfig
     Remove-Item -LiteralPath $fixture -Recurse -Force
 }
