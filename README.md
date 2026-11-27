@@ -299,7 +299,7 @@ export CODEX_HOME="$HOME/.config/codex-work"
 
 既存ディレクトリからの自動移動は行わない。既存の `config.toml` は従来どおり上書きせず、hook commandの変更は手動でmergeする。プロジェクト内の `.claude/`・`.codex/` と、ユーザー共有の `~/.agents/` は別の場所として維持する。
 
-環境変数を展開しないClaudeのsandbox許可パス・CLAUDE.md importと、Codex marketplaceのローカルplugin参照は、生成時に選択ディレクトリへ解決する。sandbox許可先は従来の2箇所に対応するディレクトリだけを指定する。設定場所を変えた場合は再installして生成し直す。異なる設定ディレクトリの組み合わせごとに生成物と配置packageを分離し、他のprofileの設定先を上書きしない。
+環境変数を展開しないClaudeのsandbox許可パス・CLAUDE.md importと、Codex marketplaceのローカルplugin参照は、生成時に選択ディレクトリへ解決する。Claudeのsandbox書き込み許可先に追加するのは、選択したClaude設定ディレクトリの `plugins/data` だけ。Codex設定ディレクトリは追加しない。設定場所を変えた場合は再installして生成し直す。異なる設定ディレクトリの組み合わせごとに生成物と配置packageを分離し、他のprofileの設定先を上書きしない。
 
 `CLAUDE_PROJECT_DIR` はセッション開始時のプロジェクトを指し、作業中の `cwd` と異なりうるため置換しない。ChatGPTの実行環境にCodex用変数が提供されていない場合は、同等の変数を仮定せず通常の既定値を使う。
 

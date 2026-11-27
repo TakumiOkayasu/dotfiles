@@ -3,6 +3,7 @@ model = "gpt-6.2-sol"
 model_reasoning_effort = "xhigh"
 model_context_window = 1000000
 model_auto_compact_token_limit = 900000
+suppress_unstable_features_warning = true
 
 [agents]
 enabled = true
@@ -13,15 +14,19 @@ default_subagent_reasoning_effort = "medium"
 
 [tui]
 status_line = [
-  "model-with-reasoning", # 推論機能付きのモデル名
-  "fast-mode",            # Fast modeのON/OFF状態
-  "current-dir",          # カレントディレクトリ
-  "git-branch",           # Gitのブランチ名
-  "context-remaining",    # コンテキストの残り容量（%）
-  "five-hour-limit",      # 5時間制限の残り枠（%）
-  "weekly-limit",         # 1週間制限の残り枠（%）
+    "model-with-reasoning", # 推論機能付きのモデル名
+    "fast-mode",            # Fast modeのON/OFF状態
+    "current-dir",          # カレントディレクトリ
+    "git-branch",           # Gitのブランチ名
+    "context-remaining",    # コンテキストの残り容量（%）
+    "five-hour-limit",      # 5時間制限の残り枠（%）
+    "weekly-limit",         # 1週間制限の残り枠（%）
 ]
 status_line_use_colors = true
+screen_reader_detection_done = true
+
+[tui.model_availability_nux]
+"gpt-6.2-sol" = 4
 
 [features]
 hooks = true
@@ -29,6 +34,10 @@ memories = true
 network_proxy = true
 prevent_idle_sleep = true
 default_mode_request_user_input = true
+analytics_plan_history = true
+tui_extensions_statusline = true
+login_shell_package_path = true
+respect_system_proxy = true
 
 #[mcp_servers.github]
 #bearer_token_env_var = "CODEX_GITHUB_PERSONAL_ACCESS_TOKEN"
@@ -127,3 +136,61 @@ inherit = "core"
 [shell_environment_policy.set]
 EDITOR = "zed --wait"
 VISUAL = "zed --wait"
+
+[plugins."github@openai-curated"]
+enabled = true
+
+[plugins."build-web-data-visualization@openai-curated"]
+enabled = true
+
+[plugins."actively@openai-curated"]
+enabled = true
+
+[plugins."dotfile-work-codex-extra@dotfile-work-local"]
+enabled = true
+
+[plugins."dotfile-work-codex@dotfile-work-local"]
+enabled = true
+
+[plugins."dotfile-work-codex@dotfile-work-personal"]
+enabled = true
+
+[plugins."dotfile-work-codex-extra@dotfile-work-personal"]
+enabled = true
+
+[plugins."data@dotfile-work-local"]
+enabled = true
+mcp_servers.snowflake.enabled = false
+mcp_servers.databricks.enabled = false
+mcp_servers.hex.enabled = false
+mcp_servers.amplitude.enabled = false
+mcp_servers.amplitude-eu.enabled = false
+mcp_servers.atlassian.enabled = false
+mcp_servers.definite.enabled = false
+
+[plugins."i-have-adhd@dotfile-work-local"]
+enabled = true
+
+[plugins."ponytail@dotfile-work-local"]
+enabled = true
+
+[plugins."yomiyasu@dotfile-work-local"]
+enabled = true
+
+[plugins."security-guidance@dotfile-work-local"]
+enabled = true
+
+[plugins."design@dotfile-work-local"]
+enabled = true
+mcp_servers.slack.enabled = false
+mcp_servers.figma.enabled = false
+mcp_servers.linear.enabled = false
+mcp_servers.asana.enabled = false
+mcp_servers.atlassian.enabled = false
+mcp_servers.notion.enabled = false
+mcp_servers.intercom.enabled = false
+mcp_servers."google calendar".enabled = false
+mcp_servers.gmail.enabled = false
+
+[plugins."pdf-viewer@dotfile-work-local"]
+enabled = true

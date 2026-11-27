@@ -7,19 +7,15 @@
   },
   "includeCoAuthoredBy": false,
   "permissions": {
-    "allow": ["Bash", "Read", "WebFetch"],
+    "allow": ["Bash", "Read", "WebFetch", "Write"],
     "deny": [
       "Read(**/*.env)",
       "Read(**/*.pem)",
       "Read(**/*.key)",
-      "Edit(**/*.env)",
       "Bash(git commit *)",
-      "Bash(git push *)",
-      "Bash(rm -rf *)",
-      "Bash(rm -f *)",
-      "Bash(rm *)",
-      "Bash(**/*.env*)"
-    ]
+      "Bash(git push *)"
+    ],
+    "defaultMode": "auto"
   },
   "hooks": {
     "PreToolUse": [
@@ -173,8 +169,15 @@
   "sandbox": {
     "enabled": true,
     "allowUnsandboxedCommands": false,
+    "credentials": {
+      "files": [
+        { "path": "~/.ssh", "mode": "deny" },
+        { "path": "~/.aws", "mode": "deny" },
+        { "path": "~/.azure", "mode": "deny" }
+      ]
+    },
     "filesystem": {
-      "allowWrite": ["~/.claude/plugins/data", "~/.codex"]
+      "allowWrite": ["~/.claude/plugins/data"]
     }
   },
   "defaultMode": "auto",
